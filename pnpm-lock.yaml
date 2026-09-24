@@ -1,0 +1,21 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  apps/desktop:
+    dependencies:
+      '@hl/kernel':
+        specifier: workspace:*
+        version: link:../../packages/kernel
+
+  packages/contracts: {}
+
+  packages/kernel: {}
+
+  packages/scales-data: {}

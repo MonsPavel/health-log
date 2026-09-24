@@ -1,0 +1,16 @@
+{
+  "name": "health-log",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Локальный дневник давления. Монорепо pnpm: apps/desktop, packages/kernel, packages/contracts, packages/scales-data.",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "echo \"[health-log] test: no-op until TASK-004 (test runner lands there)\" && exit 0",
+    "lint": "echo \"[health-log] lint: no-op until TASK-003 (eslint + boundaries)\" && exit 0",
+    "typecheck": "echo \"[health-log] typecheck: no-op until TASK-002 (tsc strict)\" && exit 0"
+  }
+}

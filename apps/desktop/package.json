@@ -1,0 +1,12 @@
+{
+  "name": "@hl/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Electron-приложение (появляется в TASK-007). Рендерер импортирует только @hl/contracts через preload-мост.",
+  "scripts": {
+    "build": "echo \"[@hl/desktop] build: no-op until TASK-007 (Electron)\" && exit 0"
+  },
+  "dependencies": {
+    "@hl/kernel": "workspace:*"
+  }
+}
