@@ -48,6 +48,11 @@ const allowExternalModule = (name) => ({
 /** Элементы зон; пути от корня репозитория, anchored (partialMatch: false).
  *  Порядок важен: частные зоны раньше catch-all (single-match — первый совпавший). */
 const elements = [
+  // TASK-004 §19: colocated-тесты — отдельная зона поверх остальных (single-match: первый
+  // совпавший). Файл packages/kernel/src/foo.test.ts — это «test», а не «kernel»: матрица
+  // зон описывает production-код (kernel ни от чего не зависит), тестам подчиняется
+  // своя политика «тест видит всё» ниже.
+  { type: 'test', pattern: '**/*.test.ts', partialMatch: false },
   { type: 'renderer', pattern: 'apps/desktop/src-renderer/**', partialMatch: false },
   { type: 'shared', pattern: 'apps/desktop/src/main/shared/**', partialMatch: false },
   {
@@ -260,6 +265,15 @@ export default tseslint.config(
               from: [el('tools'), el('scripts')],
               to: EVERYTHING_INTERNAL.map((e) => e.to),
               allow: EVERYTHING_INTERNAL,
+            },
+            // TASK-004 §19: тесты видят всё монорепо (тестируем любые зоны) плюс npm и
+            // node:* — сам vitest, node:os/node:fs для tmp-каталогов по §13 и т.п.
+            {
+              from: el('test'),
+              to: EVERYTHING_INTERNAL.map((e) => e.to),
+              allow: [...EVERYTHING_INTERNAL, allowExternal],
+              message:
+                'тесты импортируют код монорепо, npm и node:* свободно — матрица зон про production-код',
             },
 
             // --- внешние модули (checkAllOrigins; «external» = npm, «core» = node:*) ---

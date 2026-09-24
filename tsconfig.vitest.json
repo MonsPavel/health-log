@@ -1,0 +1,17 @@
+{
+  "$comment": "TASK-004: проект для root-конфигов Vitest и colocated *.test.ts. Каждый линтуемый .ts обязан принадлежать какому-нибудь tsconfig-проекту (projectService, TASK-003 §15); тесты исключены из сборочных tsconfig пакетов, чтобы не попадать в dist. В граф tsc -b корневого typecheck не входит — типы проверяет typed-lint (прецедент — scripts/tsconfig.json).",
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": [
+    "vitest.shared.ts",
+    "vitest.setup.ts",
+    "vitest.config.ts",
+    "packages/*/src/**/*.test.ts",
+    "apps/desktop/src/main/**/*.test.ts"
+  ]
+}

@@ -1,9 +1,10 @@
 {
-  "$comment": "TASK-002 §6: @hl/contracts наследует строгий NodeNext-пресет. outDir/rootDir объявлены здесь: относительные пути в extends-цепочке резолвятся относительно файла, в котором указаны.",
+  "$comment": "TASK-002 §6: @hl/contracts наследует строгий NodeNext-пресет. outDir/rootDir объявлены здесь: относительные пути в extends-цепочке резолвятся относительно файла, в котором указаны. TASK-004 §19: colocated-тесты (*.test.ts) и __fixtures__/ исключены из сборки — их типы проверяет корневой tsconfig.vitest.json, рантайм — Vitest.",
   "extends": "../../tsconfig.node.json",
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src"
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/__fixtures__/**"]
 }
