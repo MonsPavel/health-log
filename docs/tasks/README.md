@@ -141,24 +141,24 @@
 
 | TASK | Roadmap | Название | Файл | Статус |
 |---|---|---|---|---|
-| TASK-075 | T-5.1.1 | Реализовать EgressGateway и журнал сети | `TASK-075-egress-gateway.md` | ⬜ |
-| TASK-076 | T-5.2.1 | Реализовать каркас llm-worker (UtilityProcess) | `TASK-076-llm-worker-shell.md` | ⬜ |
-| TASK-077 | T-5.2.2 | Интегрировать node-llama-cpp в воркер | `TASK-077-llama-integration.md` | ⬜ |
-| TASK-078 | T-5.2.3 | Определить порт LlmEngine и fake-движок | `TASK-078-llm-engine-port.md` | ⬜ |
-| TASK-079 | T-5.3.1 | Создать манифест моделей | `TASK-079-models-manifest.md` | ⬜ |
-| TASK-080 | T-5.3.2 | Реализовать ModelStore с докачкой | `TASK-080-model-store.md` | ⬜ |
-| TASK-081 | T-5.3.3 | Реализовать UI выбора и загрузки моделей | `TASK-081-models-ui.md` | ⬜ |
-| TASK-082 | T-5.4.1 | Реализовать GuardrailPolicy (домен) | `TASK-082-guardrail-policy.md` | ⬜ |
-| TASK-083 | T-5.4.2 | Реализовать AiContextBuilder и context_hash | `TASK-083-ai-context-builder.md` | ⬜ |
-| TASK-084 | T-5.4.3 | Реализовать system prompt (версионируемый) | `TASK-084-system-prompt.md` | ⬜ |
-| TASK-085 | T-5.4.4 | Реализовать ResponseGuard | `TASK-085-response-guard.md` | ⬜ |
-| TASK-086 | T-5.4.5 | Реализовать отказ-шаблоны без LLM | `TASK-086-refusal-templates.md` | ⬜ |
-| TASK-087 | T-5.5.1 | Реализовать GenerateSummary use case | `TASK-087-generate-summary.md` | ⬜ |
-| TASK-088 | T-5.5.2 | Реализовать UI резюме | `TASK-088-summary-ui.md` | ⬜ |
-| TASK-089 | T-5.6.1 | Реализовать chat use cases и миграцию v5 | `TASK-089-chat-usecases.md` | ⬜ |
-| TASK-090 | T-5.6.2 | Реализовать UI чата | `TASK-090-chat-ui.md` | ⬜ |
-| TASK-091 | T-5.7.1 | Реализовать runner «красного набора» (eval) | `TASK-091-eval-runner.md` | ⬜ |
-| TASK-092 | T-5.7.2 | Настроить ночной CI-прогон eval | `TASK-092-eval-nightly-ci.md` | ⬜ |
+| TASK-075 | T-5.1.1 | Реализовать EgressGateway и журнал сети | `TASK-075-egress-gateway.md` | ✅ |
+| TASK-076 | T-5.2.1 | Реализовать каркас llm-worker (UtilityProcess) | `TASK-076-llm-worker-shell.md` | ✅ |
+| TASK-077 | T-5.2.2 | Интегрировать node-llama-cpp в воркер | `TASK-077-llama-integration.md` | ✅ |
+| TASK-078 | T-5.2.3 | Определить порт LlmEngine и fake-движок | `TASK-078-llm-engine-port.md` | ✅ |
+| TASK-079 | T-5.3.1 | Создать манифест моделей | `TASK-079-models-manifest.md` | ✅ |
+| TASK-080 | T-5.3.2 | Реализовать ModelStore с докачкой | `TASK-080-model-store.md` | ✅ |
+| TASK-081 | T-5.3.3 | Реализовать UI выбора и загрузки моделей | `TASK-081-models-ui.md` | ✅ |
+| TASK-082 | T-5.4.1 | Реализовать GuardrailPolicy (домен) | `TASK-082-guardrail-policy.md` | ✅ |
+| TASK-083 | T-5.4.2 | Реализовать AiContextBuilder и context_hash | `TASK-083-ai-context-builder.md` | ✅ |
+| TASK-084 | T-5.4.3 | Реализовать system prompt (версионируемый) | `TASK-084-system-prompt.md` | ✅ |
+| TASK-085 | T-5.4.4 | Реализовать ResponseGuard | `TASK-085-response-guard.md` | ✅ |
+| TASK-086 | T-5.4.5 | Реализовать отказ-шаблоны без LLM | `TASK-086-refusal-templates.md` | ✅ |
+| TASK-087 | T-5.5.1 | Реализовать GenerateSummary use case | `TASK-087-generate-summary.md` | ✅ |
+| TASK-088 | T-5.5.2 | Реализовать UI резюме | `TASK-088-summary-ui.md` | ✅ |
+| TASK-089 | T-5.6.1 | Реализовать chat use cases и миграцию v5 | `TASK-089-chat-usecases.md` | ✅ |
+| TASK-090 | T-5.6.2 | Реализовать UI чата | `TASK-090-chat-ui.md` | ✅ |
+| TASK-091 | T-5.7.1 | Реализовать runner «красного набора» (eval) | `TASK-091-eval-runner.md` | ✅ |
+| TASK-092 | T-5.7.2 | Настроить ночной CI-прогон eval | `TASK-092-eval-nightly-ci.md` | ✅ |
 
 ### Фаза P6 — Безопасность и надёжность (батч G) — TASK-093…103
 

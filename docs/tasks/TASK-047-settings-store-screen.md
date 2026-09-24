@@ -29,7 +29,7 @@ US-36: крупный текст и тёмная тема — критичны �
 
 - **Архитектура:** Settings & Profile — арх. 02 §3.6; хранилище — 04 §3 (app_setting); миграции — 04 §5.
 - **Модуль:** `settings-profile`; миграция v3.
-- **Обоснование (нумерация миграций, уточнение реестра):** v2 = FTS (TASK-045), **v3 = app_setting (эта задача)**; далее по мере фаз: v4 reference_scale (TASK-051), v5 ai_summary (TASK-087), v6 chat_message (TASK-089), v7 network_event (TASK-075). localStorage-ключи темы/масштаба из TASK-013 мигрируются: при первом prefs/get — перенос в БД и удаление из localStorage (one-time migrate).
+- **Обоснование (нумерация миграций, уточнение реестра):** v2 = FTS (TASK-045), **v3 = app_setting (эта задача)**; далее по мере фаз: v4 reference_scale + app_event (TASK-051), **v5 network_event (TASK-075), v6 ai_summary (TASK-087), v7 chat_message (TASK-089)** — нумерация следует хронологии разработки (лиджер миграций). localStorage-ключи темы/масштаба из TASK-013 мигрируются: при первом prefs/get — перенос в БД и удаление из localStorage (one-time migrate).
 
 ## 5. Объём
 
