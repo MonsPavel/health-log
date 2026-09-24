@@ -11,7 +11,8 @@
     "build": "pnpm -r build",
     "test": "echo \"[health-log] test: no-op until TASK-004 (test runner lands there)\" && exit 0",
     "lint": "echo \"[health-log] lint: no-op until TASK-003 (eslint + boundaries)\" && exit 0",
-    "typecheck": "echo \"[health-log] typecheck: no-op until TASK-002 (tsc strict)\" && exit 0"
+    "typecheck": "tsc -b packages/kernel/tsconfig.json packages/contracts/tsconfig.json packages/scales-data/tsconfig.json apps/desktop/tsconfig.json",
+    "check-strict": "tsx scripts/check-strict.ts"
   },
   "devDependencies": {
     "tsx": "^4.23.15",

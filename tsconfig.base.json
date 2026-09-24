@@ -1,0 +1,18 @@
+{
+  "$comment": "TASK-002 §13: единый источник истины строгих флагов для всего монорепо. Переопределение флагов на «мягкие» в пакетах запрещено (AC §20.4). exactOptionalPropertyTypes: false — намеренный долг TD-IMP-1, пересмотр после P1.",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "exactOptionalPropertyTypes": false,
+    "target": "ES2022",
+    "esModuleInterop": true
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "$comment": "TASK-002 §6: минимальный конфиг @hl/desktop — исходников ещё нет (Electron появляется в TASK-007, там расширяется: main/preload — node-пресет, renderer — web-пресет). files: [] — валидный пустой проект, чтобы tsc -b проходил без TS18003.",
+  "extends": "../../tsconfig.node.json",
+  "compilerOptions": {
+    "composite": false
+  },
+  "files": []
+}

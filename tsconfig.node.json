@@ -1,0 +1,12 @@
+{
+  "$comment": "TASK-002 §4: пресет NodeNext для packages/* и main-процесса desktop — честный Node-резолвинг и CJS/ESM-выпуски. composite включает инкрементальные сборки tsc -b (project references, §15).",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["ES2022"],
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true
+  }
+}

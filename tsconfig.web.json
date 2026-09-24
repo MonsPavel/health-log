@@ -1,0 +1,10 @@
+{
+  "$comment": "TASK-002 §4/§10: пресет bundler для рендерера (Vite, применяется с TASK-007): DOM-lib, проверка без emit. JSX-настройки придёт с React в TASK-007.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noEmit": true
+  }
+}
