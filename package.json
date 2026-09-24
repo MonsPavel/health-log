@@ -2,6 +2,7 @@
   "name": "health-log",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Локальный дневник давления. Монорепо pnpm: apps/desktop, packages/kernel, packages/contracts, packages/scales-data.",
   "packageManager": "pnpm@9.15.9",
   "engines": {
@@ -10,12 +11,19 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "echo \"[health-log] test: no-op until TASK-004 (test runner lands there)\" && exit 0",
-    "lint": "echo \"[health-log] lint: no-op until TASK-003 (eslint + boundaries)\" && exit 0",
+    "test:lint-rules": "tsx scripts/test-lint-rules.ts",
+    "lint": "eslint . --cache --max-warnings 0 && prettier --check .",
+    "lint:fix": "eslint . --fix && prettier --write .",
     "typecheck": "tsc -b packages/kernel/tsconfig.json packages/contracts/tsconfig.json packages/scales-data/tsconfig.json apps/desktop/tsconfig.json",
     "check-strict": "tsx scripts/check-strict.ts"
   },
   "devDependencies": {
+    "@types/node": "^26.6.2",
+    "eslint": "^10.11.0",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "prettier": "^3.9.9",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "typescript-eslint": "^8.70.1"
   }
 }

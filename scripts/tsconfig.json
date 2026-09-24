@@ -1,0 +1,11 @@
+{
+  "$comment": "TASK-003 §15: проект для scripts/ — typed-linting (projectService) требует, чтобы каждый линтуемый .ts принадлежал какому-нибудь tsconfig-проекту. Скрипты запускаются tsx и не входят в граф tsc -b корневого typecheck. Прецедент — tools/tsconfig-fixture из TASK-002.",
+  "extends": "../tsconfig.node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["*.ts"]
+}
