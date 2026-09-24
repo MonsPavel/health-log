@@ -106,19 +106,19 @@
 
 | TASK | Roadmap | Название | Файл | Статус |
 |---|---|---|---|---|
-| TASK-050 | T-3.1.1 | Создать пакет scales-data (ESC/ESH) | `TASK-050-scales-data-package.md` | ⬜ |
-| TASK-051 | T-3.1.2 | Реализовать хранилище шкал и ScaleService | `TASK-051-scale-service.md` | ⬜ |
-| TASK-052 | T-3.2.1 | Реализовать read model PeriodStatistics | `TASK-052-period-statistics.md` | ⬜ |
-| TASK-053 | T-3.2.2 | Реализовать Classifier и примечания порогов | `TASK-053-bp-classifier.md` | ⬜ |
-| TASK-054 | T-3.2.3 | Реализовать канал stats/period и «мало данных» | `TASK-054-stats-channel.md` | ⬜ |
-| TASK-055 | T-3.3.1 | Провести спайк и ADR по чарт-библиотеке | `TASK-055-chart-library-adr.md` | ⬜ |
-| TASK-056 | T-3.3.2 | Реализовать read model trend/series | `TASK-056-trend-series.md` | ⬜ |
-| TASK-057 | T-3.3.3 | Реализовать экран «Динамика» | `TASK-057-dashboard-chart-screen.md` | ⬜ |
-| TASK-058 | T-3.3.4 | Реализовать представление ЧСС | `TASK-058-pulse-view.md` | ⬜ |
-| TASK-059 | T-3.3.5 | Реализовать таблицу-альтернативу и a11y-резюме | `TASK-059-table-alternative-a11y.md` | ⬜ |
-| TASK-060 | T-3.3.6 | Реализовать пустые состояния графиков | `TASK-060-chart-empty-states.md` | ⬜ |
-| TASK-061 | T-3.4.1 | Реализовать домашний экран-сводку | `TASK-061-dashboard-summary.md` | ⬜ |
-| TASK-062 | T-3.4.2 | Написать bench графика на 10k точек | `TASK-062-chart-bench.md` | ⬜ |
+| TASK-050 | T-3.1.1 | Создать пакет scales-data (ESC/ESH) | `TASK-050-scales-data-package.md` | ✅ |
+| TASK-051 | T-3.1.2 | Реализовать хранилище шкал и ScaleService | `TASK-051-scale-service.md` | ✅ |
+| TASK-052 | T-3.2.1 | Реализовать read model PeriodStatistics | `TASK-052-period-statistics.md` | ✅ |
+| TASK-053 | T-3.2.2 | Реализовать Classifier и примечания порогов | `TASK-053-bp-classifier.md` | ✅ |
+| TASK-054 | T-3.2.3 | Реализовать канал stats/period и «мало данных» | `TASK-054-stats-channel.md` | ✅ |
+| TASK-055 | T-3.3.1 | Провести спайк и ADR по чарт-библиотеке | `TASK-055-chart-library-adr.md` | ✅ |
+| TASK-056 | T-3.3.2 | Реализовать read model trend/series | `TASK-056-trend-series.md` | ✅ |
+| TASK-057 | T-3.3.3 | Реализовать экран «Динамика» | `TASK-057-dashboard-chart-screen.md` | ✅ |
+| TASK-058 | T-3.3.4 | Реализовать представление ЧСС | `TASK-058-pulse-view.md` | ✅ |
+| TASK-059 | T-3.3.5 | Реализовать таблицу-альтернативу и a11y-резюме | `TASK-059-table-alternative-a11y.md` | ✅ |
+| TASK-060 | T-3.3.6 | Реализовать пустые состояния графиков | `TASK-060-chart-empty-states.md` | ✅ |
+| TASK-061 | T-3.4.1 | Реализовать домашний экран-сводку | `TASK-061-dashboard-summary.md` | ✅ |
+| TASK-062 | T-3.4.2 | Написать bench графика на 10k точек | `TASK-062-chart-bench.md` | ✅ |
 
 ### Фаза P4 — Данные и отчёты (батч E) — TASK-063…074
 
