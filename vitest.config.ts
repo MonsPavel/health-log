@@ -16,6 +16,9 @@ import { testProject } from './vitest.shared.js';
 
 export default defineConfig({
   test: {
+    // §20.1: 0 тестов — не ошибка. Уровень root важен: решение «No test files found»
+    // принимается по root-конфигу (проектный passWithNoTests его не покрывает).
+    passWithNoTests: true,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

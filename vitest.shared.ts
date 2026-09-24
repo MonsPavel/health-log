@@ -22,8 +22,8 @@ const setupFiles = [fileURLToPath(new URL('./vitest.setup.ts', import.meta.url))
 export const sharedTestConfig: ProjectTestConfig = {
   environment: 'node',
   setupFiles,
-  // §20.1: 0 тестов — не ошибка: проект без подходящих файлов пропускается, а не роняет прогон.
-  passWithNoTests: true,
+  // Примечание: passWithNoTests («0 тестов — не ошибка», §20.1) объявлен на root-уровне
+  // vitest.config.ts — глобальную проверку «No test files found» проектные настройки не покрывают.
 };
 
 /** Фабрика тестового проекта: имя (для `vitest --project`) и include-паттерны поверх общих настроек. */
