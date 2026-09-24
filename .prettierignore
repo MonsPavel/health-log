@@ -1,0 +1,10 @@
+# TASK-003 §5: Prettier — единственный форматтер кода; артефакты и документация мимо него.
+node_modules/
+dist/
+out/
+coverage/
+.zcode/
+docs/
+pnpm-lock.yaml
+*.tsbuildinfo
+apps/desktop/release/

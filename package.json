@@ -12,7 +12,8 @@
     "build": "pnpm -r build",
     "test": "echo \"[health-log] test: no-op until TASK-004 (test runner lands there)\" && exit 0",
     "test:lint-rules": "tsx scripts/test-lint-rules.ts",
-    "lint": "echo \"[health-log] lint: no-op until TASK-003 (eslint + boundaries)\" && exit 0",
+    "lint": "eslint . --cache --max-warnings 0 && prettier --check .",
+    "lint:fix": "eslint . --fix && prettier --write .",
     "typecheck": "tsc -b packages/kernel/tsconfig.json packages/contracts/tsconfig.json packages/scales-data/tsconfig.json apps/desktop/tsconfig.json",
     "check-strict": "tsx scripts/check-strict.ts"
   },
