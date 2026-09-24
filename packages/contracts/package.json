@@ -3,15 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "description": "IPC DTO, zod-схемы, коды ошибок, типы событий. Зависимости: kernel (docs/architecture/03-modules.md §4).",
+  "type": "module",
   "main": "dist/index.js",
-  "types": "src/index.ts",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "node -e \"const fs=require('fs');fs.mkdirSync('dist',{recursive:true});fs.copyFileSync('src/index.ts','dist/index.js')\""
+    "build": "tsc -b"
   }
 }
