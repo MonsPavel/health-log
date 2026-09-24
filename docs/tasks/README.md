@@ -124,18 +124,18 @@
 
 | TASK | Roadmap | Название | Файл | Статус |
 |---|---|---|---|---|
-| TASK-063 | T-4.1.1 | Реализовать CSV-экспорт | `TASK-063-csv-export.md` | ⬜ |
-| TASK-064 | T-4.1.2 | Реализовать JSON-слепок (мастер-формат) | `TASK-064-json-snapshot.md` | ⬜ |
-| TASK-065 | T-4.1.3 | Реализовать save dialog и UI экспорта | `TASK-065-export-ui.md` | ⬜ |
-| TASK-066 | T-4.2.1 | Реализовать worker pool | `TASK-066-worker-pool.md` | ⬜ |
-| TASK-067 | T-4.2.2 | Реализовать шаблон PDF-отчёта | `TASK-067-pdf-template.md` | ⬜ |
-| TASK-068 | T-4.2.3 | Реализовать BuildPdfReport и предпросмотр | `TASK-068-pdf-report-usecase.md` | ⬜ |
-| TASK-069 | T-4.2.4 | Написать bench PDF | `TASK-069-pdf-bench.md` | ⬜ |
-| TASK-070 | T-4.3.1 | Реализовать CreateBackup | `TASK-070-create-backup.md` | ⬜ |
-| TASK-071 | T-4.3.2 | Реализовать RestoreBackup | `TASK-071-restore-backup.md` | ⬜ |
-| TASK-072 | T-4.3.3 | Реализовать WipeAllData | `TASK-072-wipe-all-data.md` | ⬜ |
-| TASK-073 | T-4.3.4 | Реализовать UI копий и удаления | `TASK-073-data-care-ui.md` | ⬜ |
-| TASK-074 | T-4.3.5 | Реализовать JobScheduler и подсказку о копии | `TASK-074-job-scheduler.md` | ⬜ |
+| TASK-063 | T-4.1.1 | Реализовать CSV-экспорт | `TASK-063-csv-export.md` | ✅ |
+| TASK-064 | T-4.1.2 | Реализовать JSON-слепок (мастер-формат) | `TASK-064-json-snapshot.md` | ✅ |
+| TASK-065 | T-4.1.3 | Реализовать save dialog и UI экспорта | `TASK-065-export-ui.md` | ✅ |
+| TASK-066 | T-4.2.1 | Реализовать worker pool | `TASK-066-worker-pool.md` | ✅ |
+| TASK-067 | T-4.2.2 | Реализовать шаблон PDF-отчёта | `TASK-067-pdf-template.md` | ✅ |
+| TASK-068 | T-4.2.3 | Реализовать BuildPdfReport и предпросмотр | `TASK-068-pdf-report-usecase.md` | ✅ |
+| TASK-069 | T-4.2.4 | Написать bench PDF | `TASK-069-pdf-bench.md` | ✅ |
+| TASK-070 | T-4.3.1 | Реализовать CreateBackup | `TASK-070-create-backup.md` | ✅ |
+| TASK-071 | T-4.3.2 | Реализовать RestoreBackup | `TASK-071-restore-backup.md` | ✅ |
+| TASK-072 | T-4.3.3 | Реализовать WipeAllData | `TASK-072-wipe-all-data.md` | ✅ |
+| TASK-073 | T-4.3.4 | Реализовать UI копий и удаления | `TASK-073-data-care-ui.md` | ✅ |
+| TASK-074 | T-4.3.5 | Реализовать JobScheduler и подсказку о копии | `TASK-074-job-scheduler.md` | ✅ |
 
 ### Фаза P5 — Локальный ИИ (батч F) — TASK-075…092
 
