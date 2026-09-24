@@ -38,6 +38,8 @@
 
 Статус: ✅ спецификация готова · ⬜ ждёт генерации батча.
 
+> **Комплект полн (115/115).** Все задачи дорожной карты развёрнуты в спецификации. Финальная самопроверка выполнена 2026-09-24: матрица полная и без дублей, порядок и зависимости соответствуют дорожной карте, каждый документ самодостаточен, N/A-разделы обоснованы, код реализации отсутствует. Лиджер миграций БД (единый источник): v1 initial · v2 FTS · v3 app_setting · v4 scales+app_event · v5 network_event · v6 ai_summary · v7 chat_message.
+
 ### Фаза P0 — Фундамент (батч A) — TASK-001…015
 
 | TASK | Roadmap | Название | Файл | Статус |
@@ -180,18 +182,18 @@
 
 | TASK | Roadmap | Название | Файл | Статус |
 |---|---|---|---|---|
-| TASK-104 | T-7.1.1 | Настроить подпись Windows и update feed | `TASK-104-signing-update-feed.md` | ⬜ |
-| TASK-105 | T-7.1.2 | Настроить тег-пайплайн релиза | `TASK-105-release-pipeline.md` | ⬜ |
-| TASK-106 | T-7.1.3 | Реализовать процедуру сетевого аудита | `TASK-106-network-audit.md` | ⬜ |
-| TASK-107 | T-7.1.4 | Настроить beta-канал | `TASK-107-beta-channel.md` | ⬜ |
-| TASK-108 | T-7.2.1 | Провести axe-аудит и клавиатурные маршруты | `TASK-108-axe-keyboard-audit.md` | ⬜ |
-| TASK-109 | T-7.2.2 | Провести NVDA-чеклист и аудит контраста | `TASK-109-nvda-contrast.md` | ⬜ |
-| TASK-110 | T-7.2.3 | Провести ревизию текстов RU | `TASK-110-ru-copy-review.md` | ⬜ |
-| TASK-111 | T-7.3.1 | Выполнить полный perf-прогон | `TASK-111-perf-run.md` | ⬜ |
-| TASK-112 | T-7.3.2 | Выполнить финальный прогон DoD | `TASK-112-dod-checklist.md` | ⬜ |
-| TASK-113 | T-7.4.1 | Написать руководство пользователя | `TASK-113-user-guide.md` | ⬜ |
-| TASK-114 | T-7.4.2 | Настроить процесс release notes | `TASK-114-release-notes.md` | ⬜ |
-| TASK-115 | T-7.5.1 | Подготовить Release Candidate | `TASK-115-release-candidate.md` | ⬜ |
+| TASK-104 | T-7.1.1 | Настроить подпись Windows и update feed | `TASK-104-signing-update-feed.md` | ✅ |
+| TASK-105 | T-7.1.2 | Настроить тег-пайплайн релиза | `TASK-105-release-pipeline.md` | ✅ |
+| TASK-106 | T-7.1.3 | Реализовать процедуру сетевого аудита | `TASK-106-network-audit.md` | ✅ |
+| TASK-107 | T-7.1.4 | Настроить beta-канал | `TASK-107-beta-channel.md` | ✅ |
+| TASK-108 | T-7.2.1 | Провести axe-аудит и клавиатурные маршруты | `TASK-108-axe-keyboard-audit.md` | ✅ |
+| TASK-109 | T-7.2.2 | Провести NVDA-чеклист и аудит контраста | `TASK-109-nvda-contrast.md` | ✅ |
+| TASK-110 | T-7.2.3 | Провести ревизию текстов RU | `TASK-110-ru-copy-review.md` | ✅ |
+| TASK-111 | T-7.3.1 | Выполнить полный perf-прогон | `TASK-111-perf-run.md` | ✅ |
+| TASK-112 | T-7.3.2 | Выполнить финальный прогон DoD | `TASK-112-dod-checklist.md` | ✅ |
+| TASK-113 | T-7.4.1 | Написать руководство пользователя | `TASK-113-user-guide.md` | ✅ |
+| TASK-114 | T-7.4.2 | Настроить процесс release notes | `TASK-114-release-notes.md` | ✅ |
+| TASK-115 | T-7.5.1 | Подготовить Release Candidate | `TASK-115-release-candidate.md` | ✅ |
 
 ## Чек-лист самопроверки комплекта
 
