@@ -75,19 +75,26 @@ export default tseslint.config(
       ".zcode/**",
       // §19: фикстуры зон исключены из основного линта — их проверяет pnpm run test:lint-rules.
       "tools/lint-fixtures/**",
+      // TASK-002: компиляционная фикстура tsc — обязана оставаться небезопасной, линтить её нельзя.
+      "tools/tsconfig-fixture/**",
       "pnpm-lock.yaml",
     ],
   },
 
-  ...tseslint.configs.recommendedTypeChecked,
+  // Блоки пресета без files применяются ко всем файлам (включая этот JS-конфиг),
+  // где typed-правила падают без type-info — скоупим весь пресет к TS.
+  ...tseslint.configs.recommendedTypeChecked.map((block) =>
+    block.files === undefined ? { ...block, files: ["**/*.ts"] } : block,
+  ),
 
   {
     files: ["**/*.ts"],
     languageOptions: {
       parserOptions: {
         // §15: projectService быстрее parserOptions.project на больших деревьях.
-        // scripts вне графа tsc -b — через default-project (лимит typescript-eslint — 8 файлов).
-        projectService: { allowDefaultProject: ["scripts/*.ts"] },
+        // Каждый .ts обязан принадлежать проекту: пакеты — свои tsconfig, scripts —
+        // scripts/tsconfig.json, фикстуры — свои.
+        projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },

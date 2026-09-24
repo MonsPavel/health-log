@@ -29,13 +29,13 @@ function fileNameOf(diagnostic: ts.Diagnostic): string {
 }
 
 function main(): number {
-  const configFile = ts.findConfigFile(FIXTURE_DIR, ts.sys.fileExists, "tsconfig.json");
+  const configFile = ts.findConfigFile(FIXTURE_DIR, (path) => ts.sys.fileExists(path), "tsconfig.json");
   if (configFile === undefined) {
     console.error(`check-strict: FAIL: не найден tsconfig в ${FIXTURE_DIR}`);
     return 1;
   }
 
-  const read = ts.readConfigFile(configFile, ts.sys.readFile);
+  const read = ts.readConfigFile(configFile, (path) => ts.sys.readFile(path));
   if (read.error !== undefined) {
     console.error("check-strict: FAIL: фикстурный tsconfig не читается:");
     console.error(describeDiagnostic(read.error));

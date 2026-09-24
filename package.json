@@ -17,6 +17,7 @@
     "check-strict": "tsx scripts/check-strict.ts"
   },
   "devDependencies": {
+    "@types/node": "^26.6.2",
     "eslint": "^10.11.0",
     "eslint-plugin-boundaries": "^7.2.0",
     "prettier": "^3.9.9",

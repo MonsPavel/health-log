@@ -77,9 +77,12 @@ function formatMessages(messages: ReadonlyArray<{ ruleId: string | null; line?: 
 
 async function main(): Promise<number> {
   // Конфиг появляется на шаге GREEN; его отсутствие — честный RED-статус задачи, а не ошибка скрипта.
+  // import .js без типов даёт any: гасим через unknown (любой → unknown безопасен,
+  // а unknown → целевой тип требует осознанного assertion).
   let configModule: { default: unknown };
   try {
-    configModule = (await import("../eslint.config.js")) as { default: unknown };
+    const imported: unknown = await import("../eslint.config.js");
+    configModule = imported as { default: unknown };
   } catch {
     console.error("test:lint-rules: FAIL: не читается eslint.config.js (RED без конфига ESLint — так и должно быть до GREEN)");
     return 1;
@@ -90,7 +93,7 @@ async function main(): Promise<number> {
   // (иначе ESLint пропустит фикстуры как ignored).
   const fixtureConfig = toFixtureConfig(raw).filter((block) => !(block.ignores !== undefined && block.files === undefined));
 
-  const eslint = new ESLint({ overrideConfigFile: true, overrideConfig: fixtureConfig as never });
+  const eslint = new ESLint({ overrideConfigFile: true, overrideConfig: fixtureConfig });
   const results = await eslint.lintFiles(EXPECTATIONS.map((e) => e.file));
   // ESLint возвращает абсолютные пути (на Windows — с обратными слэшами); сопоставляем по имени файла.
   const byFile = new Map(results.map((r) => [shortName(r.filePath.replaceAll("\\", "/")), r]));
