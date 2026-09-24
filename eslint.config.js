@@ -122,8 +122,9 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         // §15: projectService быстрее parserOptions.project на больших деревьях.
-        // Каждый .ts обязан принадлежать проекту: пакеты — свои tsconfig, scripts —
-        // scripts/tsconfig.json, фикстуры — свои.
+        // Каждый .ts обязан принадлежать проекту: пакеты — свои tsconfig (тесты *.test.ts
+        // исключены из сборочных — их подхватывает корневой tsconfig.json, TASK-004 §19),
+        // scripts — scripts/tsconfig.json, фикстуры — свои.
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
@@ -131,6 +132,11 @@ export default tseslint.config(
     settings: {
       // Ключи настроек плагина — плоские (settings.boundaries.elements не читается).
       'boundaries/elements': elements,
+      // TASK-004 §19: colocated-тесты — сквозная категория ФАЙЛОВ поверх зон (элементы
+      // boundaries матчат папки, файлы классифицируются отдельным слоем). Тест
+      // packages/kernel/src/foo.test.ts остаётся элементом «kernel», но имеет категорию
+      // «test» — политики ниже смягчают матрицу для from.file.categories = test.
+      'boundaries/files': [{ pattern: '**/*.test.ts', category: 'test' }],
       'boundaries/root-path': import.meta.dirname,
       // Современный синтаксис шаблонов захвата (без legacy-подстановок).
       'boundaries/legacy-templates': false,
@@ -260,6 +266,20 @@ export default tseslint.config(
               from: [el('tools'), el('scripts')],
               to: EVERYTHING_INTERNAL.map((e) => e.to),
               allow: EVERYTHING_INTERNAL,
+            },
+            // TASK-004 §19: тесты видят всё монорепо (тестируем любые зоны), плюс отдельной
+            // политикой — npm и node:* (сам vitest, node:os/node:fs для tmp-каталогов по §13).
+            // Категория файла «test» назначается в settings['boundaries/files'] выше.
+            {
+              from: { file: { categories: 'test' } },
+              to: EVERYTHING_INTERNAL.map((e) => e.to),
+              allow: EVERYTHING_INTERNAL,
+              message: 'тесты импортируют код монорепо свободно — матрица зон про production-код',
+            },
+            {
+              from: { file: { categories: 'test' } },
+              allow: [allowExternal],
+              message: 'тестам доступны npm и node:* — матрица зон про production-код',
             },
 
             // --- внешние модули (checkAllOrigins; «external» = npm, «core» = node:*) ---
