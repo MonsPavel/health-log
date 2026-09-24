@@ -33,7 +33,14 @@ const EXPECTATIONS: ReadonlyArray<{ file: string; ruleId: string | null }> = [
     file: `${FIXTURE_PREFIX}src/main/modules/alpha/domain/violation-domain-npm.ts`,
     ruleId: 'boundaries/dependencies',
   },
+  // Node-builtin в domain — тоже error: «core» не входит в разрешение @hl/* (арх. 03 §4).
+  {
+    file: `${FIXTURE_PREFIX}src/main/modules/alpha/domain/violation-domain-node.ts`,
+    ruleId: 'boundaries/dependencies',
+  },
   { file: `${FIXTURE_PREFIX}src/main/modules/alpha/domain/ok-cross-module-index.ts`, ruleId: null },
+  // Ревью TASK-003: Node-builtin в main-процессе ОБЯЗАН быть чистым (origin «core», не «external»).
+  { file: `${FIXTURE_PREFIX}src/main/ok-node-builtin.ts`, ruleId: null },
   { file: `${FIXTURE_PREFIX}violation-any.ts`, ruleId: 'no-restricted-syntax' },
   {
     file: `${FIXTURE_PREFIX}violation-ts-expect-error.ts`,

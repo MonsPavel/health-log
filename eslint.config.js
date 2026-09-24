@@ -35,9 +35,11 @@ const ownModule = (type) => ({
 });
 /** Разрешение внутреннего элемента (для списков allow). */
 const allowEl = (type) => ({ to: el(type) });
-/** Разрешение любого внешнего npm. */
-const allowExternal = { to: { origin: 'external' } };
-/** Разрешение внешнего npm по имени пакета. */
+/** Разрешение внешних модулей: npm («external») и Node-библиотек («core» — так boundaries v7
+ *  классифицирует node:*; main-процесс по арх. 03 §4 обязан использовать Node API). */
+const allowExternal = { to: { origin: ['external', 'core'] } };
+/** Разрешение внешнего npm по имени пакета (origin external: воркспейс-пакеты; домен остаётся
+ *  закрыт и для «core» — module-шаблон @hl/* его не пропускает). */
 const allowExternalModule = (name) => ({
   to: { origin: 'external' },
   dependency: { module: name },
@@ -260,7 +262,7 @@ export default tseslint.config(
               allow: EVERYTHING_INTERNAL,
             },
 
-            // --- внешние npm (checkAllOrigins) ---
+            // --- внешние модули (checkAllOrigins; «external» = npm, «core» = node:*) ---
             {
               from: el('domain'),
               allow: [allowExternalModule(['@hl/kernel', '@hl/contracts'])],
@@ -269,10 +271,12 @@ export default tseslint.config(
             },
             // неразрешённый воркспейс до сборки dist трактуется как external (@hl/* по имени)
             { from: el('contracts'), allow: [allowExternalModule('@hl/kernel')] },
-            // остальным зонам внешние npm разрешены; исключения renderer — через no-restricted-imports ниже
+            // renderer — только npm («external»): node:* ему запрещены §7/арх. 08 §4, и boundaries
+            // здесь вторая сеть поверх no-restricted-imports ниже
+            { from: el('renderer'), allow: [{ to: { origin: 'external' } }] },
+            // main-процесс, инструменты и скрипты: npm + Node-библиотеки («core») — арх. 03 §4
             {
               from: [
-                el('renderer'),
                 el('shared'),
                 el('application'),
                 el('adapters'),
