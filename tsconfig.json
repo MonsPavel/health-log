@@ -1,0 +1,17 @@
+{
+  "$comment": "TASK-004: корневой проект для файлов вне пакетных проектов — root-конфиги Vitest и colocated *.test.ts. Каждый линтуемый .ts обязан принадлежать какому-нибудь tsconfig-проекту (projectService, TASK-003 §15), а ProjectService находит проекты только по имени tsconfig.json: файл, не покрытый ближайшим tsconfig своего пакета (тесты исключены из сборочных, чтобы не попадать в dist), наследуется этим корневым проектом. В граф tsc -b корневого typecheck не входит (noEmit; прецедент — scripts/tsconfig.json).",
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": [
+    "vitest.shared.ts",
+    "vitest.setup.ts",
+    "vitest.config.ts",
+    "packages/*/src/**/*.test.ts",
+    "apps/desktop/src/main/**/*.test.ts"
+  ]
+}

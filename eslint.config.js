@@ -48,11 +48,6 @@ const allowExternalModule = (name) => ({
 /** Элементы зон; пути от корня репозитория, anchored (partialMatch: false).
  *  Порядок важен: частные зоны раньше catch-all (single-match — первый совпавший). */
 const elements = [
-  // TASK-004 §19: colocated-тесты — отдельная зона поверх остальных (single-match: первый
-  // совпавший). Файл packages/kernel/src/foo.test.ts — это «test», а не «kernel»: матрица
-  // зон описывает production-код (kernel ни от чего не зависит), тестам подчиняется
-  // своя политика «тест видит всё» ниже.
-  { type: 'test', pattern: '**/*.test.ts', partialMatch: false },
   { type: 'renderer', pattern: 'apps/desktop/src-renderer/**', partialMatch: false },
   { type: 'shared', pattern: 'apps/desktop/src/main/shared/**', partialMatch: false },
   {
@@ -127,8 +122,9 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         // §15: projectService быстрее parserOptions.project на больших деревьях.
-        // Каждый .ts обязан принадлежать проекту: пакеты — свои tsconfig, scripts —
-        // scripts/tsconfig.json, фикстуры — свои.
+        // Каждый .ts обязан принадлежать проекту: пакеты — свои tsconfig (тесты *.test.ts
+        // исключены из сборочных — их подхватывает корневой tsconfig.json, TASK-004 §19),
+        // scripts — scripts/tsconfig.json, фикстуры — свои.
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
@@ -136,6 +132,11 @@ export default tseslint.config(
     settings: {
       // Ключи настроек плагина — плоские (settings.boundaries.elements не читается).
       'boundaries/elements': elements,
+      // TASK-004 §19: colocated-тесты — сквозная категория ФАЙЛОВ поверх зон (элементы
+      // boundaries матчат папки, файлы классифицируются отдельным слоем). Тест
+      // packages/kernel/src/foo.test.ts остаётся элементом «kernel», но имеет категорию
+      // «test» — политики ниже смягчают матрицу для from.file.categories = test.
+      'boundaries/files': [{ pattern: '**/*.test.ts', category: 'test' }],
       'boundaries/root-path': import.meta.dirname,
       // Современный синтаксис шаблонов захвата (без legacy-подстановок).
       'boundaries/legacy-templates': false,
@@ -266,14 +267,19 @@ export default tseslint.config(
               to: EVERYTHING_INTERNAL.map((e) => e.to),
               allow: EVERYTHING_INTERNAL,
             },
-            // TASK-004 §19: тесты видят всё монорепо (тестируем любые зоны) плюс npm и
-            // node:* — сам vitest, node:os/node:fs для tmp-каталогов по §13 и т.п.
+            // TASK-004 §19: тесты видят всё монорепо (тестируем любые зоны), плюс отдельной
+            // политикой — npm и node:* (сам vitest, node:os/node:fs для tmp-каталогов по §13).
+            // Категория файла «test» назначается в settings['boundaries/files'] выше.
             {
-              from: el('test'),
+              from: { file: { categories: 'test' } },
               to: EVERYTHING_INTERNAL.map((e) => e.to),
-              allow: [...EVERYTHING_INTERNAL, allowExternal],
-              message:
-                'тесты импортируют код монорепо, npm и node:* свободно — матрица зон про production-код',
+              allow: EVERYTHING_INTERNAL,
+              message: 'тесты импортируют код монорепо свободно — матрица зон про production-код',
+            },
+            {
+              from: { file: { categories: 'test' } },
+              allow: [allowExternal],
+              message: 'тестам доступны npm и node:* — матрица зон про production-код',
             },
 
             // --- внешние модули (checkAllOrigins; «external» = npm, «core» = node:*) ---
