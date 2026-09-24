@@ -1,0 +1,12 @@
+{
+  "$comment": "TASK-003 §19: конфиг фикстур линта. Фикстуры вне основного графа tsc -b; отдельный tsconfig нужен, чтобы typed-linting (projectService) ассоциировал их с проектом. Прецедент — tools/tsconfig-fixture из TASK-002.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["**/*.ts"]
+}
