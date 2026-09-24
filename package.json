@@ -2,6 +2,7 @@
   "name": "health-log",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Локальный дневник давления. Монорепо pnpm: apps/desktop, packages/kernel, packages/contracts, packages/scales-data.",
   "packageManager": "pnpm@9.15.9",
   "engines": {
@@ -16,7 +17,11 @@
     "check-strict": "tsx scripts/check-strict.ts"
   },
   "devDependencies": {
+    "eslint": "^10.11.0",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "prettier": "^3.9.9",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "typescript-eslint": "^8.70.1"
   }
 }

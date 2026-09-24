@@ -26,7 +26,7 @@ const REAL_PREFIX = "apps/desktop/";
 /** file → ожидаемый ruleId; null = файл обязан быть чистым. */
 const EXPECTATIONS: ReadonlyArray<{ file: string; ruleId: string | null }> = [
   { file: `${FIXTURE_PREFIX}src-renderer/violation-renderer-node.ts`, ruleId: "no-restricted-imports" },
-  { file: `${FIXTURE_PREFIX}src/main/modules/alpha/domain/violation-domain-npm.ts`, ruleId: "boundaries/external" },
+  { file: `${FIXTURE_PREFIX}src/main/modules/alpha/domain/violation-domain-npm.ts`, ruleId: "boundaries/dependencies" },
   { file: `${FIXTURE_PREFIX}src/main/modules/alpha/domain/ok-cross-module-index.ts`, ruleId: null },
   { file: `${FIXTURE_PREFIX}violation-any.ts`, ruleId: "no-restricted-syntax" },
   { file: `${FIXTURE_PREFIX}violation-ts-expect-error.ts`, ruleId: "@typescript-eslint/ban-ts-comment" },
@@ -35,7 +35,36 @@ const EXPECTATIONS: ReadonlyArray<{ file: string; ruleId: string | null }> = [
 interface ConfigBlock {
   files?: string[];
   ignores?: string[];
+  settings?: { "boundaries/elements"?: Array<{ type: string; pattern: string }> };
   [key: string]: unknown;
+}
+
+/** Ремап зоны реального приложения на зеркальную структуру фикстур. */
+function remapGlob(glob: string): string {
+  return glob.split(REAL_PREFIX).join(FIXTURE_PREFIX);
+}
+
+/**
+ * Поверхностный ремап конфига: cloning только scalars-полей (files/ignores/elements).
+ * Глубокий клон невозможен: объекты плагинов в пресетах typescript-eslint цикличны.
+ * Остальные значения разделяются по ссылке с боевым конфигом и не мутируют.
+ */
+function toFixtureConfig(raw: unknown[]): ConfigBlock[] {
+  return raw.map((block) => {
+    if (block === null || typeof block !== "object") return block as ConfigBlock;
+    const source = block as ConfigBlock;
+    const clone: ConfigBlock = { ...source };
+    if (source.files !== undefined) clone.files = source.files.map(remapGlob);
+    if (source.ignores !== undefined) clone.ignores = source.ignores.map(remapGlob);
+    const elements = source.settings?.["boundaries/elements"];
+    if (source.settings !== undefined && elements !== undefined) {
+      clone.settings = {
+        ...source.settings,
+        "boundaries/elements": elements.map((el) => ({ ...el, pattern: remapGlob(el.pattern) })),
+      };
+    }
+    return clone;
+  });
 }
 
 function shortName(file: string): string {
@@ -57,18 +86,18 @@ async function main(): Promise<number> {
   }
 
   const raw = Array.isArray(configModule.default) ? configModule.default : [configModule.default];
-  // 1) ремап зон реального приложения на зеркальную структуру фикстур;
-  // 2) отбрасываем блоки-игнорирования (иначе ESLint пропустит фикстуры как ignored).
-  const remapped = JSON.parse(JSON.stringify(raw).split(REAL_PREFIX).join(FIXTURE_PREFIX)) as ConfigBlock[];
-  const fixtureConfig = remapped.filter((block) => !(block.ignores !== undefined && block.files === undefined));
+  // Ремап зон реального приложения на зеркальную структуру фикстур; отбрасываем блоки-игнорирования
+  // (иначе ESLint пропустит фикстуры как ignored).
+  const fixtureConfig = toFixtureConfig(raw).filter((block) => !(block.ignores !== undefined && block.files === undefined));
 
   const eslint = new ESLint({ overrideConfigFile: true, overrideConfig: fixtureConfig as never });
   const results = await eslint.lintFiles(EXPECTATIONS.map((e) => e.file));
-  const byFile = new Map(results.map((r) => [r.filePath.replaceAll("\\", "/"), r]));
+  // ESLint возвращает абсолютные пути (на Windows — с обратными слэшами); сопоставляем по имени файла.
+  const byFile = new Map(results.map((r) => [shortName(r.filePath.replaceAll("\\", "/")), r]));
 
   let failed = false;
   for (const expectation of EXPECTATIONS) {
-    const result = byFile.get(expectation.file);
+    const result = byFile.get(shortName(expectation.file));
     const messages = result?.messages ?? [];
     const errors = messages.filter((m) => m.severity === 2);
     const warnings = messages.filter((m) => m.severity === 1);
