@@ -1,0 +1,11 @@
+{
+  "$comment": "TASK-002 §19: конфиг фикстуры. Наследует строгий base напрямую — проверяет именно его флаги. Не входит в tsc --build основного графа (см. scripts/check-strict.ts).",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["*.ts"]
+}
