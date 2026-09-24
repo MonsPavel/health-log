@@ -88,19 +88,19 @@
 
 | TASK | Roadmap | Название | Файл | Статус |
 |---|---|---|---|---|
-| TASK-037 | T-2.1.1 | Реализовать use cases Update/Delete измерения | `TASK-037-update-delete-usecases.md` | ⬜ |
-| TASK-038 | T-2.1.2 | Реализовать UI правки и удаления | `TASK-038-edit-delete-ui.md` | ⬜ |
-| TASK-039 | T-2.1.3 | Реализовать восстановление черновика ввода | `TASK-039-draft-recovery.md` | ⬜ |
-| TASK-040 | T-2.1.4 | Реализовать умную вставку «120/80» | `TASK-040-smart-paste.md` | ⬜ |
-| TASK-041 | T-2.2.1 | Реализовать панель критических значений | `TASK-041-critical-panel.md` | ⬜ |
-| TASK-042 | T-2.2.2 | Реализовать флаги записей в журнале | `TASK-042-record-flags-ui.md` | ⬜ |
-| TASK-043 | T-2.2.3 | Написать E2E пограничных вводов | `TASK-043-edge-input-e2e.md` | ⬜ |
-| TASK-044 | T-2.3.1 | Реализовать фильтры списка | `TASK-044-list-filters.md` | ⬜ |
-| TASK-045 | T-2.3.2 | Реализовать FTS-поиск по заметкам | `TASK-045-fts-note-search.md` | ⬜ |
-| TASK-046 | T-2.3.3 | Реализовать произвольный период | `TASK-046-custom-date-range.md` | ⬜ |
-| TASK-047 | T-2.4.1 | Реализовать хранилище настроек и экран настроек | `TASK-047-settings-store-screen.md` | ⬜ |
-| TASK-048 | T-2.4.2 | Реализовать крупный режим текста | `TASK-048-large-text-mode.md` | ⬜ |
-| TASK-049 | T-2.4.3 | Реализовать простой/продвинутый режим | `TASK-049-simple-mode.md` | ⬜ |
+| TASK-037 | T-2.1.1 | Реализовать use cases Update/Delete измерения | `TASK-037-update-delete-usecases.md` | ✅ |
+| TASK-038 | T-2.1.2 | Реализовать UI правки и удаления | `TASK-038-edit-delete-ui.md` | ✅ |
+| TASK-039 | T-2.1.3 | Реализовать восстановление черновика ввода | `TASK-039-draft-recovery.md` | ✅ |
+| TASK-040 | T-2.1.4 | Реализовать умную вставку «120/80» | `TASK-040-smart-paste.md` | ✅ |
+| TASK-041 | T-2.2.1 | Реализовать панель критических значений | `TASK-041-critical-panel.md` | ✅ |
+| TASK-042 | T-2.2.2 | Реализовать флаги записей в журнале | `TASK-042-record-flags-ui.md` | ✅ |
+| TASK-043 | T-2.2.3 | Написать E2E пограничных вводов | `TASK-043-edge-input-e2e.md` | ✅ |
+| TASK-044 | T-2.3.1 | Реализовать фильтры списка | `TASK-044-list-filters.md` | ✅ |
+| TASK-045 | T-2.3.2 | Реализовать FTS-поиск по заметкам | `TASK-045-fts-note-search.md` | ✅ |
+| TASK-046 | T-2.3.3 | Реализовать произвольный период | `TASK-046-custom-date-range.md` | ✅ |
+| TASK-047 | T-2.4.1 | Реализовать хранилище настроек и экран настроек | `TASK-047-settings-store-screen.md` | ✅ |
+| TASK-048 | T-2.4.2 | Реализовать крупный режим текста | `TASK-048-large-text-mode.md` | ✅ |
+| TASK-049 | T-2.4.3 | Реализовать простой/продвинутый режим | `TASK-049-simple-mode.md` | ✅ |
 
 ### Фаза P3 — Аналитика и графики (батч D) — TASK-050…062
 
