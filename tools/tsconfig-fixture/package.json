@@ -1,0 +1,5 @@
+{
+  "$comment": "TASK-002: type: module — чтобы NodeNext-детект в фикстуре видел ESM (как в реальных пакетах); иначе verbatimModuleSyntax отбраковывает top-level export как CJS (TS1287).",
+  "type": "module",
+  "private": true
+}

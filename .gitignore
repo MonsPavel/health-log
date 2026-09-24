@@ -6,6 +6,7 @@ dist/
 out/
 coverage/
 apps/desktop/release/
+*.tsbuildinfo
 
 # Локальные переопределения
 *.local

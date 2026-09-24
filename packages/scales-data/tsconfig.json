@@ -1,0 +1,9 @@
+{
+  "$comment": "TASK-002 §6: @hl/scales-data наследует строгий NodeNext-пресет. outDir/rootDir объявлены здесь: относительные пути в extends-цепочке резолвятся относительно файла, в котором указаны.",
+  "extends": "../../tsconfig.node.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}
