@@ -62,27 +62,27 @@
 
 | TASK | Roadmap | Название | Файл | Статус |
 |---|---|---|---|---|
-| TASK-016 | T-1.1.1 | Реализовать VO BloodPressure, Pulse, Arm | `TASK-016-bp-value-objects.md` | ⬜ |
-| TASK-017 | T-1.1.2 | Реализовать агрегат BpMeasurement | `TASK-017-bp-measurement-aggregate.md` | ⬜ |
-| TASK-018 | T-1.1.3 | Реализовать TypoHeuristic | `TASK-018-typo-heuristic.md` | ⬜ |
-| TASK-019 | T-1.1.4 | Реализовать DuplicateDetector | `TASK-019-duplicate-detector.md` | ⬜ |
-| TASK-020 | T-1.1.5 | Реализовать CriticalValuePolicy | `TASK-020-critical-value-policy.md` | ⬜ |
-| TASK-021 | T-1.1.6 | Определить порт репозитория измерений и in-memory fake | `TASK-021-measurement-repo-port.md` | ⬜ |
-| TASK-022 | T-1.2.1 | Собрать SQLCipher-стек better-sqlite3 | `TASK-022-sqlcipher-stack.md` | ⬜ |
-| TASK-023 | T-1.2.2 | Реализовать KeyVault на safeStorage | `TASK-023-key-vault.md` | ⬜ |
-| TASK-024 | T-1.2.3 | Реализовать migration runner с автокопией | `TASK-024-migration-runner.md` | ⬜ |
-| TASK-025 | T-1.2.4 | Написать миграцию v1 (profile + bp_measurement) | `TASK-025-migration-v1.md` | ⬜ |
-| TASK-026 | T-1.2.5 | Реализовать SQLite-адаптер репозитория измерений | `TASK-026-sqlite-measurement-repo.md` | ⬜ |
-| TASK-027 | T-1.2.6 | Собрать composition root | `TASK-027-composition-root.md` | ⬜ |
-| TASK-028 | T-1.3.1 | Определить contracts: каналы измерений | `TASK-028-contracts-measurement.md` | ⬜ |
-| TASK-029 | T-1.3.2 | Реализовать use case AddMeasurement | `TASK-029-add-measurement-usecase.md` | ⬜ |
-| TASK-030 | T-1.3.3 | Реализовать ListMeasurements и хендлеры | `TASK-030-list-measurements-handlers.md` | ⬜ |
-| TASK-031 | T-1.3.4 | Реализовать форму ввода измерения | `TASK-031-measurement-form.md` | ⬜ |
-| TASK-032 | T-1.3.5 | Реализовать диалоги подтверждений ввода | `TASK-032-input-confirmation-dialogs.md` | ⬜ |
-| TASK-033 | T-1.3.6 | Реализовать экран истории с группировкой | `TASK-033-history-list.md` | ⬜ |
-| TASK-034 | T-1.4.1 | Настроить electron-builder для Windows | `TASK-034-electron-builder-windows.md` | ⬜ |
-| TASK-035 | T-1.4.2 | Написать Playwright Electron smoke | `TASK-035-playwright-smoke.md` | ⬜ |
-| TASK-036 | T-1.4.3 | Реализовать скрипт аудита размера | `TASK-036-size-audit-script.md` | ⬜ |
+| TASK-016 | T-1.1.1 | Реализовать VO BloodPressure, Pulse, Arm | `TASK-016-bp-value-objects.md` | ✅ |
+| TASK-017 | T-1.1.2 | Реализовать агрегат BpMeasurement | `TASK-017-bp-measurement-aggregate.md` | ✅ |
+| TASK-018 | T-1.1.3 | Реализовать TypoHeuristic | `TASK-018-typo-heuristic.md` | ✅ |
+| TASK-019 | T-1.1.4 | Реализовать DuplicateDetector | `TASK-019-duplicate-detector.md` | ✅ |
+| TASK-020 | T-1.1.5 | Реализовать CriticalValuePolicy | `TASK-020-critical-value-policy.md` | ✅ |
+| TASK-021 | T-1.1.6 | Определить порт репозитория измерений и in-memory fake | `TASK-021-measurement-repo-port.md` | ✅ |
+| TASK-022 | T-1.2.1 | Собрать SQLCipher-стек better-sqlite3 | `TASK-022-sqlcipher-stack.md` | ✅ |
+| TASK-023 | T-1.2.2 | Реализовать KeyVault на safeStorage | `TASK-023-key-vault.md` | ✅ |
+| TASK-024 | T-1.2.3 | Реализовать migration runner с автокопией | `TASK-024-migration-runner.md` | ✅ |
+| TASK-025 | T-1.2.4 | Написать миграцию v1 (profile + bp_measurement) | `TASK-025-migration-v1.md` | ✅ |
+| TASK-026 | T-1.2.5 | Реализовать SQLite-адаптер репозитория измерений | `TASK-026-sqlite-measurement-repo.md` | ✅ |
+| TASK-027 | T-1.2.6 | Собрать composition root | `TASK-027-composition-root.md` | ✅ |
+| TASK-028 | T-1.3.1 | Определить contracts: каналы измерений | `TASK-028-contracts-measurement.md` | ✅ |
+| TASK-029 | T-1.3.2 | Реализовать use case AddMeasurement | `TASK-029-add-measurement-usecase.md` | ✅ |
+| TASK-030 | T-1.3.3 | Реализовать ListMeasurements и хендлеры | `TASK-030-list-measurements-handlers.md` | ✅ |
+| TASK-031 | T-1.3.4 | Реализовать форму ввода измерения | `TASK-031-measurement-form.md` | ✅ |
+| TASK-032 | T-1.3.5 | Реализовать диалоги подтверждений ввода | `TASK-032-input-confirmation-dialogs.md` | ✅ |
+| TASK-033 | T-1.3.6 | Реализовать экран истории с группировкой | `TASK-033-history-list.md` | ✅ |
+| TASK-034 | T-1.4.1 | Настроить electron-builder для Windows | `TASK-034-electron-builder-windows.md` | ✅ |
+| TASK-035 | T-1.4.2 | Написать Playwright Electron smoke | `TASK-035-playwright-smoke.md` | ✅ |
+| TASK-036 | T-1.4.3 | Реализовать скрипт аудита размера | `TASK-036-size-audit-script.md` | ✅ |
 
 ### Фаза P2 — Полнота журнала (батч C) — TASK-037…049
 
