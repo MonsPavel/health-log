@@ -8,7 +8,7 @@
 |---|---|---|---|
 | TASK-001 | done | | смержена |
 | TASK-002 | done | | смержена |
-| TASK-003 | todo | | |
+| TASK-003 | done | | смержена |
 | TASK-004 | todo | | |
 | TASK-005 | todo | | |
 | TASK-006 | todo | | |
