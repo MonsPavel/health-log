@@ -164,17 +164,17 @@
 
 | TASK | Roadmap | Название | Файл | Статус |
 |---|---|---|---|---|
-| TASK-093 | T-6.1.1 | Реализовать двойную обёртку ключа (Argon2id) | `TASK-093-passphrase-key-wrapping.md` | ⬜ |
-| TASK-094 | T-6.1.2 | Реализовать use cases vault и rate limit | `TASK-094-vault-usecases.md` | ⬜ |
-| TASK-095 | T-6.1.3 | Реализовать экран блокировки | `TASK-095-lock-screen-ui.md` | ⬜ |
-| TASK-096 | T-6.2.1 | Интегрировать electron-updater за согласием | `TASK-096-updater-consent.md` | ⬜ |
-| TASK-097 | T-6.2.2 | Реализовать UI обновлений | `TASK-097-updates-ui.md` | ⬜ |
-| TASK-098 | T-6.3.1 | Реализовать хендлеры privacy/journal | `TASK-098-privacy-handlers.md` | ⬜ |
-| TASK-099 | T-6.3.2 | Реализовать экран «Приватность» | `TASK-099-privacy-screen.md` | ⬜ |
-| TASK-100 | T-6.4.1 | Реализовать startup self-check и «О приложении» | `TASK-100-selfcheck-about.md` | ⬜ |
-| TASK-101 | T-6.4.2 | Реализовать восстановление при повреждении | `TASK-101-corruption-recovery.md` | ⬜ |
-| TASK-102 | T-6.4.3 | Написать крэш-тест потери питания | `TASK-102-crash-safety-test.md` | ⬜ |
-| TASK-103 | T-6.4.4 | Реализовать диагностический пакет | `TASK-103-diag-bundle.md` | ⬜ |
+| TASK-093 | T-6.1.1 | Реализовать двойную обёртку ключа (Argon2id) | `TASK-093-passphrase-key-wrapping.md` | ✅ |
+| TASK-094 | T-6.1.2 | Реализовать use cases vault и rate limit | `TASK-094-vault-usecases.md` | ✅ |
+| TASK-095 | T-6.1.3 | Реализовать экран блокировки | `TASK-095-lock-screen-ui.md` | ✅ |
+| TASK-096 | T-6.2.1 | Интегрировать electron-updater за согласием | `TASK-096-updater-consent.md` | ✅ |
+| TASK-097 | T-6.2.2 | Реализовать UI обновлений | `TASK-097-updates-ui.md` | ✅ |
+| TASK-098 | T-6.3.1 | Реализовать хендлеры privacy/journal | `TASK-098-privacy-handlers.md` | ✅ |
+| TASK-099 | T-6.3.2 | Реализовать экран «Приватность» | `TASK-099-privacy-screen.md` | ✅ |
+| TASK-100 | T-6.4.1 | Реализовать startup self-check и «О приложении» | `TASK-100-selfcheck-about.md` | ✅ |
+| TASK-101 | T-6.4.2 | Реализовать восстановление при повреждении | `TASK-101-corruption-recovery.md` | ✅ |
+| TASK-102 | T-6.4.3 | Написать крэш-тест потери питания | `TASK-102-crash-safety-test.md` | ✅ |
+| TASK-103 | T-6.4.4 | Реализовать диагностический пакет | `TASK-103-diag-bundle.md` | ✅ |
 
 ### Фаза P7 — Релиз MVP (батч H) — TASK-104…115
 
