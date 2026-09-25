@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { HlLogger } from '../shared/logger/logger.js';
 import {
   createGlobalErrorHandler,
+  createLogClientErrorHandler,
   installGlobalErrorHandlers,
   type ProcessErrorTarget,
 } from './global-errors.js';
@@ -30,7 +31,10 @@ function makeLogger(): { logger: HlLogger; error: Mock } {
 const flush = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 /** Fake process-подобного target: ловит регистрации обработчиков (§19). */
-function makeTarget(): { target: ProcessErrorTarget; listeners: Map<string, (error: unknown) => void> } {
+function makeTarget(): {
+  target: ProcessErrorTarget;
+  listeners: Map<string, (error: unknown) => void>;
+} {
   const listeners = new Map<string, (error: unknown) => void>();
   const target: ProcessErrorTarget = {
     on(event, listener) {
@@ -177,5 +181,40 @@ describe('отказобезопасность (§13)', () => {
 
     expect(stderr).toHaveBeenCalledTimes(1);
     expect(showDialog).not.toHaveBeenCalled();
+  });
+});
+
+describe('createLogClientErrorHandler — канал app/log-client-error (§9/§18)', () => {
+  it('клиентский отчёт — в общий лог с source: renderer, digest; handler возвращает null', () => {
+    const { logger, error } = makeLogger();
+    const handle = createLogClientErrorHandler(logger);
+
+    const result = handle({
+      code: 'APP/RENDERER',
+      messageKey: 'errors.renderer',
+      digest: '1a2b3c4d',
+    });
+
+    // §9: handler → null; конверт {ok:true, data:null} ставит каркас register-channel.
+    expect(result).toBeNull();
+    expect(error).toHaveBeenCalledTimes(1);
+    const [message, meta] = error.mock.calls[0] as [string, Record<string, unknown>];
+    expect(message).toBe('ошибка рендерера (ErrorBoundary)');
+    expect(meta['source']).toBe('renderer'); // §18
+    expect(meta['code']).toBe('APP/RENDERER');
+    expect(meta['messageKey']).toBe('errors.renderer');
+    expect(meta['digest']).toBe('1a2b3c4d');
+  });
+
+  it('сбой логирования глушится — логгер не ломает UI цепочкой (§9)', () => {
+    const { logger, error } = makeLogger();
+    error.mockImplementation(() => {
+      throw new Error('pino упал');
+    });
+    const handle = createLogClientErrorHandler(logger);
+
+    expect(() =>
+      handle({ code: 'APP/RENDERER', messageKey: 'errors.renderer', digest: 'd' }),
+    ).not.toThrow();
   });
 });

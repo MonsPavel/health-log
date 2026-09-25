@@ -1,11 +1,12 @@
 import { join } from 'node:path';
 
-import { app } from 'electron';
+import { app, dialog } from 'electron';
 
 import { CHANNEL_SCHEMAS } from '@hl/contracts';
 import { SystemClock } from '@hl/kernel';
 
 import { createWindow } from './create-window.js';
+import { createLogClientErrorHandler, installGlobalErrorHandlers } from './global-errors.js';
 import { createPingHandler } from '../ipc/handlers/ping.js';
 import { installChannelBridge, registerChannel } from '../ipc/register-channel.js';
 import { createLogger, initFileLogging } from '../shared/logger/logger.js';
@@ -38,6 +39,24 @@ function initAppLogging(): void {
 }
 
 /**
+ * Безопасный диалог краша main (TASK-011 §9/§22): dialog API работает без окна —
+ * краш до создания окна допустим. Текст — константа из global-errors (§14: только
+ * code, без message исключения).
+ */
+function showCrashDialog(text: string): Promise<unknown> {
+  return dialog
+    .showMessageBox({ type: 'error', title: 'Health Log', buttons: ['OK'], message: text })
+    .then(() => undefined);
+}
+
+/**
+ * TASK-011 §5: глобальные хендлеры uncaughtException/unhandledRejection ставятся на
+ * импорте модуля, ДО whenReady — краши старта тоже обязаны быть видны (§2). Логгер
+ * до initFileLogging буферизуется (TASK-010 §9) — ранние записи не теряются.
+ */
+installGlobalErrorHandlers({ logger: createLogger('app'), showDialog: showCrashDialog });
+
+/**
  * Точка входа main-процесса (TASK-007 §9): whenReady → каналы IPC (TASK-008 §5) →
  * createWindow. Регистрация каналов — только через registerChannel каркаса (§9),
  * транспортный мост `hl:invoke` ставится один раз до создания окна.
@@ -50,6 +69,12 @@ function initAppLogging(): void {
 void app.whenReady().then(() => {
   initAppLogging();
   registerChannel('app/ping', CHANNEL_SCHEMAS['app/ping'], createPingHandler(new SystemClock()));
+  // TASK-011 §9: клиентский отчёт об ошибке — fire-and-forget, response null.
+  registerChannel(
+    'app/log-client-error',
+    CHANNEL_SCHEMAS['app/log-client-error'],
+    createLogClientErrorHandler(createLogger('app')),
+  );
   installChannelBridge();
   createWindow();
 });

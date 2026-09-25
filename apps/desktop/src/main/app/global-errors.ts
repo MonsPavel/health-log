@@ -18,6 +18,8 @@
  * подставляется проводкой в bootstrap.ts, тесты — фейками deps и process-подобным
  * target с подменёнными process.on-регистрациями (§19).
  */
+import type { ChannelRequest } from '@hl/contracts';
+
 import { logDiagnostic, type HlLogger } from '../shared/logger/logger.js';
 
 /** Тип глобального сбоя main (§5). */
@@ -113,4 +115,30 @@ export function installGlobalErrorHandlers(
   const handle = createGlobalErrorHandler(deps);
   target.on('uncaughtException', (error: Error) => handle(error, 'uncaughtException'));
   target.on('unhandledRejection', (reason: unknown) => handle(reason, 'unhandledRejection'));
+}
+
+/** Форма запроса канала — выводится из реестра схем contracts (§23). */
+export type ClientErrorReport = ChannelRequest<'app/log-client-error'>;
+
+/**
+ * Хендлер канала app/log-client-error (§9/§18): клиентский отчёт ErrorBoundary —
+ * в общий лог (source: renderer, digest для ручной агрегации). Payload уже валидирован
+ * zod-схемой каркаса (§11/§14); стеки рендерера наружу не ходят — только digest.
+ * Возвращает null → конверт {ok:true, data:null} ставит register-channel; сбой
+ * логирования глушится — логгер не должен ломать UI цепочкой (§9/§13).
+ */
+export function createLogClientErrorHandler(logger: HlLogger): (report: ClientErrorReport) => null {
+  return (report) => {
+    try {
+      logger.error('ошибка рендерера (ErrorBoundary)', {
+        source: 'renderer',
+        code: report.code,
+        messageKey: report.messageKey,
+        digest: report.digest,
+      });
+    } catch (cause) {
+      console.error('[global-errors] сбой логирования клиентской ошибки', cause);
+    }
+    return null;
+  };
 }
