@@ -66,8 +66,8 @@ module.exports = {
       name: 'renderer-not-node',
       severity: 'error',
       comment:
-        'арх. 03 §4, арх. 08 §4: renderer без Node-библиотек (node:* и legacy-голые имена). Проверяется фикстурой bad-renderer-node.ts (§19).',
-      from: { path: RENDERER_FROM },
+        'арх. 03 §4, арх. 08 §4: renderer без Node-библиотек (node:* и legacy-голые имена). Проверяется фикстурой bad-renderer-node.ts (§19). Тесты (*.test.ts) исключены: матрица про production-код — тестам нужен тестовый инструментарий (fs фикстуры, child_process для CLI-теста check-i18n, TASK-013 §19; прецедент packages-layering ниже).',
+      from: { path: RENDERER_FROM, pathNot: '\\.test\\.ts$' },
       to: { dependencyTypes: ['core'] },
     },
     {

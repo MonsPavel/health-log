@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 /**
@@ -11,12 +12,14 @@ import { defineConfig } from 'vite';
  *   localhost — исключает расхождение IPv4/IPv6; конфликт порта = громкое падение,
  *   а не тихая загрузка чужого dev-сервера);
  * - HMR — штатный dev-сервер Vite (§20, шаг 1);
+ * - tailwindcss — TASK-013: плагин Tailwind v4, вход @import 'tailwindcss' в
+ *   app/theme/theme.css (§6);
  * - Electron-Vite-шаблон — референс конфигурации, не форк (§4).
  */
 export default defineConfig({
   root: 'src-renderer',
   base: './',
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   build: {
     outDir: '../dist-renderer',
     emptyOutDir: true,
