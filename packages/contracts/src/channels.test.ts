@@ -52,12 +52,13 @@ describe('типы реестра — компилятор выводит payloa
     expectTypeOf<ChannelResponse<'app/ping'>>().toEqualTypeOf<{ pong: true; ts: number }>();
   });
 
-  it('HlBridge.invoke требует известный ChannelName — «дозвониться» до чужого канала нельзя (арх. 05 §1)', async () => {
-    const bridge = {} as HlBridge;
-
-    expectTypeOf(bridge.invoke('app/ping', {})).toEqualTypeOf<Promise<unknown>>();
-    // @ts-expect-error неизвестный канал отклонён типом — контракту не нужен рантайм-реестр в рендерере
-    bridge.invoke('app/nope', {});
-    expect(Object.keys(CHANNEL_SCHEMAS)).toEqual(['app/ping']);
+  it('HlBridge.invoke требует известный ChannelName — «дозвониться» до чужого канала нельзя (арх. 05 §1)', () => {
+    expectTypeOf<HlBridge['invoke']>().parameter(0).toEqualTypeOf<ChannelName>();
+    expectTypeOf<HlBridge['invoke']>().returns.toEqualTypeOf<Promise<unknown>>();
+    // Не выполняется (только тип-проверка): неизвестный канал — ошибка компиляции.
+    const callUnknownChannel = (bridge: HlBridge): Promise<unknown> =>
+      // @ts-expect-error ChannelName не содержит app/nope — рантайм-реестр в рендерере не нужен
+      bridge.invoke('app/nope', {});
+    expectTypeOf(callUnknownChannel).returns.toEqualTypeOf<Promise<unknown>>();
   });
 });

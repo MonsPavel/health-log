@@ -16,6 +16,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
+    "@hl/kernel": "workspace:*",
     "zod": "^4.6.5"
   }
 }
