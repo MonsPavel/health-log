@@ -75,3 +75,39 @@ export function createWindow(): BrowserWindow {
 
   return window;
 }
+
+/**
+ * Окно-подобный минимум для восстановления фокуса (§19: fake-окно в тестах);
+ * BrowserWindow структурно совместим.
+ */
+export interface FocusableWindow {
+  isMinimized(): boolean;
+  restore(): void;
+  show(): void;
+  focus(): void;
+}
+
+/** Последнее созданное открытое окно (Set хранит порядок вставки; в MVP окно одно). */
+function lastOpenWindow(): FocusableWindow | undefined {
+  return [...openWindows].at(-1);
+}
+
+/**
+ * Восстановление существующего окна при повторном запуске (TASK-012 §5/§10): свёрнутое
+ * — restore; затем show (возвращает из скрытого состояния — «закрытое» окно §20, трея
+ * в MVP нет) и focus. Окон нет — no-op: на Windows «все окна закрыты» уже уводит
+ * приложение в quit (window-all-closed, bootstrap). Вызывается обработчиком
+ * second-instance (single-instance.ts).
+ */
+export function focusExistingWindow(
+  window: FocusableWindow | undefined = lastOpenWindow(),
+): void {
+  if (window === undefined) {
+    return;
+  }
+  if (window.isMinimized()) {
+    window.restore();
+  }
+  window.show();
+  window.focus();
+}
