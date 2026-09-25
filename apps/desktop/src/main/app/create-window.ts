@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { BrowserWindow, shell } from 'electron';
 
 import { createWindowOptions } from './create-window-options.js';
+import { buildCspPolicy } from './csp.js';
 import { isExternalHttpUrl, isNavigationAllowed } from './navigation-guards.js';
 
 /**
@@ -25,6 +26,19 @@ export function createWindow(): BrowserWindow {
   });
 
   const devServerUrl = process.env['ELECTRON_RENDERER_URL'];
+
+  // §6/§14, арх. 08 §4: CSP-заголовок на каждый ответ окна — default-src 'self';
+  // в dev «+ разрешение vite-хоста» (origin + inline-preamble react-refresh + ws://
+  // для HMR; послабление только в dev — §22). Решение §6: заголовок в
+  // onHeadersReceived, а не meta-тег (проверка приёмки §20 — Network → headers).
+  window.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [buildCspPolicy(devServerUrl)],
+      },
+    });
+  });
 
   // §13: DevTools — только в dev (индикатор dev-режима — наличие ELECTRON_RENDERER_URL).
   if (devServerUrl !== undefined) {

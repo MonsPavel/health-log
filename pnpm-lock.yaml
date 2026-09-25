@@ -44,6 +44,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@hl/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@hl/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
@@ -78,8 +81,18 @@ importers:
       wait-on:
         specifier: ^9.1.0
         version: 9.1.0
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
-  packages/contracts: {}
+  packages/contracts:
+    dependencies:
+      '@hl/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
   packages/kernel: {}
 
@@ -1622,6 +1635,9 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+
 snapshots:
 
   '@babel/helper-string-parser@7.29.7': {}
@@ -2989,3 +3005,5 @@ snapshots:
       yargs-parser: 22.0.0
 
   yocto-queue@0.1.0: {}
+
+  zod@4.6.5: {}

@@ -18,6 +18,17 @@ type ProjectTestConfig = NonNullable<UserWorkspaceConfig['test']>;
 /** Абсолютный путь setup-хука: проекты резолвят setupFiles от своего root — фиксируем от корня монорепо. */
 const setupFiles = [fileURLToPath(new URL('./vitest.setup.ts', import.meta.url))];
 
+/**
+ * TASK-008: алиасы workspace-пакетов на исходники — тесты main-процесса desktop
+ * (register-channel и далее) импортируют @hl/kernel и @hl/contracts по имени, и
+ * без алиаса vitest резолвил бы их через dist (сборка перед pnpm test). Тесты
+ * герметичны от порядка сборки: pnpm test работает на свежем checkout.
+ */
+const workspaceAliases = {
+  '@hl/kernel': fileURLToPath(new URL('./packages/kernel/src/index.ts', import.meta.url)),
+  '@hl/contracts': fileURLToPath(new URL('./packages/contracts/src/index.ts', import.meta.url)),
+};
+
 /** Общие настройки каждого тестового проекта монорепо (§5, §13). */
 export const sharedTestConfig: ProjectTestConfig = {
   environment: 'node',
@@ -28,5 +39,8 @@ export const sharedTestConfig: ProjectTestConfig = {
 
 /** Фабрика тестового проекта: имя (для `vitest --project`) и include-паттерны поверх общих настроек. */
 export function testProject(name: string, include: string[]): UserWorkspaceConfig {
-  return { test: { ...sharedTestConfig, name, include } };
+  return {
+    resolve: { alias: workspaceAliases },
+    test: { ...sharedTestConfig, name, include },
+  };
 }
