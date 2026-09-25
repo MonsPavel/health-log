@@ -17,6 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "test:lint-rules": "tsx scripts/test-lint-rules.ts",
     "test:depcruise-rules": "tsx scripts/test-depcruise-rules.ts",
+    "test:pr-workflow": "tsx scripts/test-pr-workflow.ts",
     "lint": "eslint . --cache --max-warnings 0 && prettier --check .",
     "lint:fix": "eslint . --fix && prettier --write .",
     "typecheck": "tsc -b packages/kernel/tsconfig.json packages/contracts/tsconfig.json packages/scales-data/tsconfig.json apps/desktop/tsconfig.json",
