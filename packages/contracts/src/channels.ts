@@ -11,6 +11,8 @@
  */
 import { z } from 'zod';
 
+import type { CHANNEL_SCHEMAS } from './schemas.js';
+
 /** Прикладные каналы (сейчас — только ping; прикладные — с TASK-028). */
 export type ChannelName = 'app/ping';
 
