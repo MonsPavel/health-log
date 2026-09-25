@@ -1,0 +1,16 @@
+# TASK-005 §6/§19: исключения из основного прогона `pnpm depcruise` (`. ` = весь репозиторий).
+# Файл читается .dependency-cruiser.cjs (у dependency-cruiser нет нативного ignore-файла):
+# каждая непустая строка — regex на posix-путь модуля от корня репо; '#' — комментарий.
+
+# Фикстуры правил (§19) — их проверяет отдельный прогон: pnpm run test:depcruise-rules.
+^tools/depcruise-fixtures/
+
+# Фикстуры других сетей качества — не исходники приложения (линт-фикстуры TASK-003,
+# компиляционная фикстура tsc TASK-002).
+^tools/lint-fixtures/
+^tools/tsconfig-fixture/
+
+# Артефакты тестового окружения (ср. .gitignore); dist НЕ исключён: через realpath
+# (@hl/* → packages/*/dist) резолвятся межпакетные импорты, и рёбра должны оставаться
+# видимыми правилам (§5: renderer-not-node, packages-layering).
+^coverage/

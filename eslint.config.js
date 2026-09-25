@@ -105,6 +105,9 @@ export default tseslint.config(
       '.zcode/**',
       // §19: фикстуры зон исключены из основного линта — их проверяет pnpm run test:lint-rules.
       'tools/lint-fixtures/**',
+      // TASK-005 §19: фикстуры правил dependency-cruiser — их проверяет pnpm run
+      // test:depcruise-rules; в фикстурах намеренные архитектурные нарушения.
+      'tools/depcruise-fixtures/**',
       // TASK-002: компиляционная фикстура tsc — обязана оставаться небезопасной, линтить её нельзя.
       'tools/tsconfig-fixture/**',
       'pnpm-lock.yaml',
