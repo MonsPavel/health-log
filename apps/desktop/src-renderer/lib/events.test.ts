@@ -6,7 +6,7 @@
  */
 import { cleanup, renderHook } from '@testing-library/react';
 import { createElement, StrictMode, type ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { afterEach, describe, expect, expectTypeOf, it, vi, type Mock } from 'vitest';
 
 import type { HlEventMap } from '@hl/contracts';
 

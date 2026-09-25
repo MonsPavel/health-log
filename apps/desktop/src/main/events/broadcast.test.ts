@@ -22,7 +22,7 @@ function fakeTarget(options: { destroyed?: boolean; sendThrows?: Error } = {}): 
   send: Mock;
   destroy(): void;
 } {
-  const send = vi.fn(() => {
+  const send = vi.fn<(channel: string, payload: unknown) => void>(() => {
     if (options.sendThrows !== undefined) {
       throw options.sendThrows;
     }
@@ -84,9 +84,9 @@ describe('broadcastToWindows — доставка (§20)', () => {
     broadcast('data:versionBumped', { newVersion: 1 });
     broadcast('data:versionBumped', { newVersion: 2 });
 
-    expect(a.send.mock.calls.map(([, envelope]) => envelope)).toEqual([
-      { name: 'data:versionBumped', payload: { newVersion: 1 } },
-      { name: 'data:versionBumped', payload: { newVersion: 2 } },
+    expect(a.send.mock.calls).toEqual([
+      [HL_EVENT_CHANNEL, { name: 'data:versionBumped', payload: { newVersion: 1 } }],
+      [HL_EVENT_CHANNEL, { name: 'data:versionBumped', payload: { newVersion: 2 } }],
     ]);
   });
 });
@@ -129,9 +129,8 @@ describe('broadcastToWindows — ошибки send (§9: fire-and-forget)', () =
 
     expect(healthy.send).toHaveBeenCalledTimes(1);
     expect(debug).toHaveBeenCalledTimes(1);
-    const [message, meta] = debug.mock.calls[0] as [string, Record<string, unknown>];
+    const [, meta] = debug.mock.calls[0] as [string, Record<string, unknown>];
     expect(meta['name']).toBe('measurement:changed');
     expect((meta['cause'] as Error).message).toContain('Object has been destroyed');
-    void message;
   });
 });

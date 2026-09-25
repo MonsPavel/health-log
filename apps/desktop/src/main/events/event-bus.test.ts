@@ -95,10 +95,9 @@ describe('EventBus — изоляция исключений подписчик�
     expect(second).toHaveBeenCalledTimes(1);
     expect(second).toHaveBeenCalledWith({ level: 'info', messageKey: 'log.key' });
     expect(error).toHaveBeenCalledTimes(1);
-    const [message, meta] = error.mock.calls[0] as [string, Record<string, unknown>];
+    const [, meta] = error.mock.calls[0] as [string, Record<string, unknown>];
     expect(meta['cause']).toBe(boom);
     expect(meta['name']).toBe('app:log');
-    void message;
   });
 });
 
