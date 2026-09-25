@@ -41,7 +41,7 @@ function makeApp(options: { gotLock?: boolean } = {}): {
   const target: SingleInstanceApp = {
     requestSingleInstanceLock: lock,
     quit,
-    on: on as unknown as SingleInstanceApp['on'],
+    on,
   };
   return {
     target,

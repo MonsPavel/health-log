@@ -99,9 +99,7 @@ function lastOpenWindow(): FocusableWindow | undefined {
  * приложение в quit (window-all-closed, bootstrap). Вызывается обработчиком
  * second-instance (single-instance.ts).
  */
-export function focusExistingWindow(
-  window: FocusableWindow | undefined = lastOpenWindow(),
-): void {
+export function focusExistingWindow(window: FocusableWindow | undefined = lastOpenWindow()): void {
   if (window === undefined) {
     return;
   }
