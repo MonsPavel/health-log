@@ -32,10 +32,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      # Отклонение от §5 («Node 20»): dependency-cruiser 18 (TASK-005) требует node ^22||^24||>=26;
+      # engines монорепо «>=20» соблюдён, локальный toolchain проверен на 24.
+      - name: Setup Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Enable corepack (pnpm 9 — packageManager)
         run: |

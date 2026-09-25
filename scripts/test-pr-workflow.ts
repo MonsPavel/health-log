@@ -43,7 +43,11 @@ const PRESENCE_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
     re: /^ {6}ELECTRON_SKIP_BINARY_DOWNLOAD: ['"]1['"]$/m,
   },
   { label: '§14 минимальные права: contents: read', re: /^permissions:\n {2}contents: read$/m },
-  { label: '§5 Node 20', re: /^ {10}node-version: ['"]20['"]$/m },
+  // Отклонение от §5 («Node 20»): dependency-cruiser 18 (TASK-005) требует node ^22||^24||>=26.
+  {
+    label: 'Node 24 (минимум depcruise 18, локальный toolchain)',
+    re: /^ {10}node-version: ['"]24['"]$/m,
+  },
   { label: '§5 corepack enable', re: /^ {10}corepack enable$/m },
   { label: '§5 corepack → pnpm 9', re: /^ {10}corepack prepare pnpm@9/m },
   {
