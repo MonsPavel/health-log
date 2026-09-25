@@ -20,7 +20,7 @@ import {
   resolveLogLevel,
   type FileLoggingOptions,
 } from './logger.js';
-import { PHI_CENSOR } from './redact.js';
+import { MAX_REDACT_DEPTH, PHI_CENSOR } from './redact.js';
 
 /** Активный файл pino-roll v4 в свежем каталоге: номер вставляется перед расширением (hl.1.log). */
 const ACTIVE = 'hl.1.log';
@@ -285,5 +285,55 @@ describe('logDiagnostic (§5, §20: stack без PHI cause)', () => {
     logDiagnostic(createLogger('app'), 'plain failure');
 
     expect(readLog(dir)).toContain('plain failure');
+  });
+
+  // §14 fail-safe (ревью ветки): logDiagnostic обрабатывает ЧУЖИЕ ошибки — исключение
+  // из логирующего вызова (RangeError при цикле cause) может уронить обработчик ошибки
+  // в main. Циклы/бесконечная глубина цензурятся, а не бросают — по образцу redactPhi.
+  it('самоциклическая cause-цепочка: logDiagnostic не бросает, цикл цензурен (§14)', async () => {
+    await initFileLogging(options(dir));
+    const cyclic: Error & { cause?: unknown } = new Error('outer');
+    cyclic.cause = cyclic;
+
+    expect(() => logDiagnostic(createLogger('app'), cyclic)).not.toThrow();
+
+    const [line] = parseLines(readLog(dir));
+    const err = line['err'] as { message: string; cause: unknown };
+    expect(err.message).toBe('outer');
+    expect(err.cause).toBe(PHI_CENSOR);
+  });
+
+  it('взаимный цикл через не-Error объекты: разворачивается до первой встречи, дальше цензура (§14)', async () => {
+    await initFileLogging(options(dir));
+    const a: { code: string; cause?: unknown } = { code: 'A/X' };
+    const b: { code: string; cause?: unknown } = { code: 'B/Y' };
+    a.cause = b;
+    b.cause = a;
+    logDiagnostic(createLogger('ipc'), a);
+
+    const [line] = parseLines(readLog(dir));
+    const err = line['err'] as { code: string; cause: { code: string; cause: unknown } };
+    expect(err.code).toBe('A/X');
+    expect(err.cause.code).toBe('B/Y');
+    expect(err.cause.cause).toBe(PHI_CENSOR);
+  });
+
+  it(`цепочка глубже ${MAX_REDACT_DEPTH}: хвост цензурен вместо переполнения стека (§14)`, async () => {
+    await initFileLogging(options(dir));
+    let deep: Error = new Error(`level-${MAX_REDACT_DEPTH + 1}`);
+    for (let i = MAX_REDACT_DEPTH; i >= 0; i -= 1) {
+      deep = new Error(`level-${i}`, { cause: deep });
+    }
+
+    expect(() => logDiagnostic(createLogger('db'), deep)).not.toThrow();
+
+    const [line] = parseLines(readLog(dir));
+    let node = line['err'] as { message: string; cause?: unknown };
+    // уровни 0..MAX_REDACT_DEPTH видны, хвост (глубже предела) — цензура
+    for (let i = 0; i <= MAX_REDACT_DEPTH; i += 1) {
+      expect(node.message).toBe(`level-${i}`);
+      node = node['cause'] as { message: string; cause?: unknown };
+    }
+    expect(node).toBe(PHI_CENSOR);
   });
 });

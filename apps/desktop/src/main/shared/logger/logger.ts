@@ -35,7 +35,7 @@ import type { Logger } from 'pino';
 import build from 'pino-roll';
 import type { PinoRollStream } from 'pino-roll';
 
-import { PHI_CENSOR, PHI_KEYS, PHI_REDACT_PATHS, redactPhi } from './redact.js';
+import { MAX_REDACT_DEPTH, PHI_CENSOR, PHI_KEYS, PHI_REDACT_PATHS, redactPhi } from './redact.js';
 
 /** Категории логов каркаса (§2: app, ipc, db, ai, net, events, job). */
 export type LoggerCategory = 'app' | 'ipc' | 'db' | 'ai' | 'net' | 'events' | 'job';
@@ -198,26 +198,51 @@ export function createLogger(category: LoggerCategory): HlLogger {
  * Стеки не содержат данных пользователя (§5) и не редактируются; произвольные
  * собственные поля Error намеренно не выгружаются (fail-closed: у стандартного Error
  * их нет, у кастомных классов — не наша задача публиковать).
+ *
+ * Отказобезопасность (§14, по образцу redactPhi): cause-цепочка ходится с seen-set и
+ * пределом глубины MAX_REDACT_DEPTH — цикл (err.cause = err) или бесконечная цепочка
+ * цензурятся PHI_CENSOR вместо переполнения стека: logDiagnostic обрабатывает ЧУЖИЕ
+ * ошибки, исключение из логирующего вызова не допустимо (упало бы в обработчик main).
+ * Замечание: plain-object-циклы до сериализатора не доходят — redactPhi в
+ * formatters.log (вызывается раньше) цензурит их; Guard здесь страхует Error-листья,
+ * которые redactPhi сознательно пропускает нетронутыми.
  */
-function serializeDiagnosticError(error: unknown): unknown {
+function serializeDiagnosticError(
+  error: unknown,
+  depth = 0,
+  seen: ReadonlySet<object> = new Set(),
+): unknown {
+  if (depth > MAX_REDACT_DEPTH) {
+    return PHI_CENSOR;
+  }
   if (error instanceof Error) {
+    if (seen.has(error)) {
+      return PHI_CENSOR;
+    }
+    const visited = new Set(seen);
+    visited.add(error);
     const out: Record<string, unknown> = {
       type: error.name,
       message: error.message,
       stack: error.stack,
     };
     if (error.cause !== undefined) {
-      out['cause'] = serializeDiagnosticError(error.cause);
+      out['cause'] = serializeDiagnosticError(error.cause, depth + 1, visited);
     }
     return out;
   }
   if (typeof error === 'object' && error !== null) {
+    if (seen.has(error)) {
+      return PHI_CENSOR;
+    }
+    const visited = new Set(seen);
+    visited.add(error);
     const out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(error)) {
       if (PHI_KEYS.has(key)) {
         out[key] = PHI_CENSOR;
       } else if (key === 'cause') {
-        out[key] = serializeDiagnosticError(value);
+        out[key] = serializeDiagnosticError(value, depth + 1, visited);
       } else {
         out[key] = redactPhi(value);
       }
