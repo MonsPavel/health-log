@@ -6,7 +6,10 @@ import { defineConfig } from 'vite';
  *
  * - base: './' — prod загружается через file:// (loadFile), относительные пути ассетов
  *   обязательны (§13);
- * - port 5173 + strictPort — фиксированный порт для скрипта dev (wait-on ждёт именно его, §5);
+ * - host 127.0.0.1 + port 5183 + strictPort — детерминированная точка входа для скрипта
+ *   dev (wait-on ждёт именно её, ELECTRON_RENDERER_URL указывает на 127.0.0.1, а не
+ *   localhost — исключает расхождение IPv4/IPv6; конфликт порта = громкое падение,
+ *   а не тихая загрузка чужого dev-сервера);
  * - HMR — штатный dev-сервер Vite (§20, шаг 1);
  * - Electron-Vite-шаблон — референс конфигурации, не форк (§4).
  */
@@ -19,7 +22,8 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5173,
+    host: '127.0.0.1',
+    port: 5183,
     strictPort: true,
   },
 });

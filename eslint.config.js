@@ -27,6 +27,15 @@ import tseslint from 'typescript-eslint';
 
 const MODULE_ROOT = 'apps/desktop/src/main/modules';
 
+/**
+ * Расширения TypeScript-файлов монорепо. TASK-007: появились .tsx (рендерер) и
+ * .cts (sandbox-preload — CJS в ESM-пакете). Важно указывать явно: блок
+ * eslint-recommended внутри recommendedTypeChecked имеет собственный files с
+ * ts/tsx/mts/cts — без расширения typed-блоков новые файлы линтятся espree и падают
+ * на парсинге, оставаясь вне зон и type-aware правил.
+ */
+const TS_GLOBS = ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts'];
+
 /** Селектор зоны-элемента. */
 const el = (type) => ({ element: { type } });
 /** Селектор той же зоны, но в СВОЁМ модуле (захват §7: запрет чужих внутренностей). */
@@ -117,11 +126,11 @@ export default tseslint.config(
   // Блоки пресета без files применяются ко всем файлам (включая этот JS-конфиг),
   // где typed-правила падают без type-info — скоупим весь пресет к TS.
   ...tseslint.configs.recommendedTypeChecked.map((block) =>
-    block.files === undefined ? { ...block, files: ['**/*.ts'] } : block,
+    block.files === undefined ? { ...block, files: TS_GLOBS } : block,
   ),
 
   {
-    files: ['**/*.ts'],
+    files: TS_GLOBS,
     languageOptions: {
       parserOptions: {
         // §15: projectService быстрее parserOptions.project на больших деревьях.
@@ -319,7 +328,7 @@ export default tseslint.config(
   {
     // §7: зона renderer — без Node-библиотек. «Голые» билдены вроде `fs` (legacy-CJS стиль)
     // не ловятся намеренно: канон импорта в репо — `node:*`, а вторую сеть даёт TASK-005.
-    files: ['apps/desktop/src-renderer/**/*.ts'],
+    files: ['apps/desktop/src-renderer/**/*.ts', 'apps/desktop/src-renderer/**/*.tsx'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -366,6 +375,16 @@ export default tseslint.config(
           message: 'new Function() запрещён во всех зонах (§14)',
         },
       ],
+    },
+  },
+
+  {
+    // TASK-007: .cts — файлы, компилируемые только в CommonJS (sandbox-preload, §22).
+    // `import x = require(...)` — единственный verbatim-совместимый CJS-импорт
+    // (verbatimModuleSyntax, TASK-002 §13), no-require-imports на него не применяется.
+    files: ['**/*.cts'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 );
