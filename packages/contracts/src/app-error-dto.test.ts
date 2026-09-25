@@ -58,6 +58,9 @@ describe('синтезируемые каркасом ошибки (§13)', () =
   });
 
   it('VALIDATION_FAILED_ERROR: код VALIDATION/FAILED, messageKey по конвенции §17', () => {
-    expect(VALIDATION_FAILED_ERROR).toEqual({ code: 'VALIDATION/FAILED', messageKey: 'errors.validation' });
+    expect(VALIDATION_FAILED_ERROR).toEqual({
+      code: 'VALIDATION/FAILED',
+      messageKey: 'errors.validation',
+    });
   });
 });

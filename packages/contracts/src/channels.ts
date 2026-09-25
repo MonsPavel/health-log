@@ -33,7 +33,9 @@ export interface HlBridge {
 }
 
 /** Тип запроса канала — выводится из реестра схем (z.infer, §23). */
-export type ChannelRequest<C extends ChannelName> = z.output<(typeof CHANNEL_SCHEMAS)[C]['request']>;
+export type ChannelRequest<C extends ChannelName> = z.output<
+  (typeof CHANNEL_SCHEMAS)[C]['request']
+>;
 
 /** Тип ответа канала — выводится из реестра схем (z.infer, §23). */
 export type ChannelResponse<C extends ChannelName> = z.output<

@@ -5,7 +5,6 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
-  CHANNEL_SCHEMAS,
   HL_INVOKE_CHANNEL,
   HL_INVOKE_REQUEST_SCHEMA,
   type ChannelName,
@@ -45,6 +44,8 @@ describe('типы реестра — компилятор выводит payloa
   });
 
   it('ChannelRequest для app/ping — вывод z.infer из схемы запроса', () => {
+    // Точная форма z.object({}): пустой объект — так выводит zod, иных полей у запроса нет.
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     expectTypeOf<ChannelRequest<'app/ping'>>().toEqualTypeOf<{}>();
   });
 

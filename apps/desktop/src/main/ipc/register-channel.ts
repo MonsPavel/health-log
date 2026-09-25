@@ -42,7 +42,9 @@ export function createConsoleIpcLogger(): IpcLogger {
 }
 
 /** Обработчик канала: валидированный payload → ответ (синхронно или Promise, §9). */
-export type ChannelHandler<TRequest, TResponse> = (payload: TRequest) => TResponse | Promise<TResponse>;
+export type ChannelHandler<TRequest, TResponse> = (
+  payload: TRequest,
+) => TResponse | Promise<TResponse>;
 
 /** Реестр каналов: регистрация (единственный способ, §9) и диспетчеризация вызовов. */
 export interface ChannelRegistry {
@@ -94,7 +96,7 @@ export function createChannelRegistry(
         throw new Error(`IPC-канал уже зарегистрирован: ${name}`);
       }
       channels.set(name, {
-        schemas: schemas as ChannelSchemas<unknown, unknown>,
+        schemas,
         handler: handler as ChannelHandler<unknown, unknown>,
       });
     },

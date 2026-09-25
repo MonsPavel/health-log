@@ -34,9 +34,9 @@ describe('apiSuccess / apiFailure — конструкторы конверта'
 describe('isApiEnvelope — type guard формы ответа (недоверенная граница)', () => {
   it('принимает конверты обеих веток', () => {
     expect(isApiEnvelope({ v: 1, ok: true, data: {} })).toBe(true);
-    expect(isApiEnvelope({ v: 1, ok: false, error: { code: 'APP/INTERNAL', messageKey: 'e' } })).toBe(
-      true,
-    );
+    expect(
+      isApiEnvelope({ v: 1, ok: false, error: { code: 'APP/INTERNAL', messageKey: 'e' } }),
+    ).toBe(true);
   });
 
   it('отклоняет не-объекты и мусор', () => {
@@ -61,7 +61,9 @@ describe('ApiEnvelope — типизация', () => {
     if (envelope.ok) {
       expectTypeOf(envelope.data).toEqualTypeOf<number>();
     } else {
-      expectTypeOf(envelope.error.code).toEqualTypeOf<'APP/INTERNAL' | 'APP/NOT_IMPLEMENTED' | 'VALIDATION/FAILED'>();
+      expectTypeOf(envelope.error.code).toEqualTypeOf<
+        'APP/INTERNAL' | 'APP/NOT_IMPLEMENTED' | 'VALIDATION/FAILED'
+      >();
     }
   });
 });

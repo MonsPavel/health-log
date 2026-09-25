@@ -26,12 +26,16 @@ describe('buildCspPolicy — dev (§6: dev-разрешение vite-хоста)
   });
 
   it('dev: разрешает inline-скрипты (preamble react-refresh, §22) — только в dev', () => {
-    expect(buildCspPolicy(DEV_URL)).toContain("script-src 'self' http://127.0.0.1:5183 'unsafe-inline'");
+    expect(buildCspPolicy(DEV_URL)).toContain(
+      "script-src 'self' http://127.0.0.1:5183 'unsafe-inline'",
+    );
     expect(buildCspPolicy(undefined)).not.toContain('unsafe-inline');
   });
 
   it('dev: разрешает HMR-websocket того же host:port в connect-src', () => {
-    expect(buildCspPolicy(DEV_URL)).toContain("connect-src 'self' http://127.0.0.1:5183 ws://127.0.0.1:5183");
+    expect(buildCspPolicy(DEV_URL)).toContain(
+      "connect-src 'self' http://127.0.0.1:5183 ws://127.0.0.1:5183",
+    );
   });
 
   it('невалидный dev-URL — откат к строгой prod-политике', () => {

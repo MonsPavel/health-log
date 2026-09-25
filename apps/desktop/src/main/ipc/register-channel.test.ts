@@ -33,8 +33,10 @@ const echoSchemas = {
   response: z.object({ value: z.string() }).strict(),
 };
 
-function fakeLogger(): IpcLogger & { warn: Mock; error: Mock } {
-  return { warn: vi.fn(), error: vi.fn() };
+function fakeLogger(): { logger: IpcLogger; warn: Mock; error: Mock } {
+  const warn = vi.fn();
+  const error = vi.fn();
+  return { logger: { warn, error }, warn, error };
 }
 
 function registryWithEchoHandler(
@@ -52,7 +54,7 @@ beforeEach(() => {
 
 describe('dispatch п.3 — валидный вызов (§13)', () => {
   it('payload доходит до хендлера валидированным, ответ — конверт {v:1, ok:true, data}', async () => {
-    const logger = fakeLogger();
+    const { logger, warn, error } = fakeLogger();
     const handler = vi.fn((payload: { value: string }) => ({ value: payload.value }));
     const registry = registryWithEchoHandler(logger, handler);
 
@@ -62,8 +64,8 @@ describe('dispatch п.3 — валидный вызов (§13)', () => {
 
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler).toHaveBeenCalledWith({ value: 'тест' });
-    expect(logger.error).not.toHaveBeenCalled();
-    expect(logger.warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('асинхронный хендлер: Promise разрешается в успешный конверт (§9: async-хендлеры допустимы)', async () => {
@@ -104,9 +106,17 @@ describe('dispatch п.2 — невалидный payload (§13, §20)', () => {
 
 describe('dispatch п.3 — AppError из хендлера (§13, §20)', () => {
   it('приходит точным кодом и messageKey, cause наружу не проходит', async () => {
-    const logger = fakeLogger();
+    const { logger, error } = fakeLogger();
     const registry = registryWithEchoHandler(logger, () => {
-      throw AppError.of('APP/NOT_IMPLEMENTED', 'errors.nyi', undefined, new Error('внутренняя причина'));
+      // Контракт §13 п. 3: handler сигнализирует ошибкой типа AppError (не Error) —
+      // каркас обязан перевести её в DTO; правилу only-throw-error это объяснено здесь.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw AppError.of(
+        'APP/NOT_IMPLEMENTED',
+        'errors.nyi',
+        undefined,
+        new Error('внутренняя причина'),
+      );
     });
 
     const envelope = await registry.dispatch({ channel: 'test/echo', payload: { value: 'x' } });
@@ -117,13 +127,13 @@ describe('dispatch п.3 — AppError из хендлера (§13, §20)', () => 
       expect('cause' in envelope.error).toBe(false);
     }
     // Ожидаемая ветка — не «необработанная ошибка», технический лог не пишется (§18).
-    expect(logger.error).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
   });
 });
 
 describe('dispatch п.4 — неизвестное исключение (§13, §18, §19)', () => {
   it('наружу APP/INTERNAL, cause — только в лог-спае каркаса', async () => {
-    const logger = fakeLogger();
+    const { logger, error } = fakeLogger();
     const boom = new Error('boom: технические детали');
     const registry = registryWithEchoHandler(logger, () => {
       throw boom;
@@ -132,8 +142,8 @@ describe('dispatch п.4 — неизвестное исключение (§13, �
     const envelope = await registry.dispatch({ channel: 'test/echo', payload: { value: 'x' } });
 
     expect(envelope).toEqual({ v: API_ENVELOPE_VERSION, ok: false, error: APP_INTERNAL_ERROR });
-    expect(logger.error).toHaveBeenCalledTimes(1);
-    const [message, meta] = logger.error.mock.calls[0] as [string, Record<string, unknown>];
+    expect(error).toHaveBeenCalledTimes(1);
+    const [message, meta] = error.mock.calls[0] as [string, Record<string, unknown>];
     expect(message).toContain('test/echo');
     expect(meta['cause']).toBe(boom);
   });
@@ -141,7 +151,7 @@ describe('dispatch п.4 — неизвестное исключение (§13, �
 
 describe('dispatch п.1 — неизвестный канал и битый запрос (§11, §13, §20)', () => {
   it('неизвестный канал → APP/INTERNAL + запись в лог', async () => {
-    const logger = fakeLogger();
+    const { logger, error } = fakeLogger();
     const registry = createChannelRegistry(logger, { isDev: false });
 
     await expect(registry.dispatch({ channel: 'app/nope', payload: {} })).resolves.toEqual({
@@ -150,15 +160,15 @@ describe('dispatch п.1 — неизвестный канал и битый за
       error: APP_INTERNAL_ERROR,
     });
 
-    expect(logger.error).toHaveBeenCalledTimes(1);
-    const [, meta] = logger.error.mock.calls[0] as [string, Record<string, unknown>];
+    expect(error).toHaveBeenCalledTimes(1);
+    const [, meta] = error.mock.calls[0] as [string, Record<string, unknown>];
     expect(meta['channel']).toBe('app/nope');
   });
 
   it.each([undefined, null, 42, 'invoke', { payload: {} }, { channel: 7 }])(
     'битый транспортный запрос %j → APP/INTERNAL + лог (недоверенный рендерер, §14)',
     async (badRequest) => {
-      const logger = fakeLogger();
+      const { logger, error } = fakeLogger();
       const registry = createChannelRegistry(logger, { isDev: false });
 
       await expect(registry.dispatch(badRequest)).resolves.toEqual({
@@ -166,7 +176,7 @@ describe('dispatch п.1 — неизвестный канал и битый за
         ok: false,
         error: APP_INTERNAL_ERROR,
       });
-      expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(error).toHaveBeenCalledTimes(1);
     },
   );
 });
@@ -190,7 +200,7 @@ describe('лимит payload 5 МБ (§5/§11: dev-режим — предупр
   const bigPayload = { blob: 'x'.repeat(5 * 1024 * 1024 + 1) };
 
   it('в dev: oversize-payload обрабатывается и логируется предупреждением', async () => {
-    const logger = fakeLogger();
+    const { logger, warn } = fakeLogger();
     const handler = vi.fn((payload: { blob: string }) => payload);
     const registry = createChannelRegistry(logger, { isDev: true });
     registry.register('test/big', bigSchemas, handler);
@@ -201,18 +211,18 @@ describe('лимит payload 5 МБ (§5/§11: dev-режим — предупр
       data: bigPayload,
     });
     expect(handler).toHaveBeenCalledTimes(1);
-    expect(logger.warn).toHaveBeenCalledTimes(1);
-    expect(logger.warn.mock.calls[0][1]).toMatchObject({ channel: 'test/big' });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][1]).toMatchObject({ channel: 'test/big' });
   });
 
-  it('не в dev: предупреждения нет (boевое окно не спамит лог)', async () => {
-    const logger = fakeLogger();
+  it('не в dev: предупреждения нет (боевое окно не спамит лог)', async () => {
+    const { logger, warn } = fakeLogger();
     const registry = createChannelRegistry(logger, { isDev: false });
     registry.register('test/big', bigSchemas, (payload) => payload);
 
     await registry.dispatch({ channel: 'test/big', payload: bigPayload });
 
-    expect(logger.warn).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
   });
 });
 
@@ -225,7 +235,9 @@ describe('installChannelBridge — mock ipcMain (§19)', () => {
   });
 
   it('полный круг: хендлер ipcMain.handle с mock event возвращает конверт', async () => {
-    const registry = registryWithEchoHandler(fakeLogger(), (payload) => ({ value: payload.value }));
+    const registry = registryWithEchoHandler(fakeLogger().logger, (payload) => ({
+      value: payload.value,
+    }));
     installChannelBridge(registry);
 
     const bridgeHandler = ipcMainHandle.mock.calls[0][1] as (
