@@ -5,8 +5,9 @@ import { app, dialog } from 'electron';
 import { CHANNEL_SCHEMAS } from '@hl/contracts';
 import { SystemClock } from '@hl/kernel';
 
-import { createWindow } from './create-window.js';
+import { createWindow, focusExistingWindow } from './create-window.js';
 import { createLogClientErrorHandler, installGlobalErrorHandlers } from './global-errors.js';
+import { createSecondInstanceHandler, ensureSingleInstance } from './single-instance.js';
 import { createPingHandler } from '../ipc/handlers/ping.js';
 import { installChannelBridge, registerChannel } from '../ipc/register-channel.js';
 import { createLogger, initFileLogging } from '../shared/logger/logger.js';
@@ -57,27 +58,36 @@ function showCrashDialog(text: string): Promise<unknown> {
 installGlobalErrorHandlers({ logger: createLogger('app'), showDialog: showCrashDialog });
 
 /**
- * Точка входа main-процесса (TASK-007 §9): whenReady → каналы IPC (TASK-008 §5) →
- * createWindow. Регистрация каналов — только через registerChannel каркаса (§9),
- * транспортный мост `hl:invoke` ставится один раз до создания окна.
- *
- * Single-instance lock: точка расширения зарезервирована здесь (§9) — фактическая
- * логика (app.requestSingleInstanceLock, quit второй копии, обработка second-instance)
- * включается в TASK-012, вызов размещается в этом файле.
- * TODO(TASK-012): app.requestSingleInstanceLock() — здесь.
+ * TASK-012 §5/§9: single-instance lock ДО whenReady. Лок не получен (второй запуск) →
+ * обёртка уже вызвала молчаливый app.quit() (без диалога — фокус получит существующее
+ * окно); whenReady не регистрируется — окно не создаётся (§20 п. 2). Получен — по
+ * second-instance: info-лог (§9/§18) + восстановление окна restore/show/focus (§10).
+ * EC-24 (арх. 07): защита SQLCipher-файла от двух экземпляров — до появления БД.
  */
-void app.whenReady().then(() => {
-  initAppLogging();
-  registerChannel('app/ping', CHANNEL_SCHEMAS['app/ping'], createPingHandler(new SystemClock()));
-  // TASK-011 §9: клиентский отчёт об ошибке — fire-and-forget, response null.
-  registerChannel(
-    'app/log-client-error',
-    CHANNEL_SCHEMAS['app/log-client-error'],
-    createLogClientErrorHandler(createLogger('app')),
-  );
-  installChannelBridge();
-  createWindow();
-});
+const gotSingleInstanceLock = ensureSingleInstance(
+  createSecondInstanceHandler({ logger: createLogger('app'), focusWindow: focusExistingWindow }),
+  app,
+);
+
+if (gotSingleInstanceLock) {
+  /**
+   * Точка входа main-процесса (TASK-007 §9): whenReady → каналы IPC (TASK-008 §5) →
+   * createWindow. Регистрация каналов — только через registerChannel каркаса (§9),
+   * транспортный мост `hl:invoke` ставится один раз до создания окна.
+   */
+  void app.whenReady().then(() => {
+    initAppLogging();
+    registerChannel('app/ping', CHANNEL_SCHEMAS['app/ping'], createPingHandler(new SystemClock()));
+    // TASK-011 §9: клиентский отчёт об ошибке — fire-and-forget, response null.
+    registerChannel(
+      'app/log-client-error',
+      CHANNEL_SCHEMAS['app/log-client-error'],
+      createLogClientErrorHandler(createLogger('app')),
+    );
+    installChannelBridge();
+    createWindow();
+  });
+}
 
 // §9: Windows-целевая платформа — «все окна закрыты» = выход приложения;
 // macOS-семантика (приложение живо без окон) в MVP не нужна.

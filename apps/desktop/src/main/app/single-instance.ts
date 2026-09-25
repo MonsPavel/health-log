@@ -16,16 +16,20 @@
 import type { HlLogger } from '../shared/logger/logger.js';
 
 /**
- * Минимальная форма Electron app для захвата лока (§19: fake в тестах). Сигнатуры
- * совпадают с app.requestSingleInstanceLock/app.quit/app.on — app совместим.
+ * Минимальная форма Electron app для захвата лока (§19: fake в тестах). Сигнатура
+ * on повторяет electron-перегрузку 'second-instance' (listener: event, argv,
+ * workingDirectory) — app структурно совместим, а обёртка не перепутает argv с event.
  */
 export interface SingleInstanceApp {
   /** Захват лока: true — мы первый (и единственный) экземпляр. */
   requestSingleInstanceLock(): boolean;
   /** Молчаливое завершение второго процесса (§5: без диалога). */
   quit(): void;
-  /** Подписка на second-instance; listener вызывается с argv второго процесса. */
-  on(event: 'second-instance', listener: (argv: string[]) => void): unknown;
+  /** Подписка на second-instance; listener получает событие и argv второго процесса. */
+  on(
+    event: 'second-instance',
+    listener: (event: unknown, argv: string[], workingDirectory: string) => void,
+  ): unknown;
 }
 
 /** Слушатель второго экземпляра: argv — командная строка второго процесса (§23). */
@@ -44,7 +48,8 @@ export function ensureSingleInstance(
     target.quit();
     return false;
   }
-  target.on('second-instance', (argv) => {
+  // Electron-сигнатура слушателя: (event, argv, workingDirectory) — наружу идёт argv.
+  target.on('second-instance', (_event, argv) => {
     onSecondInstance(argv);
   });
   return true;

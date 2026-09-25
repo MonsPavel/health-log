@@ -29,13 +29,15 @@ function makeApp(options: { gotLock?: boolean } = {}): {
   on: Mock;
   emitSecondInstance(argv: string[]): void;
 } {
-  let listener: ((argv: string[]) => void) | undefined;
+  let listener: ((event: unknown, argv: string[], workingDirectory: string) => void) | undefined;
   const lock = vi.fn(() => options.gotLock !== false);
   const quit = vi.fn();
-  const on = vi.fn((_event: 'second-instance', l: (argv: string[]) => void) => {
-    listener = l;
-    return undefined;
-  });
+  const on = vi.fn(
+    (_event: 'second-instance', l: (event: unknown, argv: string[], wd: string) => void) => {
+      listener = l;
+      return undefined;
+    },
+  );
   const target: SingleInstanceApp = {
     requestSingleInstanceLock: lock,
     quit,
@@ -46,8 +48,9 @@ function makeApp(options: { gotLock?: boolean } = {}): {
     lock,
     quit,
     on,
+    // Electron-сигнатура события: (event, argv, workingDirectory).
     emitSecondInstance(argv: string[]): void {
-      listener?.(argv);
+      listener?.({ preventDefault: () => {} }, argv, 'C:\\fake-cwd');
     },
   };
 }
