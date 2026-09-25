@@ -6,6 +6,7 @@ node_modules/
 
 # Артефакты сборки
 dist/
+dist-renderer/
 out/
 coverage/
 apps/desktop/release/
