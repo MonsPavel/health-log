@@ -13,6 +13,8 @@
   "dependencies": {
     "@hl/contracts": "workspace:*",
     "@hl/kernel": "workspace:*",
+    "pino": "10.3.1",
+    "pino-roll": "4.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
