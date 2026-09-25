@@ -10,7 +10,7 @@
 | TASK-002 | done | | смержена |
 | TASK-003 | done | | смержена |
 | TASK-004 | done | | смержена |
-| TASK-005 | todo | | |
+| TASK-005 | done | | смержена |
 | TASK-006 | todo | | |
 | TASK-007 | todo | | |
 | TASK-008 | todo | | |
