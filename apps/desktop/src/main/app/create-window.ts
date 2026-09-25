@@ -46,9 +46,9 @@ export function createWindow(): BrowserWindow {
 
   if (devServerUrl === undefined) {
     // §13: prod — собранные файлы, путь относительно каталога этого модуля
-    // (ESM-эквивалент __dirname; dist/main/app/* → ../../dist-renderer/index.html).
+    // (ESM-эквивалент __dirname; dist/main/app/* → ../../../dist-renderer/index.html).
     const here = dirname(fileURLToPath(import.meta.url));
-    void window.loadFile(join(here, '../../dist-renderer/index.html'));
+    void window.loadFile(join(here, '../../../dist-renderer/index.html'));
   } else {
     void window.loadURL(devServerUrl);
   }
