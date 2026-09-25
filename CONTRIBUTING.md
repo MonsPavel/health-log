@@ -20,6 +20,9 @@
   corepack prepare pnpm@9.15.9 --activate
   ```
 
+  Windows-нюанс: если Node установлен в `C:\Program Files\nodejs`, первый
+  `corepack enable` требует прав администратора (запись shim'ов в каталог Node).
+
 ## 2. Быстрый старт
 
 ```bash
