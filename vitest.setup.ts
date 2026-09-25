@@ -17,3 +17,26 @@ const blockedFetch: typeof fetch = (input) => {
 };
 
 globalThis.fetch = blockedFetch;
+
+/**
+ * TASK-013: jsdom не реализует matchMedia, а ThemeProvider (тема system следит за
+ * prefers-color-scheme, §13) вызывается из App в существующих рендер-тестах.
+ * Нейтральный стаб: light, без подписки; конкретные тесты темы переопределяют его
+ * через Object.defineProperty (прецедент window.hl в App.test.ts, TASK-011).
+ */
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+      onchange: null,
+    }),
+  });
+}

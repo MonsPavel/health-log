@@ -1,0 +1,31 @@
+/*
+ * TASK-013 §5/§22: вход Tailwind v4 и мост токенов. Значения цветов живут в
+ * tokens.css (CSS-переменные); здесь утилиты Tailwind привязываются к переменным
+ * через @theme inline: классы bg-bg/text-text/border-border/accent-* читают
+ * var(--hl-*) напрямую, поэтому смена data-theme не требует перегенерации утилит
+ * и пере-рендера дерева.
+ *
+ * База (§16): фон/текст документа — из токенов; видимый фокус-стиль outline на
+ * интерактивных элементах. Анимаций в P0 нет; правило на будущее (§16) —
+ * только motion-safe:.
+ */
+@import 'tailwindcss';
+
+@theme inline {
+  --color-bg: var(--hl-bg);
+  --color-text: var(--hl-text);
+  --color-accent: var(--hl-accent);
+  --color-border: var(--hl-border);
+}
+
+@layer base {
+  body {
+    background-color: var(--hl-bg);
+    color: var(--hl-text);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--hl-accent);
+    outline-offset: 2px;
+  }
+}
