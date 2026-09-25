@@ -9,6 +9,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "dev": "pnpm --filter @hl/desktop dev",
     "build": "pnpm -r build",
     "build:renderer": "pnpm --filter @hl/kernel --filter @hl/contracts run build && pnpm --filter @hl/desktop run build:renderer",
     "check:i18n": "node tools/scripts/check-i18n.mjs",
