@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:lint-rules": "tsx scripts/test-lint-rules.ts",
+    "test:depcruise-rules": "tsx scripts/test-depcruise-rules.ts",
     "lint": "eslint . --cache --max-warnings 0 && prettier --check .",
     "lint:fix": "eslint . --fix && prettier --write .",
     "typecheck": "tsc -b packages/kernel/tsconfig.json packages/contracts/tsconfig.json packages/scales-data/tsconfig.json apps/desktop/tsconfig.json",
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@types/node": "^26.6.2",
     "@vitest/coverage-v8": "^5.0.1",
+    "dependency-cruiser": "^18.4.0",
     "eslint": "^10.11.0",
     "eslint-plugin-boundaries": "^7.2.0",
     "prettier": "^3.9.9",
