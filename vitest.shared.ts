@@ -37,10 +37,20 @@ export const sharedTestConfig: ProjectTestConfig = {
   // vitest.config.ts — глобальную проверку «No test files found» проектные настройки не покрывают.
 };
 
+/** Опции проекта поверх общих настроек (TASK-009): окружение рендерер-тестов. */
+export interface TestProjectOptions {
+  /** TASK-009: jsdom для React-хуков (Testing Library); по умолчанию node (§13). */
+  readonly environment?: 'node' | 'jsdom';
+}
+
 /** Фабрика тестового проекта: имя (для `vitest --project`) и include-паттерны поверх общих настроек. */
-export function testProject(name: string, include: string[]): UserWorkspaceConfig {
+export function testProject(
+  name: string,
+  include: string[],
+  options: TestProjectOptions = {},
+): UserWorkspaceConfig {
   return {
     resolve: { alias: workspaceAliases },
-    test: { ...sharedTestConfig, name, include },
+    test: { ...sharedTestConfig, name, include, environment: options.environment ?? 'node' },
   };
 }

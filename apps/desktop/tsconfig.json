@@ -4,6 +4,6 @@
   "compilerOptions": {
     "jsx": "react-jsx"
   },
-  "include": ["src-renderer/src/**/*", "vite.config.ts"],
+  "include": ["src-renderer/**/*", "vite.config.ts"],
   "references": [{ "path": "./tsconfig.main.json" }]
 }
