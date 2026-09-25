@@ -9,6 +9,7 @@ dist/
 dist-renderer/
 out/
 coverage/
+test-results/
 apps/desktop/release/
 *.tsbuildinfo
 
