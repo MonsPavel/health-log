@@ -18,7 +18,6 @@ import {
 } from './ThemeProvider';
 
 interface MqlStub {
-  matches: boolean;
   change(next: boolean): void;
   listenerCount(): number;
 }
@@ -65,7 +64,7 @@ function ThemeProbe(props: { readonly next: 'system' | 'light' | 'dark' }): JSX.
   );
 }
 
-function htmlTheme(): string | undefined {
+function htmlTheme(): string | null {
   return document.documentElement.getAttribute('data-theme');
 }
 

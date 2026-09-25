@@ -8,7 +8,7 @@
  * перерисовывается только <Routes> — Sidebar не ре-рендерится.
  */
 import { useTranslation } from 'react-i18next';
-import { NavLink, type NavLinkProps } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
 /** Раздел навигации: путь маршрута + ключ подписи из каталога (§17). */
@@ -26,11 +26,8 @@ const SECTIONS: readonly Section[] = [
   { path: '/settings', labelKey: 'common.nav.settings' },
 ];
 
-/** Класс ссылки раздела: активный подсвечен акцентом (§20, п. 1). */
-function linkClassName({ isActive }: { isActive: boolean }): NavLinkProps['className'] {
-  const base = 'block rounded-md px-3 py-2 text-base no-underline hover:bg-accent/10';
-  return isActive ? `${base} bg-accent/10 font-semibold text-accent` : `${base} text-text`;
-}
+/** Базовые классы ссылки; активный раздел подсвечен акцентом (§20, п. 1). */
+const LINK_BASE_CLASS = 'block rounded-md px-3 py-2 text-base no-underline hover:bg-accent/10';
 
 /** Каркас экрана: Sidebar + контент (children — subtree роутера, §15). */
 export function AppLayout({ children }: { readonly children: ReactNode }): JSX.Element {
@@ -42,7 +39,14 @@ export function AppLayout({ children }: { readonly children: ReactNode }): JSX.E
         <ul className="flex flex-col gap-1">
           {SECTIONS.map((section) => (
             <li key={section.path}>
-              <NavLink to={section.path} className={linkClassName}>
+              <NavLink
+                to={section.path}
+                className={({ isActive }) =>
+                  isActive
+                    ? `${LINK_BASE_CLASS} bg-accent/10 font-semibold text-accent`
+                    : `${LINK_BASE_CLASS} text-text`
+                }
+              >
                 {t(section.labelKey)}
               </NavLink>
             </li>

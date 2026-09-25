@@ -23,9 +23,11 @@ globalThis.fetch = blockedFetch;
  * prefers-color-scheme, §13) вызывается из App в существующих рендер-тестах.
  * Нейтральный стаб: light, без подписки; конкретные тесты темы переопределяют его
  * через Object.defineProperty (прецедент window.hl в App.test.ts, TASK-011).
+ * В jsdom window === globalThis на верхнем уровне — стаб задаётся глобально.
  */
-if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
-  Object.defineProperty(window, 'matchMedia', {
+const globalScope = globalThis as { matchMedia?: unknown };
+if (typeof globalScope.matchMedia !== 'function') {
+  Object.defineProperty(globalScope, 'matchMedia', {
     writable: true,
     configurable: true,
     value: (query: string) => ({

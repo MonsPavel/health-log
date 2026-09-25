@@ -7,7 +7,15 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const TOKENS_PATH = resolve(process.cwd(), 'apps', 'desktop', 'src-renderer', 'app', 'theme', 'tokens.css');
+const TOKENS_PATH = resolve(
+  process.cwd(),
+  'apps',
+  'desktop',
+  'src-renderer',
+  'app',
+  'theme',
+  'tokens.css',
+);
 
 interface ThemeTokens {
   readonly bg: string;
@@ -18,18 +26,22 @@ interface ThemeTokens {
 /** Относительная яркость по WCAG 2.x: sRGB-канал → линейное пространство. */
 function luminance(hex: string): number {
   const raw = hex.replace('#', '');
-  const channels = [0, 2, 4].map((offset) => {
-    const channel = Number.parseInt(raw.slice(offset, offset + 2), 16) / 255;
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  const weights = [0.2126, 0.7152, 0.0722];
+  let sum = 0;
+  for (const [index, weight] of weights.entries()) {
+    const channel = Number.parseInt(raw.slice(index * 2, index * 2 + 2), 16) / 255;
+    const linear = channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    sum += weight * linear;
+  }
+  return sum;
 }
 
 /** Контраст-коэффициент WCAG: (L1 + 0.05) / (L2 + 0.05), L1 — ярчейший. */
 function contrastRatio(a: string, b: string): number {
   const first = luminance(a);
   const second = luminance(b);
-  const [lighter, darker] = first >= second ? [first, second] : [second, first];
+  const lighter = Math.max(first, second);
+  const darker = Math.min(first, second);
   return (lighter + 0.05) / (darker + 0.05);
 }
 
@@ -37,7 +49,7 @@ function contrastRatio(a: string, b: string): number {
 function parseTokens(block: string): ThemeTokens {
   const read = (name: string): string => {
     const match = new RegExp(`--hl-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(block);
-    if (match === null) {
+    if (match === null || match[1] === undefined) {
       throw new Error(`токен --hl-${name} не найден в блоке tokens.css`);
     }
     return match[1];
@@ -52,7 +64,7 @@ function themeBlock(theme: 'light' | 'dark'): string {
       ? /(?::root\s*,|:root)?\[data-theme=['"]light['"]\]\s*\{([^}]*)\}/
       : /\[data-theme=['"]dark['"]\]\s*\{([^}]*)\}/;
   const match = pattern.exec(content);
-  if (match === null) {
+  if (match === null || match[1] === undefined) {
     throw new Error(`блок темы ${theme} не найден в tokens.css`);
   }
   return match[1];
@@ -72,7 +84,6 @@ describe.each(['light', 'dark'] as const)('токены темы %s — конт
 
 describe('tokens.css — структура (§5)', () => {
   it('обе темы объявлены, у каждой все четыре токена (bg/text/accent/border)', () => {
-    const content = readFileSync(TOKENS_PATH, 'utf8');
     for (const theme of ['light', 'dark'] as const) {
       const block = themeBlock(theme);
       for (const token of ['bg', 'text', 'accent', 'border']) {

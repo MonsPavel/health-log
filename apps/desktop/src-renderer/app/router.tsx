@@ -19,9 +19,7 @@ const DashboardPage = lazy(() =>
 const JournalPage = lazy(() =>
   import('../features/journal/ui/JournalPage').then((m) => ({ default: m.JournalPage })),
 );
-const AiPage = lazy(() =>
-  import('../features/ai/ui/AiPage').then((m) => ({ default: m.AiPage })),
-);
+const AiPage = lazy(() => import('../features/ai/ui/AiPage').then((m) => ({ default: m.AiPage })));
 const ReportsPage = lazy(() =>
   import('../features/reports/ui/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );

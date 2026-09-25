@@ -147,7 +147,10 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }): J
     setModeState(next);
   }, []);
 
-  const api = useMemo<ThemeApi>(() => ({ mode, resolvedTheme, setMode }), [mode, resolvedTheme, setMode]);
+  const api = useMemo<ThemeApi>(
+    () => ({ mode, resolvedTheme, setMode }),
+    [mode, resolvedTheme, setMode],
+  );
 
   return <ThemeContext.Provider value={api}>{children}</ThemeContext.Provider>;
 }

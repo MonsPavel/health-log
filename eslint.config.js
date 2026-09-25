@@ -358,6 +358,33 @@ export default tseslint.config(
   },
 
   {
+    // TASK-013 §19: renderer-тесты с окружением Node — зеркально политике boundaries
+    // «тестам доступны npm и node:* — матрица зон про production-код» (TASK-004 §19):
+    // контраст-тест читает tokens.css (fs), тест check-i18n запускает скрипт
+    // дочерним процессом node. Запреты electron/better-sqlite3 остаются и для тестов.
+    files: ['apps/desktop/src-renderer/**/*.test.ts', 'apps/desktop/src-renderer/**/*.test.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'electron',
+              message:
+                'renderer не импортирует electron напрямую — только @hl/contracts через preload-мост (арх. 03 §4, арх. 08 §4)',
+            },
+            {
+              name: 'better-sqlite3',
+              message:
+                'SQLite живёт в main-процессе (арх. 04); renderer работает через IPC и @hl/contracts',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
     // §5: оверрайд для тестов и tools. any в тестах/инструментах разрешён; фикстуры линта
     // исключены — они обязаны оставаться под боевыми запретами (их проверяет test:lint-rules).
     files: ['**/*.test.ts', 'tools/**/*.ts'],

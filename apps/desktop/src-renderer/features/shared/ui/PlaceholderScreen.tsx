@@ -18,10 +18,7 @@ export interface PlaceholderScreenProps {
 }
 
 /** Экран-заглушка маршрута до появления фичи (§5). */
-export function PlaceholderScreen({
-  titleKey,
-  icon,
-}: PlaceholderScreenProps): JSX.Element {
+export function PlaceholderScreen({ titleKey, icon }: PlaceholderScreenProps): JSX.Element {
   const { t } = useTranslation();
 
   return (
