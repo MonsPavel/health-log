@@ -1,6 +1,6 @@
 /**
- * Публичный API @hl/contracts (TASK-008): конверты IPC, DTO ошибок, реестр каналов,
- * транспортный контракт моста `hl` (арх. 05 §1: контракт первичен).
+ * Публичный API @hl/contracts (TASK-008/009): конверты IPC, DTO ошибок, реестр каналов,
+ * реестр событий main→renderer, транспортный контракт моста `hl` (арх. 05 §1: контракт первичен).
  */
 export {
   API_ENVELOPE_VERSION,
@@ -26,4 +26,10 @@ export {
   type ChannelResponse,
   type HlBridge,
 } from './channels.js';
+export {
+  HL_EVENT_CHANNEL,
+  HL_EVENT_PAYLOAD_KEYS,
+  type HlEventMap,
+  type HlLogLevel,
+} from './events.js';
 export { CHANNEL_SCHEMAS, type ChannelSchemas } from './schemas.js';

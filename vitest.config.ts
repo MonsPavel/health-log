@@ -30,8 +30,12 @@ export default defineConfig({
       testProject('contracts', ['packages/contracts/src/**/*.test.ts']),
       testProject('scales-data', ['packages/scales-data/src/**/*.test.ts']),
       testProject('desktop-main', ['apps/desktop/src/main/**/*.test.ts']),
-      // desktop-renderer включается в TASK-013 (jsdom + web-пресет) — заготовка:
-      // testProject('desktop-renderer', ['apps/desktop/src-renderer/**/*.test.ts']),
+      // desktop-renderer: jsdom-проект включён в TASK-009 — обязательный тест хука
+      // useHlEvent (§19/§20/§24: отписка при unmount). Минимальная версия заготовки
+      // TASK-013; полноценный web-пресет (css, алиасы рендерера) расширяется там.
+      testProject('desktop-renderer', ['apps/desktop/src-renderer/**/*.test.ts'], {
+        environment: 'jsdom',
+      }),
     ],
   },
 });
