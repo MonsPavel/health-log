@@ -72,10 +72,9 @@ async function main(): Promise<number> {
     doNotFollow: { path: 'node_modules' },
     outputType: 'json',
   });
-  // json-репортер отдаёт строку (IReporterOutput.output — string | ICruiseResult).
-  const rawOutput = output as ICruiseResult | string;
+  // json-репортер отдаёт строку (тип IReporterOutput.output — string | ICruiseResult).
   const report: ICruiseResult =
-    typeof rawOutput === 'string' ? (JSON.parse(rawOutput) as ICruiseResult) : rawOutput;
+    typeof output === 'string' ? (JSON.parse(output) as ICruiseResult) : output;
   // summary.violations — канонический плоский список нарушений (их же печатает err-репортер).
   const violations: ViolationLike[] = report.summary.violations ?? [];
 
@@ -88,7 +87,9 @@ async function main(): Promise<number> {
     if (expectation.rule === null) {
       if (hits.length > 0) {
         failed = true;
-        console.error(`test:depcruise-rules: FAIL: ${shortName(expectation.file)} обязан быть чистым:`);
+        console.error(
+          `test:depcruise-rules: FAIL: ${shortName(expectation.file)} обязан быть чистым:`,
+        );
         for (const v of hits) {
           console.error(`    [${v.rule.name}] ${v.from} → ${v.to}`);
         }
@@ -108,7 +109,9 @@ async function main(): Promise<number> {
         console.error(`    найдено: [${v.rule.name}] ${v.from} → ${v.to}`);
       }
     } else {
-      console.log(`test:depcruise-rules: error ${shortName(expectation.file)} → ${expectation.rule}`);
+      console.log(
+        `test:depcruise-rules: error ${shortName(expectation.file)} → ${expectation.rule}`,
+      );
     }
   }
 
