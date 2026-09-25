@@ -25,10 +25,12 @@ afterEach(() => {
 });
 
 describe('App — корневой boundary и тосты (§5/§10)', () => {
-  it('без краша показывает обычный контент каркаса', () => {
+  it('без краша показывает каркас TASK-013: провайдеры + роутер с разделами', async () => {
     renderApp();
 
-    expect(screen.getByRole('heading', { name: 'Health Log' })).toBeDefined();
+    // Провайдеры темы/i18n/Query + HashRouter: экран-заглушка активного маршрута.
+    expect(screen.getByRole('navigation', { name: 'Разделы' })).toBeDefined();
+    expect(await screen.findByRole('heading', { name: 'Динамика' })).toBeDefined();
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });
