@@ -1,0 +1,10 @@
+{
+  "$comment": "TASK-007 §5: main-процесс и preload — NodeNext-пресет, emit в dist/. Пакет ESM («type»: «module»): .ts → ESM (.js, Electron main ≥28 поддерживает), preload.cts → CommonJS (preload.cjs) — sandbox-preload обязан быть CJS (§22), а verbatimModuleSyntax (TASK-002 §13, отклонение = ревизия) требует в CJS-файлах CJS-синтаксиса. Colocated-тесты (*.test.ts) исключены из сборки — типы проверяет корневой tsconfig.json, рантайм — Vitest (прецедент packages/kernel/tsconfig.json, TASK-004).",
+  "extends": "../../tsconfig.node.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src/main/**/*.ts", "src/main/**/*.cts"],
+  "exclude": ["src/main/**/*.test.ts"]
+}

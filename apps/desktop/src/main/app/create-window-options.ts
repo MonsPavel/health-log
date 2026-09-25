@@ -1,4 +1,5 @@
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import type { BrowserWindowConstructorOptions } from 'electron';
 
@@ -24,8 +25,8 @@ export function createWindowOptions(): BrowserWindowConstructorOptions {
       sandbox: true,
       nodeIntegration: false,
       webSecurity: true,
-      // dist/main/app/* → dist/main/preload.js (компиляция tsconfig.main.json).
-      preload: join(__dirname, '../preload.js'),
+      // dist/main/app/* → dist/main/preload.cjs (sandbox-preload — CJS, §22).
+      preload: join(dirname(fileURLToPath(import.meta.url)), '../preload.cjs'),
     },
   };
 }

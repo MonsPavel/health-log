@@ -2,11 +2,27 @@
   "name": "@hl/desktop",
   "version": "0.0.0",
   "private": true,
-  "description": "Electron-приложение (появляется в TASK-007). Рендерер импортирует только @hl/contracts через preload-мост.",
+  "description": "Electron-приложение: main-процесс, preload-мост `hl` (наполнение — TASK-008), рендерер React 18 + Vite. Рендерер импортирует только @hl/contracts через preload-мост.",
+  "type": "module",
+  "main": "dist/main/app/bootstrap.js",
   "scripts": {
-    "build": "echo \"[@hl/desktop] build: no-op until TASK-007 (Electron)\" && exit 0"
+    "dev": "concurrently -k -n vite,electron -c cyan,green \"vite\" \"wait-on tcp:127.0.0.1:5173 && tsc -b tsconfig.main.json && cross-env ELECTRON_RENDERER_URL=http://localhost:5173 electron .\"",
+    "build": "tsc -b tsconfig.main.json && pnpm build:renderer",
+    "build:renderer": "vite build"
   },
   "dependencies": {
-    "@hl/kernel": "workspace:*"
+    "@hl/kernel": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "cross-env": "^10.1.0",
+    "electron": "^44.4.5",
+    "vite": "^8.3.1",
+    "wait-on": "^9.1.0"
   }
 }

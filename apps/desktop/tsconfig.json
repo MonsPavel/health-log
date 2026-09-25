@@ -1,8 +1,9 @@
 {
-  "$comment": "TASK-002 §6: минимальный конфиг @hl/desktop — исходников ещё нет (Electron появляется в TASK-007, там расширяется: main/preload — node-пресет, renderer — web-пресет). files: [] — валидный пустой проект, чтобы tsc -b проходил без TS18003.",
-  "extends": "../../tsconfig.node.json",
+  "$comment": "TASK-007 §6: рендерер — web-пресет (bundler-резолвинг, DOM, noEmit); сборка — Vite (src-renderer → dist-renderer). JSX-настройка — здесь: общий пресет намеренно без JSX (см. $comment tsconfig.web.json, TASK-002). main-процесс и preload — node-пресет в tsconfig.main.json (CJS-emit в dist/, sandbox-preload обязан быть CJS); подключён ссылкой, чтобы tsc -b (typecheck корня) собирал оба контекста.",
+  "extends": "../../tsconfig.web.json",
   "compilerOptions": {
-    "composite": false
+    "jsx": "react-jsx"
   },
-  "files": []
+  "include": ["src-renderer/src/**/*", "vite.config.ts"],
+  "references": [{ "path": "./tsconfig.main.json" }]
 }
