@@ -210,7 +210,9 @@ describe('Property-тесты Instant (fast-check, §19-§20)', () => {
   it('toIso всегда соответствует ISO 8601 с offset и минутным смещением', () => {
     fc.assert(
       fc.property(instantArbitrary, (x) => {
-        expect(Instant.toIso(x)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/);
+        expect(Instant.toIso(x)).toMatch(
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/,
+        );
       }),
       { numRuns: 1_000 },
     );

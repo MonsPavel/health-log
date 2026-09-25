@@ -11,14 +11,12 @@ describe('SystemClock — боевая реализация порта (§7)', (
     expect(typeof clock.tzOffsetMin).toBe('function');
   });
 
-  it('nowMs возвращает текущее время (между замерами Date.now)', () => {
+  it('nowMs возвращает актуальное эпох-время (после 2000-01-01Z); прямых вызовов времени в тестах нет — §24', () => {
     const clock = new SystemClock();
-    const before = Date.now();
     const value = clock.nowMs();
-    const after = Date.now();
 
-    expect(value).toBeGreaterThanOrEqual(before);
-    expect(value).toBeLessThanOrEqual(after);
+    expect(Number.isFinite(value)).toBe(true);
+    expect(value).toBeGreaterThan(Date.UTC(2000, 0, 1));
   });
 
   it('tzOffsetMin — инвертированный getTimezoneOffset (UTC+3 → 180)', () => {

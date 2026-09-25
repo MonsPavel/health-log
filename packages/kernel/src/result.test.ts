@@ -2,17 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AppError } from './app-error.js';
-import {
-  andThen,
-  err,
-  isErr,
-  isOk,
-  map,
-  mapErr,
-  ok,
-  unsafeUnwrap,
-  type Result,
-} from './result.js';
+import { andThen, err, isErr, isOk, map, mapErr, ok, unsafeUnwrap, type Result } from './result.js';
 
 describe('Result: конструкторы ok/err (§7)', () => {
   it('ok оборачивает значение в успешную ветку', () => {
@@ -26,7 +16,9 @@ describe('Result: конструкторы ok/err (§7)', () => {
 
   it('isOk/isErr различают ветки', () => {
     const success: Result<number> = ok(42);
-    const failure: Result<number> = err(AppError.of('VALIDATION/FAILED', 'kernel.error.validation'));
+    const failure: Result<number> = err(
+      AppError.of('VALIDATION/FAILED', 'kernel.error.validation'),
+    );
 
     expect(isOk(success)).toBe(true);
     expect(isErr(success)).toBe(false);
@@ -78,13 +70,10 @@ describe('Result: маппинг и композиция (§19)', () => {
   it('andThen пробрасывает ошибку первого шага без вызова следующего', () => {
     const failure = AppError.of('APP/INTERNAL', 'kernel.error.internal');
     let called = false;
-    const result = andThen(
-      err<AppError>(failure),
-      (n: number) => {
-        called = true;
-        return ok(n);
-      },
-    );
+    const result = andThen(err<AppError>(failure), (n: number) => {
+      called = true;
+      return ok(n);
+    });
 
     expect(called).toBe(false);
     expect(result).toEqual({ ok: false, error: failure });
