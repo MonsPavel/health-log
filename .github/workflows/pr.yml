@@ -76,8 +76,9 @@ jobs:
         run: pnpm depcruise
 
       # §5: vitest run с coverage; junit — машиночитаемый отчёт для артефактов.
+      # Флаги без «--»: pnpm 9 пробрасывает «--» литералом, и vitest перестаёт их парсить.
       - name: Test with coverage
-        run: pnpm test:coverage -- --reporter=default --reporter=junit --outputFile=test-results/junit.xml
+        run: pnpm test:coverage --reporter=default --reporter=junit --outputFile=test-results/junit.xml
 
       - name: Build renderer
         run: pnpm build:renderer
