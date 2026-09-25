@@ -30,21 +30,30 @@ const WORKFLOW_PATH = fileURLToPath(new URL('../.github/workflows/pr.yml', impor
 /** Точечные требования к файлу: имя проверки → паттерн (или парный предикат). */
 const PRESENCE_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
   { label: '§5 имя workflow', re: /^name: PR$/m },
-  { label: '§5 триггеры pull_request + workflow_dispatch', re: /^on:\n {2}pull_request:\n {2}workflow_dispatch:$/m },
+  {
+    label: '§5 триггеры pull_request + workflow_dispatch',
+    re: /^on:\n {2}pull_request:\n {2}workflow_dispatch:$/m,
+  },
   { label: '§5 concurrency-группа', re: /^concurrency:\n {2}group: /m },
   { label: '§5 cancel-in-progress', re: /^ {2}cancel-in-progress: true$/m },
   { label: '§4 runner ubuntu-latest', re: /^ {4}runs-on: ubuntu-latest$/m },
   { label: '§15/§22 бюджет времени: timeout-minutes', re: /^ {4}timeout-minutes: \d+$/m },
-  { label: '§5 Electron-бинарник на PR-шагах не скачивается', re: /^ {6}ELECTRON_SKIP_BINARY_DOWNLOAD: ['"]1['"]$/m },
+  {
+    label: '§5 Electron-бинарник на PR-шагах не скачивается',
+    re: /^ {6}ELECTRON_SKIP_BINARY_DOWNLOAD: ['"]1['"]$/m,
+  },
   { label: '§14 минимальные права: contents: read', re: /^permissions:\n {2}contents: read$/m },
-  { label: '§5 Node 20', re: /^ {8}node-version: ['"]20['"]$/m },
+  { label: '§5 Node 20', re: /^ {10}node-version: ['"]20['"]$/m },
   { label: '§5 corepack enable', re: /^ {10}corepack enable$/m },
   { label: '§5 corepack → pnpm 9', re: /^ {10}corepack prepare pnpm@9/m },
-  { label: '§5 путь pnpm-store для кэша', re: /^ {8}path: \$\{\{ steps\.pnpm-store\.outputs\.STORE_PATH \}\}$/m },
+  {
+    label: '§5 путь pnpm-store для кэша',
+    re: /^ {10}path: \$\{\{ steps\.pnpm-store\.outputs\.STORE_PATH \}\}$/m,
+  },
   { label: '§5 ключ кэша по pnpm-lock.yaml', re: /hashFiles\('pnpm-lock\.yaml'\)/m },
   { label: '§13.1 install --frozen-lockfile', re: /^ {8}run: pnpm install --frozen-lockfile$/m },
-  { label: '§20 артефакт coverage/lcov.info', re: /^ {8}path: coverage\/lcov\.info$/m },
-  { label: '§5/§20 артефакт junit-отчёта vitest', re: /^ {8}path: test-results\/junit\.xml$/m },
+  { label: '§20 артефакт coverage/lcov.info', re: /^ {10}path: coverage\/lcov\.info$/m },
+  { label: '§5/§20 артефакт junit-отчёта vitest', re: /^ {10}path: test-results\/junit\.xml$/m },
 ];
 
 /** §14: действия пинованы по мажорной версии и только из actions/*. */
@@ -73,8 +82,8 @@ const ORDER_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
   { label: 'pnpm depcruise', re: /^ {8}run: pnpm depcruise$/m },
   { label: 'pnpm test:coverage', re: /^ {8}run: pnpm test:coverage/m },
   { label: 'pnpm build:renderer', re: /^ {8}run: pnpm build:renderer$/m },
-  { label: 'upload coverage', re: /^ {8}path: coverage\/lcov\.info$/m },
-  { label: 'upload vitest-отчёт', re: /^ {8}path: test-results\/junit\.xml$/m },
+  { label: 'upload coverage', re: /^ {10}path: coverage\/lcov\.info$/m },
+  { label: 'upload vitest-отчёт', re: /^ {10}path: test-results\/junit\.xml$/m },
 ];
 
 function loadWorkflowText(): string {
@@ -169,6 +178,4 @@ function main(): number {
   return 0;
 }
 
-void main().then((code) => {
-  process.exitCode = code;
-});
+process.exitCode = main();
