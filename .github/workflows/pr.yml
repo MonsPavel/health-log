@@ -1,0 +1,101 @@
+# TASK-014: PR-пайплайн (lint → typecheck → depcruise → test(coverage) → build:renderer).
+# Архитектура: docs/architecture/10-delivery.md §3; спека: docs/tasks/TASK-014-ci-pr-pipeline.md.
+# Один последовательный job вместо матрицы — экономия startup-времени и прозрачный лог (§4).
+# Required check для main — имя job'а: «PR pipeline» (настройка ветки — ручной шаг, §5/§6).
+name: PR
+
+# §5: PR + ручной запуск. §14: код PR не исполняется в привилегированном контексте —
+# целевой для кода PR триггер из §14 не используется (OWASP CI/CD).
+on:
+  pull_request:
+  workflow_dispatch:
+
+# §14: минимальные права.
+permissions:
+  contents: read
+
+# §5: один актуальный прогон на ветку; новый пуш отменяет устаревший.
+concurrency:
+  group: pr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr:
+    name: PR pipeline
+    runs-on: ubuntu-latest
+    # §15/§22: бюджет прогона ≤5 мин; 15 мин — аварийный предел, дальше лимит пересматривается.
+    timeout-minutes: 15
+    env:
+      # §5: Electron-бинарник на PR-шагах не нужен (headless юнит/интеграция + vite build).
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable corepack (pnpm 9 — packageManager)
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+
+      - name: Get pnpm store path
+        id: pnpm-store
+        run: echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      # §5: кэш store ключом по pnpm-lock.yaml.
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
+      - name: Fetch dependencies
+        run: pnpm fetch
+
+      # §13.1: frozen-lockfile — сборка воспроизводима.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      # §16: check:i18n включаем в workflow сразу — tools/scripts/check-i18n.mjs существует.
+      - name: Check i18n
+        run: pnpm check:i18n
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Dependency cruiser
+        run: pnpm depcruise
+
+      # §5: vitest run с coverage; junit — машиночитаемый отчёт для артефактов.
+      # Флаги без «--»: pnpm 9 пробрасывает «--» литералом, и vitest перестаёт их парсить.
+      - name: Test with coverage
+        run: pnpm test:coverage --reporter=default --reporter=junit --outputFile=test-results/junit.xml
+
+      - name: Build renderer
+        run: pnpm build:renderer
+
+      # Артефакты диагностические: грузятся и при красном тесте, на статус не влияют (§13.2).
+      - name: Upload coverage (lcov)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage/lcov.info
+          if-no-files-found: warn
+
+      - name: Upload vitest report (junit)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-junit
+          path: test-results/junit.xml
+          if-no-files-found: warn
