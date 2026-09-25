@@ -48,9 +48,62 @@ describe('CHANNEL_SCHEMAS["app/ping"] — response (§11: {pong: true, ts: numbe
   });
 });
 
+describe('CHANNEL_SCHEMAS["app/log-client-error"] — клиентский отчёт об ошибке (TASK-011 §11)', () => {
+  const LOG_CLIENT_ERROR = CHANNEL_SCHEMAS['app/log-client-error'];
+
+  const validRequest = {
+    code: 'APP/RENDERER',
+    messageKey: 'errors.renderer',
+    digest: '1a2b3c4d',
+  };
+
+  it('принимает валидный отчёт {code, messageKey, digest}', () => {
+    expect(LOG_CLIENT_ERROR.request.safeParse(validRequest).success).toBe(true);
+  });
+
+  it('принимает границу длин: messageKey 200, digest 64 (§14)', () => {
+    expect(
+      LOG_CLIENT_ERROR.request.safeParse({
+        ...validRequest,
+        messageKey: 'k'.repeat(200),
+        digest: 'd'.repeat(64),
+      }).success,
+    ).toBe(true);
+  });
+
+  it('отклоняет messageKey длиннее 200 и digest длиннее 64 (§14: недоверенный рендерер)', () => {
+    expect(
+      LOG_CLIENT_ERROR.request.safeParse({ ...validRequest, messageKey: 'k'.repeat(201) }).success,
+    ).toBe(false);
+    expect(
+      LOG_CLIENT_ERROR.request.safeParse({ ...validRequest, digest: 'd'.repeat(65) }).success,
+    ).toBe(false);
+  });
+
+  it('code — только литерал APP/RENDERER (§7: чужие коды в клиентский канал не проходят)', () => {
+    expect(LOG_CLIENT_ERROR.request.safeParse({ ...validRequest, code: 'APP/INTERNAL' }).success).toBe(
+      false,
+    );
+    expect(LOG_CLIENT_ERROR.request.safeParse({ ...validRequest, code: 'VALIDATION/FAILED' }).success).toBe(
+      false,
+    );
+  });
+
+  it('strict: отклоняет неизвестные поля и неполные отчёты (§14)', () => {
+    expect(LOG_CLIENT_ERROR.request.safeParse({ ...validRequest, stack: 'x' }).success).toBe(false);
+    expect(LOG_CLIENT_ERROR.request.safeParse({ code: 'APP/RENDERER' }).success).toBe(false);
+    expect(LOG_CLIENT_ERROR.request.safeParse(null).success).toBe(false);
+  });
+
+  it('response — null (fire-and-forget, §9/§11)', () => {
+    expect(LOG_CLIENT_ERROR.response.safeParse(null).success).toBe(true);
+    expect(LOG_CLIENT_ERROR.response.safeParse({ ok: true }).success).toBe(false);
+  });
+});
+
 describe('CHANNEL_SCHEMAS — дисциплина реестра (§5)', () => {
-  it('реестр типизирован по ChannelName: сейчас единственный канал app/ping', () => {
-    expect(Object.keys(CHANNEL_SCHEMAS)).toEqual(['app/ping']);
+  it('реестр типизирован по ChannelName: app/ping и app/log-client-error (TASK-011)', () => {
+    expect(Object.keys(CHANNEL_SCHEMAS)).toEqual(['app/ping', 'app/log-client-error']);
   });
 
   it('каждый канал несёт пару схем request/response', () => {

@@ -39,8 +39,8 @@ describe('HL_INVOKE_REQUEST_SCHEMA — форма запроса моста', ()
 });
 
 describe('типы реестра — компилятор выводит payload/ответ из схем (§23: без ручной синхронизации)', () => {
-  it('ChannelName — строковый union прикладных каналов', () => {
-    expectTypeOf<ChannelName>().toEqualTypeOf<'app/ping'>();
+  it('ChannelName — строковый union прикладных каналов (TASK-011: + app/log-client-error)', () => {
+    expectTypeOf<ChannelName>().toEqualTypeOf<'app/ping' | 'app/log-client-error'>();
   });
 
   it('ChannelRequest для app/ping — вывод z.infer из схемы запроса', () => {
@@ -61,5 +61,14 @@ describe('типы реестра — компилятор выводит payloa
       // @ts-expect-error ChannelName не содержит app/nope — рантайм-реестр в рендерере не нужен
       bridge.invoke('app/nope', {});
     expectTypeOf(callUnknownChannel).returns.toEqualTypeOf<Promise<unknown>>();
+  });
+
+  it('ChannelRequest/ChannelResponse для app/log-client-error выводятся из схем (TASK-011 §7/§11)', () => {
+    expectTypeOf<ChannelRequest<'app/log-client-error'>>().toEqualTypeOf<{
+      code: 'APP/RENDERER';
+      messageKey: string;
+      digest: string;
+    }>();
+    expectTypeOf<ChannelResponse<'app/log-client-error'>>().toEqualTypeOf<null>();
   });
 });
