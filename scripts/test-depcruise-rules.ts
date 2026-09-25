@@ -63,21 +63,27 @@ async function main(): Promise<number> {
   const forbidden = await loadForbiddenRules();
 
   // Прогон строго на каталоге фикстур; node_modules не раскрываем (боевая опция конфига).
+  // validate: true обязателен — в API без него ruleSet не применяется (в CLI его
+  // неявно ставит --config).
   const { output } = await cruise([FIXTURE_DIR], {
     baseDir: ROOT_DIR,
     ruleSet: { forbidden },
+    validate: true,
     doNotFollow: { path: 'node_modules' },
     outputType: 'json',
   });
-  const report = output as ICruiseResult;
-  const violations: ViolationLike[] = report.modules.flatMap(
-    (module) => module.violations ?? [],
-  );
+  // json-репортер отдаёт строку (IReporterOutput.output — string | ICruiseResult).
+  const rawOutput = output as ICruiseResult | string;
+  const report: ICruiseResult =
+    typeof rawOutput === 'string' ? (JSON.parse(rawOutput) as ICruiseResult) : rawOutput;
+  // summary.violations — канонический плоский список нарушений (их же печатает err-репортер).
+  const violations: ViolationLike[] = report.summary.violations ?? [];
 
   let failed = false;
   for (const expectation of EXPECTATIONS) {
-    // Нарушение «привязано» к файлу, если файл — from или to ребра.
-    const hits = violations.filter((v) => v.from === expectation.file || v.to === expectation.file);
+    // Фикстура оценивается по её СВОИМ импортам: нарушение привязано к файлу,
+    // если файл — from ребра (быть адресатом чужого нарушения — не нарушение).
+    const hits = violations.filter((v) => v.from === expectation.file);
 
     if (expectation.rule === null) {
       if (hits.length > 0) {
