@@ -23,7 +23,8 @@ import {
   type IpcLogger,
 } from './register-channel.js';
 
-const ipcMainHandle = vi.fn();
+// vi.mock хойстится выше const-объявлений — сам мок создаётся в vi.hoisted (§19: mock ipcMain).
+const ipcMainHandle = vi.hoisted(() => vi.fn());
 vi.mock('electron', () => ({ ipcMain: { handle: ipcMainHandle } }));
 
 /** Схемы тестового канала: strict-объект с одним строковым полем. */

@@ -44,6 +44,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@hl/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@hl/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
