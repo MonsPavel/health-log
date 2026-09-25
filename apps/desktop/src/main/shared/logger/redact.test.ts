@@ -80,6 +80,11 @@ describe('redactPhi — точное совпадение ключа (§7: «п�
     expect(redactPhi(42)).toBe(42);
     expect(redactPhi(true)).toBe(true);
   });
+
+  it('Error-экземпляры — листья: проходят как есть (pino зовёт formatters.log ДО сериализатора — опустошённый Error лишит err-сериализатор стека)', () => {
+    const error = new Error('boom', { cause: { note: 'x' } });
+    expect(redactPhi({ err: error })['err']).toBe(error);
+  });
 });
 
 describe('redactPhi — отказобезопасность (§14)', () => {
@@ -131,7 +136,16 @@ describe('конфиг редакции — контракт специфика�
   });
 
   it('PHI_KEYS покрывает доменные PHI-поля §7 (рекурсивный слой)', () => {
-    for (const key of ['sys', 'dia', 'pulse', 'note', 'content', 'question', 'answer', 'measurements']) {
+    for (const key of [
+      'sys',
+      'dia',
+      'pulse',
+      'note',
+      'content',
+      'question',
+      'answer',
+      'measurements',
+    ]) {
       expect(PHI_KEYS.has(key)).toBe(true);
     }
   });

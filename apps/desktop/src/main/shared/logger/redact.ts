@@ -75,19 +75,31 @@ export const MAX_REDACT_DEPTH = 10;
  * ошибки логируются через logDiagnostic (logger.ts), где стек/cause извлекаются
  * отдельным сериализатором и проходят эту же редакцию (§20).
  */
-export function redactPhi(value: unknown, depth = 0, seen: ReadonlySet<object> = new Set()): unknown {
+export function redactPhi(
+  value: unknown,
+  depth = 0,
+  seen: ReadonlySet<object> = new Set(),
+): unknown {
   if (depth > MAX_REDACT_DEPTH) {
     return PHI_CENSOR;
   }
   if (value === null || typeof value !== 'object') {
     return value;
   }
-  const asObject = value as object;
-  if (seen.has(asObject)) {
+  // Ошибки — листья: их разбор (message/stack/cause) — работа err-сериализатора
+  // (logger.ts, logDiagnostic §5). Важно: pino применяет formatters.log ДО
+  // сериализаторов, поэтому опустошённый здесь Error лишит сериализатор стека.
+  // Без сериализатора ошибка всё равно выродится в {} при строковой сериализации —
+  // без утечки собственных полей (fail-closed).
+  if (value instanceof Error) {
+    return value;
+  }
+  // здесь value сужено до object (null отсечён выше)
+  if (seen.has(value)) {
     return PHI_CENSOR;
   }
   const visited = new Set(seen);
-  visited.add(asObject);
+  visited.add(value);
   if (Array.isArray(value)) {
     return value.map((item) => redactPhi(item, depth + 1, visited));
   }
