@@ -2,7 +2,8 @@
   "$comment": "TASK-007 §6: рендерер — web-пресет (bundler-резолвинг, DOM, noEmit); сборка — Vite (src-renderer → dist-renderer). JSX-настройка — здесь: общий пресет намеренно без JSX (см. $comment tsconfig.web.json, TASK-002). main-процесс и preload — node-пресет в tsconfig.main.json (CJS-emit в dist/, sandbox-preload обязан быть CJS); подключён ссылкой, чтобы tsc -b (typecheck корня) собирал оба контекста.",
   "extends": "../../tsconfig.web.json",
   "compilerOptions": {
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "resolveJsonModule": true
   },
   "include": ["src-renderer/**/*", "vite.config.ts"],
   "references": [{ "path": "./tsconfig.main.json" }]
