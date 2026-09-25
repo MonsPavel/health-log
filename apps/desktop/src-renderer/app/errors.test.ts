@@ -45,7 +45,8 @@ describe('toUserMessage — каталог + fallback (§17, §20 п. 4)', () =>
 
 describe('computeDigest — дедупликация в логах (§7/§18)', () => {
   it('детерминирован: одна и та же ошибка — один digest', () => {
-    const error = (): Error => Object.assign(new Error('boom'), { stack: 'Error: boom\n    at f (a.js:1:1)' });
+    const error = (): Error =>
+      Object.assign(new Error('boom'), { stack: 'Error: boom\n    at f (a.js:1:1)' });
     expect(computeDigest(error())).toBe(computeDigest(error()));
   });
 
@@ -70,7 +71,11 @@ describe('logClientError — канал app/log-client-error (§9/§11)', () => 
   it('отправляет {code: APP/RENDERER, messageKey, digest} через мост', () => {
     const { invoke } = installFakeBridge();
 
-    logClientError({ code: RENDERER_ERROR_CODE, messageKey: 'errors.renderer', digest: '1a2b3c4d' });
+    logClientError({
+      code: RENDERER_ERROR_CODE,
+      messageKey: 'errors.renderer',
+      digest: '1a2b3c4d',
+    });
 
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke).toHaveBeenCalledWith('app/log-client-error', {

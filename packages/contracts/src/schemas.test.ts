@@ -81,12 +81,12 @@ describe('CHANNEL_SCHEMAS["app/log-client-error"] — клиентский от�
   });
 
   it('code — только литерал APP/RENDERER (§7: чужие коды в клиентский канал не проходят)', () => {
-    expect(LOG_CLIENT_ERROR.request.safeParse({ ...validRequest, code: 'APP/INTERNAL' }).success).toBe(
-      false,
-    );
-    expect(LOG_CLIENT_ERROR.request.safeParse({ ...validRequest, code: 'VALIDATION/FAILED' }).success).toBe(
-      false,
-    );
+    expect(
+      LOG_CLIENT_ERROR.request.safeParse({ ...validRequest, code: 'APP/INTERNAL' }).success,
+    ).toBe(false);
+    expect(
+      LOG_CLIENT_ERROR.request.safeParse({ ...validRequest, code: 'VALIDATION/FAILED' }).success,
+    ).toBe(false);
   });
 
   it('strict: отклоняет неизвестные поля и неполные отчёты (§14)', () => {

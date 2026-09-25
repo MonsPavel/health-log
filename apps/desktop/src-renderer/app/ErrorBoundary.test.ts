@@ -102,7 +102,11 @@ describe('AppErrorBoundary (§5/§10, §20 п. 3)', () => {
       createElement('span', { 'data-testid': 'node-fallback' }, info.digest);
 
     render(
-      createElement(AppErrorBoundary, { fallback: nodeFallback }, createElement(Boom, { fail: true })),
+      createElement(
+        AppErrorBoundary,
+        { fallback: nodeFallback },
+        createElement(Boom, { fail: true }),
+      ),
     );
 
     expect(document.querySelector('[data-testid="node-fallback"]')).not.toBeNull();

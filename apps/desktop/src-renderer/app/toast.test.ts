@@ -104,8 +104,6 @@ describe('ToastProvider — очередь max 3 (§10)', () => {
 
 describe('useToast — контракт провайдера (§12)', () => {
   it('вне ToastProvider — developer-ошибка с понятным сообщением', () => {
-    expect(() =>
-      render(createElement(Probe, { error: INTERNAL })),
-    ).toThrow(/вне ToastProvider/);
+    expect(() => render(createElement(Probe, { error: INTERNAL }))).toThrow(/вне ToastProvider/);
   });
 });
