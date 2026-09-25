@@ -62,6 +62,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Typed-lint (TASK-003 §15, projectService) резолвит @hl/* через dist/*.d.ts
+      # (package.json types) — на свежем checkout их нет, Lint до сборки даёт ложные
+      # «type that cannot be resolved». Эмит пакетов до Lint.
+      - name: Build packages
+        run: pnpm --filter @hl/kernel --filter @hl/contracts run build
+
       - name: Lint
         run: pnpm lint
 

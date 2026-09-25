@@ -52,6 +52,10 @@ const PRESENCE_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
   },
   { label: '§5 ключ кэша по pnpm-lock.yaml', re: /hashFiles\('pnpm-lock\.yaml'\)/m },
   { label: '§13.1 install --frozen-lockfile', re: /^ {8}run: pnpm install --frozen-lockfile$/m },
+  {
+    label: 'сборка пакетов для typed-lint (dist/*.d.ts до Lint)',
+    re: /^ {8}run: pnpm --filter @hl\/kernel --filter @hl\/contracts run build$/m,
+  },
   { label: '§20 артефакт coverage/lcov.info', re: /^ {10}path: coverage\/lcov\.info$/m },
   { label: '§5/§20 артефакт junit-отчёта vitest', re: /^ {10}path: test-results\/junit\.xml$/m },
 ];
@@ -76,6 +80,10 @@ const ORDER_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
   { label: 'кэш store', re: /^ {8}uses: actions\/cache@v4$/m },
   { label: 'pnpm fetch', re: /^ {8}run: pnpm fetch$/m },
   { label: 'pnpm install --frozen-lockfile', re: /^ {8}run: pnpm install --frozen-lockfile$/m },
+  {
+    label: 'build packages (typed-lint резолвит @hl/* через dist/*.d.ts)',
+    re: /^ {8}run: pnpm --filter @hl\/kernel --filter @hl\/contracts run build$/m,
+  },
   { label: 'pnpm lint', re: /^ {8}run: pnpm lint$/m },
   { label: 'pnpm check:i18n (§16)', re: /^ {8}run: pnpm check:i18n$/m },
   { label: 'pnpm typecheck', re: /^ {8}run: pnpm typecheck$/m },
