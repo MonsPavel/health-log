@@ -79,7 +79,7 @@ describe('Result: маппинг и композиция (§19)', () => {
     const failure = AppError.of('APP/INTERNAL', 'kernel.error.internal');
     let called = false;
     const result = andThen(
-      err<number, AppError>(failure),
+      err<AppError>(failure),
       (n: number) => {
         called = true;
         return ok(n);
@@ -100,7 +100,7 @@ describe('Result: unsafeUnwrap — только для тестов (§5)', () =
     const failure = AppError.of('APP/NOT_IMPLEMENTED', 'kernel.error.nyi');
     let caught: unknown;
     try {
-      unsafeUnwrap(err<number>(failure));
+      unsafeUnwrap(err<AppError>(failure));
     } catch (e) {
       caught = e;
     }
