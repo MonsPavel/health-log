@@ -1,0 +1,6 @@
+# TASK-015 §19/§20: быстрый старт на чистом клоне воспроизводим без настроек git:
+# prettier (endOfLine: lf) проверяет рабочий каталог, поэтому EOL фиксируется
+# репозиторием, а не core.autocrlf локальной машины (system-дефолт Git for Windows — true).
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
