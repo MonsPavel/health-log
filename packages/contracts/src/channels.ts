@@ -11,6 +11,7 @@
  */
 import { z } from 'zod';
 
+import type { HlEventMap } from './events.js';
 import type { CHANNEL_SCHEMAS } from './schemas.js';
 
 /** Прикладные каналы (сейчас — только ping; прикладные — с TASK-028). */
@@ -28,8 +29,8 @@ export const HL_INVOKE_REQUEST_SCHEMA = z
 export interface HlBridge {
   /** Вызов прикладного канала; ответ — конверт ApiEnvelope (проверить isApiEnvelope). */
   invoke(channel: ChannelName, payload: unknown): Promise<unknown>;
-  /** Подписка на событие main→renderer; возвращает отписку. Заготовка — шина в TASK-009. */
-  on(name: string, listener: (payload: unknown) => void): () => void;
+  /** Подписка на событие из HlEventMap (TASK-009 §5); возвращает функцию отписки. */
+  on<K extends keyof HlEventMap>(name: K, listener: (payload: HlEventMap[K]) => void): () => void;
 }
 
 /** Тип запроса канала — выводится из реестра схем (z.infer, §23). */
