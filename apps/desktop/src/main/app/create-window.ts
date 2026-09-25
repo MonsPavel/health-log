@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { BrowserWindow, shell } from 'electron';
 
 import { createWindowOptions } from './create-window-options.js';
+import { isExternalHttpUrl, isNavigationAllowed } from './navigation-guards.js';
 
 /**
  * Открытые окна: ссылки удерживают их от сборщика мусора, пока окно не закрыто
@@ -30,17 +31,22 @@ export function createWindow(): BrowserWindow {
     window.webContents.openDevTools();
   }
 
-  // §13 / арх. 08 §4: навигация окна запрещена; в dev разрешён только сам dev-сервер.
+  // §13 / арх. 08 §4: навигация окна запрещена; в dev разрешён только origin
+  // dev-сервера — сравнение origin, не префикса (ревью task/TASK-007: префикс
+  // пропускал http://127.0.0.1:5183.evil.test/ и userinfo-обход 5183@evil.test).
   window.webContents.on('will-navigate', (event, url) => {
-    if (devServerUrl !== undefined && url.startsWith(devServerUrl)) {
-      return;
+    if (!isNavigationAllowed(url, devServerUrl)) {
+      event.preventDefault();
     }
-    event.preventDefault();
   });
 
-  // §13 / арх. 08 §4: window.open запрещён; внешние ссылки — системный браузер.
+  // §13 / арх. 08 §4: window.open запрещён; наружу (системный браузер) уходят только
+  // http/https-URL — протокол из недоверенного рендерера валидируется (file:,
+  // ms-msdt:, search-ms: и прочие протоколы ОС наружу не передаются).
   window.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    if (isExternalHttpUrl(url)) {
+      void shell.openExternal(url);
+    }
     return { action: 'deny' };
   });
 
