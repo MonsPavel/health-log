@@ -1,11 +1,11 @@
 /**
- * TASK-013 §5 → TASK-031 §4: маршрут /journal — вкладка ввода: форма измерения
- * (TASK-031) вместо заглушки. Успех без обработки флагов: диалоги подтверждений —
- * TASK-032 (§24 там: «add работает без диалога — флаги просто игнорируются»),
- * история и пустое состояние списка — TASK-033.
+ * TASK-033 §2/§5: маршрут /journal — экран «Журнал»: список записей по дням
+ * (HistoryScreen: пустое состояние с CTA, «Показать ещё», live-обновление) с
+ * переключением на форму ввода (TASK-031) по кнопке «Добавить»/CTA. Форма как
+ * вкладка «ввода» (TASK-031) заменена переключателем внутри HistoryScreen.
  */
-import { MeasurementForm } from '../../measurement/ui/MeasurementForm';
+import { HistoryScreen } from '../../measurement/ui/HistoryScreen';
 
 export function JournalPage(): JSX.Element {
-  return <MeasurementForm />;
+  return <HistoryScreen />;
 }
