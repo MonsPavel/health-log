@@ -33,10 +33,7 @@ import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
 import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite.js';
 import type { MeasurementQuery } from '../application/ports/bp-measurement-repository.js';
 import { BpMeasurement } from '../domain/bp-measurement.js';
-import {
-  runRepositoryContract,
-  type RepositoryFactory,
-} from './repository.contract.test.js';
+import { runRepositoryContract, type RepositoryFactory } from './repository.contract.test.js';
 import { SqliteBpMeasurementRepository } from './sqlite-measurement-repository.js';
 
 /** Фиксированный тестовый ключ (§19: фиксированный hex): 32 байта = 64 hex-символа. */
