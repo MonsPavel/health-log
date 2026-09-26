@@ -427,3 +427,125 @@ describe('MeasurementForm — быстрый путь §20.1 (механика �
     expect(payload).toMatchObject({ sys: 125, dia: 82, pulse: 70 });
   });
 });
+
+describe('MeasurementForm — диалог подтверждений (TASK-032 §5/§10/§13/§20)', () => {
+  /** Ответ add с флагом typo (§20.1: история ~128, ввели 258). */
+  const TYPO_RESPONSE = (id: string): MeasurementAddResponse => ({
+    measurement: { ...ADD_RESPONSE.measurement, id },
+    flags: { duplicate: false, typo: { field: 'sys', median: 128, value: 258, deviation: 130 } },
+  });
+
+  /** invoke, маршрутизирующий по каналу: add → typo-ответ, delete → заданный конверт. */
+  function mockAddTypoThenDelete(deleteEnvelope: unknown): void {
+    invoke = vi.fn(async (channel: string) => {
+      if (channel === 'measurements/add') {
+        return OK_ENVELOPE(TYPO_RESPONSE('m-1'));
+      }
+      return deleteEnvelope;
+    });
+    Object.defineProperty(window, 'hl', {
+      configurable: true,
+      writable: true,
+      value: { invoke, on: vi.fn(() => () => undefined) },
+    });
+  }
+
+  it('флаг typo в ответе add → открыт диалог с подстановками; черновик НЕ очищен, тоста нет (§10)', async () => {
+    mockAddTypoThenDelete(OK_ENVELOPE({ deleted: true }));
+    renderForm();
+    fillValid();
+
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(screen.getByTestId('confirm-flags-dialog')).toBeDefined());
+    expect(screen.getByTestId('hint-typo').textContent).toContain('Обычно около 128');
+    expect(screen.getByTestId('hint-typo').textContent).toContain('258');
+    // §10: store черновика не очищался до подтверждения — значения на месте.
+    expect(sysInput().value).toBe('125');
+    expect(diaInput().value).toBe('82');
+    expect(screen.queryByTestId('saved-toast')).toBeNull();
+  });
+
+  it('без флагов диалог не открывается — обычный путь сохранения (§5: откат — add без диалога)', async () => {
+    renderForm();
+    fillValid();
+
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(screen.getByTestId('saved-toast')).toBeDefined());
+    expect(screen.queryByTestId('confirm-flags-dialog')).toBeNull();
+  });
+
+  it('«Оставить» → measurements/delete НЕ вызван, поля очищены, тост «Сохранено» (§20.1)', async () => {
+    mockAddTypoThenDelete(OK_ENVELOPE({ deleted: true }));
+    renderForm();
+    fillValid();
+
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(screen.getByTestId('confirm-flags-dialog')).toBeDefined());
+    fireEvent.click(screen.getByTestId('dialog-keep'));
+
+    await waitFor(() => expect(screen.getByTestId('saved-toast')).toBeDefined());
+    expect(screen.queryByTestId('confirm-flags-dialog')).toBeNull();
+    expect(sysInput().value).toBe('');
+    expect(diaInput().value).toBe('');
+    // §20.1: «Оставить» — запись остаётся: delete-канал не вызывался (1 invoke = add).
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect((invoke.mock.calls[0] as [string])[0]).toBe('measurements/add');
+  });
+
+  it('Esc → «Оставить»: delete не вызван, поля очищены (§16 — безопасное действие)', async () => {
+    mockAddTypoThenDelete(OK_ENVELOPE({ deleted: true }));
+    renderForm();
+    fillValid();
+
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(screen.getByTestId('confirm-flags-dialog')).toBeDefined());
+    fireEvent.keyDown(screen.getByTestId('confirm-flags-dialog'), { key: 'Escape' });
+
+    await waitFor(() => expect(screen.getByTestId('saved-toast')).toBeDefined());
+    expect(sysInput().value).toBe('');
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('«Удалить и исправить» → invoke measurements/delete {id}; значения вернулись, фокус в sys (§10/§20.2)', async () => {
+    mockAddTypoThenDelete(OK_ENVELOPE({ deleted: true }));
+    renderForm();
+    fillValid();
+
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(screen.getByTestId('confirm-flags-dialog')).toBeDefined());
+    fireEvent.click(screen.getByTestId('dialog-delete-fix'));
+
+    await waitFor(() => expect(screen.queryByTestId('confirm-flags-dialog')).toBeNull());
+    const [deleteChannel, deletePayload] = invoke.mock.calls[1] as [string, { id: string }];
+    expect(deleteChannel).toBe('measurements/delete');
+    expect(deletePayload).toEqual({ id: 'm-1' });
+    // §10: форма получила обратно введённые значения (store не очищался), фокус в sys.
+    expect(sysInput().value).toBe('125');
+    expect(diaInput().value).toBe('82');
+    expect(document.activeElement).toBe(sysInput());
+  });
+
+  it('delete NOT_FOUND → тост «Запись уже удалена», форма пустая, без краша (§13/§20.5)', async () => {
+    mockAddTypoThenDelete({
+      v: 1,
+      ok: false,
+      error: { code: 'MEASUREMENT/NOT_FOUND', messageKey: 'errors.MEASUREMENT_NOT_FOUND' },
+    });
+    renderForm();
+    fillValid();
+
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(screen.getByTestId('confirm-flags-dialog')).toBeDefined());
+    fireEvent.click(screen.getByTestId('dialog-delete-fix'));
+
+    // §13: тост, форма НЕ возвращает значения (нечему — пустая форма).
+    await waitFor(() =>
+      expect(screen.getByText('Запись уже удалена')).toBeDefined(),
+    );
+    await waitFor(() => expect(screen.queryByTestId('confirm-flags-dialog')).toBeNull());
+    expect(sysInput().value).toBe('');
+    expect(diaInput().value).toBe('');
+  });
+});
