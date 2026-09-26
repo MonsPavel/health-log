@@ -7,17 +7,17 @@
  *
  * Зоны (§7; «module» — apps/desktop/src/main/modules):
  *  - renderer      apps/desktop/src-renderer          — без node:*, electron, better-sqlite3 (арх. 08 §4);
- *  - domain        (module)/domain                    — только @hl/kernel и type-only @hl/contracts;
+ *  - domain        (module)/domain                    — только @hl/kernel, uuid (TASK-017 §5) и type-only @hl/contracts;
  *  - application   (module)/application               — свой domain + kernel;
  *  - adapters      (module)/adapters                  — свой application + kernel + внешние npm;
  *  - module-root   (module)/                          — корень модуля (index.ts = публичный API);
  *  - межмодульно:  только module-root соседнего модуля, не его domain/application/adapters.
  *
  * Реализация — eslint-plugin-boundaries v7, правило boundaries/dependencies (современный
- * синтаксис): checkAllOrigins покрывает и внешние npm (domain — только @hl/*), internal-импорты
- * внутри одной зоны не проверяются (checkInternals: false по умолчанию). Захват модуля —
- * шаблоны from.element.captured.module. Внешние npm по умолчанию разрешены всем зонам,
- * кроме domain (только @hl/*) и kernel/contracts/scales-data (матрица арх. 03 §4).
+ * синтаксис): checkAllOrigins покрывает и внешние npm (domain — только @hl/* и uuid),
+ * internal-импорты внутри одной зоны не проверяются (checkInternals: false по умолчанию).
+ * Захват модуля — шаблоны from.element.captured.module. Внешние npm по умолчанию разрешены
+ * всем зонам, кроме domain (только @hl/* + uuid) и kernel/contracts/scales-data (матрица арх. 03 §4).
  *
  * Фикстуры tools/lint-fixtures исключены из основного линта (§19) и проверяются
  * скриптом `pnpm run test:lint-rules` (scripts/test-lint-rules.ts).
@@ -297,9 +297,10 @@ export default tseslint.config(
             // --- внешние модули (checkAllOrigins; «external» = npm, «core» = node:*) ---
             {
               from: el('domain'),
-              allow: [allowExternalModule(['@hl/kernel', '@hl/contracts'])],
+              // TASK-017 §5: uuid — единственный npm в domain (uuid v7 для id агрегата).
+              allow: [allowExternalModule(['@hl/kernel', '@hl/contracts', 'uuid'])],
               message:
-                'domain импортирует только @hl/kernel (и type-only @hl/contracts) — арх. 03 §4',
+                'domain импортирует только @hl/kernel, uuid (TASK-017 §5) и type-only @hl/contracts — арх. 03 §4',
             },
             // неразрешённый воркспейс до сборки dist трактуется как external (@hl/* по имени)
             { from: el('contracts'), allow: [allowExternalModule('@hl/kernel')] },

@@ -10,10 +10,7 @@ import { FixedClock, isErr, isOk, unsafeUnwrap } from '@hl/kernel';
 
 import { BpMeasurement } from './bp-measurement.js';
 import { BP_LIMITS, NOTE_MAX_LENGTH } from './constants.js';
-import type {
-  CreateMeasurementCommand,
-  EditMeasurementCommand,
-} from './measurement-commands.js';
+import type { CreateMeasurementCommand, EditMeasurementCommand } from './measurement-commands.js';
 
 /** Фиксированное «сейчас» и пояс (UTC+3) — детерминизм NFR-10. */
 const NOW_MS = 1_758_816_000_000; // 2025-09-25T16:00:00Z
@@ -24,7 +21,9 @@ const clockNow = new FixedClock(NOW_MS, TZ);
 const clockLater = new FixedClock(NOW_LATER_MS, TZ);
 
 /** Валидная команда create: измерение минуту назад, без пульса и заметки. */
-const createCmd = (overrides: Partial<CreateMeasurementCommand> = {}): CreateMeasurementCommand => ({
+const createCmd = (
+  overrides: Partial<CreateMeasurementCommand> = {},
+): CreateMeasurementCommand => ({
   profileId: 'profile-1',
   sys: 120,
   dia: 80,
@@ -108,7 +107,10 @@ describe('BpMeasurement.create — happy path (§19)', () => {
 
 describe('BpMeasurement.create — инвариант «takenAt ≤ now» (§13)', () => {
   it('takenAt = clock.nowMs() → ok: равенство «сейчас» валидно, допуск 0 мс (§20)', () => {
-    const result = BpMeasurement.create(createCmd({ takenAt: { utcMs: NOW_MS, tzOffsetMin: TZ } }), clockNow);
+    const result = BpMeasurement.create(
+      createCmd({ takenAt: { utcMs: NOW_MS, tzOffsetMin: TZ } }),
+      clockNow,
+    );
 
     expect(isOk(result)).toBe(true);
     if (isOk(result)) {
@@ -142,7 +144,10 @@ describe('BpMeasurement.create — заметка (§13)', () => {
   });
 
   it(`${NOTE_MAX_LENGTH + 1} символ → err NOTE_TOO_LONG params {max: 500} (§20)`, () => {
-    const result = BpMeasurement.create(createCmd({ note: 'а'.repeat(NOTE_MAX_LENGTH + 1) }), clockNow);
+    const result = BpMeasurement.create(
+      createCmd({ note: 'а'.repeat(NOTE_MAX_LENGTH + 1) }),
+      clockNow,
+    );
 
     expect(isErr(result)).toBe(true);
     if (isErr(result)) {
@@ -179,10 +184,7 @@ describe('BpMeasurement.create — делегирование VO и порядо
   });
 
   it('pulse вне [20, 300] → err INVALID_RANGE по полю pulse (§7)', () => {
-    const result = BpMeasurement.create(
-      createCmd({ pulse: BP_LIMITS.PULSE_MAX + 1 }),
-      clockNow,
-    );
+    const result = BpMeasurement.create(createCmd({ pulse: BP_LIMITS.PULSE_MAX + 1 }), clockNow);
 
     expect(isErr(result)).toBe(true);
     if (isErr(result)) {
@@ -241,7 +243,14 @@ describe('BpMeasurement.edit — пересборка копии (§7)', () => {
     );
     const result = BpMeasurement.edit(
       existing,
-      editCmd({ sys: 130, dia: 85, pulse: undefined, note: ' стало ', irregularPulse: true, arm: 'right' }),
+      editCmd({
+        sys: 130,
+        dia: 85,
+        pulse: undefined,
+        note: ' стало ',
+        irregularPulse: true,
+        arm: 'right',
+      }),
       clockLater,
     );
 

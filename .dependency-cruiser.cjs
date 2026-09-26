@@ -83,15 +83,25 @@ module.exports = {
     },
 
     // --- §5.2: domain-purity (арх. 03 §4: module/domain — свой domain и @hl/kernel).
+    // TASK-017 §5: единственное осознанное исключение — npm-пакет uuid (генерация
+    // id uuid v7 агрегатом BpMeasurement; нулевые транзитивные зависимости, без
+    // node:*). Паттерн покрывает pnpm-путь (.pnpm/uuid@x/node_modules/uuid/) и прямой.
     {
       name: 'domain-purity',
       severity: 'error',
       comment:
-        'арх. 03 §4: из domain разрешены только файлы СВОЕГО домена ($1 = модуль из from.path) и @hl/kernel; node:*, npm и чужие внутренности — нарушение (ср. boundaries/dependencies TASK-003). Тесты (*.test.ts) исключены: матрица про production-код — colocated-тестам домена нужен сам тестовый фреймворк (vitest, fast-check; прецеденты renderer-not-node и packages-layering, TASK-003 §19; первые domain-тесты — TASK-016).',
+        'арх. 03 §4: из domain разрешены только файлы СВОЕГО домена ($1 = модуль из from.path), @hl/kernel и uuid (TASK-017 §5: uuid v7 для id агрегата); node:*, прочий npm и чужие внутренности — нарушение (ср. boundaries/dependencies TASK-003). Тесты (*.test.ts) исключены: матрица про production-код — colocated-тестам домена нужен сам тестовый фреймворк (vitest, fast-check; прецеденты renderer-not-node и packages-layering, TASK-003 §19; первые domain-тесты — TASK-016).',
       from: { path: `^${MODULES}/(?<module>[^/]+)/domain/`, pathNot: '\\.test\\.ts$' },
       to: {
         path: '.',
-        pathNot: [`^${MODULES}/$1/domain/`, '^packages/kernel/'],
+        pathNot: [
+          `^${MODULES}/$1/domain/`,
+          '^packages/kernel/',
+          // uuid (TASK-017 §5): прямой путь и pnpm-путь store-а (без вложенных
+          // квантификаторов — сторож safe-regex бракует необязательные группы).
+          '^node_modules/uuid/',
+          '^node_modules/\\.pnpm/uuid@[0-9.]+/node_modules/uuid/',
+        ],
       },
     },
 
@@ -143,5 +153,10 @@ module.exports = {
     // остаются в графе и проверяются правилами, но не раскрываются дальше.
     doNotFollow: { path: 'node_modules' },
     exclude: { path: readIgnorePatterns() },
+    // TASK-017: uuid v14 не имеет поля «main» — только «exports» (ESM-only);
+    // дефолтный резолвер depcruise exports-поле не читает → couldNotResolve.
+    enhancedResolveOptions: {
+      exportsFields: ['exports'],
+    },
   },
 };
