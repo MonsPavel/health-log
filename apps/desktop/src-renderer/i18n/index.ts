@@ -3,11 +3,12 @@
  * (второй каталог en — пост-MVP, TD-4); lng ru, fallback ru. Ресурсы inline —
  * инициализация синхронна, к первому рендеру тексты готовы (без вспышки ключей).
  *
- * Каталоги: ru/common.json (названия разделов, aria-label навигации, wip) и
+ * Каталоги: ru/common.json (названия разделов, aria-label навигации, wip),
  * ru/errors.json (internal/validation/renderer — согласованы с TASK-008/011: тот же
- * файл, что читает translateMessageKey). Один namespace 'translation' с группами
- * common./errors.: ключи в коде совпадают со строками messageKey контрактов
- * ('errors.renderer' — прецедент ErrorBoundary, TASK-011).
+ * файл, что читает translateMessageKey) и feature-каталоги (features/⟨фича⟩/ru.json —
+ * первый measurement, TASK-031: ключи с префиксом имени фичи). Один namespace
+ * 'translation' с группами common./errors./measurement.: ключи в коде совпадают со
+ * строками messageKey контрактов ('errors.renderer' — прецедент ErrorBoundary, TASK-011).
  *
  * escapeValue: false — экранирование делает React, ICU-подстановки включатся с
  * первого использования счётчиков (§17). Динамические ключи запрещены (§22):
@@ -18,9 +19,10 @@ import { initReactI18next } from 'react-i18next';
 
 import common from './ru/common.json';
 import errors from './ru/errors.json';
+import measurement from '../features/measurement/ru.json';
 
 const resources = {
-  ru: { translation: { common, errors } },
+  ru: { translation: { common, errors, measurement } },
 } as const;
 
 if (!i18next.isInitialized) {
