@@ -32,7 +32,7 @@
     "time": "Время"
   },
   "note": {
-    "counter": "{{count}}/{{max}}"
+    "counter": "{{length}}/{{max}}"
   },
   "errors": {
     "required": "Введите значение",

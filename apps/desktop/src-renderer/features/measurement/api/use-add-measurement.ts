@@ -28,6 +28,7 @@ import {
 } from '@hl/contracts';
 
 import { fromLocalWall, tzOffsetMinOf } from '../model/taken-at';
+import { numberBounds, type NumericPath } from '../model/schema-bounds';
 import type { Arm, When } from '../model/form-store';
 import { call } from '../../../src/lib/ipc';
 
@@ -70,43 +71,11 @@ export type AssembledRequest = { readonly ok: true; readonly request: Measuremen
 export type AssembleFailure = { readonly ok: false; readonly fieldErrors: FieldErrors };
 
 /** Имя поля числовых границ — для извлечения min/max из схемы. */
-type NumericPath = 'sys' | 'dia' | 'pulse';
-
-/**
- * Границы числового поля ИЗ СХЕМЫ: unwrap optional → def.checks →
- * greater_than(min)/less_than(max). Внутренности zod v4 — единственный способ
- * прочитать границы без третьей копии чисел; поломка = undefined (params без
- * границ), это ловит тест 49 → {min:50, max:300}.
- */
-function schemaBounds(path: NumericPath): { min?: number; max?: number } {
-  const shape = (MEASUREMENT_ADD_REQUEST_SCHEMA as unknown as {
-    shape: Record<string, { def?: { innerType?: unknown; checks?: unknown } }>;
-  }).shape;
-  let field: { def?: { innerType?: unknown; checks?: unknown } } | undefined = shape[path];
-  while (
-    field !== undefined &&
-    field.def !== undefined &&
-    field.def.innerType !== undefined &&
-    typeof field.def.innerType === 'object'
-  ) {
-    field = field.def.innerType as typeof field;
-  }
-  const out: { min?: number; max?: number } = {};
-  for (const check of (field?.def?.checks as readonly unknown[] | undefined) ?? []) {
-    const def = (check as { _zod?: { def?: { check?: string; value?: number } } })._zod?.def;
-    if (def?.check === 'greater_than' && typeof def.value === 'number') {
-      out.min = def.value;
-    }
-    if (def?.check === 'less_than' && typeof def.value === 'number') {
-      out.max = def.value;
-    }
-  }
-  return out;
-}
+export type { NumericPath } from '../model/schema-bounds';
 
 /** Подстановки числовой границы: issue несёт одну границу, пара — из схемы (§17). */
 function boundParams(path: NumericPath, issue: Record<string, unknown>): FieldError['params'] {
-  const bounds = schemaBounds(path);
+  const bounds = numberBounds(path);
   return {
     min: typeof issue.minimum === 'number' ? issue.minimum : bounds.min,
     max: typeof issue.maximum === 'number' ? issue.maximum : bounds.max,
