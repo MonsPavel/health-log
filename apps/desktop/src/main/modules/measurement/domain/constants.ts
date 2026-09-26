@@ -31,6 +31,8 @@ export const SYS_LE_DIA_MESSAGE_KEY = 'errors.MEASUREMENT_SYS_LE_DIA';
 export const FUTURE_TIME_MESSAGE_KEY = 'errors.MEASUREMENT_FUTURE_TIME';
 /** TASK-017 §5/§16–17: ключ для MEASUREMENT/NOTE_TOO_LONG (params {max}). */
 export const NOTE_TOO_LONG_MESSAGE_KEY = 'errors.MEASUREMENT_NOTE_TOO_LONG';
+/** TASK-021 §5/§13: ключ для MEASUREMENT/NOT_FOUND (порт репозитория — запись не найдена). */
+export const MEASUREMENT_NOT_FOUND_MESSAGE_KEY = 'errors.MEASUREMENT_NOT_FOUND';
 
 /**
  * TASK-018 §4/§5: окно истории TypoHeuristic в днях. Отбор записей окна делает use

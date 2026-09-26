@@ -14,6 +14,9 @@ export const ERROR_CODES = [
   // заметка длиннее 500 символов).
   'MEASUREMENT/FUTURE_TIME',
   'MEASUREMENT/NOTE_TOO_LONG',
+  // TASK-021 §5/§7: порт репозитория измерений — update/delete несуществующего id
+  // (ошибка значением Result, не throw).
+  'MEASUREMENT/NOT_FOUND',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */
