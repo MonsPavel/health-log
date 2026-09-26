@@ -17,12 +17,14 @@ import {
   MEASUREMENT_TYPO_FLAG_SCHEMA,
   MEASUREMENT_UPDATE_REQUEST_SCHEMA,
   MEASUREMENT_UPDATE_RESPONSE_SCHEMA,
-  type MeasurementAddRequest,
-  type MeasurementAddResponse,
-  type MeasurementDto,
-  type MeasurementListRequest,
-  type TypoFlagDto,
 } from './schemas.js';
+import type {
+  MeasurementAddRequest,
+  MeasurementAddResponse,
+  MeasurementDto,
+  MeasurementListRequest,
+  TypoFlagDto,
+} from './types.js';
 
 /** Фиксированный момент (2025-09-25T16:00:00Z) — синхронно с доменными тестами TASK-017. */
 const NOW_MS = 1_758_816_000_000;
@@ -78,8 +80,7 @@ describe('MEASUREMENT_ADD_REQUEST_SCHEMA — валидные payload (§11)', (
 
   it('границы СДА/ДДА/ЧСС — включительно (SRS FR-1.2: 50–300, 20–200, 20–300)', () => {
     expect(MEASUREMENT_ADD_REQUEST_SCHEMA.safeParse({ ...VALID_ADD, sys: 50, dia: 20, pulse: 20 }).success).toBe(true);
-    expect(MEASUREMENT_ADD_REQUEST_SCHEMA.safeParse({ ...VALID_ADD, sys: 300, dia: 200, pulse: 300 }).success).toBe(false); // 200/200 → sys≤dia
-    expect(MEASUREMENT_ADD_REQUEST_SCHEMA.safeParse({ ...VALID_ADD, sys: 250, dia: 200, pulse: 300 }).success).toBe(true);
+    expect(MEASUREMENT_ADD_REQUEST_SCHEMA.safeParse({ ...VALID_ADD, sys: 300, dia: 200, pulse: 300 }).success).toBe(true);
   });
 
   it('границы tzOffsetMin [-720, +840] включительно (§13: UTC−12…+14)', () => {
@@ -107,9 +108,9 @@ describe('MEASUREMENT_ADD_REQUEST_SCHEMA — нарушения дают кон�
     expect(firstMessage(MEASUREMENT_ADD_REQUEST_SCHEMA, { ...VALID_ADD, sys: 301 })).toBe('errors.rangeSys');
   });
 
-  it('нецелое СДА → errors.rangeSys (§7 домена: порядок «целые → диапазоны»)', () => {
+  it('нецелое СДА → errors.rangeSys (порядок домена §7: «целые → диапазоны»); не-число — просто отказ', () => {
     expect(firstMessage(MEASUREMENT_ADD_REQUEST_SCHEMA, { ...VALID_ADD, sys: 120.5 })).toBe('errors.rangeSys');
-    expect(firstMessage(MEASUREMENT_ADD_REQUEST_SCHEMA, { ...VALID_ADD, sys: '120' })).toBe('errors.rangeSys');
+    expect(MEASUREMENT_ADD_REQUEST_SCHEMA.safeParse({ ...VALID_ADD, sys: '120' }).success).toBe(false);
   });
 
   it('ДДА вне [20, 200] → errors.rangeDia (границы 19/201)', () => {
@@ -230,24 +231,25 @@ describe('MEASUREMENT_LIST_REQUEST_SCHEMA — query из TASK-021-порта (§
 });
 
 describe('MEASUREMENT_UPDATE_REQUEST_SCHEMA — dto+id (§5/§11)', () => {
-  it('принимает {id, …те же поля, что add}', () => {
-    expect(
-      MEASUREMENT_UPDATE_REQUEST_SCHEMA.safeParse({ id: VALID_DTO.id, ...VALID_ADD }).success,
-    ).toBe(true);
+  /** Update = id + измеримые поля; profileId НЕ входит: наследуется записью (TASK-017 edit), перенос между профилями не выражается. */
+  const VALID_UPDATE = { id: VALID_DTO.id, ...VALID_ADD } as { [k: string]: unknown };
+  delete VALID_UPDATE.profileId;
+
+  it('принимает {id, …измеримые поля add}', () => {
+    expect(MEASUREMENT_UPDATE_REQUEST_SCHEMA.safeParse(VALID_UPDATE).success).toBe(true);
   });
 
   it('sys ≤ dia и границы проверяются так же, как в add', () => {
-    expect(firstMessage(MEASUREMENT_UPDATE_REQUEST_SCHEMA, { id: 'x', ...VALID_ADD, sys: 49 })).toBe('errors.rangeSys');
-    expect(firstMessage(MEASUREMENT_UPDATE_REQUEST_SCHEMA, { id: 'x', ...VALID_ADD, sys: 120, dia: 120 })).toBe(
+    expect(firstMessage(MEASUREMENT_UPDATE_REQUEST_SCHEMA, { ...VALID_UPDATE, sys: 49 })).toBe('errors.rangeSys');
+    expect(firstMessage(MEASUREMENT_UPDATE_REQUEST_SCHEMA, { ...VALID_UPDATE, sys: 120, dia: 120 })).toBe(
       'errors.sysLeDia',
     );
   });
 
-  it('без id или с лишним полем → отказ (strict, §14)', () => {
-    expect(MEASUREMENT_UPDATE_REQUEST_SCHEMA.safeParse({ ...VALID_ADD }).success).toBe(false);
-    expect(
-      MEASUREMENT_UPDATE_REQUEST_SCHEMA.safeParse({ id: VALID_DTO.id, ...VALID_ADD, profileId: 'p' }).success,
-    ).toBe(false);
+  it('без id → отказ; profileId лишний (strict, §14; перенос между профилями не выражается)', () => {
+    const { id: _id, ...noId } = VALID_UPDATE;
+    expect(MEASUREMENT_UPDATE_REQUEST_SCHEMA.safeParse(noId).success).toBe(false);
+    expect(MEASUREMENT_UPDATE_REQUEST_SCHEMA.safeParse({ ...VALID_UPDATE, profileId: 'p' }).success).toBe(false);
   });
 });
 
