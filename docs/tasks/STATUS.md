@@ -21,7 +21,7 @@
 | TASK-013 | done | | смержена |
 | TASK-014 | done | | смержена |
 | TASK-015 | done | | смержена |
-| TASK-016 | todo | | |
+| TASK-016 | done | | смержена |
 | TASK-017 | todo | | |
 | TASK-018 | todo | | |
 | TASK-019 | todo | | |
