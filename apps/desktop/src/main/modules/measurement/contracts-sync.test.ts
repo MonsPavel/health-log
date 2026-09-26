@@ -40,11 +40,12 @@ const BASE: MeasurementAddRequest = {
 };
 
 /** Вердикт zod-схемы канала add (тот же payload, что в домен — §19). */
-const schemaOk = (payload: MeasurementAddRequest): boolean => ADD_REQUEST.safeParse(payload).success;
+const schemaOk = (payload: MeasurementAddRequest): boolean =>
+  ADD_REQUEST.safeParse(payload).success;
 
 /** Вердикт агрегата: полный инвариант (BloodPressure → Pulse → note → время). */
-const aggregateOk = (payload: MeasurementAddRequest): boolean =>
-  BpMeasurement.create(payload as CreateMeasurementCommand, new FixedClock(NOW_MS, TZ)).ok;
+const aggregateOk = (payload: CreateMeasurementCommand): boolean =>
+  BpMeasurement.create(payload, new FixedClock(NOW_MS, TZ)).ok;
 
 /** Вердикт VO давления — для точечных кейсов границ sys/dia. */
 const bpOk = (sys: number, dia: number): boolean => BloodPressure.create(sys, dia).ok;
@@ -59,7 +60,14 @@ describe('синхронизация домен ↔ схема: валидные
   });
 
   it('опциональные pulse/note отсутствуют — оба принимают (FR-1.1)', () => {
-    const { pulse: _p, note: _n, ...minimal } = BASE;
+    const minimal: CreateMeasurementCommand = {
+      profileId: BASE.profileId,
+      sys: BASE.sys,
+      dia: BASE.dia,
+      irregularPulse: BASE.irregularPulse,
+      arm: BASE.arm,
+      takenAt: BASE.takenAt,
+    };
     expect(schemaOk(minimal)).toBe(true);
     expect(aggregateOk(minimal)).toBe(true);
   });
@@ -142,7 +150,7 @@ describe('осознанные расхождения — зафиксирова
   it('«не будущее» время: схема пропускает, домен отвергает — вердикт домена (нужен Clock)', () => {
     const future = { ...BASE, takenAt: { utcMs: NOW_MS + 3_600_000, tzOffsetMin: TZ } };
     expect(schemaOk(future)).toBe(true);
-    const result = BpMeasurement.create(future as CreateMeasurementCommand, new FixedClock(NOW_MS, TZ));
+    const result = BpMeasurement.create(future, new FixedClock(NOW_MS, TZ));
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe('MEASUREMENT/FUTURE_TIME');

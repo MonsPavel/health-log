@@ -66,9 +66,22 @@ const TakenAtSchema = z
  */
 const MeasurementFieldsSchema = z
   .object({
-    sys: z.number().int('errors.rangeSys').min(SYS_MIN, 'errors.rangeSys').max(SYS_MAX, 'errors.rangeSys'),
-    dia: z.number().int('errors.rangeDia').min(DIA_MIN, 'errors.rangeDia').max(DIA_MAX, 'errors.rangeDia'),
-    pulse: z.number().int('errors.rangePulse').min(PULSE_MIN, 'errors.rangePulse').max(PULSE_MAX, 'errors.rangePulse').optional(),
+    sys: z
+      .number()
+      .int('errors.rangeSys')
+      .min(SYS_MIN, 'errors.rangeSys')
+      .max(SYS_MAX, 'errors.rangeSys'),
+    dia: z
+      .number()
+      .int('errors.rangeDia')
+      .min(DIA_MIN, 'errors.rangeDia')
+      .max(DIA_MAX, 'errors.rangeDia'),
+    pulse: z
+      .number()
+      .int('errors.rangePulse')
+      .min(PULSE_MIN, 'errors.rangePulse')
+      .max(PULSE_MAX, 'errors.rangePulse')
+      .optional(),
     irregularPulse: z.boolean(),
     arm: ArmSchema,
     note: z.string().max(NOTE_MAX, 'errors.noteTooLong').optional(),
@@ -78,7 +91,7 @@ const MeasurementFieldsSchema = z
 
 /** Инвариант VO BloodPressure «строго sys > dia» (TASK-016) — на уровне объекта запроса. */
 function withBpOrder<T extends z.ZodType<{ sys: number; dia: number }>>(schema: T): T {
-  return schema.refine((v) => v.sys > v.dia, 'errors.sysLeDia') as T;
+  return schema.refine((v) => v.sys > v.dia, 'errors.sysLeDia');
 }
 
 /** §11: MeasurementAddRequest → запрос add. */
@@ -174,7 +187,9 @@ export const MEASUREMENT_LIST_RESPONSE_SCHEMA = z
   .strict();
 
 /** §11: ответ update — {measurement}. */
-export const MEASUREMENT_UPDATE_RESPONSE_SCHEMA = z.object({ measurement: MEASUREMENT_DTO_SCHEMA }).strict();
+export const MEASUREMENT_UPDATE_RESPONSE_SCHEMA = z
+  .object({ measurement: MEASUREMENT_DTO_SCHEMA })
+  .strict();
 
 /** §11: ответ delete — {deleted: true}. */
 export const MEASUREMENT_DELETE_RESPONSE_SCHEMA = z.object({ deleted: z.literal(true) }).strict();
