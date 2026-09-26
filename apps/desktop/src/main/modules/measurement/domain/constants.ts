@@ -31,3 +31,16 @@ export const SYS_LE_DIA_MESSAGE_KEY = 'errors.MEASUREMENT_SYS_LE_DIA';
 export const FUTURE_TIME_MESSAGE_KEY = 'errors.MEASUREMENT_FUTURE_TIME';
 /** TASK-017 §5/§16–17: ключ для MEASUREMENT/NOTE_TOO_LONG (params {max}). */
 export const NOTE_TOO_LONG_MESSAGE_KEY = 'errors.MEASUREMENT_NOTE_TOO_LONG';
+
+/**
+ * TASK-018 §4/§5: окно истории TypoHeuristic в днях. Отбор записей окна делает use
+ * case (TASK-029, §7/§8: Instant-сравнение относительно moment кандидата) — сама
+ * эвристика про время не знает. Правка числа = ревизия SRS, не поиск литералов.
+ */
+export const TYPO_WINDOW_DAYS = 14;
+
+/**
+ * TASK-018 §4/§13: порог «вероятной опечатки» в мм рт. ст. — отклонение значения
+ * кандидата от медианы истории СТРОГО больше порога (ровно 40 — сигнала нет, §13).
+ */
+export const TYPO_THRESHOLD_MMHG = 40;
