@@ -5,7 +5,10 @@
  * (repository.contract.test.ts) — доверие «fake ≈ адаптер» (§3). Потокобезопасность
  * не требуется: однопоточный Node, вызовы из use case'ов последовательны (§9).
  *
- * dev-контракты (TypeError — ошибка программиста, прецедент §20):
+ * Форма методов §7: контракт асинхронный, начинка синхронная — Promise.resolve-обёртка,
+ * ровно как у SQLite-адаптера (TASK-026 §9: better-sqlite3 синхронный).
+ *
+ * dev-контракты (синхронный throw TypeError — ошибка программиста, прецедент §20):
  *  - listByPeriod без непустого profileId — принудительный скоуп профиля (§14, арх. 08 §3);
  *  - add с существующим id: в боевом потоке невозможно (uuid v7, TASK-017); молчаливая
  *    перезапись замаскировала бы ошибку и разошлась с SQLite-адаптером (STORAGE/CONSTRAINT,
@@ -37,7 +40,8 @@ function newestFirst(a: BpMeasurement, b: BpMeasurement): number {
 
 /**
  * §14: запрос без непустого profileId — программная ошибка (принудительный скоуп,
- * арх. 08 §3): assert (TypeError), не AppError — допустимо в dev-контракте (§20).
+ * арх. 08 §3): assert — синхронный throw TypeError в точке вызова, не AppError
+ * (допустимо в dev-контракте, §20).
  */
 function assertProfileId(q: MeasurementQuery): void {
   if (typeof q.profileId !== 'string' || q.profileId.length === 0) {
@@ -52,7 +56,7 @@ export class InMemoryBpMeasurementRepository implements BpMeasurementRepository 
   private readonly records = new Map<string, BpMeasurement>();
   private dataVersion = INITIAL_DATA_VERSION;
 
-  async add(m: BpMeasurement): Promise<Result<void, AppError>> {
+  add(m: BpMeasurement): Promise<Result<void, AppError>> {
     if (this.records.has(m.id)) {
       throw new TypeError(
         `InMemoryBpMeasurementRepository.add: запись с id ${m.id} уже существует — id генерирует uuid v7 (TASK-017), дубликат является программной ошибкой`,
@@ -60,32 +64,32 @@ export class InMemoryBpMeasurementRepository implements BpMeasurementRepository 
     }
     this.records.set(m.id, m);
     this.dataVersion += 1;
-    return ok(undefined);
+    return Promise.resolve(ok(undefined));
   }
 
-  async update(m: BpMeasurement): Promise<Result<void, AppError>> {
+  update(m: BpMeasurement): Promise<Result<void, AppError>> {
     if (!this.records.has(m.id)) {
-      return err(measurementNotFoundError());
+      return Promise.resolve(err(measurementNotFoundError()));
     }
     this.records.set(m.id, m);
     this.dataVersion += 1;
-    return ok(undefined);
+    return Promise.resolve(ok(undefined));
   }
 
-  async delete(id: string): Promise<Result<void, AppError>> {
+  delete(id: string): Promise<Result<void, AppError>> {
     if (!this.records.has(id)) {
-      return err(measurementNotFoundError());
+      return Promise.resolve(err(measurementNotFoundError()));
     }
     this.records.delete(id);
     this.dataVersion += 1;
-    return ok(undefined);
+    return Promise.resolve(ok(undefined));
   }
 
-  async getById(id: string): Promise<BpMeasurement | undefined> {
-    return this.records.get(id);
+  getById(id: string): Promise<BpMeasurement | undefined> {
+    return Promise.resolve(this.records.get(id));
   }
 
-  async listByPeriod(q: MeasurementQuery): Promise<BpMeasurement[]> {
+  listByPeriod(q: MeasurementQuery): Promise<BpMeasurement[]> {
     assertProfileId(q);
     const { profileId, arm, hasNote } = q;
     const from = q.fromUtcMs;
@@ -103,12 +107,12 @@ export class InMemoryBpMeasurementRepository implements BpMeasurementRepository 
     selected.sort(newestFirst);
     // Пагинация простыми limit/offset (§5); окно после сортировки — limit отрезает самые новые.
     const offset = q.offset ?? 0;
-    return q.limit === undefined
-      ? selected.slice(offset)
-      : selected.slice(offset, offset + q.limit);
+    return Promise.resolve(
+      q.limit === undefined ? selected.slice(offset) : selected.slice(offset, offset + q.limit),
+    );
   }
 
-  async currentDataVersion(): Promise<number> {
-    return this.dataVersion;
+  currentDataVersion(): Promise<number> {
+    return Promise.resolve(this.dataVersion);
   }
 }

@@ -156,9 +156,9 @@ export function runRepositoryContract(makeRepository: RepositoryFactory): void {
         await repo.add(boundary);
         await repo.add(after);
 
-        const ids = (
-          await repo.listByPeriod({ profileId: 'profile-1', fromUtcMs: BASE_MS })
-        ).map((m) => m.id);
+        const ids = (await repo.listByPeriod({ profileId: 'profile-1', fromUtcMs: BASE_MS })).map(
+          (m) => m.id,
+        );
         expect(ids).toEqual([after.id, boundary.id]);
       });
 
@@ -204,8 +204,16 @@ export function runRepositoryContract(makeRepository: RepositoryFactory): void {
 
       it('комбинация from+to+arm+hasNote — пересечение всех условий; скоуп профиля в обе стороны (§14)', async () => {
         const match = seed({ takenAtUtcMs: BASE_MS + MINUTE_MS, arm: 'left', note: 'в окне' });
-        const wrongArm = seed({ takenAtUtcMs: BASE_MS + MINUTE_MS, arm: 'right', note: 'не та рука' });
-        const wrongTime = seed({ takenAtUtcMs: BASE_MS + 10 * MINUTE_MS, arm: 'left', note: 'вне окна' });
+        const wrongArm = seed({
+          takenAtUtcMs: BASE_MS + MINUTE_MS,
+          arm: 'right',
+          note: 'не та рука',
+        });
+        const wrongTime = seed({
+          takenAtUtcMs: BASE_MS + 10 * MINUTE_MS,
+          arm: 'left',
+          note: 'вне окна',
+        });
         const noNote = seed({ takenAtUtcMs: BASE_MS + MINUTE_MS, arm: 'left' });
         const otherProfile = seed({
           profileId: 'profile-2',
@@ -355,9 +363,11 @@ export function runRepositoryContract(makeRepository: RepositoryFactory): void {
         await repo.add(middle);
         await repo.add(newest);
 
-        expect(
-          (await repo.listByPeriod({ profileId: 'profile-1' })).map((m) => m.id),
-        ).toEqual([newest.id, middle.id, oldest.id]);
+        expect((await repo.listByPeriod({ profileId: 'profile-1' })).map((m) => m.id)).toEqual([
+          newest.id,
+          middle.id,
+          oldest.id,
+        ]);
         expect(
           (await repo.listByPeriod({ profileId: 'profile-1', limit: 2 })).map((m) => m.id),
         ).toEqual([newest.id, middle.id]);
@@ -375,7 +385,9 @@ export function runRepositoryContract(makeRepository: RepositoryFactory): void {
           (await repo.listByPeriod({ profileId: 'profile-1', offset: 1 })).map((m) => m.id),
         ).toEqual([middle.id, oldest.id]);
         expect(
-          (await repo.listByPeriod({ profileId: 'profile-1', offset: 1, limit: 1 })).map((m) => m.id),
+          (await repo.listByPeriod({ profileId: 'profile-1', offset: 1, limit: 1 })).map(
+            (m) => m.id,
+          ),
         ).toEqual([middle.id]);
         expect(await repo.listByPeriod({ profileId: 'profile-1', offset: 3 })).toEqual([]);
       });
@@ -392,15 +404,15 @@ export function runRepositoryContract(makeRepository: RepositoryFactory): void {
 runRepositoryContract(() => new InMemoryBpMeasurementRepository());
 
 describe('InMemoryBpMeasurementRepository: dev-контракт profileId (§14/§20)', () => {
-  it('listByPeriod без profileId → TypeError: assert программиста, не AppError (§20)', async () => {
+  it('listByPeriod без profileId → синхронный throw TypeError: assert программиста, не AppError (§20)', () => {
     const repo = new InMemoryBpMeasurementRepository();
     // Имитация JS-вызова без обязательного поля: тип нарушен умышленно (dev-контракт, §20).
     const broken = {} as MeasurementQuery;
-    await expect(repo.listByPeriod(broken)).rejects.toBeInstanceOf(TypeError);
+    expect(() => repo.listByPeriod(broken)).toThrow(TypeError);
   });
 
-  it('listByPeriod с пустым profileId → TypeError: пустой скоуп недопустим (§14, арх. 08 §3)', async () => {
+  it('listByPeriod с пустым profileId → throw TypeError: пустой скоуп недопустим (§14, арх. 08 §3)', () => {
     const repo = new InMemoryBpMeasurementRepository();
-    await expect(repo.listByPeriod({ profileId: '' })).rejects.toBeInstanceOf(TypeError);
+    expect(() => repo.listByPeriod({ profileId: '' })).toThrow(TypeError);
   });
 });
