@@ -95,8 +95,8 @@ describe('ConfirmFlagsDialog — подсказки из флагов (§19/§17
     const critical = screen.getByTestId('hint-critical');
     const typo = screen.getByTestId('hint-typo');
     expect(critical.textContent).toContain('Давление ≥180/120 может быть опасным');
-    // Порядок в DOM: critical раньше typo (follow — «critical следует за typo» = false).
-    expect(critical.compareDocumentPosition(typo) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(0);
+    // Порядок в DOM: typo следует ЗА critical → critical первый (§13 — срочность первой).
+    expect(critical.compareDocumentPosition(typo) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
   });
 });
 
@@ -176,7 +176,9 @@ describe('ConfirmFlagsDialog — фокус (§10/§16/§19)', () => {
 
 describe('ConfirmFlagsDialog — axe (§16, прецедент формы TASK-031)', () => {
   it('axe.run: violations с impact=critical отсутствуют', async () => {
-    const { container } = render(
+    // Radix Dialog рендерит через Portal в document.body — скан честно по body
+    // (в тесте body содержит только диалог).
+    render(
       createElement(ConfirmFlagsDialog, {
         open: true,
         flags: BOTH_PLUS_CRITICAL,
@@ -185,7 +187,7 @@ describe('ConfirmFlagsDialog — axe (§16, прецедент формы TASK-0
       }),
     );
 
-    const results = await axe.run(container);
+    const results = await axe.run(document.body);
 
     const critical = results.violations.filter((v) => v.impact === 'critical');
     expect(critical).toEqual([]);
