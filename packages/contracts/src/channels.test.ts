@@ -39,8 +39,15 @@ describe('HL_INVOKE_REQUEST_SCHEMA — форма запроса моста', ()
 });
 
 describe('типы реестра — компилятор выводит payload/ответ из схем (§23: без ручной синхронизации)', () => {
-  it('ChannelName — строковый union прикладных каналов (TASK-011: + app/log-client-error)', () => {
-    expectTypeOf<ChannelName>().toEqualTypeOf<'app/ping' | 'app/log-client-error'>();
+  it('ChannelName — строковый union прикладных каналов (TASK-011: app/log-client-error; TASK-028: + 4 канала измерений)', () => {
+    expectTypeOf<ChannelName>().toEqualTypeOf<
+      | 'app/ping'
+      | 'app/log-client-error'
+      | 'measurements/add'
+      | 'measurements/list'
+      | 'measurements/update'
+      | 'measurements/delete'
+    >();
   });
 
   it('ChannelRequest для app/ping — вывод z.infer из схемы запроса', () => {

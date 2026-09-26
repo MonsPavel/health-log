@@ -6,6 +6,16 @@
 import { z } from 'zod';
 
 import type { ChannelName } from './channels.js';
+import {
+  MEASUREMENT_ADD_REQUEST_SCHEMA,
+  MEASUREMENT_ADD_RESPONSE_SCHEMA,
+  MEASUREMENT_DELETE_REQUEST_SCHEMA,
+  MEASUREMENT_DELETE_RESPONSE_SCHEMA,
+  MEASUREMENT_LIST_REQUEST_SCHEMA,
+  MEASUREMENT_LIST_RESPONSE_SCHEMA,
+  MEASUREMENT_UPDATE_REQUEST_SCHEMA,
+  MEASUREMENT_UPDATE_RESPONSE_SCHEMA,
+} from './measurement/schemas.js';
 
 /** Пара схем канала: запрос валидируется в main до handler, ответ — контракт хендлера. */
 export interface ChannelSchemas<TRequest = unknown, TResponse = unknown> {
@@ -37,5 +47,26 @@ export const CHANNEL_SCHEMAS = {
       })
       .strict(),
     response: z.null(),
+  },
+  /**
+   * TASK-028 §5/§11: журнал измерений — CRUD и список (арх. 05 §3, FR-1/FR-2).
+   * Хендлеры подключают use cases TASK-029 (add), TASK-037 (update/delete), TASK-033
+   * (list); флаги эвристик и критичность — в ответе add.
+   */
+  'measurements/add': {
+    request: MEASUREMENT_ADD_REQUEST_SCHEMA,
+    response: MEASUREMENT_ADD_RESPONSE_SCHEMA,
+  },
+  'measurements/list': {
+    request: MEASUREMENT_LIST_REQUEST_SCHEMA,
+    response: MEASUREMENT_LIST_RESPONSE_SCHEMA,
+  },
+  'measurements/update': {
+    request: MEASUREMENT_UPDATE_REQUEST_SCHEMA,
+    response: MEASUREMENT_UPDATE_RESPONSE_SCHEMA,
+  },
+  'measurements/delete': {
+    request: MEASUREMENT_DELETE_REQUEST_SCHEMA,
+    response: MEASUREMENT_DELETE_RESPONSE_SCHEMA,
   },
 } satisfies Record<ChannelName, ChannelSchemas>;
