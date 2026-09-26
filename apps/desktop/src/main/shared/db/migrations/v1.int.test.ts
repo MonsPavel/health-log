@@ -70,7 +70,10 @@ const captureError = (fn: () => void): unknown => {
 const errorCode = (error: unknown): string | undefined => (error as { code?: string }).code;
 
 /** Валидная строка измерения (все колонки, §8); переопределения — для проверок CHECK/FK. */
-const insertMeasurement = (db: EncryptedDatabase, overrides: Record<string, unknown> = {}): void => {
+const insertMeasurement = (
+  db: EncryptedDatabase,
+  overrides: Record<string, unknown> = {},
+): void => {
   db.prepare(
     'INSERT INTO bp_measurement ' +
       '(id, profile_id, taken_at_utc, tz_offset_minutes, sys, dia, pulse, irregular_pulse, arm, note, source, created_at_utc, updated_at_utc) ' +
@@ -122,9 +125,11 @@ describe('миграция v1 — начальная схема (TASK-025 §19/�
   it('(2) seeded-профиль читается: ровно один, id и имя по §8 (§19 п. 2)', async () => {
     const db = await migrateFresh('seed.sqlite');
 
-    const profiles = db
-      .prepare('SELECT id, name, created_at_utc FROM profile')
-      .all() as { id: string; name: string; created_at_utc: number }[];
+    const profiles = db.prepare('SELECT id, name, created_at_utc FROM profile').all() as {
+      id: string;
+      name: string;
+      created_at_utc: number;
+    }[];
     expect(profiles).toHaveLength(1);
     const seeded = profiles[0];
     expect(seeded?.id).toBe('seed-profile-0001');
@@ -153,11 +158,13 @@ describe('миграция v1 — начальная схема (TASK-025 §19/�
     // Буквально «без profile_id» раньше срабатывает NOT NULL (колонка NOT NULL, §8):
     // домен всегда передаёт профиль — БД страхует оба способа нарушить ссылку (§13).
     const notNull = captureError(() =>
-      db.prepare(
-        'INSERT INTO bp_measurement ' +
-          '(id, taken_at_utc, tz_offset_minutes, sys, dia, arm, created_at_utc, updated_at_utc) ' +
-          'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      ).run('m-1', 1_700_000_000_000, 180, 120, 80, 'left', 1_700_000_000_000, 1_700_000_000_000),
+      db
+        .prepare(
+          'INSERT INTO bp_measurement ' +
+            '(id, taken_at_utc, tz_offset_minutes, sys, dia, arm, created_at_utc, updated_at_utc) ' +
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run('m-1', 1_700_000_000_000, 180, 120, 80, 'left', 1_700_000_000_000, 1_700_000_000_000),
     );
     expect(errorCode(notNull)).toBe('SQLITE_CONSTRAINT_NOTNULL');
 
@@ -225,9 +232,7 @@ describe('миграция v1 — начальная схема (TASK-025 §19/�
       { key: 'data_version', value: '1' },
       { key: 'schema_version', value: '1' },
     ]);
-    expect(
-      (db.prepare('SELECT count(*) AS n FROM profile').get() as { n: number }).n,
-    ).toBe(1);
+    expect((db.prepare('SELECT count(*) AS n FROM profile').get() as { n: number }).n).toBe(1);
     db.close();
   });
 });
