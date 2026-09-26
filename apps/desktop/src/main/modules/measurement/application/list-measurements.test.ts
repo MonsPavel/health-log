@@ -47,7 +47,11 @@ const makeLogger = () => ({ debug: vi.fn(), info: vi.fn(), error: vi.fn() });
 const makeUseCase = (
   repo: InMemoryBpMeasurementRepository = new InMemoryBpMeasurementRepository(),
   logger = makeLogger(),
-): { useCase: ListMeasurementsUseCase; repo: InMemoryBpMeasurementRepository; logger: ReturnType<typeof makeLogger> } => ({
+): {
+  useCase: ListMeasurementsUseCase;
+  repo: InMemoryBpMeasurementRepository;
+  logger: ReturnType<typeof makeLogger>;
+} => ({
   useCase: new ListMeasurementsUseCase({ repo, logger }),
   repo,
   logger,
@@ -134,21 +138,20 @@ describe('ListMeasurementsUseCase — маппинг DTO (§7)', () => {
   it('bp расплющен в sys/dia, Instant — в takenAtUtcMs/tzOffsetMin; опционалы только при наличии', async () => {
     const repo = new InMemoryBpMeasurementRepository();
     const { useCase } = makeUseCase(repo);
-    await repo.add(
-      record(BASE_MS, {
-        sys: 128,
-        dia: 82,
-        pulse: 70,
-        irregularPulse: true,
-        arm: 'right',
-        note: 'утром',
-      }),
-    );
+    const m = record(BASE_MS, {
+      sys: 128,
+      dia: 82,
+      pulse: 70,
+      irregularPulse: true,
+      arm: 'right',
+      note: 'утром',
+    });
+    await repo.add(m);
 
     const page = await useCase.execute({ profileId: 'profile-1' });
 
     expect(page.items[0]).toEqual({
-      id: expect.any(String),
+      id: m.id,
       profileId: 'profile-1',
       sys: 128,
       dia: 82,
@@ -209,9 +212,10 @@ describe('ListMeasurementsUseCase — телеметрия (§18)', () => {
 
     expect(logger.debug).toHaveBeenCalledWith(
       'listMeasurements',
-      expect.objectContaining({ durationMs: expect.any(Number), total: 1 }),
+      expect.objectContaining({ total: 1 }),
     );
     const meta = logger.debug.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(typeof meta.durationMs).toBe('number');
     expect(meta).not.toHaveProperty('note');
     expect(meta).not.toHaveProperty('items');
   });

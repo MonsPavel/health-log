@@ -82,7 +82,10 @@ describe('createAddMeasurementHandler — Result → ответ канала (§
 });
 
 /** Запись для list-тестов: агрегат через фабрику домена (единственный путь, TASK-017). */
-const listRecord = (utcMs: number, overrides: Partial<Parameters<typeof BpMeasurement.create>[0]> = {}): BpMeasurement =>
+const listRecord = (
+  utcMs: number,
+  overrides: Partial<Parameters<typeof BpMeasurement.create>[0]> = {},
+): BpMeasurement =>
   unsafeUnwrap(
     BpMeasurement.create(
       {
@@ -109,9 +112,7 @@ const makeListHandler = () => {
 describe('createListMeasurementHandler — чтение журнала (TASK-030 §9/§11)', () => {
   it('ok → MeasurementListResponse, форма валидна строгой схемой; items — плоские DTO', async () => {
     const { handler, repo } = makeListHandler();
-    await repo.add(
-      listRecord(NOW_MS - MINUTE_MS, { sys: 125, dia: 82, pulse: 66, note: 'утром' }),
-    );
+    await repo.add(listRecord(NOW_MS - MINUTE_MS, { sys: 125, dia: 82, pulse: 66, note: 'утром' }));
 
     const response = await handler({ profileId: 'profile-1' });
 

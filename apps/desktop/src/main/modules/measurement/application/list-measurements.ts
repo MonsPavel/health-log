@@ -36,7 +36,10 @@ import { performance } from 'node:perf_hooks';
 
 import type { MeasurementDto } from '@hl/contracts';
 
-import type { BpMeasurementRepository, MeasurementQuery } from './ports/bp-measurement-repository.js';
+import type {
+  BpMeasurementRepository,
+  MeasurementQuery,
+} from './ports/bp-measurement-repository.js';
 import { toMeasurementDto } from './add-measurement.js';
 
 /** Дефолт страницы (§5): limit=200 — «200 записей DTO ≈ десятки КБ» ок для IPC (§15). */

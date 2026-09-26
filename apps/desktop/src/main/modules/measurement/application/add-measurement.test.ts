@@ -337,6 +337,7 @@ describe('AddMeasurementUseCase — комбинация флагов и отк�
       delete: (id) => base.delete(id),
       getById: (id) => base.getById(id),
       listByPeriod: (q) => base.listByPeriod(q),
+      countByPeriod: (q) => base.countByPeriod(q), // TASK-030: метод порта; add его не использует
       currentDataVersion: () => base.currentDataVersion(),
     };
     const { useCase, events, logger } = makeUseCase(failingRepo);

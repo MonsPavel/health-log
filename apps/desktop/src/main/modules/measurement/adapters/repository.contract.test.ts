@@ -447,9 +447,7 @@ export function runRepositoryContract(makeRepository: RepositoryFactory): void {
 
       it('пустой период → 0; чужой профиль не считается (§14 скоуп)', async () => {
         await repo.add(seed({ takenAtUtcMs: BASE_MS }));
-        await repo.add(
-          seed({ profileId: 'profile-2', takenAtUtcMs: BASE_MS + MINUTE_MS }),
-        );
+        await repo.add(seed({ profileId: 'profile-2', takenAtUtcMs: BASE_MS + MINUTE_MS }));
 
         expect(await repo.countByPeriod({ profileId: 'profile-1', fromUtcMs: NOW_MS })).toBe(0);
         expect(await repo.countByPeriod({ profileId: 'profile-2' })).toBe(1);

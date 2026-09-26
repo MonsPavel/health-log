@@ -49,7 +49,10 @@ import { AppError, SystemClock, type Clock } from '@hl/kernel';
 
 import { createLogClientErrorHandler } from './app/global-errors.js';
 import { EventBus } from './events/event-bus.js';
-import { createAddMeasurementHandler, createListMeasurementHandler } from './ipc/handlers/measurements.js';
+import {
+  createAddMeasurementHandler,
+  createListMeasurementHandler,
+} from './ipc/handlers/measurements.js';
 import { createPingHandler } from './ipc/handlers/ping.js';
 import { createChannelRegistry, type ChannelRegistry } from './ipc/register-channel.js';
 import { SqliteBpMeasurementRepository } from './modules/measurement/adapters/sqlite-measurement-repository.js';
