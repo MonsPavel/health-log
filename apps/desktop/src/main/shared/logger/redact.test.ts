@@ -119,7 +119,7 @@ describe('redactPhi — отказобезопасность (§14)', () => {
 });
 
 describe('конфиг редакции — контракт спецификации (§5/§7)', () => {
-  it('PHI_REDACT_PATHS — ровно redact-пути из §5 (двойной слой: pino.redact)', () => {
+  it('PHI_REDACT_PATHS — ровно redact-пути из §5 + ключи БД (TASK-022 §14: pino.redact слой)', () => {
     expect([...PHI_REDACT_PATHS]).toEqual([
       'sys',
       'dia',
@@ -132,10 +132,15 @@ describe('конфиг редакции — контракт специфика�
       '*.content',
       'measurement',
       'measurements',
+      // TASK-022 §14: ключ шифрования БД никогда не логируется — top-level и глубина 1.
+      'keyHex',
+      'key',
+      '*.keyHex',
+      '*.key',
     ]);
   });
 
-  it('PHI_KEYS покрывает доменные PHI-поля §7 (рекурсивный слой)', () => {
+  it('PHI_KEYS покрывает доменные PHI-поля §7 и ключи БД TASK-022 §14 (рекурсивный слой)', () => {
     for (const key of [
       'sys',
       'dia',
@@ -145,6 +150,9 @@ describe('конфиг редакции — контракт специфика�
       'question',
       'answer',
       'measurements',
+      // TASK-022 §14: ключ шифрования БД — цензура на ЛЮБОЙ глубине.
+      'keyHex',
+      'key',
     ]) {
       expect(PHI_KEYS.has(key)).toBe(true);
     }
