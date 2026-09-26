@@ -69,8 +69,8 @@ describe('WhenField — ручной ввод (заднее число разр�
   it('поля дата/время с значениями черновика; подписи «Дата»/«Время»', () => {
     renderWhen({ when: { date: '2026-09-24', time: '21:30' } });
 
-    const date = screen.getByLabelText('Дата') as HTMLInputElement;
-    const time = screen.getByLabelText('Время') as HTMLInputElement;
+    const date = screen.getByLabelText('Дата');
+    const time = screen.getByLabelText('Время');
     expect(date.type).toBe('date');
     expect(time.type).toBe('time');
     expect(date.value).toBe('2026-09-24');

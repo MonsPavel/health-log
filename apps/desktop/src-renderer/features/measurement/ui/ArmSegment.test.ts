@@ -18,8 +18,8 @@ describe('ArmSegment — сегмент-контрол руки (§5/§16)', () 
   it('правая рука выбрана по умолчанию (начальный стенд store)', () => {
     render(createElement(ArmSegment, { value: 'right', onArm: vi.fn() }));
 
-    const left = screen.getByRole('radio', { name: 'Левая' }) as HTMLInputElement;
-    const right = screen.getByRole('radio', { name: 'Правая' }) as HTMLInputElement;
+    const left = screen.getByRole('radio', { name: 'Левая' });
+    const right = screen.getByRole('radio', { name: 'Правая' });
     expect(right.checked).toBe(true);
     expect(left.checked).toBe(false);
   });
@@ -36,7 +36,7 @@ describe('ArmSegment — сегмент-контрол руки (§5/§16)', () 
   it('выбранная рука отражается checked (value → UI)', () => {
     render(createElement(ArmSegment, { value: 'left', onArm: vi.fn() }));
 
-    const left = screen.getByRole('radio', { name: 'Левая' }) as HTMLInputElement;
+    const left = screen.getByRole('radio', { name: 'Левая' });
     expect(left.checked).toBe(true);
   });
 

@@ -19,7 +19,7 @@ describe('NoteField — заметка ≤500 с счётчиком (§5)', () =
   it('textarea подписана «Заметка», maxlength = NOTE_MAX из схемы (500)', () => {
     render(createElement(NoteField, { value: '', onChange: vi.fn() }));
 
-    const area = screen.getByRole('textbox', { name: 'Заметка' }) as HTMLTextAreaElement;
+    const area = screen.getByRole('textbox', { name: 'Заметка' });
     expect(area.maxLength).toBe(500);
   });
 
