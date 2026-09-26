@@ -36,6 +36,11 @@ export const ERROR_CODES = [
   // (schema_version > известного) — явная ошибка «обновите приложение» (EC-25).
   'STORAGE/MIGRATION_FAILED',
   'STORAGE/DB_NEWER_THAN_APP',
+  // TASK-026 §5/§9: SQLite-адаптер репозитория измерений — нарушение ограничений БД
+  // (SQLITE_CONSTRAINT_*: UNIQUE/NOT NULL/FK/CHECK) и прочие ошибки выполнения SQL
+  // (наружу только код, детали в cause — §14).
+  'STORAGE/CONSTRAINT',
+  'STORAGE/FAILED',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */
