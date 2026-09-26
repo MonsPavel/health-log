@@ -397,6 +397,65 @@ export function runRepositoryContract(makeRepository: RepositoryFactory): void {
         expect(await repo.listByPeriod({ profileId: 'profile-1', limit: 0 })).toEqual([]);
       });
     });
+
+    describe('8. countByPeriod: total по тем же фильтрам, без пагинации (TASK-030 §7)', () => {
+      it('считает все записи профиля; listByPeriod без limit возвращает столько же (§7: COUNT по тем же фильтрам)', async () => {
+        await repo.add(seed({ takenAtUtcMs: BASE_MS }));
+        await repo.add(seed({ takenAtUtcMs: BASE_MS + MINUTE_MS }));
+        await repo.add(seed({ takenAtUtcMs: BASE_MS + 2 * MINUTE_MS }));
+
+        const total = await repo.countByPeriod({ profileId: 'profile-1' });
+        expect(total).toBe(3);
+        expect((await repo.listByPeriod({ profileId: 'profile-1' })).length).toBe(total);
+      });
+
+      it('фильтры from/to/arm/hasNote — те же, что у listByPeriod: count совпадает с длиной выборки', async () => {
+        const match = seed({ takenAtUtcMs: BASE_MS + MINUTE_MS, arm: 'left', note: 'в окне' });
+        const wrongArm = seed({ takenAtUtcMs: BASE_MS + MINUTE_MS, arm: 'right', note: 'в окне' });
+        const wrongTime = seed({ takenAtUtcMs: BASE_MS + 10 * MINUTE_MS, arm: 'left' });
+        const noNote = seed({ takenAtUtcMs: BASE_MS + MINUTE_MS, arm: 'left' });
+        await repo.add(match);
+        await repo.add(wrongArm);
+        await repo.add(wrongTime);
+        await repo.add(noNote);
+
+        const query: MeasurementQuery = {
+          profileId: 'profile-1',
+          fromUtcMs: BASE_MS,
+          toUtcMs: BASE_MS + 5 * MINUTE_MS,
+          arm: 'left',
+          hasNote: true,
+        };
+        expect(await repo.countByPeriod(query)).toBe(1);
+        expect((await repo.listByPeriod(query)).map((m) => m.id)).toEqual([match.id]);
+      });
+
+      it('limit/offset не влияют на total: count всех подходящих, а не размер страницы (§7)', async () => {
+        await repo.add(seed({ takenAtUtcMs: BASE_MS }));
+        await repo.add(seed({ takenAtUtcMs: BASE_MS + MINUTE_MS }));
+        await repo.add(seed({ takenAtUtcMs: BASE_MS + 2 * MINUTE_MS }));
+
+        // Страница limit=2/offset=1 отдаёт одну запись, total при этом — все три.
+        const page = await repo.listByPeriod({
+          profileId: 'profile-1',
+          limit: 2,
+          offset: 1,
+        });
+        expect(page.length).toBe(2);
+        expect(await repo.countByPeriod({ profileId: 'profile-1', limit: 2, offset: 1 })).toBe(3);
+      });
+
+      it('пустой период → 0; чужой профиль не считается (§14 скоуп)', async () => {
+        await repo.add(seed({ takenAtUtcMs: BASE_MS }));
+        await repo.add(
+          seed({ profileId: 'profile-2', takenAtUtcMs: BASE_MS + MINUTE_MS }),
+        );
+
+        expect(await repo.countByPeriod({ profileId: 'profile-1', fromUtcMs: NOW_MS })).toBe(0);
+        expect(await repo.countByPeriod({ profileId: 'profile-2' })).toBe(1);
+        expect(await repo.countByPeriod({ profileId: 'нет-такого-профиля' })).toBe(0);
+      });
+    });
   });
 }
 

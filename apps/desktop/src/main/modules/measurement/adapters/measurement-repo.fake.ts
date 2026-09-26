@@ -112,6 +112,26 @@ export class InMemoryBpMeasurementRepository implements BpMeasurementRepository 
     );
   }
 
+  /**
+   * TASK-030 §7: total — COUNT по тем же фильтрам, что listByPeriod; limit/offset
+   * игнорируются (пагинация выборки, не фильтр — контракт порта). Сортировка не нужна.
+   */
+  countByPeriod(q: MeasurementQuery): Promise<number> {
+    assertProfileId(q);
+    const { profileId, arm, hasNote } = q;
+    const from = q.fromUtcMs;
+    const to = q.toUtcMs;
+    const total = [...this.records.values()].filter(
+      (m) =>
+        m.profileId === profileId &&
+        (from === undefined || m.takenAt.utcMs >= from) &&
+        (to === undefined || m.takenAt.utcMs <= to) &&
+        (arm === undefined || m.arm === arm) &&
+        (hasNote !== true || m.note !== undefined),
+    ).length;
+    return Promise.resolve(total);
+  }
+
   currentDataVersion(): Promise<number> {
     return Promise.resolve(this.dataVersion);
   }
