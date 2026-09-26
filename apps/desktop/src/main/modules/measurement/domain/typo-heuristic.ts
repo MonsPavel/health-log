@@ -37,11 +37,22 @@ export interface TypoFlag {
   readonly deviation: number;
 }
 
+/** Сужение индексации под noUncheckedIndexedAccess: вне контракта (length ≥ 2 у detectTypo) — громкий отказ. */
+function at(items: ReadonlyArray<number>, index: number): number {
+  const value = items[index];
+  if (value === undefined) {
+    throw new Error(`medianOf: индекс ${index} вне массива длины ${items.length}`);
+  }
+  return value;
+}
+
 /** Медиана по стандартному определению (§13): чётный массив — среднее двух центральных. */
 function medianOf(values: ReadonlyArray<number>): number {
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+  return sorted.length % 2 === 0
+    ? (at(sorted, middle - 1) + at(sorted, middle)) / 2
+    : at(sorted, middle);
 }
 
 /**
