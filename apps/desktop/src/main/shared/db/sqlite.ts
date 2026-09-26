@@ -31,6 +31,8 @@
  * вызова, прецедент §20 — скоуп profileId TASK-021); JS-гарантий обнуления строки
  * нет — документировано в ADR-0002; redact-список логгера дополняют keyHex/key.
  */
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference -- локальные типы better-sqlite3-multiple-ciphers (exports-map v13.0.3 без types, см. шим §6): path-reference добавляет d.ts в программы обоих tsconfig-проектов без правок конфигов; directive обязан стоять в самом верху файла
+/// <reference path="./better-sqlite3-multiple-ciphers.d.ts" />
 import Database from 'better-sqlite3-multiple-ciphers';
 
 import { AppError } from '@hl/kernel';
@@ -105,6 +107,10 @@ export function openEncrypted(path: string, keyHex: string): EncryptedDatabase {
     // чужая блокировка → SQLITE_BUSY; повреждение → non-'ok' отчёт без исключения.
     const quickCheck = db.pragma('quick_check', { simple: true });
     if (quickCheck !== 'ok') {
+      // Контракт §7: обёртка сигнализирует ошибкой типа AppError (не Error) —
+      // как хендлеры каркаса (прецедент register-channel.test.ts §13 п. 3);
+      // правилу only-throw-error это объяснено здесь.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw AppError.of(
         'STORAGE/CORRUPT',
         STORAGE_CORRUPT_MESSAGE_KEY,
@@ -126,8 +132,10 @@ export function openEncrypted(path: string, keyHex: string): EncryptedDatabase {
       // соединение уже закрыто — при пробросе ошибки это не важно
     }
     if (error instanceof AppError) {
+      // Контракт §7: наружу — AppError (см. пояснение к only-throw-error выше).
       throw error;
     }
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
     throw mapOpenError(error);
   }
 }

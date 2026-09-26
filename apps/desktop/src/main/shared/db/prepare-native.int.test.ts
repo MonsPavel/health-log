@@ -56,7 +56,8 @@ const findNativeBinary = (dir: string): string => {
   return '';
 };
 
-const sha256 = (file: string): string => createHash('sha256').update(readFileSync(file)).digest('hex');
+const sha256 = (file: string): string =>
+  createHash('sha256').update(readFileSync(file)).digest('hex');
 
 describe.skipIf(!bashAvailable())('prepare-native: идемпотентность (TASK-022 §19/§24)', () => {
   it('скрипт существует (§6)', () => {

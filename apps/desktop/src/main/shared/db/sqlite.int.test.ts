@@ -133,28 +133,32 @@ describe('openEncrypted: SQLCipher-стек (TASK-022 §19/§20)', () => {
   // Таймаут теста выше дефолтного busy-timeout better-sqlite3 (5000 мс): contested
   // чтение ждёт снятия блокировки до busy_timeout и только потом даёт SQLITE_BUSY —
   // это реальное поведение стека, сценарий редкий (защита — single-instance TASK-012).
-  it('файл занят другим соединением (BEGIN EXCLUSIVE) → STORAGE/LOCKED (§13)', { timeout: 15_000 }, () => {
-    const file = join(newDir(), 'locked.sqlite');
-    const key = randomKeyHex();
-    const holder = openEncrypted(file, key);
-    holder.exec('CREATE TABLE smoke (v TEXT NOT NULL)');
-    // В WAL вторая связь читает параллельно — BUSY на открытии не получить; на время
-    // теста переводим файл в rollback-journal режим: BEGIN EXCLUSIVE там блокирует
-    // и чтение другой связи → детерминированный SQLITE_BUSY при openEncrypted.
-    holder.pragma('journal_mode = DELETE');
-    holder.exec('BEGIN EXCLUSIVE');
-    let thrown: unknown;
-    try {
-      openEncrypted(file, key);
-    } catch (error) {
-      thrown = error;
-    } finally {
-      holder.exec('ROLLBACK');
-      holder.close();
-    }
-    expect(thrown).toBeInstanceOf(AppError);
-    expect((thrown as AppError).code).toBe('STORAGE/LOCKED');
-  });
+  it(
+    'файл занят другим соединением (BEGIN EXCLUSIVE) → STORAGE/LOCKED (§13)',
+    { timeout: 15_000 },
+    () => {
+      const file = join(newDir(), 'locked.sqlite');
+      const key = randomKeyHex();
+      const holder = openEncrypted(file, key);
+      holder.exec('CREATE TABLE smoke (v TEXT NOT NULL)');
+      // В WAL вторая связь читает параллельно — BUSY на открытии не получить; на время
+      // теста переводим файл в rollback-journal режим: BEGIN EXCLUSIVE там блокирует
+      // и чтение другой связи → детерминированный SQLITE_BUSY при openEncrypted.
+      holder.pragma('journal_mode = DELETE');
+      holder.exec('BEGIN EXCLUSIVE');
+      let thrown: unknown;
+      try {
+        openEncrypted(file, key);
+      } catch (error) {
+        thrown = error;
+      } finally {
+        holder.exec('ROLLBACK');
+        holder.close();
+      }
+      expect(thrown).toBeInstanceOf(AppError);
+      expect((thrown as AppError).code).toBe('STORAGE/LOCKED');
+    },
+  );
 
   it('1000 вставок в транзакции ≤ 1000 мс — базовая линия ADR-0002 (§15/§20)', () => {
     const file = join(newDir(), 'perf.sqlite');
