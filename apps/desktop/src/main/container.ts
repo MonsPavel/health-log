@@ -49,11 +49,12 @@ import { AppError, SystemClock, type Clock } from '@hl/kernel';
 
 import { createLogClientErrorHandler } from './app/global-errors.js';
 import { EventBus } from './events/event-bus.js';
-import { createAddMeasurementHandler } from './ipc/handlers/measurements.js';
+import { createAddMeasurementHandler, createListMeasurementHandler } from './ipc/handlers/measurements.js';
 import { createPingHandler } from './ipc/handlers/ping.js';
 import { createChannelRegistry, type ChannelRegistry } from './ipc/register-channel.js';
 import { SqliteBpMeasurementRepository } from './modules/measurement/adapters/sqlite-measurement-repository.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
+import { ListMeasurementsUseCase } from './modules/measurement/application/list-measurements.js';
 import type { BpMeasurementRepository } from './modules/measurement/application/ports/bp-measurement-repository.js';
 import {
   SafeStorageKeyVault,
@@ -217,18 +218,21 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     // 7.5. Прикладные use case'ы (§23, место помечено TASK-027): use case'ам нужны
     //      репозиторий (п. 6) и шина событий (п. 7), поэтому — между ними и IPC.
     //      TASK-029: AddMeasurement публикует measurement:changed/data:versionBumped.
+    //      TASK-030: ListMeasurements — тонкое чтение журнала (событий не публикует).
     const addMeasurement = new AddMeasurementUseCase({
       repo: measurementRepo,
       clock,
       events,
       logger,
     });
+    const listMeasurements = new ListMeasurementsUseCase({ repo: measurementRepo, logger });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
     //    (детерминизм тестов, NFR-10); app/log-client-error (TASK-011) — прикладной
-    //    канал ErrorBoundary; measurements/add (TASK-029) — use case addMeasurement.
-    //    Хендлеры задач 030+ регистрируются здесь же по мере появления (место помечено).
+    //    канал ErrorBoundary; measurements/add (TASK-029) — use case addMeasurement;
+    //    measurements/list (TASK-030) — use case listMeasurements. Хендлеры задач 037+
+    //    регистрируются здесь же по мере появления (место помечено).
     const channels = createChannelRegistry(createLogger('ipc'));
     channels.register('app/ping', CHANNEL_SCHEMAS['app/ping'], createPingHandler(clock));
     channels.register(
@@ -240,6 +244,11 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       'measurements/add',
       CHANNEL_SCHEMAS['measurements/add'],
       createAddMeasurementHandler(addMeasurement),
+    );
+    channels.register(
+      'measurements/list',
+      CHANNEL_SCHEMAS['measurements/list'],
+      createListMeasurementHandler(listMeasurements),
     );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
