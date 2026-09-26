@@ -26,7 +26,11 @@ const DAY_MS = 86_400_000;
 const clock = new FixedClock(NOW_MS, TZ);
 
 /** Подставочные зависимости: события и логгер — vi.fn-шпионы (§19: «spy events»). */
-const makeEvents = () => ({ emit: vi.fn() });
+const makeEvents = () => ({
+  // Типизация generic'ом vi.fn (прецедент broadcast.test.ts): mock.calls =
+  // [string, unknown][] — без any в map-обходах.
+  emit: vi.fn<(name: string, payload: unknown) => void>(() => {}),
+});
 const makeLogger = () => ({ debug: vi.fn(), info: vi.fn(), error: vi.fn() });
 
 /** Команда по умолчанию: валидная, минуту назад от «сейчас» Clock'а. */
@@ -62,7 +66,11 @@ const makeUseCase = (
   repo: BpMeasurementRepository = new InMemoryBpMeasurementRepository(),
   events = makeEvents(),
   logger = makeLogger(),
-): { useCase: AddMeasurementUseCase; events: ReturnType<typeof makeEvents>; logger: ReturnType<typeof makeLogger> } => ({
+): {
+  useCase: AddMeasurementUseCase;
+  events: ReturnType<typeof makeEvents>;
+  logger: ReturnType<typeof makeLogger>;
+} => ({
   useCase: new AddMeasurementUseCase({ repo, clock, events, logger }),
   events,
   logger,
@@ -320,9 +328,16 @@ describe('AddMeasurementUseCase — комбинация флагов и отк�
 
   it('STORAGE/*: add упал → err, событий нет, в логе есть отказ (§9)', async () => {
     const storageError = AppError.of('STORAGE/FAILED', 'errors.STORAGE_FAILED');
+    const base = new InMemoryBpMeasurementRepository();
+    // Стаб порта: методы — делегирование в fake, add — отказ STORAGE/FAILED
+    // (spread класса методы прототипа не копирует — стаб собирается явно).
     const failingRepo: BpMeasurementRepository = {
-      ...new InMemoryBpMeasurementRepository(),
       add: () => Promise.resolve({ ok: false, error: storageError }),
+      update: (m) => base.update(m),
+      delete: (id) => base.delete(id),
+      getById: (id) => base.getById(id),
+      listByPeriod: (q) => base.listByPeriod(q),
+      currentDataVersion: () => base.currentDataVersion(),
     };
     const { useCase, events, logger } = makeUseCase(failingRepo);
 

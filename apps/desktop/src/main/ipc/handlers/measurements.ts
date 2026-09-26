@@ -15,7 +15,10 @@
 import { isErr } from '@hl/kernel';
 import type { MeasurementAddRequest, MeasurementAddResponse } from '@hl/contracts';
 
-import { type AddResult, AddMeasurementUseCase } from '../../modules/measurement/application/add-measurement.js';
+import {
+  type AddResult,
+  AddMeasurementUseCase,
+} from '../../modules/measurement/application/add-measurement.js';
 
 /** Ответ add (§11): {measurement, flags} — typo/criticalValue включаются только при наличии. */
 function toAddResponse(add: AddResult): MeasurementAddResponse {
@@ -24,9 +27,7 @@ function toAddResponse(add: AddResult): MeasurementAddResponse {
     flags: {
       ...(add.flags.typo !== undefined ? { typo: add.flags.typo } : {}),
       duplicate: add.flags.duplicate,
-      ...(add.flags.criticalValue !== undefined
-        ? { criticalValue: add.flags.criticalValue }
-        : {}),
+      ...(add.flags.criticalValue !== undefined ? { criticalValue: add.flags.criticalValue } : {}),
     },
   };
 }
@@ -40,6 +41,7 @@ export function createAddMeasurementHandler(
     if (isErr(result)) {
       // Ошибка уходит значением → исключением ровно на границе каркаса, где ей
       // место: AppError → {ok:false, error:toDto} (NFR-12, TASK-008 §13 п. 3).
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт §9; каркас register-channel конвертирует его в ApiFailure(toDto), прецедент container.ts/sqlite.ts)
       throw result.error;
     }
     return toAddResponse(result.value);

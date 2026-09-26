@@ -217,7 +217,12 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     // 7.5. Прикладные use case'ы (§23, место помечено TASK-027): use case'ам нужны
     //      репозиторий (п. 6) и шина событий (п. 7), поэтому — между ними и IPC.
     //      TASK-029: AddMeasurement публикует measurement:changed/data:versionBumped.
-    const addMeasurement = new AddMeasurementUseCase({ repo: measurementRepo, clock, events, logger });
+    const addMeasurement = new AddMeasurementUseCase({
+      repo: measurementRepo,
+      clock,
+      events,
+      logger,
+    });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
