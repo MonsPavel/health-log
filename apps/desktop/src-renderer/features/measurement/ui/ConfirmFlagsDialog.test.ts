@@ -101,7 +101,7 @@ describe('ConfirmFlagsDialog — подсказки из флагов (§19/§17
 });
 
 describe('ConfirmFlagsDialog — кнопки и Esc (§19/§10)', () => {
-  it('клик «Оставить» → onKeep, onDeleteFix не вызван (без delete)', async () => {
+  it('клик «Оставить» → onKeep, onDeleteFix не вызван (без delete)', () => {
     const onKeep = vi.fn();
     const onDeleteFix = vi.fn();
     renderDialog(BOTH, { onKeep, onDeleteFix });
@@ -112,7 +112,7 @@ describe('ConfirmFlagsDialog — кнопки и Esc (§19/§10)', () => {
     expect(onDeleteFix).not.toHaveBeenCalled();
   });
 
-  it('клик «Удалить и исправить» → onDeleteFix, onKeep не вызван', async () => {
+  it('клик «Удалить и исправить» → onDeleteFix, onKeep не вызван', () => {
     const onKeep = vi.fn();
     const onDeleteFix = vi.fn();
     renderDialog(BOTH, { onKeep, onDeleteFix });
@@ -144,9 +144,7 @@ describe('ConfirmFlagsDialog — фокус (§10/§16/§19)', () => {
     expect(document.activeElement).not.toBe(deleteFix);
     // Фокус не снаружи: либо сам диалог, либо элемент внутри него.
     const dialog = screen.getByTestId('confirm-flags-dialog');
-    expect(
-      document.activeElement === dialog || dialog.contains(document.activeElement),
-    ).toBe(true);
+    expect(document.activeElement === dialog || dialog.contains(document.activeElement)).toBe(true);
   });
 
   it('фокус-ловушка: Tab многократно не выводит фокус из диалога (§19)', async () => {
@@ -168,9 +166,7 @@ describe('ConfirmFlagsDialog — фокус (§10/§16/§19)', () => {
   it('role="dialog" с доступным именем из заголовка (§16 aria-labelledby)', () => {
     renderDialog(BOTH);
 
-    expect(
-      screen.getByRole('dialog', { name: 'Проверьте значения' }),
-    ).toBeDefined();
+    expect(screen.getByRole('dialog', { name: 'Проверьте значения' })).toBeDefined();
   });
 });
 

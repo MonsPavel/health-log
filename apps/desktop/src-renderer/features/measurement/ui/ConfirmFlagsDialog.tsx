@@ -39,7 +39,9 @@ export interface ConfirmFlagsDialogProps {
 }
 
 /** Подписи полей typo-подсказки — литералы (§22: динамические ключи запрещены). */
-const FIELD_LABEL_KEY: Readonly<Record<'sys' | 'dia', 'measurement.fields.sys' | 'measurement.fields.dia'>> = {
+const FIELD_LABEL_KEY: Readonly<
+  Record<'sys' | 'dia', 'measurement.fields.sys' | 'measurement.fields.dia'>
+> = {
   sys: 'measurement.fields.sys',
   dia: 'measurement.fields.dia',
 };

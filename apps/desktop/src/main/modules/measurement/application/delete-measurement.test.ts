@@ -83,11 +83,9 @@ describe('DeleteMeasurementUseCase — happy path (§19/§9)', () => {
     // data_version: 1 (старт) → 2 (add) → 3 (delete); событие несёт актуальную версию.
     expect(events.emit).toHaveBeenCalledWith('data:versionBumped', { newVersion: 3 });
     // Лог (стиль §18 add): длительность, без значений измерений (PHI, TASK-010).
-    expect(logger.info).toHaveBeenCalledWith(
-      'deleteMeasurement',
-      expect.objectContaining({ durationMs: expect.any(Number) }),
-    );
+    expect(logger.info).toHaveBeenCalledWith('deleteMeasurement', expect.anything());
     const infoMeta = logger.info.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(typeof infoMeta['durationMs']).toBe('number');
     expect(infoMeta).not.toHaveProperty('sys');
     expect(infoMeta).not.toHaveProperty('note');
   });

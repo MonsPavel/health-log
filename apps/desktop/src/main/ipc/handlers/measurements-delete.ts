@@ -9,14 +9,9 @@
  *    проходит как есть — рендерер покажет тост «уже удалена», не краш (§7/§13).
  */
 import { isErr } from '@hl/kernel';
-import type {
-  MeasurementDeleteRequest,
-  MeasurementDeleteResponse,
-} from '@hl/contracts';
+import type { MeasurementDeleteRequest, MeasurementDeleteResponse } from '@hl/contracts';
 
-import {
-  DeleteMeasurementUseCase,
-} from '../../modules/measurement/application/delete-measurement.js';
+import { DeleteMeasurementUseCase } from '../../modules/measurement/application/delete-measurement.js';
 
 /** Фабрика хендлера `measurements/delete`: use case инъекцируется контейнером (TASK-027). */
 export function createDeleteMeasurementHandler(

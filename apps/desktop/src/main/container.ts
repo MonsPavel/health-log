@@ -233,7 +233,11 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       logger,
     });
     const listMeasurements = new ListMeasurementsUseCase({ repo: measurementRepo, logger });
-    const deleteMeasurement = new DeleteMeasurementUseCase({ repo: measurementRepo, events, logger });
+    const deleteMeasurement = new DeleteMeasurementUseCase({
+      repo: measurementRepo,
+      events,
+      logger,
+    });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера

@@ -429,19 +429,31 @@ describe('MeasurementForm — быстрый путь §20.1 (механика �
 });
 
 describe('MeasurementForm — диалог подтверждений (TASK-032 §5/§10/§13/§20)', () => {
+  /** Валидный ввод 125/82 (прецедент fillValid из «сохранение»; пределы describe). */
+  function fillValid(): void {
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 5' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 8' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+  }
+
   /** Ответ add с флагом typo (§20.1: история ~128, ввели 258). */
   const TYPO_RESPONSE = (id: string): MeasurementAddResponse => ({
     measurement: { ...ADD_RESPONSE.measurement, id },
     flags: { duplicate: false, typo: { field: 'sys', median: 128, value: 258, deviation: 130 } },
   });
 
+  /** Конверт успешного delete (§11: {deleted: true}). */
+  const DELETE_OK_ENVELOPE = { v: 1, ok: true, data: { deleted: true } };
+
   /** invoke, маршрутизирующий по каналу: add → typo-ответ, delete → заданный конверт. */
   function mockAddTypoThenDelete(deleteEnvelope: unknown): void {
-    invoke = vi.fn(async (channel: string) => {
+    invoke = vi.fn((channel: string) => {
       if (channel === 'measurements/add') {
-        return OK_ENVELOPE(TYPO_RESPONSE('m-1'));
+        return Promise.resolve(OK_ENVELOPE(TYPO_RESPONSE('m-1')));
       }
-      return deleteEnvelope;
+      return Promise.resolve(deleteEnvelope);
     });
     Object.defineProperty(window, 'hl', {
       configurable: true,
@@ -451,7 +463,7 @@ describe('MeasurementForm — диалог подтверждений (TASK-032 
   }
 
   it('флаг typo в ответе add → открыт диалог с подстановками; черновик НЕ очищен, тоста нет (§10)', async () => {
-    mockAddTypoThenDelete(OK_ENVELOPE({ deleted: true }));
+    mockAddTypoThenDelete(DELETE_OK_ENVELOPE);
     renderForm();
     fillValid();
 
@@ -477,7 +489,7 @@ describe('MeasurementForm — диалог подтверждений (TASK-032 
   });
 
   it('«Оставить» → measurements/delete НЕ вызван, поля очищены, тост «Сохранено» (§20.1)', async () => {
-    mockAddTypoThenDelete(OK_ENVELOPE({ deleted: true }));
+    mockAddTypoThenDelete(DELETE_OK_ENVELOPE);
     renderForm();
     fillValid();
 
@@ -495,7 +507,7 @@ describe('MeasurementForm — диалог подтверждений (TASK-032 
   });
 
   it('Esc → «Оставить»: delete не вызван, поля очищены (§16 — безопасное действие)', async () => {
-    mockAddTypoThenDelete(OK_ENVELOPE({ deleted: true }));
+    mockAddTypoThenDelete(DELETE_OK_ENVELOPE);
     renderForm();
     fillValid();
 
@@ -509,7 +521,7 @@ describe('MeasurementForm — диалог подтверждений (TASK-032 
   });
 
   it('«Удалить и исправить» → invoke measurements/delete {id}; значения вернулись, фокус в sys (§10/§20.2)', async () => {
-    mockAddTypoThenDelete(OK_ENVELOPE({ deleted: true }));
+    mockAddTypoThenDelete(DELETE_OK_ENVELOPE);
     renderForm();
     fillValid();
 
@@ -541,9 +553,7 @@ describe('MeasurementForm — диалог подтверждений (TASK-032 
     fireEvent.click(screen.getByTestId('dialog-delete-fix'));
 
     // §13: тост, форма НЕ возвращает значения (нечему — пустая форма).
-    await waitFor(() =>
-      expect(screen.getByText('Запись уже удалена')).toBeDefined(),
-    );
+    await waitFor(() => expect(screen.getByText('Запись уже удалена')).toBeDefined());
     await waitFor(() => expect(screen.queryByTestId('confirm-flags-dialog')).toBeNull());
     expect(sysInput().value).toBe('');
     expect(diaInput().value).toBe('');

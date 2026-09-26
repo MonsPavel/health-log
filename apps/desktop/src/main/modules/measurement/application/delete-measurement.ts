@@ -31,7 +31,10 @@ import { performance } from 'node:perf_hooks';
 import type { HlEventMap } from '@hl/contracts';
 import { err, isErr, ok, type AppError, type Result } from '@hl/kernel';
 
-import { measurementNotFoundError, type BpMeasurementRepository } from './ports/bp-measurement-repository.js';
+import {
+  measurementNotFoundError,
+  type BpMeasurementRepository,
+} from './ports/bp-measurement-repository.js';
 
 /** Минимальная поверхность шины событий для use case (§7, прецедент AddMeasurementEvents). */
 export interface DeleteMeasurementEvents {
