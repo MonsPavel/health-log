@@ -9,10 +9,7 @@
 // зависит только от аргументов — ни времени, ни профиля в сигнатуре нет.
 import { describe, expect, it } from 'vitest';
 
-import {
-  assessCritical,
-  type CriticalFlag,
-} from './critical-value-policy.js';
+import { assessCritical, type CriticalFlag } from './critical-value-policy.js';
 
 /** Кейс таблицы: пара (sys, dia) → ожидаемый флаг + причина для имени теста. */
 interface Row {
@@ -35,7 +32,12 @@ describe('assessCritical — дословные кейсы §13', () => {
     { sys: 90, dia: 60, expected: 'low', why: 'оба на низких порогах' },
     { sys: 89, dia: 80, expected: 'low', why: 'sys=89 ниже низкого порога' },
     { sys: 120, dia: 61, expected: undefined, why: 'dia=61 не low' },
-    { sys: 120, dia: 80, expected: undefined, why: 'норма — флага нет (§5: средняя тяжесть не здесь)' },
+    {
+      sys: 120,
+      dia: 80,
+      expected: undefined,
+      why: 'норма — флага нет (§5: средняя тяжесть не здесь)',
+    },
   ];
 
   for (const c of cases) {
