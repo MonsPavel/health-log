@@ -3,7 +3,8 @@
  * (источник истины). Grep-based подход (TD-IMP-2): из исходников src-renderer
  * извлекаются строковые литералы вида `common.*` / `errors.*` (литералы в t('…'),
  * пропсы titleKey="…", константы ключей), каталог i18n/ru/*.json разворачивается
- * в плоские dot-ключи.
+ * в плоские dot-ключи. С TASK-031 — feature-каталоги features/<фича>/ru.json
+ * (namespace = имя фичи, первая — measurement) и их литералы `<фича>.*`.
  *
  * Ошибки: (1) используемый ключ отсутствует в каталоге; (2) ключ каталога common
  * никем не использован. Namespace errors исключён из unused-проверки НАМЕРЕННО:
@@ -31,9 +32,12 @@ const TEST_FILE_PATTERN = /\.test\.tsx?$/;
 /**
  * Кандидаты-ключи: строковые литералы с префиксом группы каталога. Явный префикс
  * отсекает ложные срабатывания на обычных строках (§22) и фиксирует конвенцию
- * «полное имя ключа в литерале».
+ * «полное имя ключа в литерале». Группы: common, errors — каталоги i18n/ru;
+ * feature-namespace'ы (первый — measurement, TASK-031) — каталоги
+ * features/<фича>/ru.json; новая фича = добавление своего имени в альтернацию.
  */
-const KEY_LITERAL_PATTERN = /(['"])(common|errors)\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)\1/g;
+const KEY_LITERAL_PATTERN =
+  /(['"])(common|errors|measurement)\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)\1/g;
 
 /** Namespace, чьи ключи приходят динамически и вне unused-проверки (арх. 06 §6). */
 const DYNAMIC_CONSUMPTION_NAMESPACES = new Set(['errors']);
@@ -97,6 +101,43 @@ export function flattenCatalogKeys(i18nDir) {
   return keys;
 }
 
+/**
+ * Feature-каталоги (TASK-031): features/<фича>/ru.json — namespace = имя каталога
+ * фичи (файл локали один — ru источник истины, §17). Отсутствие features/ или
+ * каталогов у фичи — не ошибка.
+ */
+export function flattenFeatureCatalogKeys(srcDir) {
+  const keys = new Set();
+  const featuresDir = join(srcDir, 'features');
+  let featureDirs;
+  try {
+    featureDirs = readdirSync(featuresDir, { withFileTypes: true });
+  } catch {
+    return keys;
+  }
+  for (const entry of featureDirs) {
+    const catalogPath = join(featuresDir, entry.name, 'ru.json');
+    let content;
+    try {
+      content = JSON.parse(readFileSync(catalogPath, 'utf8'));
+    } catch {
+      continue; // нет ru.json у фичи — ключей нет
+    }
+    const flatten = (node, prefix) => {
+      for (const [name, value] of Object.entries(node)) {
+        const key = `${prefix}.${name}`;
+        if (value !== null && typeof value === 'object') {
+          flatten(value, key);
+        } else {
+          keys.add(key);
+        }
+      }
+    };
+    flatten(content, entry.name);
+  }
+  return keys;
+}
+
 /** Namespace ключа: сегмент до первой точки. */
 function namespaceOf(key) {
   return key.slice(0, key.indexOf('.'));
@@ -108,7 +149,7 @@ function namespaceOf(key) {
  */
 export function checkI18nKeys({ srcDir, i18nDir }) {
   const used = extractUsedKeys(srcDir);
-  const catalog = flattenCatalogKeys(i18nDir);
+  const catalog = new Set([...flattenCatalogKeys(i18nDir), ...flattenFeatureCatalogKeys(srcDir)]);
 
   const missing = [];
   for (const [key, files] of used) {
@@ -157,7 +198,7 @@ function main() {
     process.exitCode = 1;
     return;
   }
-  const total = flattenCatalogKeys(i18nDir).size;
+  const total = new Set([...flattenCatalogKeys(i18nDir), ...flattenFeatureCatalogKeys(srcDir)]).size;
   console.log(`check:i18n: OK — каталог согласован (${total} ключей)`);
 }
 
