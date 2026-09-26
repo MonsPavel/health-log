@@ -8,6 +8,11 @@
   "engines": {
     "node": ">=20"
   },
+  "pnpm": {
+    "neverBuiltDependencies": [
+      "better-sqlite3-multiple-ciphers"
+    ]
+  },
   "scripts": {
     "dev": "pnpm --filter @hl/desktop dev",
     "build": "pnpm -r build",
