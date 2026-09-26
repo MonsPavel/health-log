@@ -36,6 +36,9 @@ export default defineConfig({
       testProject('desktop-renderer', ['apps/desktop/src-renderer/**/*.test.ts'], {
         environment: 'jsdom',
       }),
+      // TASK-034 §24: тест скрипта аудита размера packaged-артефактов (scripts .mjs,
+      // чистые функции + прогон run() на tmp-dist).
+      testProject('desktop-scripts', ['apps/desktop/scripts/**/*.test.mjs']),
     ],
   },
 });
