@@ -27,7 +27,7 @@
 | TASK-019 | done | | смержена |
 | TASK-020 | done | | смержена |
 | TASK-021 | done | | смержена |
-| TASK-022 | todo | | |
+| TASK-022 | done | | смержена |
 | TASK-023 | todo | | |
 | TASK-024 | todo | | |
 | TASK-025 | todo | | |

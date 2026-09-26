@@ -38,6 +38,10 @@ export const PHI_KEYS: ReadonlySet<string> = new Set([
   'answer',
   'measurement',
   'measurements',
+  // TASK-022 §14: ключ шифрования БД (openEncrypted) никогда не логируется —
+  // цензура на любом уровне вложенности рекурсивного слоя.
+  'keyHex',
+  'key',
 ]);
 
 /**
@@ -57,6 +61,11 @@ export const PHI_REDACT_PATHS: readonly string[] = [
   '*.content',
   'measurement',
   'measurements',
+  // TASK-022 §14: ключ шифрования БД — top-level и глубина 1 (глубже — рекурсивный слой).
+  'keyHex',
+  'key',
+  '*.keyHex',
+  '*.key',
 ];
 
 /**

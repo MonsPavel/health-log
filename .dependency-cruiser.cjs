@@ -74,10 +74,10 @@ module.exports = {
       name: 'renderer-not-node',
       severity: 'error',
       comment:
-        'арх. 03 §4, арх. 08 §4: renderer без electron/better-sqlite3 и без @hl/* кроме @hl/contracts (пакеты @hl/* резолвятся через symlink в realpath packages/<name> — ловим обе формы).',
+        'арх. 03 §4, арх. 08 §4: renderer без electron/better-sqlite3 (включая пресет better-sqlite3-multiple-ciphers, TASK-022) и без @hl/* кроме @hl/contracts (пакеты @hl/* резолвятся через symlink в realpath packages/<name> — ловим обе формы).',
       from: { path: RENDERER_FROM },
       to: {
-        path: '^(?:electron(?:/|$)|better-sqlite3(?:/|$)|@hl/|packages/(?:kernel|scales-data)(?:/|$))',
+        path: '^(?:electron(?:/|$)|better-sqlite3(?:-multiple-ciphers)?(?:/|$)|@hl/|packages/(?:kernel|scales-data)(?:/|$))',
         pathNot: '^(?:packages/contracts|@hl/contracts)(?:/|$)',
       },
     },

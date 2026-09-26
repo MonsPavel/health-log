@@ -31,4 +31,11 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('MEASUREMENT/FUTURE_TIME');
     expect(ERROR_CODES).toContain('MEASUREMENT/NOTE_TOO_LONG');
   });
+
+  // TASK-022 §7/§13: коды SQLCipher-стека — открытие зашифрованной БД.
+  it('коды STORAGE/BAD_KEY, STORAGE/LOCKED и STORAGE/CORRUPT присутствуют (TASK-022)', () => {
+    expect(ERROR_CODES).toContain('STORAGE/BAD_KEY');
+    expect(ERROR_CODES).toContain('STORAGE/LOCKED');
+    expect(ERROR_CODES).toContain('STORAGE/CORRUPT');
+  });
 });
