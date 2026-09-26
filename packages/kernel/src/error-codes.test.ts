@@ -45,4 +45,11 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('VAULT/KEY_CORRUPT');
     expect(ERROR_CODES).toContain('VAULT/UNAVAILABLE');
   });
+
+  // TASK-024 §5/§20: коды migration runner — сбой миграции (rollback, с номером
+  // версии) и «БД новее приложения» (EC-25: обновите приложение).
+  it('коды STORAGE/MIGRATION_FAILED и STORAGE/DB_NEWER_THAN_APP присутствуют (TASK-024)', () => {
+    expect(ERROR_CODES).toContain('STORAGE/MIGRATION_FAILED');
+    expect(ERROR_CODES).toContain('STORAGE/DB_NEWER_THAN_APP');
+  });
 });
