@@ -186,8 +186,10 @@ describe('Property-тесты (fast-check, §19)', () => {
   });
 
   it('дублирование каждой записи истории не меняет результат/медиану (§19)', () => {
+    // minLength 2: инвариант — про медиану при наличии базы сравнения (§13: <2 записей
+    // → undefined независимо от медианы; удвоение 1 записи дало бы «базу» из 2).
     fc.assert(
-      fc.property(historyArb, bpPair, (pairs, candidate) => {
+      fc.property(fc.array(bpPair, { minLength: 2, maxLength: 15 }), bpPair, (pairs, candidate) => {
         const history = pairs.map(([sys, dia], i) => record(sys, dia, i + 1));
         const doubled = [...history, ...history];
 
