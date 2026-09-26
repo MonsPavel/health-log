@@ -81,6 +81,21 @@ describe('BloodPressure.create — INVALID_RANGE (§7: params {field, value, min
     }
   });
 
+  it('120/80.5 → err INVALID_RANGE: дробная dia тоже опечатка (§13)', () => {
+    const result = BloodPressure.create(120, 80.5);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.code).toBe('MEASUREMENT/INVALID_RANGE');
+      expect(result.error.params).toEqual({
+        field: 'dia',
+        value: 80.5,
+        min: BP_LIMITS.DIA_MIN,
+        max: BP_LIMITS.DIA_MAX,
+      });
+    }
+  });
+
   it.each([Number.NaN, Number.POSITIVE_INFINITY])('нечисло %j → err INVALID_RANGE', (sys) => {
     const result = BloodPressure.create(sys, 80);
 
