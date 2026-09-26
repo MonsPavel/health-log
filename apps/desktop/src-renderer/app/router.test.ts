@@ -5,11 +5,12 @@
  * из каталога (§17); «/» и неизвестный путь ведут на /dashboard.
  * TASK-031: /journal — вкладка ввода, форма измерения вместо заглушки (§24:
  * «revert — экран-заглушка журнала восстанавливается»), остальные маршруты —
- * заглушки TASK-013.
+ * заглушки TASK-013. TASK-033: /journal — экран истории (список по дням), форма
+ * измерения открывается кнопкой «Добавить» на той же вкладке.
  */
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createElement } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppProviders } from './providers';
 import { AppRouter } from './router';
@@ -36,9 +37,22 @@ function renderRouterAt(hash: string): void {
   );
 }
 
+/** Мост window.hl для маршрутов с журналом (list → пустая страница; прецедент App.test.ts). */
+function mockHlBridge(): void {
+  Object.defineProperty(window, 'hl', {
+    configurable: true,
+    writable: true,
+    value: {
+      invoke: vi.fn().mockResolvedValue({ v: 1, ok: true, data: { items: [], total: 0 } }),
+      on: vi.fn(() => () => undefined),
+    },
+  });
+}
+
 afterEach(() => {
   cleanup();
   window.location.hash = '';
+  Object.defineProperty(window, 'hl', { configurable: true, value: undefined, writable: true });
 });
 
 describe('AppRouter — маршруты (§5)', () => {
@@ -52,10 +66,18 @@ describe('AppRouter — маршруты (§5)', () => {
     },
   );
 
-  it('#/journal: вкладка ввода — форма измерения (TASK-031 §4/§24)', async () => {
+  it('#/journal: экран истории, «Добавить» открывает форму измерения (TASK-033 §4)', async () => {
+    // Мост журнала (прецедент window.hl в App.test.ts, TASK-011): list → пусто,
+    // экран истории показывает пустое состояние с CTA.
+    mockHlBridge();
     renderRouterAt('#/journal');
 
-    expect(await screen.findByTestId('input-sys')).not.toBeNull();
+    expect(await screen.findByTestId('empty-history')).not.toBeNull();
+    expect(screen.getByText('Пока нет измерений')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
+
+    await waitFor(() => expect(screen.getByTestId('input-sys')).not.toBeNull());
     expect(screen.getByTestId('input-dia')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Сохранить' })).not.toBeNull();
   });
@@ -93,6 +115,8 @@ describe('Sidebar — семантика и активный раздел (§10/
   });
 
   it('активный раздел помечен aria-current="page", остальные — нет', async () => {
+    // Журнал монтирует HistoryScreen (TASK-033) — мост обязателен и здесь.
+    mockHlBridge();
     renderRouterAt('#/journal');
 
     const nav = await screen.findByRole('navigation', { name: 'Разделы' });
