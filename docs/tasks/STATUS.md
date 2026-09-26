@@ -36,7 +36,7 @@
 | TASK-028 | done | | смержена |
 | TASK-029 | done | | смержена |
 | TASK-030 | done | | смержена |
-| TASK-031 | todo | | |
+| TASK-031 | blocked | | заблокирована конвейером, наработки в ветке task/TASK-031 |
 | TASK-032 | todo | | |
 | TASK-033 | todo | | |
 | TASK-034 | todo | | |
