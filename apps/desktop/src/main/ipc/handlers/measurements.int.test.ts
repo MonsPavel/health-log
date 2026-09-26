@@ -9,10 +9,15 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { describe, expect, it } from 'vitest';
 
-import { API_ENVELOPE_VERSION, MEASUREMENT_ADD_RESPONSE_SCHEMA } from '@hl/contracts';
-import { AppError, FixedClock, type Result } from '@hl/kernel';
+import {
+  API_ENVELOPE_VERSION,
+  MEASUREMENT_ADD_RESPONSE_SCHEMA,
+  MEASUREMENT_LIST_RESPONSE_SCHEMA,
+} from '@hl/contracts';
+import { AppError, FixedClock, unsafeUnwrap, type Result } from '@hl/kernel';
 
 import { buildContainer } from '../../container.js';
+import { BpMeasurement } from '../../modules/measurement/domain/bp-measurement.js';
 import {
   VAULT_KEY_MISSING_MESSAGE_KEY,
   type EnsuredKey,
@@ -187,6 +192,107 @@ describe('measurements/add через контейнер — отказы скв
       }
       expect(envelope.error.code).toBe('MEASUREMENT/FUTURE_TIME');
       expect(await container.measurementRepo.listByPeriod({ profileId: 'profile-1' })).toEqual([]);
+    } finally {
+      container.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * TASK-030 §19/§20: интеграционный тест списка — полный путь «запрос → каркас (zod)
+ * → use case ListMeasurements → шифрованная SQLite» через контейнер. Seed — три
+ * записи через порт репозитория (подготовка окружения, прецедент container.int.test.ts);
+ * §19: фильтр по периоду → 2 в странице + total=2.
+ */
+describe('measurements/list через контейнер — полный путь чтения (TASK-030 §20)', () => {
+  it('3 записи, фильтр по периоду → {items: 2, total: 2} (desc); пустой период → {items: [], total: 0}; limit -1 → VALIDATION/FAILED', async () => {
+    const dir = newUserDataDir();
+    const container = await buildContainer({
+      userDataPath: dir,
+      clock: new FixedClock(NOW_MS, TZ),
+      vault: () => new MockVault(),
+    });
+    try {
+      container.db
+        .prepare(
+          "INSERT OR IGNORE INTO profile (id, name, created_at_utc) VALUES ('profile-1', 'Тест', 0)",
+        )
+        .run();
+
+      // Seed через порт репозитория (доменная фабрика create): три записи, минута
+      // между ними; контракт порта storage-адаптера покрыт своим интеграционным
+      // набором — здесь проверяется ЧТЕНИЕ, а не запись.
+      for (const offsetMinutes of [30, 20, 10]) {
+        const m = unsafeUnwrap(
+          BpMeasurement.create(
+            {
+              profileId: 'profile-1',
+              sys: 120 + offsetMinutes,
+              dia: 80,
+              irregularPulse: false,
+              arm: 'left',
+              takenAt: { utcMs: NOW_MS - offsetMinutes * MINUTE_MS, tzOffsetMin: TZ },
+            },
+            new FixedClock(NOW_MS, TZ),
+          ),
+        );
+        expect((await container.measurementRepo.add(m)).ok).toBe(true);
+      }
+
+      // §19: фильтр по периоду [now-25m, now] → 2 записи + total=2; limit/offset
+      // опущены — дефолты схемы TASK-028 (limit=200, offset=0) применяет каркас.
+      const envelope = await container.channels.dispatch({
+        channel: 'measurements/list',
+        payload: {
+          profileId: 'profile-1',
+          fromUtcMs: NOW_MS - 25 * MINUTE_MS,
+          toUtcMs: NOW_MS,
+        },
+      });
+
+      expect(envelope).toMatchObject({ v: API_ENVELOPE_VERSION, ok: true });
+      if (!envelope.ok) {
+        return;
+      }
+      const parsed = MEASUREMENT_LIST_RESPONSE_SCHEMA.parse(envelope.data);
+      expect(parsed.total).toBe(2);
+      expect(parsed.items).toHaveLength(2);
+      // Сортировка desc (контракт порта §13): самая свежая первой (sys=120+offset:
+      // 10 мин → 130, 20 мин → 140).
+      expect(parsed.items.map((item) => item.sys)).toEqual([130, 140]);
+      expect(parsed.items[0]).toMatchObject({
+        profileId: 'profile-1',
+        sys: 130,
+        dia: 80,
+        arm: 'left',
+        takenAtUtcMs: NOW_MS - 10 * MINUTE_MS,
+        tzOffsetMin: TZ,
+        source: 'manual',
+      });
+
+      // §20 п. 2: пустой период → {items: [], total: 0} — не ошибка.
+      const emptyEnvelope = await container.channels.dispatch({
+        channel: 'measurements/list',
+        payload: { profileId: 'profile-1', fromUtcMs: NOW_MS + MINUTE_MS },
+      });
+      expect(emptyEnvelope).toMatchObject({ ok: true });
+      if (!emptyEnvelope.ok) {
+        return;
+      }
+      expect(emptyEnvelope.data).toEqual({ items: [], total: 0 });
+
+      // Схема канала отсекает отрицательный limit (min 0): каркас отдаёт
+      // VALIDATION/FAILED, use case не вызывается.
+      const invalid = await container.channels.dispatch({
+        channel: 'measurements/list',
+        payload: { profileId: 'profile-1', limit: -1 },
+      });
+      expect(invalid).toMatchObject({ ok: false });
+      if (invalid.ok) {
+        return;
+      }
+      expect(invalid.error.code).toBe('VALIDATION/FAILED');
     } finally {
       container.close();
       rmSync(dir, { recursive: true, force: true });

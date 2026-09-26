@@ -67,6 +67,13 @@ export interface BpMeasurementRepository {
   getById(id: string): Promise<BpMeasurement | undefined>;
   /** Выборка по запросу; сортировка всегда takenAt desc, tie-break id desc (§13). */
   listByPeriod(q: MeasurementQuery): Promise<BpMeasurement[]>;
+  /**
+   * Число записей, подходящих под фильтры запроса (TASK-030 §7: total = COUNT по тем
+   * же фильтрам, что listByPeriod). limit/offset запроса ИГНОРИРУЮТСЯ — это пагинация
+   * выборки, а не фильтр: total считается по всем подходящим записям (счётчик «N
+   * измерений» и пагинация UI, §3). Сортировка для счёта не нужна.
+   */
+  countByPeriod(q: MeasurementQuery): Promise<number>;
   /** Текущая data_version: старт 1, +1 за успешную мутацию, никогда не откатывается (§13). */
   currentDataVersion(): Promise<number>;
 }

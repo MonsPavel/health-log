@@ -2,9 +2,9 @@
 // (tmp-БД: openEncrypted с фиксированным тестовым ключом hex → миграция v1 → адаптер).
 //
 // Матрица:
-//  - контрактный набор TASK-021 `runRepositoryContract` (7 групп) прогоняется на
-//    SqliteBpMeasurementRepository — проверка совместимости с fake (§5: «это и есть
-//    проверка совместимости», TASK-021 §3 «fake ≈ адаптер»);
+//  - контрактный набор TASK-021 `runRepositoryContract` (группы 1–7 + 8 countByPeriod
+//    TASK-030) прогоняется на SqliteBpMeasurementRepository — проверка совместимости
+//    с fake (§5: «это и есть проверка совместимости», TASK-021 §3 «fake ≈ адаптер»);
 //  - (8) транзакционный fail-point (§13/§19.8/§20): сбой после первого statement →
 //    полный rollback — записи нет, data_version прежний;
 //  - (9) roundtrip всех полей с pulse=NULL, irregular=true, note с юникодом/эмодзи
@@ -141,7 +141,8 @@ describe('SqliteBpMeasurementRepository: SQLite-адаптер порта (TASK-
   const makeRepository: RepositoryFactory = () =>
     new SqliteBpMeasurementRepository(cloneTemplate('contract.sqlite').db);
 
-  // Контрактный набор TASK-021 (7 групп) — на SQLite-реализации (§19/§20 п. 1).
+  // Контрактный набор TASK-021 (группы 1–7 + 8 countByPeriod TASK-030) — на
+  // SQLite-реализации (§19/§20 п. 1).
   runRepositoryContract(makeRepository);
 
   describe('8. fail-point: сбой после первого statement → полный rollback (§13/§19.8/§20)', () => {

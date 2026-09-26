@@ -3,6 +3,7 @@
  * better-sqlite3-multiple-ciphers (SQLCipher-стек TASK-022): CRUD + listByPeriod
  * с фильтрами; каждая мутация — транзакция «запись + bump meta.data_version»
  * (§13, FR-5.7) — механика бейджа «данные изменились» и инвалидации кэшей.
+ * TASK-030 §7/§8: + countByPeriod — COUNT по тем же фильтрам (total списка).
  *
  * РАЗДЕЛЕНИЕ ОТВЕТСТВЕННОСТИ (§12): адаптер знает про БД, события — не про него.
  * Импорта EventBus здесь НЕТ (grep-критерий §20): `data:versionBumped` публикует
@@ -65,7 +66,7 @@
  */
 import { performance } from 'node:perf_hooks';
 
-import { and, desc, eq, gte, isNotNull, lte, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, isNotNull, lte, sql, type SQL } from 'drizzle-orm';
 import { QueryBuilder, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import type Database from 'better-sqlite3';
@@ -368,6 +369,17 @@ export class SqliteBpMeasurementRepository implements BpMeasurementRepository {
     return Promise.resolve(this.listSync(q));
   }
 
+  /**
+   * TASK-030 §7/§8: total — COUNT по фильтрам запроса; индекс v1 (TASK-025 §8:
+   * profile_id, taken_at_utc) покрывает — дёшево (§15). limit/offset игнорируются
+   * (контракт порта: пагинация выборки, не фильтр).
+   */
+  countByPeriod(q: MeasurementQuery): Promise<number> {
+    // Assert программиста — паритет с listByPeriod/fake (§14).
+    assertProfileId(q);
+    return Promise.resolve(this.countSync(q));
+  }
+
   currentDataVersion(): Promise<number> {
     const row = this.readVersionStmt.get();
     // Строки нет только до миграции v1 (сеет '1', TASK-025) — трактуется как старт (§13).
@@ -419,24 +431,10 @@ export class SqliteBpMeasurementRepository implements BpMeasurementRepository {
    * вызов; фиксированные statements CRUD кэшируются в конструкторе (§15).
    */
   private listSync(q: MeasurementQuery): BpMeasurement[] {
-    const conditions: SQL[] = [eq(bpMeasurementTable.profileId, q.profileId)];
-    if (q.fromUtcMs !== undefined) {
-      conditions.push(gte(bpMeasurementTable.takenAtUtc, q.fromUtcMs));
-    }
-    if (q.toUtcMs !== undefined) {
-      conditions.push(lte(bpMeasurementTable.takenAtUtc, q.toUtcMs));
-    }
-    if (q.arm !== undefined) {
-      conditions.push(eq(bpMeasurementTable.arm, q.arm));
-    }
-    if (q.hasNote === true) {
-      conditions.push(isNotNull(bpMeasurementTable.note));
-    }
-
     let query = new QueryBuilder()
       .select()
       .from(bpMeasurementTable)
-      .where(and(...conditions))
+      .where(and(...this.conditionsFor(q)))
       .orderBy(desc(bpMeasurementTable.takenAtUtc), desc(bpMeasurementTable.id))
       .$dynamic();
 
@@ -456,6 +454,42 @@ export class SqliteBpMeasurementRepository implements BpMeasurementRepository {
 
     const { sql, params } = query.toSQL();
     return (this.db.prepare(sql).all(...params) as RawBpRow[]).map(rowToAggregate);
+  }
+
+  /**
+   * TASK-030 §8: COUNT-запрос по тем же фильтрам (общая WHERE-сборка с listSync —
+   * «total по тем же фильтрам», §7); ORDER BY не нужен, limit/offset не эмитятся.
+   * Совпадение фильтров с listByPeriod страхуется контрактным набором (группа 8).
+   */
+  private countSync(q: MeasurementQuery): number {
+    // Алиас обязателен: QueryBuilder.select({…}) эмитит поле БЕЗ алиаса только для
+    // агрегатов-фабрик (count()), а строку better-sqlite3 нужно читать по имени.
+    const query = new QueryBuilder()
+      .select({ total: sql<number>`count(*)`.as('total') })
+      .from(bpMeasurementTable)
+      .where(and(...this.conditionsFor(q)));
+    const { sql: sqlText, params } = query.toSQL();
+    // COUNT без GROUP BY всегда отдаёт одну строку.
+    const row = this.db.prepare(sqlText).get(...params) as { total: number };
+    return Number(row.total);
+  }
+
+  /** WHERE-условия порта (И): скоуп профиля (§14) + from/to/arm/hasNote по наличию (§13). */
+  private conditionsFor(q: MeasurementQuery): SQL[] {
+    const conditions: SQL[] = [eq(bpMeasurementTable.profileId, q.profileId)];
+    if (q.fromUtcMs !== undefined) {
+      conditions.push(gte(bpMeasurementTable.takenAtUtc, q.fromUtcMs));
+    }
+    if (q.toUtcMs !== undefined) {
+      conditions.push(lte(bpMeasurementTable.takenAtUtc, q.toUtcMs));
+    }
+    if (q.arm !== undefined) {
+      conditions.push(eq(bpMeasurementTable.arm, q.arm));
+    }
+    if (q.hasNote === true) {
+      conditions.push(isNotNull(bpMeasurementTable.note));
+    }
+    return conditions;
   }
 }
 
