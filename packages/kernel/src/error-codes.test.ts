@@ -25,4 +25,10 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('MEASUREMENT/INVALID_RANGE');
     expect(ERROR_CODES).toContain('MEASUREMENT/SYS_LE_DIA');
   });
+
+  // TASK-017 §5: коды агрегата BpMeasurement — «время не в будущем» и «заметка длинная».
+  it('коды MEASUREMENT/FUTURE_TIME и MEASUREMENT/NOTE_TOO_LONG присутствуют (TASK-017)', () => {
+    expect(ERROR_CODES).toContain('MEASUREMENT/FUTURE_TIME');
+    expect(ERROR_CODES).toContain('MEASUREMENT/NOTE_TOO_LONG');
+  });
 });
