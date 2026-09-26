@@ -11,7 +11,10 @@
   "pnpm": {
     "neverBuiltDependencies": [
       "better-sqlite3-multiple-ciphers"
-    ]
+    ],
+    "overrides": {
+      "rollup": "npm:@rollup/wasm-node@^4.63.5"
+    }
   },
   "scripts": {
     "dev": "pnpm --filter @hl/desktop dev",
@@ -44,6 +47,7 @@
     "tsx": "^4.23.15",
     "typescript": "^5",
     "typescript-eslint": "^8.70.1",
+    "vite": "^7.3.6",
     "vitest": "^5.0.1"
   }
 }

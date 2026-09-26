@@ -38,13 +38,13 @@
     "@types/better-sqlite3": "^9.6.0",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-react": "^5.2.0",
     "axe-core": "^4.13.0",
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
     "electron": "^44.4.5",
     "tailwindcss": "^4.3.3",
-    "vite": "^8.3.1",
+    "vite": "^7.3.6",
     "wait-on": "^9.1.0",
     "zod": "^4.6.5"
   }
