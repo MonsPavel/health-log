@@ -19,9 +19,7 @@ afterEach(() => {
 /** 2026-09-25 21:00 UTC+3 → локальная стена 2026-09-25 21:00 (в тестах offset устройства). */
 const NOW_MS = Date.UTC(2026, 8, 25, 18, 0, 0);
 
-function renderWhen(
-  props: Partial<Parameters<typeof WhenField>[0]> = {},
-): void {
+function renderWhen(props: Partial<Parameters<typeof WhenField>[0]> = {}): void {
   render(
     createElement(WhenField, {
       when: 'now',
@@ -69,8 +67,8 @@ describe('WhenField — ручной ввод (заднее число разр�
   it('поля дата/время с значениями черновика; подписи «Дата»/«Время»', () => {
     renderWhen({ when: { date: '2026-09-24', time: '21:30' } });
 
-    const date = screen.getByLabelText('Дата');
-    const time = screen.getByLabelText('Время');
+    const date = screen.getByLabelText<HTMLInputElement>('Дата');
+    const time = screen.getByLabelText<HTMLInputElement>('Время');
     expect(date.type).toBe('date');
     expect(time.type).toBe('time');
     expect(date.value).toBe('2026-09-24');
@@ -106,7 +104,9 @@ describe('WhenField — ручной ввод (заднее число разр�
       expect(input.getAttribute('aria-invalid')).toBe('true');
       const describedBy = input.getAttribute('aria-describedby');
       expect(describedBy).toContain('when-error');
-      expect(document.getElementById('when-error')?.textContent).toContain('не может быть в будущем');
+      expect(document.getElementById('when-error')?.textContent).toContain(
+        'не может быть в будущем',
+      );
     }
   });
 });

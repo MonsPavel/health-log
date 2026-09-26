@@ -32,11 +32,7 @@ function renderRouterAt(hash: string): void {
   // Каркас рендерится под корневыми провайдерами — как в App (i18n init, §5;
   // ToastProvider вокруг AppProviders — прецедент App.tsx, нужен форме TASK-031).
   render(
-    createElement(
-      ToastProvider,
-      null,
-      createElement(AppProviders, null, createElement(AppRouter)),
-    ),
+    createElement(ToastProvider, null, createElement(AppProviders, null, createElement(AppRouter))),
   );
 }
 

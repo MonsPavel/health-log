@@ -198,7 +198,8 @@ function main() {
     process.exitCode = 1;
     return;
   }
-  const total = new Set([...flattenCatalogKeys(i18nDir), ...flattenFeatureCatalogKeys(srcDir)]).size;
+  const total = new Set([...flattenCatalogKeys(i18nDir), ...flattenFeatureCatalogKeys(srcDir)])
+    .size;
   console.log(`check:i18n: OK — каталог согласован (${total} ключей)`);
 }
 

@@ -91,8 +91,7 @@ function appendToDigits(current: string, digit: string): string {
 export const useFormStore = create<FormDraftState & FormDraftActions>()((set) => ({
   ...INITIAL_DRAFT,
 
-  appendDigit: (field, digit) =>
-    set((state) => ({ [field]: appendToDigits(state[field], digit) })),
+  appendDigit: (field, digit) => set((state) => ({ [field]: appendToDigits(state[field], digit) })),
 
   removeLastDigit: (field) => set((state) => ({ [field]: state[field].slice(0, -1) })),
 

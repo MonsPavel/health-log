@@ -105,11 +105,14 @@ function parseWhen(when: When): { y: number; mo: number; d: number; h: number; m
  * Сборка + клиентская валидация запроса add (§13). zod-issues → FieldErrors:
  * path поля → ошибка поля; path [] (refine sysLeDia) → dia — нарушитель инварианта.
  */
-export function assembleAddRequest(draft: MeasurementDraft, nowMs: number): AssembledRequest | AssembleFailure {
+export function assembleAddRequest(
+  draft: MeasurementDraft,
+  nowMs: number,
+): AssembledRequest | AssembleFailure {
   const fieldErrors: FieldErrors = {};
 
   // takenAt — на момент submit (§13): «сейчас» и смещение зоны берутся здесь.
-  let takenAt: MeasurementAddRequest['takenAt'];
+  let takenAt: MeasurementAddRequest['takenAt'] | undefined;
   const wall = parseWhen(draft.when);
   if (draft.when === 'now') {
     const tzOffsetMin = tzOffsetMinOf(nowMs);
@@ -224,9 +227,9 @@ export interface AddMeasurementOptions {
 }
 
 /** Мутация add: инвалидация ['measurements'] на успехе (§12) + хендлеры наверх. */
-export function useAddMeasurement(options?: AddMeasurementOptions): ReturnType<
-  typeof useMutation<MeasurementAddResponse, Error, MeasurementAddRequest>
-> {
+export function useAddMeasurement(
+  options?: AddMeasurementOptions,
+): ReturnType<typeof useMutation<MeasurementAddResponse, Error, MeasurementAddRequest>> {
   const queryClient = useQueryClient();
 
   return useMutation({

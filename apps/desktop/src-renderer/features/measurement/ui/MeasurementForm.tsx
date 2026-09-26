@@ -43,7 +43,12 @@ const NEXT_FIELD: Readonly<Record<NumericField, NumericField | null>> = {
 };
 
 /** Подписи числовых полей — литералы (§22: динамические ключи запрещены). */
-const FIELD_LABEL_KEY: Readonly<Record<NumericField, 'measurement.fields.sys' | 'measurement.fields.dia' | 'measurement.fields.pulse'>> = {
+const FIELD_LABEL_KEY: Readonly<
+  Record<
+    NumericField,
+    'measurement.fields.sys' | 'measurement.fields.dia' | 'measurement.fields.pulse'
+  >
+> = {
   sys: 'measurement.fields.sys',
   dia: 'measurement.fields.dia',
   pulse: 'measurement.fields.pulse',
@@ -298,9 +303,7 @@ export function MeasurementForm({ onSuccess }: MeasurementFormProps): JSX.Elemen
           disabled={!isValid || mutation.isPending}
           className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:opacity-50"
         >
-          {mutation.isPending
-            ? t('measurement.form.saving')
-            : t('measurement.form.save')}
+          {mutation.isPending ? t('measurement.form.saving') : t('measurement.form.save')}
         </button>
       </form>
 

@@ -207,7 +207,9 @@ describe('MeasurementForm — валидация (§13/§20)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ввести 8' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
 
-    expect(screen.getByText('Систолическое давление должно быть больше диастолического.')).toBeDefined();
+    expect(
+      screen.getByText('Систолическое давление должно быть больше диастолического.'),
+    ).toBeDefined();
   });
 });
 
@@ -257,8 +259,8 @@ describe('MeasurementForm — сохранение (§10/§11/§20)', () => {
     await waitFor(() => expect(sysInput().value).toBe(''));
     expect(diaInput().value).toBe('');
     expect(pulseInput().value).toBe('');
-    expect((screen.getByRole('radio', { name: 'Левая' })).checked).toBe(true);
-    expect((screen.getByRole('checkbox', { name: 'Неровный пульс' })).checked).toBe(
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Левая' }).checked).toBe(true);
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Неровный пульс' }).checked).toBe(
       true,
     );
   });
@@ -273,7 +275,7 @@ describe('MeasurementForm — сохранение (§10/§11/§20)', () => {
     fireEvent.click(saveButton());
 
     await waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
-    const payload = invoke.mock.calls[0][1] as Record<string, unknown>;
+    const payload = (invoke.mock.calls[0] as [unknown, Record<string, unknown>])[1];
     expect(payload.note).toBe('утром');
     expect('pulse' in payload).toBe(false);
   });
@@ -319,7 +321,7 @@ describe('MeasurementForm — сохранение (§10/§11/§20)', () => {
 
     renderForm();
 
-    expect((screen.getByRole('radio', { name: 'Левая' })).checked).toBe(true);
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Левая' }).checked).toBe(true);
   });
 });
 
@@ -355,12 +357,15 @@ describe('MeasurementForm — когда: заднее число и будущ�
     fireEvent.click(saveButton());
 
     await waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
-    const payload = invoke.mock.calls[0][1] as {
-      takenAt: { utcMs: number; tzOffsetMin: number };
-    };
-    const wall = new Date(
-      payload.takenAt.utcMs + payload.takenAt.tzOffsetMin * 60_000,
-    );
+    const payload = (
+      invoke.mock.calls[0] as [
+        unknown,
+        {
+          takenAt: { utcMs: number; tzOffsetMin: number };
+        },
+      ]
+    )[1];
+    const wall = new Date(payload.takenAt.utcMs + payload.takenAt.tzOffsetMin * 60_000);
     expect([wall.getUTCFullYear(), wall.getUTCMonth() + 1, wall.getUTCDate()]).toEqual([
       2026, 9, 24,
     ]);

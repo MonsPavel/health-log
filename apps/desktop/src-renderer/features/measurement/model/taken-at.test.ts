@@ -13,6 +13,9 @@ import { MS_PER_MINUTE, fromLocalWall, tzOffsetMinOf } from './taken-at';
 describe('fromLocalWall — datetime-local строка → Instant (§13)', () => {
   it('локальная стена 2026-09-25 21:30 при tzOffsetMin=180 → utcMs сдвинут на -3ч', () => {
     const instant = fromLocalWall({ y: 2026, mo: 9, d: 25, h: 21, mi: 30 }, 180);
+    if (instant === null) {
+      throw new Error('полный ввод не может быть null');
+    }
 
     expect(instant.tzOffsetMin).toBe(180);
     // Date.UTC(2026, 8, 25, 21, 30) — стена; utc = стена - offset.
@@ -29,6 +32,9 @@ describe('fromLocalWall — datetime-local строка → Instant (§13)', () 
 
   it('отрицательный offset (UTC-5 → -300) и переход через полночь (§13)', () => {
     const instant = fromLocalWall({ y: 2026, mo: 1, d: 1, h: 0, mi: 15 }, -300);
+    if (instant === null) {
+      throw new Error('полный ввод не может быть null');
+    }
 
     expect(instant.tzOffsetMin).toBe(-300);
     const wall = new Date(instant.utcMs + instant.tzOffsetMin * MS_PER_MINUTE);

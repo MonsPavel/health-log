@@ -15,9 +15,11 @@ export type NumericPath = 'sys' | 'dia' | 'pulse';
 
 /** Границы числового поля из схемы: greater_than → min, less_than → max. */
 export function numberBounds(path: NumericPath): { min?: number; max?: number } {
-  const shape = (MEASUREMENT_ADD_REQUEST_SCHEMA as unknown as {
-    shape: Record<string, { def?: { innerType?: unknown; checks?: unknown } }>;
-  }).shape;
+  const shape = (
+    MEASUREMENT_ADD_REQUEST_SCHEMA as unknown as {
+      shape: Record<string, { def?: { innerType?: unknown; checks?: unknown } }>;
+    }
+  ).shape;
   let field: { def?: { innerType?: unknown; checks?: unknown } } | undefined = shape[path];
   while (
     field !== undefined &&
@@ -42,9 +44,11 @@ export function numberBounds(path: NumericPath): { min?: number; max?: number } 
 
 /** Максимум заметки из схемы: max_length → NOTE_MAX (500, TASK-028). */
 export function noteMaxLength(): number | undefined {
-  const shape = (MEASUREMENT_ADD_REQUEST_SCHEMA as unknown as {
-    shape: Record<string, { def?: { innerType?: unknown; checks?: unknown } }>;
-  }).shape;
+  const shape = (
+    MEASUREMENT_ADD_REQUEST_SCHEMA as unknown as {
+      shape: Record<string, { def?: { innerType?: unknown; checks?: unknown } }>;
+    }
+  ).shape;
   let field: { def?: { innerType?: unknown; checks?: unknown } } | undefined = shape['note'];
   while (
     field !== undefined &&

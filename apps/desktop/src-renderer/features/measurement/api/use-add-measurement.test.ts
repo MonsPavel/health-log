@@ -159,17 +159,13 @@ function renderProbe(
     ref.current = mutation;
     return createElement('div');
   }
-  render(
-    createElement(
-      QueryClientProvider,
-      { client: queryClient },
-      createElement(Probe),
-    ),
-  );
-  return { get current() {
-    if (ref.current === undefined) throw new Error('Probe не отрендерился');
-    return ref.current;
-  } };
+  render(createElement(QueryClientProvider, { client: queryClient }, createElement(Probe)));
+  return {
+    get current() {
+      if (ref.current === undefined) throw new Error('Probe не отрендерился');
+      return ref.current;
+    },
+  };
 }
 
 const REQUEST = {
