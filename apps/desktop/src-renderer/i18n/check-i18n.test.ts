@@ -47,8 +47,13 @@ afterAll(async () => {
   await Promise.all(tempDirs.map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
-/** Фикстура-проект: src/ с заданными файлами, i18n/ru/ с каталогами. */
-async function makeFixture(files: Record<string, string>, common: object, errors: object) {
+/** Фикстура-проект: src/ с заданными файлами, i18n/ru/ с каталогами, feature-каталоги. */
+async function makeFixture(
+  files: Record<string, string>,
+  common: object,
+  errors: object,
+  featureCatalogs: Record<string, object> = {},
+) {
   const root = await mkdtemp(TMP_ROOT);
   tempDirs.push(root);
   const srcDir = join(root, 'src');
@@ -59,6 +64,11 @@ async function makeFixture(files: Record<string, string>, common: object, errors
     const filePath = join(srcDir, name);
     await mkdir(join(filePath, '..'), { recursive: true });
     await writeFile(filePath, content, 'utf8');
+  }
+  for (const [name, catalog] of Object.entries(featureCatalogs)) {
+    const filePath = join(srcDir, 'features', name, 'ru.json');
+    await mkdir(join(filePath, '..'), { recursive: true });
+    await writeFile(filePath, JSON.stringify(catalog), 'utf8');
   }
   await writeFile(join(i18nDir, 'common.json'), JSON.stringify(common), 'utf8');
   await writeFile(join(i18nDir, 'errors.json'), JSON.stringify(errors), 'utf8');
@@ -154,5 +164,55 @@ describe('check-i18n — сверка ключей с каталогом (§17)'
     const { code } = await runScript(srcDir, i18nDir);
 
     expect(code).toBe(0);
+  });
+
+  // --- TASK-031: feature-каталоги (features/<фича>/ru.json, namespace = имя фичи). ---
+
+  it('feature-каталог: использованный ключ measurement.* найден в каталоге фичи — exit 0', async () => {
+    const { srcDir, i18nDir } = await makeFixture(
+      {
+        'features/measurement/ui/screen.tsx': `const label = t('measurement.fields.sys'); const other = t('common.wip');\n`,
+      },
+      { wip: 'Экран появится после настройки' },
+      { internal: '…' },
+      { measurement: { fields: { sys: 'Верхнее (СДА)' } } },
+    );
+
+    const { code, stdout } = await runScript(srcDir, i18nDir);
+
+    expect(code).toBe(0);
+    expect(stdout).toContain('OK');
+  });
+
+  it('feature-каталог: недостающий ключ measurement.* — exit 1 с именем ключа (TASK-031)', async () => {
+    const { srcDir, i18nDir } = await makeFixture(
+      {
+        'features/measurement/ui/screen.tsx': `const label = t('measurement.fields.nope');\n`,
+      },
+      { wip: 'Экран появится после настройки' },
+      { internal: '…' },
+      { measurement: { fields: { sys: 'Верхнее (СДА)' } } },
+    );
+
+    const { code, stdout } = await runScript(srcDir, i18nDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain('measurement.fields.nope');
+  });
+
+  it('feature-каталог: неиспользуемый ключ фичи — exit 1 (мертвый текст)', async () => {
+    const { srcDir, i18nDir } = await makeFixture(
+      {
+        'features/measurement/ui/screen.tsx': `const label = t('measurement.fields.sys');\n`,
+      },
+      { wip: 'Экран появится после настройки' },
+      { internal: '…' },
+      { measurement: { fields: { sys: 'Верхнее (СДА)', unused: 'Никто не ссылается' } } },
+    );
+
+    const { code, stdout } = await runScript(srcDir, i18nDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain('measurement.fields.unused');
   });
 });
