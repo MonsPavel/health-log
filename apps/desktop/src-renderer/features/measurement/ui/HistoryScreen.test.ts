@@ -32,7 +32,7 @@ const YESTERDAY_KEY = previousDayKey(TODAY_KEY);
 function wallNoon(dayKey: string): { utcMs: number; tzOffsetMin: number } {
   const [y, m, d] = dayKey.split('-').map(Number);
   return {
-    utcMs: Date.UTC(y, (m ?? 1) - 1, d ?? 1, 12) - TZ_OFFSET_MIN * 60_000,
+    utcMs: Date.UTC(y ?? 2026, (m ?? 1) - 1, d ?? 1, 12) - TZ_OFFSET_MIN * 60_000,
     tzOffsetMin: TZ_OFFSET_MIN,
   };
 }
@@ -119,7 +119,9 @@ describe('HistoryScreen — состояния (§10)', () => {
     return waitFor(() => {
       expect(screen.getByTestId('empty-history')).toBeDefined();
       expect(screen.getByText('Пока нет измерений')).toBeDefined();
-      expect(screen.getByText('Измерьте давление и нажмите «Добавить» — история появится здесь.')).toBeDefined();
+      expect(
+        screen.getByText('Измерьте давление и нажмите «Добавить» — история появится здесь.'),
+      ).toBeDefined();
       expect(screen.getByRole('button', { name: 'Добавить' })).toBeDefined();
     });
   });
@@ -245,11 +247,16 @@ describe('HistoryScreen — «Показать ещё» (§5/§10/§20)', () => 
         LIST_OK({ items: page(0, HISTORY_PAGE_LIMIT), total: HISTORY_PAGE_LIMIT + 1 }),
       )
       .mockResolvedValueOnce(
-        LIST_OK({ items: page(HISTORY_PAGE_LIMIT, HISTORY_PAGE_LIMIT + 1), total: HISTORY_PAGE_LIMIT + 1 }),
+        LIST_OK({
+          items: page(HISTORY_PAGE_LIMIT, HISTORY_PAGE_LIMIT + 1),
+          total: HISTORY_PAGE_LIMIT + 1,
+        }),
       );
     renderHistory();
 
-    await waitFor(() => expect(screen.getByTestId('history-shown').textContent).toBe('Показано 200 из 201'));
+    await waitFor(() =>
+      expect(screen.getByTestId('history-shown').textContent).toBe('Показано 200 из 201'),
+    );
     expect(screen.getAllByTestId('measurement-row')).toHaveLength(HISTORY_PAGE_LIMIT);
 
     fireEvent.click(screen.getByRole('button', { name: 'Показать ещё' }));
@@ -272,7 +279,9 @@ describe('HistoryScreen — «Показать ещё» (§5/§10/§20)', () => 
     invoke.mockResolvedValue(LIST_OK({ items: [dto('m-1', wallNoon(TODAY_KEY))], total: 1 }));
     renderHistory();
 
-    await waitFor(() => expect(screen.getByTestId('history-shown').textContent).toBe('Показано 1 из 1'));
+    await waitFor(() =>
+      expect(screen.getByTestId('history-shown').textContent).toBe('Показано 1 из 1'),
+    );
     expect(screen.queryByRole('button', { name: 'Показать ещё' })).toBeNull();
   });
 });
@@ -299,16 +308,11 @@ describe('HistoryScreen — live-обновление (§5/§10/§20)', () => {
 
   it('сохранение из формы: возврат к списку, новая запись видна (событие/инвалидация, §20)', async () => {
     const added = dto('m-new', wallNoon(TODAY_KEY));
-    invoke.mockImplementation((channel: string) => {
-      if (channel === 'measurements/list') {
-        const items = screen.queryByTestId('input-sys') === null ? [] : [added];
-        return Promise.resolve(LIST_OK({ items, total: items.length }));
-      }
-      if (channel === 'measurements/add') {
-        return Promise.resolve({ v: 1, ok: true, data: { measurement: added, flags: {} } });
-      }
-      return Promise.resolve({ v: 1, ok: true, data: {} });
-    });
+    invoke.mockReset();
+    invoke
+      .mockResolvedValueOnce(LIST_OK({ items: [], total: 0 })) // первый list — пусто
+      .mockResolvedValueOnce({ v: 1, ok: true, data: { measurement: added, flags: {} } }) // add
+      .mockResolvedValue(LIST_OK({ items: [added], total: 1 })); // list после инвалидации
     renderHistory();
 
     await waitFor(() => expect(screen.getByTestId('empty-history')).toBeDefined());

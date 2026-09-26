@@ -49,7 +49,9 @@ function dto(id: string, takenAt: WallInstantLike): MeasurementDto {
 describe('wallDateKey — настенная дата из (utcMs, tzOffsetMin) (§13)', () => {
   it('вечер UTC уже «завтра» по стене UTC+3: ключ по настенным компонентам', () => {
     // utcMs = 2026-09-27 21:00 UTC; +180 мин → стена 2026-09-28 00:00.
-    expect(wallDateKey({ utcMs: Date.UTC(2026, 8, 27, 21, 0), tzOffsetMin: 180 })).toBe('2026-09-28');
+    expect(wallDateKey({ utcMs: Date.UTC(2026, 8, 27, 21, 0), tzOffsetMin: 180 })).toBe(
+      '2026-09-28',
+    );
   });
 
   it('отрицательное смещение: UTC-вечер в UTC-05:00 — ещё тот же день стены', () => {

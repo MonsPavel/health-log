@@ -53,7 +53,7 @@ export function localDateKey(ms: number): string {
 /** Ключ предыдущего календарного дня (чистая UTC-арифметика — DST-устойчиво). */
 export function previousDayKey(key: string): string {
   const [y, m, d] = key.split('-').map(Number);
-  return utcDateKey(Date.UTC(y, (m ?? 1) - 1, d ?? 1) - MS_PER_DAY);
+  return utcDateKey(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1) - MS_PER_DAY);
 }
 
 /** Класс заголовка дня: today / yesterday / other (дата через Intl). */
@@ -80,16 +80,21 @@ export interface MeasurementDayGroup {
 
 /** Группировка плоского desc-списка по настенным дням; дни — в порядке появления. */
 export function groupByDay(items: readonly MeasurementDto[]): readonly MeasurementDayGroup[] {
-  const byKey = new Map<string, MeasurementDayGroup>();
+  // Мутируемый накопитель — внутренняя деталь; наружу иммутабельные группы.
+  const days = new Map<string, { instant: WallInstantLike; collected: MeasurementDto[] }>();
   for (const item of items) {
     const instant: WallInstantLike = { utcMs: item.takenAtUtcMs, tzOffsetMin: item.tzOffsetMin };
     const key = wallDateKey(instant);
-    const group = byKey.get(key);
-    if (group === undefined) {
-      byKey.set(key, { key, instant, items: [item] });
+    const day = days.get(key);
+    if (day === undefined) {
+      days.set(key, { instant, collected: [item] });
     } else {
-      group.items = [...group.items, item];
+      day.collected.push(item);
     }
   }
-  return [...byKey.values()];
+  return [...days.entries()].map(([key, day]) => ({
+    key,
+    instant: day.instant,
+    items: [...day.collected],
+  }));
 }

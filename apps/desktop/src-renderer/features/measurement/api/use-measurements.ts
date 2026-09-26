@@ -25,18 +25,14 @@ import { IpcApiError } from './use-add-measurement';
 export const HISTORY_PAGE_LIMIT = 200;
 
 /** Ключ запроса истории (§12); корень 'measurements' — точка инвалидаций. */
-export function measurementsKey(profileId: string): readonly [
-  'measurements',
-  string,
-  { readonly limit: number },
-] {
+export function measurementsKey(
+  profileId: string,
+): readonly ['measurements', string, { readonly limit: number }] {
   return ['measurements', profileId, { limit: HISTORY_PAGE_LIMIT }];
 }
 
 /** Вызов канала list: разворот конверта; failure → IpcApiError (§11). */
-async function listMeasurements(
-  request: MeasurementListRequest,
-): Promise<MeasurementListResponse> {
+async function listMeasurements(request: MeasurementListRequest): Promise<MeasurementListResponse> {
   const result = await call('measurements/list', request);
   if (!result.ok) {
     throw new IpcApiError(result.error);

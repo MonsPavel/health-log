@@ -18,7 +18,9 @@ import { formatDateTime } from '../../../lib/i18n-date';
 const NOTE_ROW_LENGTH = 40;
 
 /** Подписи руки — литералы (§22: динамических ключей нет; прецедент FIELD_LABEL_KEY). */
-const ARM_KEY: Readonly<Record<MeasurementDto['arm'], 'measurement.history.armLeft' | 'measurement.history.armRight'>> = {
+const ARM_KEY: Readonly<
+  Record<MeasurementDto['arm'], 'measurement.history.armLeft' | 'measurement.history.armRight'>
+> = {
   left: 'measurement.history.armLeft',
   right: 'measurement.history.armRight',
 };
@@ -61,10 +63,7 @@ export const MeasurementRow = memo(function MeasurementRow({
         {armLabel}
       </span>
       {measurement.note === undefined || measurement.note === '' ? null : (
-        <span
-          title={measurement.note}
-          className="truncate text-xs text-neutral-500"
-        >
+        <span title={measurement.note} className="truncate text-xs text-neutral-500">
           {truncateNote(measurement.note)}
         </span>
       )}

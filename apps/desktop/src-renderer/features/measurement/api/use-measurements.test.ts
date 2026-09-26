@@ -6,13 +6,13 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { MeasurementDto, MeasurementListResponse } from '@hl/contracts';
 
-import { IpcApiError } from './use-add-measurement';
-import { HISTORY_PAGE_LIMIT, PROFILE_ID, measurementsKey, useMeasurements } from './use-measurements';
+import { IpcApiError, PROFILE_ID } from './use-add-measurement';
+import { HISTORY_PAGE_LIMIT, measurementsKey, useMeasurements } from './use-measurements';
 
 function dto(id: string): MeasurementDto {
   return {
@@ -34,12 +34,11 @@ const OK_ENVELOPE = (response: MeasurementListResponse) => ({ v: 1, ok: true, da
 
 let invoke: ReturnType<typeof vi.fn>;
 
-function renderMeasurements(): ReturnType<typeof renderHook<unknown, ReturnType<typeof useMeasurements>>> {
+function renderMeasurements() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return renderHook(() => useMeasurements(PROFILE_ID), {
-    wrapper: ({ children }) =>
-      createElement(QueryClientProvider, { client: queryClient }, children),
-  });
+  const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
+    createElement(QueryClientProvider, { client: queryClient }, children);
+  return renderHook(() => useMeasurements(PROFILE_ID), { wrapper });
 }
 
 beforeEach(() => {
@@ -99,7 +98,9 @@ describe('useMeasurements — offset-пагинация «Показать ещ�
     const firstPage = Array.from({ length: HISTORY_PAGE_LIMIT }, (_, i) => dto(`m-${i}`));
     invoke
       .mockResolvedValueOnce(OK_ENVELOPE({ items: firstPage, total: HISTORY_PAGE_LIMIT + 1 }))
-      .mockResolvedValueOnce(OK_ENVELOPE({ items: [dto('m-last')], total: HISTORY_PAGE_LIMIT + 1 }));
+      .mockResolvedValueOnce(
+        OK_ENVELOPE({ items: [dto('m-last')], total: HISTORY_PAGE_LIMIT + 1 }),
+      );
     const { result } = renderMeasurements();
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
