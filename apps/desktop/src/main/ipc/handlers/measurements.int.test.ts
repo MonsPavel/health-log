@@ -6,6 +6,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { describe, expect, it } from 'vitest';
 
 import { API_ENVELOPE_VERSION, MEASUREMENT_ADD_RESPONSE_SCHEMA } from '@hl/contracts';
@@ -66,6 +67,7 @@ describe('measurements/add через контейнер — полный пут
         )
         .run();
 
+      const startedAtMs = performance.now();
       const envelope = await container.channels.dispatch({
         channel: 'measurements/add',
         payload: {
@@ -79,6 +81,9 @@ describe('measurements/add через контейнер — полный пут
           takenAt: { utcMs: NOW_MS - MINUTE_MS, tzOffsetMin: TZ },
         },
       });
+      // §15: полный путь add ≤50 мс на SQLite — UX-цель «мгновенно» (тест-ориентир).
+      const addDurationMs = performance.now() - startedAtMs;
+      expect(addDurationMs).toBeLessThan(50);
 
       expect(envelope).toMatchObject({ v: API_ENVELOPE_VERSION, ok: true });
       if (!envelope.ok) {
