@@ -17,6 +17,13 @@ export const ERROR_CODES = [
   // TASK-021 §5/§7: порт репозитория измерений — update/delete несуществующего id
   // (ошибка значением Result, не throw).
   'MEASUREMENT/NOT_FOUND',
+  // TASK-022 §7/§13: SQLCipher-стек, открытие БД — неверный ключ (маппинг
+  // SQLITE_NOTADB), файл занят другим процессом (SQLITE_BUSY/LOCKED; защита —
+  // single-instance TASK-012), повреждение (PRAGMA quick_check при старте;
+  // полный сценарий восстановления — TASK-100/101).
+  'STORAGE/BAD_KEY',
+  'STORAGE/LOCKED',
+  'STORAGE/CORRUPT',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */

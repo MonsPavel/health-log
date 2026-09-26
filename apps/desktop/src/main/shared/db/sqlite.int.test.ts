@@ -130,7 +130,10 @@ describe('openEncrypted: SQLCipher-стек (TASK-022 §19/§20)', () => {
     reopened.close();
   });
 
-  it('файл занят другим соединением (BEGIN EXCLUSIVE) → STORAGE/LOCKED (§13)', () => {
+  // Таймаут теста выше дефолтного busy-timeout better-sqlite3 (5000 мс): contested
+  // чтение ждёт снятия блокировки до busy_timeout и только потом даёт SQLITE_BUSY —
+  // это реальное поведение стека, сценарий редкий (защита — single-instance TASK-012).
+  it('файл занят другим соединением (BEGIN EXCLUSIVE) → STORAGE/LOCKED (§13)', { timeout: 15_000 }, () => {
     const file = join(newDir(), 'locked.sqlite');
     const key = randomKeyHex();
     const holder = openEncrypted(file, key);
