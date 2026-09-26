@@ -111,8 +111,8 @@ module.exports = {
       name: 'application-ports',
       severity: 'error',
       comment:
-        'арх. 03 §4: application не импортирует adapters СВОЕГО модуля ($1) и чужие модули — только свой domain/application.',
-      from: { path: `^${MODULES}/(?<module>[^/]+)/application/` },
+        'арх. 03 §4: application не импортирует adapters СВОЕГО модуля ($1) и чужие модули — только свой domain/application. Тесты (*.test.ts) исключены: матрица про production-код — colocated-тестам application нужен fake-адаптер своего модуля как подстановочная зависимость (TASK-029 §5/§6: «юнит-тесты с fake-repo»; прецеденты renderer-not-node/domain-purity/packages-layering).',
+      from: { path: `^${MODULES}/(?<module>[^/]+)/application/`, pathNot: '\\.test\\.ts$' },
       to: {
         path: `^${MODULES}/`,
         pathNot: [`^${MODULES}/$1/(?:domain|application)/`],
