@@ -8,6 +8,7 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -370,5 +371,59 @@ describe('MeasurementForm — когда: заднее число и будущ�
       2026, 9, 24,
     ]);
     expect([wall.getUTCHours(), wall.getUTCMinutes()]).toEqual([21, 30]);
+  });
+});
+
+describe('MeasurementForm — быстрый путь §20.1 (механика ≤15 с клавиатурой / ≤20 с тапами)', () => {
+  /**
+   * §20.1 автоматизирует ТОЛЬКО механику (сам хронометраж — ручной критерий §24,
+   * E2E в живом рантайме — TASK-035 §19): полный клавиатурный путь — как его
+   * наберёт пользователь — автофокус sys, цифры с авто-переходом по 3, Tab к
+   * пульсу, Enter = сохранить, очистка. user-event — настоящая навигация Tab
+   * (fireEvent фокус не перемещает).
+   */
+  it('клавиатура: 125 → авто-переход → 82 → Tab → 70 → Enter = сохранено, поля пусты', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    expect(document.activeElement).toBe(sysInput());
+    await user.keyboard('125');
+    expect(document.activeElement).toBe(diaInput());
+    await user.keyboard('82');
+    // 2 цифры — перехода нет (не угадываем, §13/§22).
+    expect(document.activeElement).toBe(diaInput());
+
+    await user.tab();
+    expect(document.activeElement).toBe(pulseInput());
+    await user.keyboard('70');
+
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(screen.getByTestId('saved-toast')).toBeDefined());
+    expect(invoke).toHaveBeenCalledTimes(1);
+    const payload = (invoke.mock.calls[0] as [unknown, Record<string, unknown>])[1];
+    expect(payload).toMatchObject({ sys: 125, dia: 82, pulse: 70 });
+    expect(sysInput().value).toBe('');
+    expect(diaInput().value).toBe('');
+    expect(pulseInput().value).toBe('');
+  });
+
+  it('тапы: цифры кликами по крупным кнопкам, поле пульса — тапом, «Сохранить» — кликом', async () => {
+    renderForm();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 5' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 8' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+    fireEvent.focus(pulseInput());
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 7' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 0' }));
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(screen.getByTestId('saved-toast')).toBeDefined());
+    expect(invoke).toHaveBeenCalledTimes(1);
+    const payload = (invoke.mock.calls[0] as [unknown, Record<string, unknown>])[1];
+    expect(payload).toMatchObject({ sys: 125, dia: 82, pulse: 70 });
   });
 });
