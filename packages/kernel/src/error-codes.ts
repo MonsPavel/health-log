@@ -31,6 +31,11 @@ export const ERROR_CODES = [
   'VAULT/KEY_MISSING',
   'VAULT/KEY_CORRUPT',
   'VAULT/UNAVAILABLE',
+  // TASK-024 §5/§20: migration runner — сбой миграции (rollback, схема осталась на
+  // предыдущей версии; params {version}); БД записана более новой версией приложения
+  // (schema_version > известного) — явная ошибка «обновите приложение» (EC-25).
+  'STORAGE/MIGRATION_FAILED',
+  'STORAGE/DB_NEWER_THAN_APP',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */
