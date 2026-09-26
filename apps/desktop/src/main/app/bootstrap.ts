@@ -2,14 +2,13 @@ import { join } from 'node:path';
 
 import { app, dialog } from 'electron';
 
-import { CHANNEL_SCHEMAS } from '@hl/contracts';
 import { SystemClock } from '@hl/kernel';
 
 import { createWindow, focusExistingWindow } from './create-window.js';
-import { createLogClientErrorHandler, installGlobalErrorHandlers } from './global-errors.js';
+import { installGlobalErrorHandlers } from './global-errors.js';
 import { createSecondInstanceHandler, ensureSingleInstance } from './single-instance.js';
-import { createPingHandler } from '../ipc/handlers/ping.js';
-import { installChannelBridge, registerChannel } from '../ipc/register-channel.js';
+import { buildContainer, type Container } from '../container.js';
+import { installChannelBridge } from '../ipc/register-channel.js';
 import { createLogger, initFileLogging } from '../shared/logger/logger.js';
 
 /**
@@ -71,20 +70,33 @@ const gotSingleInstanceLock = ensureSingleInstance(
 
 if (gotSingleInstanceLock) {
   /**
-   * Точка входа main-процесса (TASK-007 §9): whenReady → каналы IPC (TASK-008 §5) →
-   * createWindow. Регистрация каналов — только через registerChannel каркаса (§9),
-   * транспортный мост `hl:invoke` ставится один раз до создания окна.
+   * Точка входа main-процесса (TASK-007 §9): whenReady → сборка контейнера (TASK-027)
+   * → транспортный мост IPC (TASK-008) → createWindow. Контейнер — единственная точка
+   * сборки графа зависимостей и регистрации IPC-хендлеров (§5/§11 TASK-027).
    */
-  void app.whenReady().then(() => {
+
+  /** Собранный контейнер; если сборка не состоялась — закрывать нечего (§13). */
+  let container: Container | undefined;
+
+  // TASK-027 §8: graceful shutdown — WAL-чекпоинт (TRUNCATE) и закрытие БД на выходе:
+  // чистое отсутствие -wal/-shm после выхода (NFR-2-гигиена). Сборка не состоялась —
+  // close не вызывается (контейнер не создан); повторный will-quit — no-op в close.
+  app.on('will-quit', () => {
+    container?.close();
+  });
+
+  void app.whenReady().then(async () => {
     initAppLogging();
-    registerChannel('app/ping', CHANNEL_SCHEMAS['app/ping'], createPingHandler(new SystemClock()));
-    // TASK-011 §9: клиентский отчёт об ошибке — fire-and-forget, response null.
-    registerChannel(
-      'app/log-client-error',
-      CHANNEL_SCHEMAS['app/log-client-error'],
-      createLogClientErrorHandler(createLogger('app')),
-    );
-    installChannelBridge();
+    // TASK-027 §5/§13: реальные зависимости (пути, боевой vault, SystemClock).
+    // Init-ошибка (VAULT/*, STORAGE/*) пробрасывается выше → глобальный хендлер
+    // TASK-011 (диалог + код, §9 TASK-027).
+    container = await buildContainer({
+      userDataPath: app.getPath('userData'),
+      clock: new SystemClock(),
+    });
+    // TASK-008 §5: мост `hl:invoke` ставится один раз до создания окна; каналы
+    // зарегистрированы в реестре контейнера (TASK-027 §11).
+    installChannelBridge(container.channels);
     createWindow();
   });
 }
