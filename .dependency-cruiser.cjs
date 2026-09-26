@@ -87,8 +87,8 @@ module.exports = {
       name: 'domain-purity',
       severity: 'error',
       comment:
-        'арх. 03 §4: из domain разрешены только файлы СВОЕГО домена ($1 = модуль из from.path) и @hl/kernel; node:*, npm и чужие внутренности — нарушение (ср. boundaries/dependencies TASK-003).',
-      from: { path: `^${MODULES}/(?<module>[^/]+)/domain/` },
+        'арх. 03 §4: из domain разрешены только файлы СВОЕГО домена ($1 = модуль из from.path) и @hl/kernel; node:*, npm и чужие внутренности — нарушение (ср. boundaries/dependencies TASK-003). Тесты (*.test.ts) исключены: матрица про production-код — colocated-тестам домена нужен сам тестовый фреймворк (vitest, fast-check; прецеденты renderer-not-node и packages-layering, TASK-003 §19; первые domain-тесты — TASK-016).',
+      from: { path: `^${MODULES}/(?<module>[^/]+)/domain/`, pathNot: '\\.test\\.ts$' },
       to: {
         path: '.',
         pathNot: [`^${MODULES}/$1/domain/`, '^packages/kernel/'],
