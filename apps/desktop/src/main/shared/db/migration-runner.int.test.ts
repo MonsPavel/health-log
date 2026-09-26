@@ -57,8 +57,8 @@ const twoMigrations = (trace: string[]): Migration[] => [
     up: (db) => {
       trace.push('ddl:2');
       db.exec(
-        'CREATE TABLE v2_table (id INTEGER PRIMARY KEY, note TEXT NOT NULL);'
-          + "INSERT INTO v2_table (note) VALUES ('from-v2');",
+        'CREATE TABLE v2_table (id INTEGER PRIMARY KEY, note TEXT NOT NULL);' +
+          "INSERT INTO v2_table (note) VALUES ('from-v2');",
       );
     },
   },
@@ -94,18 +94,17 @@ describe('MigrationRunner (TASK-024 §19/§20)', () => {
     const calls: number[] = [];
     const runner = new MigrationRunner({
       migrations: twoMigrations(trace),
-      beforeMigration: async (version) => {
+      beforeMigration: (version) => {
         calls.push(version);
         trace.push(`hook:${version}`);
+        return Promise.resolve();
       },
     });
 
     await runner.migrate(db);
 
     expect(readSchemaVersion(db)).toBe('2');
-    expect(schemaObjectNames(db)).toEqual(
-      expect.arrayContaining(['meta', 'v1_table', 'v2_table']),
-    );
+    expect(schemaObjectNames(db)).toEqual(expect.arrayContaining(['meta', 'v1_table', 'v2_table']));
     // §8: runner не трогает data_version — на свежей БД ключ ровно один.
     expect(
       (db.prepare('SELECT key FROM meta ORDER BY key').all() as { key: string }[]).map(
@@ -123,8 +122,9 @@ describe('MigrationRunner (TASK-024 §19/§20)', () => {
     const trace: string[] = [];
     await new MigrationRunner({
       migrations: twoMigrations(trace),
-      beforeMigration: async (version) => {
+      beforeMigration: (version) => {
         trace.push(`hook:${version}`);
+        return Promise.resolve();
       },
     }).migrate(db);
 
@@ -132,8 +132,9 @@ describe('MigrationRunner (TASK-024 §19/§20)', () => {
     const calls: number[] = [];
     await new MigrationRunner({
       migrations: twoMigrations(trace),
-      beforeMigration: async (version) => {
+      beforeMigration: (version) => {
         calls.push(version);
+        return Promise.resolve();
       },
     }).migrate(db);
 
@@ -159,8 +160,8 @@ describe('MigrationRunner (TASK-024 §19/§20)', () => {
       up: (database) => {
         trace.push('ddl:2');
         database.exec(
-          'CREATE TABLE v2_left (id INTEGER PRIMARY KEY);'
-            + 'CREATE TABLE broken syntax error here;',
+          'CREATE TABLE v2_left (id INTEGER PRIMARY KEY);' +
+            'CREATE TABLE broken syntax error here;',
         );
       },
     };
@@ -168,9 +169,10 @@ describe('MigrationRunner (TASK-024 §19/§20)', () => {
     try {
       await new MigrationRunner({
         migrations: twoMigrations([]).slice(0, 1).concat(broken),
-        beforeMigration: async (version) => {
+        beforeMigration: (version) => {
           calls.push(version);
           trace.push(`hook:${version}`);
+          return Promise.resolve();
         },
       }).migrate(db);
     } catch (error) {
@@ -187,9 +189,9 @@ describe('MigrationRunner (TASK-024 §19/§20)', () => {
     expect(readSchemaVersion(db)).toBe('1');
     expect(schemaObjectNames(db)).toEqual(expect.arrayContaining(['meta', 'v1_table']));
     expect(schemaObjectNames(db)).toEqual(expect.not.arrayContaining(['v2_left']));
-    expect(
-      db.prepare('SELECT count(*) AS n FROM v1_table').get() as { n: number },
-    ).toEqual({ n: 1 });
+    expect(db.prepare('SELECT count(*) AS n FROM v1_table').get() as { n: number }).toEqual({
+      n: 1,
+    });
     // §19 п. 3 (порядок!): hook-спай — до первого DDL сбойной миграции, один раз.
     expect(calls).toEqual([2]);
     expect(trace).toEqual(['hook:2', 'ddl:2']);
@@ -206,8 +208,9 @@ describe('MigrationRunner (TASK-024 §19/§20)', () => {
     try {
       await new MigrationRunner({
         migrations: twoMigrations([]),
-        beforeMigration: async (version) => {
+        beforeMigration: (version) => {
           calls.push(version);
+          return Promise.resolve();
         },
       }).migrate(db);
     } catch (error) {
@@ -241,5 +244,26 @@ describe('MigrationRunner (TASK-024 §19/§20)', () => {
       { version: 1, up: () => undefined },
     ];
     expect(() => new MigrationRunner({ migrations: duplicated })).toThrow(TypeError);
+  });
+
+  it("runner дожидается Promise hook'а до DDL (§5: hook — Promise<void>, снапшот TASK-070)", async () => {
+    const { db } = openFresh('awaited-hook.sqlite');
+    const trace: string[] = [];
+    // Hook с отложенным resolve: если runner не дождётся, запись «hook:1» в trace
+    // случится позже записи «ddl:1» — порядок сломается.
+    await new MigrationRunner({
+      migrations: twoMigrations(trace).slice(0, 1),
+      beforeMigration: (version) =>
+        new Promise<void>((resolve) => {
+          setTimeout(() => {
+            trace.push(`hook:${version}`);
+            resolve();
+          }, 10);
+        }),
+    }).migrate(db);
+
+    expect(trace).toEqual(['hook:1', 'ddl:1']);
+    expect(readSchemaVersion(db)).toBe('1');
+    db.close();
   });
 });
