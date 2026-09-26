@@ -131,9 +131,8 @@ export interface Container {
  */
 function readSchemaVersionForLog(db: EncryptedDatabase): number {
   try {
-    const row = db
-      .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
-      .get() as { value: string } | undefined;
+    const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as
+      { value: string } | undefined;
     return row !== undefined && /^\d+$/.test(row.value) ? Number(row.value) : 0;
   } catch {
     // Свежая БД — «no such table: meta»: миграций не было.
@@ -150,6 +149,7 @@ async function createDefaultVault(context: VaultFactoryContext): Promise<KeyVaul
   const electron = await import('electron');
   const safeStorage = (electron as { safeStorage?: VaultSafeStorage }).safeStorage;
   if (safeStorage === undefined) {
+    // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт §9, прецедент sqlite.ts)
     throw AppError.of('VAULT/UNAVAILABLE', VAULT_UNAVAILABLE_MESSAGE_KEY, {
       platform: process.platform,
     });
@@ -179,7 +179,8 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
 
   // 3. Vault (§5: vault.ensureKey; фабрика переопределяема для тестов, §19).
   const vaultContext: VaultFactoryContext = { vaultFilePath, clock, logger: dbLogger };
-  const vault = deps.vault !== undefined ? deps.vault(vaultContext) : await createDefaultVault(vaultContext);
+  const vault =
+    deps.vault !== undefined ? deps.vault(vaultContext) : await createDefaultVault(vaultContext);
 
   // dbExists решает сценарий vault-а (§13 кейс 4: файла ключа нет при существующей БД
   // → KEY_MISSING, новый ключ НЕ генерируется — различение по факту наличия файла БД).

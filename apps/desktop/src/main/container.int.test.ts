@@ -58,6 +58,7 @@ const newUserDataDir = (): string => mkdtempSync(join(tmpdir(), 'hl-container-in
 /**
  * Мок-vault (§19): без safeStorage — ensureKey отдаёт фиксированный ключ; created=true
  * только на первом вызове (имитация кейсов §13 1/2). Отказ задаётся конструктором.
+ * Методы не async (контракт — Promise; прецедент SqliteBpMeasurementRepository).
  */
 class MockVault implements KeyVault {
   private ensured = 0;
@@ -67,15 +68,21 @@ class MockVault implements KeyVault {
     private readonly failure?: AppError,
   ) {}
 
-  async ensureKey(_dbExists: boolean): Promise<Result<EnsuredKey, AppError>> {
+  ensureKey(): Promise<Result<EnsuredKey, AppError>> {
     if (this.failure !== undefined) {
-      return { ok: false, error: this.failure };
+      return Promise.resolve({ ok: false, error: this.failure });
     }
-    return { ok: true, value: { keyHex: this.keyHex, created: this.ensured++ === 0 } };
+    return Promise.resolve({
+      ok: true,
+      value: { keyHex: this.keyHex, created: this.ensured++ === 0 },
+    });
   }
 
-  async exportKeyForBackup(): Promise<Result<WrappedKeyBlob, AppError>> {
-    return { ok: false, error: AppError.of('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY) };
+  exportKeyForBackup(): Promise<Result<WrappedKeyBlob, AppError>> {
+    return Promise.resolve({
+      ok: false,
+      error: AppError.of('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY),
+    });
   }
 }
 
