@@ -19,4 +19,10 @@ describe('ErrorCode: реестр кодов (§5)', () => {
       expect(code).toMatch(/^[A-Z]+(?:_[A-Z]+)*\/[A-Z]+(?:_[A-Z]+)*$/);
     }
   });
+
+  // TASK-016 §5: коды домена Measurement для VO давления/пульса.
+  it('коды MEASUREMENT/INVALID_RANGE и MEASUREMENT/SYS_LE_DIA присутствуют (TASK-016)', () => {
+    expect(ERROR_CODES).toContain('MEASUREMENT/INVALID_RANGE');
+    expect(ERROR_CODES).toContain('MEASUREMENT/SYS_LE_DIA');
+  });
 });
