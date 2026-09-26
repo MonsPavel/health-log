@@ -22,7 +22,7 @@ function rangeError(field: BpField, value: number, min: number, max: number): Ap
   });
 }
 
-/** VO давления: целые мм рт. ст., sys ∈ [50, 300], dia ∈ [20, 200], строго sys > dia. */
+/** VO давления: целые мм рт. ст. в пределах BP_LIMITS (SRS FR-1.2), строго sys > dia. */
 export class BloodPressure {
   /** Приватный конструктор: создать VO можно только через валидирующую фабрику create. */
   private constructor(
