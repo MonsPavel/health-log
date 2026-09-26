@@ -38,4 +38,11 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('STORAGE/LOCKED');
     expect(ERROR_CODES).toContain('STORAGE/CORRUPT');
   });
+
+  // TASK-023 §5/§13: коды KeyVault — хранилище ключа БД на safeStorage.
+  it('коды VAULT/KEY_MISSING, VAULT/KEY_CORRUPT и VAULT/UNAVAILABLE присутствуют (TASK-023)', () => {
+    expect(ERROR_CODES).toContain('VAULT/KEY_MISSING');
+    expect(ERROR_CODES).toContain('VAULT/KEY_CORRUPT');
+    expect(ERROR_CODES).toContain('VAULT/UNAVAILABLE');
+  });
 });

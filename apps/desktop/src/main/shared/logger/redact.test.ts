@@ -61,6 +61,34 @@ describe('redactPhi — произвольная глубина (§14: pino reda
   });
 });
 
+describe('redactPhi — секреты хранилища ключа (TASK-023 §14)', () => {
+  // Фикстура: hex-ключ БД (keyHex) и wrapped-материал в обеих формах имени поля —
+  // ключ файла vault.key (§5: {v, wrapped, createdUtc}) и поле порта (§7: wrappedB64).
+  const KEY_HEX = 'a'.repeat(64);
+  const WRAPPED_B64 = Buffer.from('wrapped-key-material', 'utf8').toString('base64');
+
+  it('попытка залогировать keyHex → [redacted] (§20)', () => {
+    const out = redactPhi({ keyHex: KEY_HEX, op: 'vault.ensureKey' });
+
+    expect(out).toEqual({ keyHex: PHI_CENSOR, op: 'vault.ensureKey' });
+    expect(outJson(out)).not.toContain(KEY_HEX);
+  });
+
+  it('wrapped (файл vault.key, §5) и wrappedB64 (порт, §7) цензурены на любом уровне вложенности', () => {
+    const out = redactPhi({
+      vault: { ensure: { keyHex: KEY_HEX, wrapped: WRAPPED_B64 } },
+      backup: { blob: { v: 1, wrappedB64: WRAPPED_B64, createdUtc: 1 } },
+    });
+
+    expect(out).toEqual({
+      vault: { ensure: { keyHex: PHI_CENSOR, wrapped: PHI_CENSOR } },
+      // Цензура — по ключу: wrappedB64 цензурен, разрешённые соседи (v, createdUtc) остаются.
+      backup: { blob: { v: 1, wrappedB64: PHI_CENSOR, createdUtc: 1 } },
+    });
+    expect(outJson(out)).not.toContain(WRAPPED_B64);
+  });
+});
+
 describe('redactPhi — точное совпадение ключа (§7: «пути без имени пользователя разрешены»)', () => {
   it('system/syslog не путаются с sys; остальные ключи не цензурятся', () => {
     const out = redactPhi({ system: 'ok', syslog: 1, sys: 125 });
@@ -119,7 +147,7 @@ describe('redactPhi — отказобезопасность (§14)', () => {
 });
 
 describe('конфиг редакции — контракт спецификации (§5/§7)', () => {
-  it('PHI_REDACT_PATHS — ровно redact-пути из §5 + ключи БД (TASK-022 §14: pino.redact слой)', () => {
+  it('PHI_REDACT_PATHS — ровно redact-пути из §5 + ключи БД (TASK-022/023 §14: pino.redact слой)', () => {
     expect([...PHI_REDACT_PATHS]).toEqual([
       'sys',
       'dia',
@@ -137,10 +165,15 @@ describe('конфиг редакции — контракт специфика�
       'key',
       '*.keyHex',
       '*.key',
+      // TASK-023 §14: wrapped-ключ (файл vault.key §5 и порт §7) — top-level и глубина 1.
+      'wrapped',
+      'wrappedB64',
+      '*.wrapped',
+      '*.wrappedB64',
     ]);
   });
 
-  it('PHI_KEYS покрывает доменные PHI-поля §7 и ключи БД TASK-022 §14 (рекурсивный слой)', () => {
+  it('PHI_KEYS покрывает доменные PHI-поля §7, ключи БД TASK-022 и wrapped-ключ TASK-023 (рекурсивный слой)', () => {
     for (const key of [
       'sys',
       'dia',
@@ -153,6 +186,9 @@ describe('конфиг редакции — контракт специфика�
       // TASK-022 §14: ключ шифрования БД — цензура на ЛЮБОЙ глубине.
       'keyHex',
       'key',
+      // TASK-023 §14: wrapped-ключ в обеих формах имени поля (файл §5 / порт §7).
+      'wrapped',
+      'wrappedB64',
     ]) {
       expect(PHI_KEYS.has(key)).toBe(true);
     }

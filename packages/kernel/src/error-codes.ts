@@ -24,6 +24,13 @@ export const ERROR_CODES = [
   'STORAGE/BAD_KEY',
   'STORAGE/LOCKED',
   'STORAGE/CORRUPT',
+  // TASK-023 §5/§13: хранилище ключа БД (KeyVault на safeStorage): файла ключа нет при
+  // существующей БД — потеря данных, восстановление из копии (TASK-101); файл есть, но
+  // safeStorage не может расшифровать (сменился Windows-пользователь/машина) или файл
+  // повреждён; шифрование ОС-хранилища недоступно (Linux без keyring — явная ошибка).
+  'VAULT/KEY_MISSING',
+  'VAULT/KEY_CORRUPT',
+  'VAULT/UNAVAILABLE',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */

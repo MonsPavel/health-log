@@ -69,6 +69,12 @@ pnpm test
 | `pnpm test:depcruise-rules` | тест правил dependency-cruiser на фикстурах (`tools/depcruise-fixtures`)                |
 | `pnpm test:pr-workflow`     | тест структурного контракта `.github/workflows/pr.yml`                                  |
 
+Отдельно и вручную (Windows — целевая платформа): `pnpm test:vault-real` — real-smoke
+KeyVault на безопасном хранилище ОС (Electron safeStorage / DPAPI): создание ключа,
+grep-тест «ключа нет открытым текстом в vault.key», расшифровка повторным стартом,
+экспорт wrapped-blob. В `pnpm test` и CI не входит: safeStorage на CI-ubuntu
+недоступен (TASK-023 §19).
+
 CI использует `pnpm install --frozen-lockfile` (воспроизводимость); локально
 `pnpm install` достаточно.
 

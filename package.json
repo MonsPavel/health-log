@@ -23,6 +23,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:vault-real": "pnpm --filter @hl/kernel run build && pnpm --filter @hl/desktop run test:vault-real",
     "test:lint-rules": "tsx scripts/test-lint-rules.ts",
     "test:depcruise-rules": "tsx scripts/test-depcruise-rules.ts",
     "test:pr-workflow": "tsx scripts/test-pr-workflow.ts",

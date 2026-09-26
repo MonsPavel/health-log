@@ -42,6 +42,10 @@ export const PHI_KEYS: ReadonlySet<string> = new Set([
   // цензура на любом уровне вложенности рекурсивного слоя.
   'keyHex',
   'key',
+  // TASK-023 §14: wrapped-ключ KeyVault — поле файла vault.key (§5: wrapped) и поле
+  // порта (§7: wrappedB64); обе формы имени под цензурой на любой глубине.
+  'wrapped',
+  'wrappedB64',
 ]);
 
 /**
@@ -66,6 +70,11 @@ export const PHI_REDACT_PATHS: readonly string[] = [
   'key',
   '*.keyHex',
   '*.key',
+  // TASK-023 §14: wrapped-ключ KeyVault — top-level и глубина 1 (глубже — рекурсивный слой).
+  'wrapped',
+  'wrappedB64',
+  '*.wrapped',
+  '*.wrappedB64',
 ];
 
 /**
