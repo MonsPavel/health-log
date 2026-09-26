@@ -112,10 +112,8 @@ export async function run(options = {}) {
   const limitMb = options.limitMb ?? SIZE_LIMIT_MB;
 
   const { installerPath, unpackedPath } = await findArtifacts(distDir);
-  const installerBytes =
-    installerPath === undefined ? undefined : await measurePath(installerPath);
-  const unpackedBytes =
-    unpackedPath === undefined ? undefined : await measurePath(unpackedPath);
+  const installerBytes = installerPath === undefined ? undefined : await measurePath(installerPath);
+  const unpackedBytes = unpackedPath === undefined ? undefined : await measurePath(unpackedPath);
 
   const report = buildReport({ installerBytes, unpackedBytes, installerPath, limitMb });
   await writeFile(join(distDir, REPORT_FILENAME), `${report}\n`, 'utf8');
@@ -140,7 +138,10 @@ if (invokedPath === scriptPath) {
     }
   }
   const cliCode = await run({ distDir: cliDist, limitMb: cliLimit });
-  const report = await readFile(join(cliDist ?? join(dirname(scriptPath), '..', 'dist'), REPORT_FILENAME), 'utf8');
+  const report = await readFile(
+    join(cliDist ?? join(dirname(scriptPath), '..', 'dist'), REPORT_FILENAME),
+    'utf8',
+  );
   console.log(report);
   exit(cliCode);
 }
