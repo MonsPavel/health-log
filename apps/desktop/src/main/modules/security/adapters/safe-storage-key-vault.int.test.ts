@@ -93,7 +93,11 @@ const errOf = <T>(result: Result<T, AppError>): AppError => {
 };
 
 /** Свежие spy-логгеры на тест (§18: проверяем факт и отсутствие ключа в мете). */
-const makeLogger = (): { logger: VaultLogger; info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn> } => {
+const makeLogger = (): {
+  logger: VaultLogger;
+  info: ReturnType<typeof vi.fn>;
+  warn: ReturnType<typeof vi.fn>;
+} => {
   const info = vi.fn();
   const warn = vi.fn();
   return { logger: { info, warn }, info, warn };
@@ -134,7 +138,11 @@ describe('SafeStorageKeyVault — кейсы §13 на моке safeStorage (TAS
 
   /** Разобранный JSON файла ключа — как его увидит любой читатель файла (§5). */
   const readBlob = (dir: string): { v: number; wrapped: string; createdUtc: number } =>
-    JSON.parse(readFileSync(keyFile(dir), 'utf8')) as { v: number; wrapped: string; createdUtc: number };
+    JSON.parse(readFileSync(keyFile(dir), 'utf8')) as {
+      v: number;
+      wrapped: string;
+      createdUtc: number;
+    };
 
   it('кейс 1: файла нет, БД нет → ключ создан, записан, created=true (§13)', async () => {
     const dir = newDir();
@@ -203,7 +211,6 @@ describe('SafeStorageKeyVault — кейсы §13 на моке safeStorage (TAS
   });
 
   it('кейс 3в: файл не JSON и схема не {v:1, wrapped: string, createdUtc: number} → VAULT/KEY_CORRUPT (§13)', async () => {
-    const dir = newDir();
     const { logger } = makeLogger();
     const invalidPayloads: unknown[] = [
       'not-json{',

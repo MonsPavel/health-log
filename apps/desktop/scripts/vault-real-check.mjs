@@ -44,9 +44,8 @@ app.whenReady().then(async () => {
   );
 
   // Адаптер импортируется из собранного main-процесса (tsc -b tsconfig.main.json в скрипте).
-  const { SafeStorageKeyVault } = await import(
-    '../dist/main/modules/security/adapters/safe-storage-key-vault.js'
-  );
+  const { SafeStorageKeyVault } =
+    await import('../dist/main/modules/security/adapters/safe-storage-key-vault.js');
 
   const dir = mkdtempSync(join(tmpdir(), 'hl-vault-real-'));
   const vaultFilePath = join(dir, 'vault.key');
