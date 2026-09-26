@@ -53,3 +53,17 @@ export const TYPO_THRESHOLD_MMHG = 40;
  * pure и про историю времени не знает. Правка числа = ревизия SRS, не поиск литералов.
  */
 export const DUPLICATE_WINDOW_MS = 120_000;
+
+/**
+ * TASK-020 §4/§5: пороги критических значений (SRS FR-7.4, справочные материалы):
+ * гипертонический криз — sys ≥ CRITICAL_HIGH_SYS (180) или dia ≥ CRITICAL_HIGH_DIA
+ * (120) → 'high'; гипотензия — sys ≤ CRITICAL_LOW_SYS (90) или dia ≤
+ * CRITICAL_LOW_DIA (60) → 'low'; иначе флага нет. Границы включительно (§13).
+ * Правка числа = ревизия SRS, не поиск литералов. Потребители — use case add
+ * (TASK-029, criticalValue в DTO TASK-028), панель срочной помощи (TASK-041),
+ * пометки статистики (TASK-052), поведение ИИ (TASK-086 — импорт домена).
+ */
+export const CRITICAL_HIGH_SYS = 180;
+export const CRITICAL_HIGH_DIA = 120;
+export const CRITICAL_LOW_SYS = 90;
+export const CRITICAL_LOW_DIA = 60;
