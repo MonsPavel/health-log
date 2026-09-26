@@ -9,6 +9,7 @@
     "dev": "pnpm --filter @hl/kernel --filter @hl/contracts run build && concurrently -k -n vite,electron -c cyan,green \"vite\" \"wait-on tcp:127.0.0.1:5183 && tsc -b tsconfig.main.json && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:5183 electron .\"",
     "build": "tsc -b tsconfig.main.json && pnpm build:renderer",
     "build:renderer": "vite build",
+    "dist": "electron-builder --win && node scripts/check-size.mjs",
     "test:vault-real": "tsc -b tsconfig.main.json && electron scripts/vault-real-check.mjs",
     "prepare-native": "bash scripts/prepare-native.sh",
     "postinstall": "bash scripts/prepare-native.sh"
@@ -44,6 +45,7 @@
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
     "electron": "^44.4.5",
+    "electron-builder": "26.15.3",
     "tailwindcss": "^4.3.3",
     "vite": "^7.3.6",
     "wait-on": "^9.1.0",

@@ -1,0 +1,58 @@
+# TASK-034 §5/§6: electron-builder — Windows-сборка (NSIS, x64) и запуск packaged.
+#
+# Артефакты (§20): «Health Log Setup <version>.exe» + win-unpacked в dist/ (§24:
+# размер проверяет scripts/check-size.mjs — последний шаг скрипта dist).
+#
+# userData (§8/§20): %APPDATA%/health-log/ — basename БЕЗ пробела (PHI-правило путей).
+# Electron берёт имя приложения из productName упакованного package.json, поэтому
+# extraMetadata пишет туда productName: health-log; productName выше («Health Log»)
+# остаётся именем exe/ярлыков/установщика. Проверено логом packaged-запуска
+# (userData/logs/hl.1.log: app started, dev:false).
+appId: dev.healthlog.app
+productName: Health Log
+extraMetadata:
+  productName: health-log
+
+# §5: asar on; рендерер грузится через file:// из asar (base './' — vite.config.ts).
+asar: true
+# §22 (риск asar+native): нативный модуль не грузится из asar — распаковка по glob
+# **/*.node (smart-unpack выносит пакет better-sqlite3-multiple-ciphers в app.asar.unpacked).
+asarUnpack:
+  - '**/*.node'
+
+# §5: только собранные бандлы (+ package.json и prod-зависимости electron-builder
+# собирает сам; workspace @hl/kernel и @hl/contracts подтягиваются как prod-deps
+# вместе со своими dist). §14: исходники проекта в сборку не входят — исключаем src/
+# workspace-пакетов (их тесты — тоже там); src сторонних npm-пакетов — содержимое
+# их официальных tarball'ов, как у любого Electron-приложения.
+files:
+  - dist/main
+  - dist-renderer
+  - '!node_modules/@hl/kernel/src'
+  - '!node_modules/@hl/contracts/src'
+
+# §5: extraResources пока пусто — реестр моделей позже (арх. 10 §2: модели вне установщика).
+extraResources: []
+
+# Нативный стек better-sqlite3-multiple-ciphers — prebuilt Node-API, бинарь уже в пакете
+# (ADR-0002: «один бинарник для node и Electron ≥35», совместимость проверяет
+# scripts/prepare-native.sh — postinstall/§19). Пересборка node-gyp не нужна и невозможна
+# в окружении без VS Build Tools — отключаем штатный rebuild electron-builder.
+npmRebuild: false
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  # §5/§6: dev-иконка-заглушка (генератор — 256×256, минимум electron-builder для win);
+  # брендовые иконки — post-MVP (§5 «Не включено»).
+  icon: build/icon-dev.ico
+
+nsis:
+  # §5/§20: per-user установка без прав администратора, с выбором каталога
+  # (не one-click). Подпись (TASK-104) и автообновление (TASK-096) — вне задачи:
+  # SmartScreen на неподписанном инсталляторе — известное ограничение (§14).
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

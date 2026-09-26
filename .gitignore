@@ -4,9 +4,10 @@ node_modules/
 # Кэш ESLint (TASK-003: --cache в скрипте lint)
 .eslintcache
 
-# Артефакты сборки
+# Артефакты сборки (dist* — каталоги вывода electron-builder, §6 TASK-034)
 dist/
 dist-renderer/
+dist-034/
 out/
 coverage/
 test-results/
