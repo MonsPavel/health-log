@@ -53,7 +53,7 @@ export const STORAGE_DB_NEWER_THAN_APP_MESSAGE_KEY = 'errors.STORAGE_DB_NEWER_TH
 export type BeforeMigrationHook = (version: number) => Promise<void>;
 
 /** Дефолтный hook (§5: no-op, заменяется TASK-070). */
-const noopHook: BeforeMigrationHook = async () => undefined;
+const noopHook: BeforeMigrationHook = () => Promise.resolve();
 
 /** Одна миграция (§5): чистая функция над Database — никаких чтений ФС/сети (§7). */
 export interface Migration {
@@ -80,23 +80,22 @@ const dbLog = createLogger('db');
 
 /** Мета-таблица создаётся runner'ом до первой миграции (§8). */
 const ENSURE_META_SQL =
-  'CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);\n'
-  + `INSERT OR IGNORE INTO meta (key, value) VALUES ('${SCHEMA_VERSION_KEY}', '${SCHEMA_VERSION_FRESH}');`;
+  'CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);\n' +
+  `INSERT OR IGNORE INTO meta (key, value) VALUES ('${SCHEMA_VERSION_KEY}', '${SCHEMA_VERSION_FRESH}');`;
 
 /**
  * Запись schema_version внутри транзакции миграции (§5: обновление в той же
  * транзакции): UPSERT — строка может отсутствовать (свежая meta, ключ удалён
- * извне); один prepared statement на все миграции runner'а.
+ * извне), а отсутствие «schema_version» не должно молча пропускать запись версии.
  */
 const SET_SCHEMA_VERSION_SQL =
-  `INSERT INTO meta (key, value) VALUES ('${SCHEMA_VERSION_KEY}', ?)`
-  + ' ON CONFLICT(key) DO UPDATE SET value = excluded.value';
+  `INSERT INTO meta (key, value) VALUES ('${SCHEMA_VERSION_KEY}', ?)` +
+  ' ON CONFLICT(key) DO UPDATE SET value = excluded.value';
 
 /** Читает текущую версию схемы (один SELECT, §15). */
 function readSchemaVersion(db: EncryptedDatabase): number {
-  const row = db
-    .prepare(`SELECT value FROM meta WHERE key = '${SCHEMA_VERSION_KEY}'`)
-    .get() as { value: string } | undefined;
+  const row = db.prepare(`SELECT value FROM meta WHERE key = '${SCHEMA_VERSION_KEY}'`).get() as
+    { value: string } | undefined;
   if (row === undefined) {
     return SCHEMA_VERSION_FRESH;
   }
@@ -129,13 +128,8 @@ export class MigrationRunner {
     // точке вызова (dev-контракт, прецедент assertKeyHex TASK-022 §7).
     let previous: Migration | undefined;
     for (const migration of sorted) {
-      const duplicate =
-        previous !== undefined && previous.version === migration.version;
-      if (
-        !Number.isInteger(migration.version)
-        || migration.version < 1
-        || duplicate
-      ) {
+      const duplicate = previous !== undefined && previous.version === migration.version;
+      if (!Number.isInteger(migration.version) || migration.version < 1 || duplicate) {
         throw new TypeError(
           `MigrationRunner: версия миграции должна быть целым числом ≥ 1 без дубликатов, получено version=${String(migration.version)} (нарушение контракта реестра — программная ошибка, TASK-024 §5)`,
         );
@@ -158,11 +152,9 @@ export class MigrationRunner {
     if (current > knownMax) {
       // EC-25 (§5): БД записана более новой версией приложения — данные не трогаем.
       // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт §7, прецедент sqlite.ts)
-      throw AppError.of(
-        'STORAGE/DB_NEWER_THAN_APP',
-        STORAGE_DB_NEWER_THAN_APP_MESSAGE_KEY,
-        { version: current },
-      );
+      throw AppError.of('STORAGE/DB_NEWER_THAN_APP', STORAGE_DB_NEWER_THAN_APP_MESSAGE_KEY, {
+        version: current,
+      });
     }
     let applied = current;
     for (const migration of this.sorted) {
