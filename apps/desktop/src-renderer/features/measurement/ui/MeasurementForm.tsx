@@ -18,7 +18,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { MeasurementAddResponse } from '@hl/contracts';
+import type { MeasurementAddResponse, MeasurementFlags } from '@hl/contracts';
 
 import { useToast } from '../../../app/toast';
 import {
@@ -26,14 +26,24 @@ import {
   useAddMeasurement,
   type FieldErrors,
 } from '../api/use-add-measurement';
+import { useDeleteMeasurement } from '../api/use-delete-measurement';
 import { useFormStore } from '../model/form-store';
 import { ArmSegment } from './ArmSegment';
+import { ConfirmFlagsDialog } from './ConfirmFlagsDialog';
 import { DigitPad } from './DigitPad';
 import { NoteField } from './NoteField';
 import { WhenField } from './WhenField';
 
 /** Числовые поля формы. */
 type NumericField = 'sys' | 'dia' | 'pulse';
+
+/**
+ * TASK-032 §5: есть ли во флагах ответа add повод для диалога «Проверьте значения»
+ * (typo-подсказка, дубль, критическое значение — любое).
+ */
+function hasFlags(flags: MeasurementFlags): boolean {
+  return flags.typo !== undefined || flags.duplicate === true || flags.criticalValue !== undefined;
+}
 
 /** Порядок авто-перехода по 3 цифрам (§13): sys→dia→pulse, из pulse — нет. */
 const NEXT_FIELD: Readonly<Record<NumericField, NumericField | null>> = {
@@ -94,6 +104,18 @@ export function MeasurementForm({ onSuccess }: MeasurementFormProps): JSX.Elemen
   const [submitAttempted, setSubmitAttempted] = useState(false);
   /** Мгновенное подтверждение «Сохранено» (§10). */
   const [saved, setSaved] = useState(false);
+  /**
+   * TASK-032 §5/§10: ответ add с флагами — диалог «Проверьте значения» открыт.
+   * Черновик store НЕ очищается до подтверждения (§10: «он не очищался до
+   * подтверждения» — значения возвращаются в форму удалением записи).
+   */
+  const [flagsDialog, setFlagsDialog] = useState<MeasurementAddResponse | null>(null);
+  /**
+   * TASK-032 §10: отложенный фокус в sys после успешного «Удалить и исправить» —
+   * эффектом ПОСЛЕ размонтирования диалога (Radix при закрытии восстанавливает
+   * фокус и перебил бы синхронный вызов).
+   */
+  const [focusSysAfterClose, setFocusSysAfterClose] = useState(false);
 
   const sysRef = useRef<HTMLInputElement>(null);
   const diaRef = useRef<HTMLInputElement>(null);
@@ -118,6 +140,17 @@ export function MeasurementForm({ onSuccess }: MeasurementFormProps): JSX.Elemen
     return () => clearTimeout(timer);
   }, [saved]);
 
+  // TASK-032 §10: фокус в sys после закрытия диалога «Удалить и исправить» —
+  // в эффекте (диалог уже размонтирован, восстановление фокуса Radix позади).
+  useEffect(() => {
+    if (!focusSysAfterClose || flagsDialog !== null) {
+      return;
+    }
+    setFocusSysAfterClose(false);
+    setActiveField('sys');
+    sysRef.current?.focus();
+  }, [focusSysAfterClose, flagsDialog]);
+
   // Клиентская валидация той же схемой контракта (§13) — live, без блокировки ввода.
   const validation = useMemo(
     () => assembleAddRequest({ sys, dia, pulse, irregular, arm, note, when }, nowMs),
@@ -137,8 +170,14 @@ export function MeasurementForm({ onSuccess }: MeasurementFormProps): JSX.Elemen
   const whenError = when !== 'now' ? fieldErrors.when : undefined;
 
   const mutation = useAddMeasurement({
-    // Успех (§10/§11): тост, сброс чисел/заметки (рука/флаг остаются), флаги наверх.
+    // Успех (§10/§11): при флагах — модальный поток «Проверьте значения» (TASK-032 §5),
+    // черновик и тост откладываются до решения; без флагов — как раньше: тост, сброс
+    // чисел/заметки (рука/флаг остаются), флаги наверх.
     onSuccess: (result) => {
+      if (hasFlags(result.flags)) {
+        setFlagsDialog(result);
+        return;
+      }
       resetAfterSave();
       setNowMs(Date.now());
       setSubmitAttempted(false);
@@ -150,6 +189,49 @@ export function MeasurementForm({ onSuccess }: MeasurementFormProps): JSX.Elemen
       showToast(error);
     },
   });
+
+  /**
+   * TASK-032 §5/§10/§13: «Удалить и исправить» — канал measurements/delete, затем
+   * возврат: значения остаются в форме (store не очищался), фокус в sys. Неуспех
+   * НЕ_FOUND (§13) — тост «Запись уже удалена», форма пустая (нечему возвращаться);
+   * иная ошибка (STORAGE/*) — запись на месте: значения остаются, тост.
+   */
+  const deleteMutation = useDeleteMeasurement({
+    onSuccess: () => {
+      setFlagsDialog(null);
+      // §10: фокус в sys — после закрытия диалога (эффект ниже): Radix при закрытии
+      // сам восстанавливает фокус и перебил бы прямой вызов.
+      setFocusSysAfterClose(true);
+    },
+    onError: (error) => {
+      setFlagsDialog(null);
+      if (error.code === 'MEASUREMENT/NOT_FOUND') {
+        // §13: запись уже удалена другим путём — возврат значений невозможен.
+        resetAfterSave();
+        setNowMs(Date.now());
+        setSubmitAttempted(false);
+      }
+      setFocusSysAfterClose(true);
+      showToast(error);
+    },
+  });
+
+  /** «Оставить» (и Esc/оверлей — §16): запись остаётся, форма очищается, тост (§10). */
+  const handleKeep = (): void => {
+    setFlagsDialog(null);
+    resetAfterSave();
+    setNowMs(Date.now());
+    setSubmitAttempted(false);
+    setSaved(true);
+  };
+
+  /** «Удалить и исправить» (§5): delete созданной записи — возврат решит мутация. */
+  const handleDeleteFix = (): void => {
+    if (flagsDialog === null || deleteMutation.isPending) {
+      return;
+    }
+    deleteMutation.mutate({ id: flagsDialog.measurement.id });
+  };
 
   /** Цифра в поле + авто-переход по достижении 3 цифр (§13). */
   const handleDigit = (field: NumericField, digit: string): void => {
@@ -313,6 +395,16 @@ export function MeasurementForm({ onSuccess }: MeasurementFormProps): JSX.Elemen
         onBackspace={() => handleBackspace(activeField)}
         onClear={() => handleClear(activeField)}
       />
+
+      {/* TASK-032 §5: модальный поток «Проверьте значения» при флагах ответа add. */}
+      {flagsDialog !== null && (
+        <ConfirmFlagsDialog
+          open
+          flags={flagsDialog.flags}
+          onKeep={handleKeep}
+          onDeleteFix={handleDeleteFix}
+        />
+      )}
     </section>
   );
 }
