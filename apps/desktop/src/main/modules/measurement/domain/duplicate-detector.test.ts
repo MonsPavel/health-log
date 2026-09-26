@@ -24,7 +24,12 @@ const HOUR_MS = 3_600_000;
 const clockNow = new FixedClock(NOW_MS, TZ);
 
 /** Запись recent: момент utcMs (≤ «сейчас» Clock'а), рука — по умолчанию left. */
-const record = (sys: number, dia: number, utcMs: number, arm: 'left' | 'right' = 'left'): BpMeasurement =>
+const record = (
+  sys: number,
+  dia: number,
+  utcMs: number,
+  arm: 'left' | 'right' = 'left',
+): BpMeasurement =>
   unsafeUnwrap(
     BpMeasurement.create(
       {
@@ -96,15 +101,15 @@ describe('detectDuplicate — граничные кейсы окна (§19/§20)
 
 describe('detectDuplicate — совпадение значений (§19/§20)', () => {
   it('только dia совпал (sys другой) → false (§19)', () => {
-    expect(
-      detectDuplicate([record(120, 82, BASE_MS)], { sys: 128, dia: 82, utcMs: BASE_MS }),
-    ).toBe(false);
+    expect(detectDuplicate([record(120, 82, BASE_MS)], { sys: 128, dia: 82, utcMs: BASE_MS })).toBe(
+      false,
+    );
   });
 
   it('только sys совпал (dia другой) → false (§20)', () => {
-    expect(
-      detectDuplicate([record(128, 90, BASE_MS)], { sys: 128, dia: 82, utcMs: BASE_MS }),
-    ).toBe(false);
+    expect(detectDuplicate([record(128, 90, BASE_MS)], { sys: 128, dia: 82, utcMs: BASE_MS })).toBe(
+      false,
+    );
   });
 
   it('та же пара значений у другой руки (left → right) → true: рука игнорируется (задокументированное решение §13)', () => {
@@ -159,17 +164,26 @@ describe('Property-тесты (fast-check, §19)', () => {
 
   it('перестановка recent не меняет результат (some порядок-инвариантен, §15)', () => {
     fc.assert(
-      fc.property(historyArb, bpPair, fc.integer({ min: -5, max: 5 }), (pairs, candidate, offsetMin) => {
-        const recent = pairs.map(([sys, dia], i) => record(sys, dia, BASE_MS - (i + 1) * MINUTE_MS));
-        const permuted = permute(recent);
-        const candidateArg = {
-          sys: candidate[0],
-          dia: candidate[1],
-          utcMs: BASE_MS + offsetMin * MINUTE_MS,
-        };
+      fc.property(
+        historyArb,
+        bpPair,
+        fc.integer({ min: -5, max: 5 }),
+        (pairs, candidate, offsetMin) => {
+          const recent = pairs.map(([sys, dia], i) =>
+            record(sys, dia, BASE_MS - (i + 1) * MINUTE_MS),
+          );
+          const permuted = permute(recent);
+          const candidateArg = {
+            sys: candidate[0],
+            dia: candidate[1],
+            utcMs: BASE_MS + offsetMin * MINUTE_MS,
+          };
 
-        expect(detectDuplicate(permuted, candidateArg)).toBe(detectDuplicate(recent, candidateArg));
-      }),
+          expect(detectDuplicate(permuted, candidateArg)).toBe(
+            detectDuplicate(recent, candidateArg),
+          );
+        },
+      ),
     );
   });
 
