@@ -39,6 +39,9 @@ export default defineConfig({
       // TASK-034 §24: тест скрипта аудита размера packaged-артефактов (scripts .mjs,
       // чистые функции + прогон run() на tmp-dist).
       testProject('desktop-scripts', ['apps/desktop/scripts/**/*.test.mjs']),
+      // TASK-035 §19: юнит-тесты helpers E2E-слоя (node-окружение: fs/tmp — те же
+      // конвенции colocated-тестов, что и в src/main).
+      testProject('desktop-e2e', ['apps/desktop/tests/e2e/**/*.test.ts']),
     ],
   },
 });
