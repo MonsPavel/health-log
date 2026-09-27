@@ -34,16 +34,12 @@ import type { SettingsStorePort } from './ports/settings-store.js';
 export const PREFS_STORAGE_KEY = 'prefs';
 
 /**
- * §8: значения по умолчанию — источник правды. netConsents.updatesCheck = false —
- * приватность по умолчанию: сеть не включается без явного согласия (§14, TASK-075/099).
+ * §8: значения по умолчанию — источник правды. ВЫВОДЯТСЯ ИЗ СХЕМЫ (PREFS_SCHEMA
+ * несёт zod-дефолты — единственное место значений): parse({}) возвращает полный
+ * документ. netConsents.updatesCheck = false — приватность по умолчанию: сеть не
+ * включается без явного согласия (§14, TASK-075/099).
  */
-export const DEFAULT_PREFS: Prefs = {
-  theme: 'system',
-  textScale: '100',
-  dateFormat: 'auto',
-  advancedMode: false,
-  netConsents: { updatesCheck: false },
-};
+export const DEFAULT_PREFS: Prefs = PREFS_SCHEMA.parse({});
 
 /** Ключ i18n-каталога (`errors.internal`, contracts TASK-008) — defensive-ветка. */
 const APP_INTERNAL_MESSAGE_KEY = 'errors.internal';

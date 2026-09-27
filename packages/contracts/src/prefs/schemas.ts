@@ -29,15 +29,21 @@ export const DATE_FORMAT_SCHEMA = z.enum(['auto', 'dmy', 'mdy']);
  */
 export const NET_CONSENTS_SCHEMA = z.object({ updatesCheck: z.boolean() }).strict();
 
-/** §5: единый документ настроек (атомарное чтение/запись). */
+/**
+ * §5/§22: единый документ настроек (атомарное чтение/запись). Zod-дефолты в схеме —
+ * ЕДИНСТВЕННЫЙ источник значений по умолчанию (§8: DEFAULT_PREFS сервиса = parse({})):
+ * усечённый/старый документ (восстановление из копии до расширения схемы, §22)
+ * парсится с заполнением недостающего — безопасно, без сброса к чистым дефолтам.
+ */
 export const PREFS_SCHEMA = z
   .object({
-    theme: THEME_SCHEMA,
-    textScale: TEXT_SCALE_SCHEMA,
-    dateFormat: DATE_FORMAT_SCHEMA,
+    theme: THEME_SCHEMA.default('system'),
+    textScale: TEXT_SCALE_SCHEMA.default('100'),
+    dateFormat: DATE_FORMAT_SCHEMA.default('auto'),
     /** §5: крупный режим (TASK-048) — поле схемы уже, UI — своя задача. */
-    advancedMode: z.boolean(),
-    netConsents: NET_CONSENTS_SCHEMA,
+    advancedMode: z.boolean().default(false),
+    /** §14: согласие на сеть по умолчанию НЕ дано (приватность first). */
+    netConsents: NET_CONSENTS_SCHEMA.default({ updatesCheck: false }),
   })
   .strict();
 

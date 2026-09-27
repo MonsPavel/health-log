@@ -32,6 +32,11 @@ describe('PREFS_SCHEMA — документ настроек (§5)', () => {
     expect(PREFS_SCHEMA.parse(VALID_PREFS)).toEqual(VALID_PREFS);
   });
 
+  it('zod-дефолты: пустой/усечённый документ парсится с заполнением недостающего (§22)', () => {
+    expect(PREFS_SCHEMA.parse({})).toEqual(VALID_PREFS);
+    expect(PREFS_SCHEMA.parse({ theme: 'dark' })).toEqual({ ...VALID_PREFS, theme: 'dark' });
+  });
+
   it('все значения-enum принимаются по списку §5', () => {
     for (const theme of ['system', 'light', 'dark']) {
       expect(PREFS_SCHEMA.parse({ ...VALID_PREFS, theme })).toMatchObject({ theme });
