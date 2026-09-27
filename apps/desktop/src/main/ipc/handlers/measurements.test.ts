@@ -115,7 +115,9 @@ const listRecord = (
  * остаются в main-логе §18), err → AppError наружу (каркас TASK-008 конвертирует его
  * в ApiFailure(toDto)); NOT_FOUND и FUTURE_TIME проходят как есть.
  */
-const updatePayload = (overrides: Partial<MeasurementUpdateRequest> = {}): MeasurementUpdateRequest => ({
+const updatePayload = (
+  overrides: Partial<MeasurementUpdateRequest> = {},
+): MeasurementUpdateRequest => ({
   id: 'seed-id',
   sys: 120,
   dia: 80,
