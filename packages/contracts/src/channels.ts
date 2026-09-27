@@ -19,7 +19,8 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * Прикладные каналы: `домен/действие` (арх. 05 §2). `app/log-client-error` — каркасный
  * канал доставки клиентских ошибок в общий лог (TASK-011 §5/§11). Каналы журнала
  * измерений — TASK-028 §5/§11 (схемы — measurement/schemas.ts; хендлеры — TASK-029/030/037);
- * FTS-поиск заметок `notes/search` — TASK-045 §5/§11 (схемы — notes/schemas.ts).
+ * FTS-поиск заметок `notes/search` — TASK-045 §5/§11 (схемы — notes/schemas.ts);
+ * активная шкала `scales/active` — TASK-051 §5/§11 (схемы — scales.ts).
  */
 export type ChannelName =
   | 'app/ping'
@@ -30,7 +31,8 @@ export type ChannelName =
   | 'measurements/delete'
   | 'notes/search'
   | 'prefs/get'
-  | 'prefs/set';
+  | 'prefs/set'
+  | 'scales/active';
 
 /** Транспортный канал каркаса: не прикладной, в CHANNEL_SCHEMAS не входит. */
 export const HL_INVOKE_CHANNEL = 'hl:invoke';
