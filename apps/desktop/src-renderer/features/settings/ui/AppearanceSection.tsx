@@ -1,11 +1,11 @@
 /**
- * TASK-047 §5/§10/§13/§16/§17: секция «Вид» экрана настроек:
+ * TASK-047 §5/§10/§13/§16/§17 + TASK-049: секция «Вид» экрана настроек:
  *  - тема — радиогруппа system|light|dark (fieldset/legend + нативные радио —
  *    стрелки/checked — семантика скринридеров, §16; прецедент ArmSegment TASK-031);
  *  - размер текста — сегмент 100|112.5|125 (те же нативные радио; классы hl-text-*
- *    применяются ThemeProvider'ом немедленно — AC6, без перезапуска);
- *  - формат даты — select auto|dmy|mdy; рядом — живой пример через formatDateTime
- *    (§13: prefs-пресет расширяет утилиту TASK-013).
+ *    применяются ThemeProvider'ом немедленно — AC6, без перезапуска).
+ * Формат даты с TASK-049 — в секции «Продвинутые» (AdvancedSection): виден только
+ * при advancedMode=true, prefs сохраняются при скрытии (§13).
  *
  * Изменения уходят через usePreferences().setPreferences — optimistic (§10):
  * значение контрола берётся из prefs (main-источник), отказ мутации откатывает
@@ -16,7 +16,6 @@ import { useTranslation } from 'react-i18next';
 
 import type { Prefs, PrefsPatch } from '@hl/contracts';
 
-import { formatDateTime } from '../../../lib/i18n-date';
 import { usePreferences } from '../model/use-preferences';
 
 const THEMES: readonly { readonly value: Prefs['theme']; readonly labelKey: string }[] = [
@@ -30,18 +29,6 @@ const TEXT_SCALES: readonly { readonly value: Prefs['textScale']; readonly label
   { value: '112.5', labelKey: 'settings.appearance.textScale112' },
   { value: '125', labelKey: 'settings.appearance.textScale125' },
 ];
-
-const DATE_FORMATS: readonly {
-  readonly value: Prefs['dateFormat'];
-  readonly labelKey: string;
-}[] = [
-  { value: 'auto', labelKey: 'settings.appearance.dateFormatAuto' },
-  { value: 'dmy', labelKey: 'settings.appearance.dateFormatDmy' },
-  { value: 'mdy', labelKey: 'settings.appearance.dateFormatMdy' },
-];
-
-/** Детерминированный пример для превью формата даты (31 января 2026, настенное). */
-const PREVIEW_INSTANT = { utcMs: Date.UTC(2026, 0, 31, 12, 0), tzOffsetMin: 0 };
 
 /** Сегмент нативных радио (§16): общая форма для темы и масштаба. */
 function RadioGroup({
@@ -83,7 +70,7 @@ function RadioGroup({
   );
 }
 
-/** Секция «Вид» (§5): тема, размер текста, формат даты. */
+/** Секция «Вид» (§5): тема, размер текста. */
 export function AppearanceSection(): JSX.Element {
   const { t } = useTranslation();
   const { prefs, setPreferences } = usePreferences();
@@ -111,31 +98,6 @@ export function AppearanceSection(): JSX.Element {
           value={prefs?.textScale ?? '100'}
           onChange={(textScale) => patch({ textScale: textScale as Prefs['textScale'] })}
         />
-        <div>
-          <label htmlFor="date-format" className="block text-sm text-accent">
-            {t('settings.appearance.dateFormat')}
-          </label>
-          <select
-            id="date-format"
-            value={prefs?.dateFormat ?? 'auto'}
-            onChange={(event) => patch({ dateFormat: event.target.value as Prefs['dateFormat'] })}
-            className="mt-1 min-h-11 rounded-md border border-border bg-transparent px-3 py-2 text-base"
-          >
-            {DATE_FORMATS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {t(option.labelKey)}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-sm text-accent" data-testid="date-format-preview">
-            {t('settings.appearance.dateFormatPreview', {
-              example: formatDateTime(PREVIEW_INSTANT, {
-                preset: 'date',
-                dateFormat: prefs?.dateFormat ?? 'auto',
-              }),
-            })}
-          </p>
-        </div>
       </div>
       {/* §16/§10: отказ сохранения — aria-live, значение уже откатлено optimistic'ом. */}
       <p role="status" aria-live="polite" className="mt-3 text-sm text-red-600">

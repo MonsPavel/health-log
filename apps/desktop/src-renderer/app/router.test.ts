@@ -92,13 +92,18 @@ describe('AppRouter — маршруты (§5)', () => {
     expect(screen.getByRole('button', { name: 'Сохранить' })).not.toBeNull();
   });
 
-  it('#/settings: экран настроек (TASK-047) — заголовок и секция «Вид» с радиогруппой темы', async () => {
+  it('#/settings: экран настроек (TASK-047/049) — «Вид», переключатель «Простой режим»; формат даты скрыт (AC-1)', async () => {
     renderRouterAt('#/settings');
 
     expect(await screen.findByRole('heading', { name: 'Настройки' })).not.toBeNull();
     expect(screen.getByRole('group', { name: 'Тема' })).not.toBeNull();
     expect(screen.getByRole('group', { name: 'Размер текста' })).not.toBeNull();
-    expect(screen.getByLabelText('Формат даты')).not.toBeNull();
+    // TASK-049 §13: чистый запуск — простой режим включён (switch checked).
+    expect(screen.getByRole('switch', { name: 'Простой режим' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    // §5/§16: продвинутая секция (формат даты) отсутствует в DOM.
+    expect(screen.queryByLabelText('Формат даты')).toBeNull();
   });
 
   it('«/» перенаправляет на /dashboard', async () => {
