@@ -46,6 +46,7 @@ import { basename, join } from 'node:path';
 
 import { CHANNEL_SCHEMAS } from '@hl/contracts';
 import { AppError, SystemClock, type Clock } from '@hl/kernel';
+import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 
 import { createLogClientErrorHandler } from './app/global-errors.js';
 import { EventBus } from './events/event-bus.js';
@@ -58,7 +59,10 @@ import { createDeleteMeasurementHandler } from './ipc/handlers/measurements-dele
 import { createPingHandler } from './ipc/handlers/ping.js';
 import { createSearchNotesHandler } from './ipc/handlers/search.js';
 import { createGetPrefsHandler, createSetPrefsHandler } from './ipc/handlers/prefs.js';
+import { createGetActiveScaleHandler } from './ipc/handlers/scales.js';
 import { createChannelRegistry, type ChannelRegistry } from './ipc/register-channel.js';
+import { SqliteScaleRepository } from './modules/analytics/adapters/sqlite-scale-repository.js';
+import { ScaleService } from './modules/analytics/application/scale-service.js';
 import { SqliteBpMeasurementRepository } from './modules/measurement/adapters/sqlite-measurement-repository.js';
 import { NotesSearchAdapter } from './modules/measurement/adapters/notes-search.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
@@ -263,6 +267,14 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //      применение темы/масштаба, §10).
     const settingsStore = new SettingsStore(db, { clock, logger: dbLogger });
     const preferencesService = new PreferencesService({ store: settingsStore, events, logger });
+    //      TASK-051: ScaleService — активация данных пакета @hl/scales-data в
+    //      reference_scale v4 (идемпотентно, §5/§9) и чтение активной шкалы для
+    //      канала scales/active; кэш в памяти (§15).
+    const scaleRepo = new SqliteScaleRepository(db, { clock, logger: dbLogger });
+    const scaleService = new ScaleService({ repo: scaleRepo, logger, data: BP_OFFICE_ESC2018 });
+    // Активация — часть старта (§5): отказ STORAGE/* пробрасывается выше →
+    // глобальный хендлер TASK-011 (шкала критична, §7).
+    await scaleService.ensureActivated();
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -316,6 +328,13 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       'prefs/set',
       CHANNEL_SCHEMAS['prefs/set'],
       createSetPrefsHandler(preferencesService),
+    );
+    // TASK-051 §5/§11: scales/active — активная шкала в форме ActiveScale
+    // (статический между запусками; кэш рендерера staleTime Infinity, §11).
+    channels.register(
+      'scales/active',
+      CHANNEL_SCHEMAS['scales/active'],
+      createGetActiveScaleHandler(scaleService),
     );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
