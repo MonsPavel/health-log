@@ -52,7 +52,10 @@ export function DeleteConfirmDialog({
           data-testid="delete-confirm-dialog"
           className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg p-6 shadow-lg"
         >
-          <AlertDialog.Title data-testid="delete-confirm-title" className="text-lg font-semibold text-text">
+          <AlertDialog.Title
+            data-testid="delete-confirm-title"
+            className="text-lg font-semibold text-text"
+          >
             {target === null
               ? null
               : t('measurement.delete.title', {

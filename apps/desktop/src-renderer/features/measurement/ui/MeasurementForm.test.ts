@@ -603,13 +603,13 @@ describe('MeasurementForm — режим edit (TASK-038 §5/§10/§19/§20)', ()
     expect(sysInput().value).toBe('125');
     expect(diaInput().value).toBe('82');
     expect(pulseInput().value).toBe('70');
-    expect(
-      screen.getByRole<HTMLInputElement>('checkbox', { name: 'Неровный пульс' }).checked,
-    ).toBe(true);
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Неровный пульс' }).checked).toBe(
+      true,
+    );
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Левая' }).checked).toBe(true);
-    expect((screen.getByLabelText('Заметка') as HTMLTextAreaElement).value).toBe('утром');
-    expect((screen.getByLabelText('Дата') as HTMLInputElement).value).toBe('2026-09-24');
-    expect((screen.getByLabelText('Время') as HTMLInputElement).value).toBe('21:30');
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Заметка').value).toBe('утром');
+    expect(screen.getByLabelText<HTMLInputElement>('Дата').value).toBe('2026-09-24');
+    expect(screen.getByLabelText<HTMLInputElement>('Время').value).toBe('21:30');
   });
 
   it('режим add: заголовок-подсказка без editTitle (§10)', () => {
@@ -698,7 +698,7 @@ describe('MeasurementForm — режим edit (TASK-038 §5/§10/§19/§20)', ()
     await waitFor(() => expect(screen.queryByTestId('discard-edit-dialog')).toBeNull());
     expect(onCancel).not.toHaveBeenCalled();
     expect(useFormStore.getState().editingId).toBe('m-1');
-    expect((screen.getByLabelText('Заметка') as HTMLTextAreaElement).value).toBe('вечером');
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Заметка').value).toBe('вечером');
   });
 
   it('Esc при dirty → «Закрыть без сохранения»: onCancel, editingId null (§22)', async () => {

@@ -88,7 +88,11 @@ export interface MeasurementFormProps {
 const SAVED_TOAST_MS = 4000;
 
 /** Форма ввода измерения (§2); с TASK-038 — также редактор записи (§4). */
-export function MeasurementForm({ onSuccess, onEditSuccess, onCancel }: MeasurementFormProps): JSX.Element {
+export function MeasurementForm({
+  onSuccess,
+  onEditSuccess,
+  onCancel,
+}: MeasurementFormProps): JSX.Element {
   const { t } = useTranslation();
   const { showToast } = useToast();
 
@@ -362,19 +366,22 @@ export function MeasurementForm({ onSuccess, onEditSuccess, onCancel }: Measurem
       when: draft.when,
     };
     const editingIdNow = draft.editingId;
-    const result =
-      editingIdNow !== null
-        ? assembleUpdateRequest(draftInput, editingIdNow, Date.now())
-        : assembleAddRequest(draftInput, Date.now());
-    if (!result.ok) {
+    // Ветвь правки отдельно от add — точные типы запросов (MeasurementUpdateRequest).
+    if (editingIdNow !== null) {
+      const update = assembleUpdateRequest(draftInput, editingIdNow, Date.now());
+      if (!update.ok) {
+        setSubmitAttempted(true);
+        return;
+      }
+      updateMutation.mutate(update.request);
+      return;
+    }
+    const add = assembleAddRequest(draftInput, Date.now());
+    if (!add.ok) {
       setSubmitAttempted(true);
       return;
     }
-    if (editingIdNow !== null) {
-      updateMutation.mutate(result.request);
-    } else {
-      mutation.mutate(result.request);
-    }
+    mutation.mutate(add.request);
   };
 
   /** Числовое поле: readonly-ввод со скрытой клавиатурной обработкой (§5/§16). */

@@ -53,7 +53,9 @@ type Notice = 'deleted' | 'edited';
 const NOTICE_MS = 4000;
 
 /** Ключи заметок — литералы в карте (§22: динамических ключей нет, прецедент ARM_KEY). */
-const NOTICE_KEY: Readonly<Record<Notice, 'measurement.toast.deleted' | 'measurement.toast.edited'>> = {
+const NOTICE_KEY: Readonly<
+  Record<Notice, 'measurement.toast.deleted' | 'measurement.toast.edited'>
+> = {
   deleted: 'measurement.toast.deleted',
   edited: 'measurement.toast.edited',
 };
@@ -164,18 +166,15 @@ export function HistoryScreen(): JSX.Element {
    * TASK-038 §5/§12: меню строки — единственный стабильный колбэк (memo §15).
    * «Изменить» → startEdit(dto) + вид form; «Удалить» → диалог подтверждения.
    */
-  const handleRowAction = useCallback(
-    (measurement: MeasurementDto, action: 'edit' | 'delete') => {
-      if (action === 'edit') {
-        setEditTargetId(measurement.id);
-        useFormStore.getState().startEdit(measurement);
-        setView('form');
-        return;
-      }
-      setDeleteTarget(measurement);
-    },
-    [],
-  );
+  const handleRowAction = useCallback((measurement: MeasurementDto, action: 'edit' | 'delete') => {
+    if (action === 'edit') {
+      setEditTargetId(measurement.id);
+      useFormStore.getState().startEdit(measurement);
+      setView('form');
+      return;
+    }
+    setDeleteTarget(measurement);
+  }, []);
 
   /** TASK-038 §5: подтверждение удаления → measurements/delete (§12: invalidate в мутации). */
   const deleteMutation = useDeleteMeasurement({
@@ -183,11 +182,9 @@ export function HistoryScreen(): JSX.Element {
       setNotice('deleted');
       // Фокус-возврат (§16/§20 AC5) — ПОСЛЕ обновления списка: ожидаем refetch
       // инвалидации; удаляемый id исключается (строка может быть ещё в DOM).
-      void queryClient
-        .invalidateQueries({ queryKey: measurementsKey(PROFILE_ID) })
-        .then(() => {
-          focusRowMenu(deleteTarget?.id ?? null, deletedIdRef.current);
-        });
+      void queryClient.invalidateQueries({ queryKey: measurementsKey(PROFILE_ID) }).then(() => {
+        focusRowMenu(deleteTarget?.id ?? null, deletedIdRef.current);
+      });
     },
     // §13: NOT_FOUND — «запись уже удалена» (другой путь), иное — тост отказа (§10).
     onError: (error) => {

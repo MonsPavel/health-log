@@ -355,7 +355,11 @@ describe('HistoryScreen — правка и удаление (TASK-038 §5/§19/
     invoke = vi.fn((channel: string, payload: unknown) => {
       if (channel === 'measurements/update') {
         return Promise.resolve(
-          overrides.update ?? { v: 1, ok: true, data: { measurement: dto('m-updated', wallNoon(TODAY_KEY)) } },
+          overrides.update ?? {
+            v: 1,
+            ok: true,
+            data: { measurement: dto('m-updated', wallNoon(TODAY_KEY)) },
+          },
         );
       }
       if (channel === 'measurements/delete') {
@@ -401,9 +405,9 @@ describe('HistoryScreen — правка и удаление (TASK-038 §5/§19/
     await user.click(await screen.findByTestId('row-menu-edit'));
 
     expect(screen.getByTestId('form-title').textContent).toBe('Изменение записи');
-    expect((screen.getByTestId('input-sys') as HTMLInputElement).value).toBe('125');
-    expect((screen.getByTestId('input-dia') as HTMLInputElement).value).toBe('82');
-    expect((screen.getByTestId('input-pulse') as HTMLInputElement).value).toBe('70');
+    expect(screen.getByTestId<HTMLInputElement>('input-sys').value).toBe('125');
+    expect(screen.getByTestId<HTMLInputElement>('input-dia').value).toBe('82');
+    expect(screen.getByTestId<HTMLInputElement>('input-pulse').value).toBe('70');
     expect(screen.queryByTestId('measurement-row')).toBeNull();
   });
 
@@ -531,13 +535,9 @@ describe('HistoryScreen — правка и удаление (TASK-038 §5/§19/
     // Без перезагрузки: refetch после инвалидации вернул 2 записи (AC3).
     await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(2));
     expect(screen.queryByTestId('row-menu-m-evening')).toBeNull();
-    await waitFor(() =>
-      expect(screen.getByTestId('history-notice').textContent).toBe('Удалено'),
-    );
+    await waitFor(() => expect(screen.getByTestId('history-notice').textContent).toBe('Удалено'));
     // AC5: фокус в строке списка (ближайшая оставшаяся строка).
-    await waitFor(() =>
-      expect(document.activeElement?.hasAttribute('data-row-menu')).toBe(true),
-    );
+    await waitFor(() => expect(document.activeElement?.hasAttribute('data-row-menu')).toBe(true));
   });
 
   it('delete NOT_FOUND (§13) → тост «Запись уже удалена», диалог закрыт, список не тронут', async () => {

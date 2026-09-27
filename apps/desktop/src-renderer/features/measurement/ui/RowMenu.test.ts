@@ -18,7 +18,13 @@ afterEach(() => {
 
 describe('RowMenu — триггер (§16)', () => {
   it('кнопка ⋮: доступное имя, aria-haspopup="menu", data-row-menu для фокус-возврата', () => {
-    render(createElement(RowMenu, { measurementId: 'm-1', onEdit: () => undefined, onDelete: () => undefined }));
+    render(
+      createElement(RowMenu, {
+        measurementId: 'm-1',
+        onEdit: () => undefined,
+        onDelete: () => undefined,
+      }),
+    );
 
     const trigger = screen.getByRole('button', { name: 'Действия с записью' });
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu');
@@ -27,7 +33,13 @@ describe('RowMenu — триггер (§16)', () => {
   });
 
   it('закрытое меню пунктов не рендерит', () => {
-    render(createElement(RowMenu, { measurementId: 'm-1', onEdit: () => undefined, onDelete: () => undefined }));
+    render(
+      createElement(RowMenu, {
+        measurementId: 'm-1',
+        onEdit: () => undefined,
+        onDelete: () => undefined,
+      }),
+    );
 
     expect(screen.queryByTestId('row-menu-content')).toBeNull();
   });
@@ -36,7 +48,13 @@ describe('RowMenu — триггер (§16)', () => {
 describe('RowMenu — открытие и выбор (§5/§19)', () => {
   it('клик по триггеру открывает меню: «Изменить» и «Удалить»', async () => {
     const user = userEvent.setup();
-    render(createElement(RowMenu, { measurementId: 'm-1', onEdit: () => undefined, onDelete: () => undefined }));
+    render(
+      createElement(RowMenu, {
+        measurementId: 'm-1',
+        onEdit: () => undefined,
+        onDelete: () => undefined,
+      }),
+    );
 
     await user.click(screen.getByRole('button', { name: 'Действия с записью' }));
 
@@ -88,8 +106,6 @@ describe('RowMenu — открытие и выбор (§5/§19)', () => {
     expect(onEdit).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();
     // Радиофокус-возврат (§16): фокус вернулся в триггер строки.
-    await waitFor(() =>
-      expect(document.activeElement?.getAttribute('data-row-menu')).toBe('m-1'),
-    );
+    await waitFor(() => expect(document.activeElement?.getAttribute('data-row-menu')).toBe('m-1'));
   });
 });

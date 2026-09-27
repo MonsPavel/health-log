@@ -56,7 +56,9 @@ describe('assembleUpdateRequest — сборка payload update (§11: {id, …�
     expect(result.request.arm).toBe('right');
     expect(result.request.note).toBe('исправлено');
     // Настенные компоненты when сохранены в takenAt (offset устройства, §13).
-    const wall = new Date(result.request.takenAt.utcMs + result.request.takenAt.tzOffsetMin * 60_000);
+    const wall = new Date(
+      result.request.takenAt.utcMs + result.request.takenAt.tzOffsetMin * 60_000,
+    );
     expect([wall.getUTCFullYear(), wall.getUTCMonth() + 1, wall.getUTCDate()]).toEqual([
       2026, 9, 24,
     ]);
@@ -64,11 +66,7 @@ describe('assembleUpdateRequest — сборка payload update (§11: {id, …�
   });
 
   it('пустой пульс/заметка → поля опущены (optional §11)', () => {
-    const result = assembleUpdateRequest(
-      { ...VALID_DRAFT, pulse: '', note: '' },
-      'm-1',
-      NOW_MS,
-    );
+    const result = assembleUpdateRequest({ ...VALID_DRAFT, pulse: '', note: '' }, 'm-1', NOW_MS);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -172,7 +170,10 @@ describe('useUpdateMeasurement — useMutation поверх call (§11/§12)', (
   });
 
   it('отказ NOT_FOUND (запись уже удалена, §13) → onError получает AppErrorDto', async () => {
-    const dto = { code: 'MEASUREMENT/NOT_FOUND', messageKey: 'errors.MEASUREMENT_NOT_FOUND' } as const;
+    const dto = {
+      code: 'MEASUREMENT/NOT_FOUND',
+      messageKey: 'errors.MEASUREMENT_NOT_FOUND',
+    } as const;
     const invoke = vi.fn().mockResolvedValue({ v: 1, ok: false, error: dto });
     mockHl(invoke);
     const onError = vi.fn();
