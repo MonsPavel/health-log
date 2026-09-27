@@ -8,6 +8,7 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,6 +19,7 @@ import '../../../i18n';
 import { ToastProvider } from '../../../app/toast';
 import { PROFILE_ID } from '../api/use-add-measurement';
 import { HISTORY_PAGE_LIMIT } from '../api/use-measurements';
+import { useFormStore } from '../model/form-store';
 import { localDateKey, previousDayKey } from '../model/wall-date';
 import { HistoryScreen } from './HistoryScreen';
 
@@ -328,6 +330,236 @@ describe('HistoryScreen — live-обновление (§5/§10/§20)', () => {
 
     await waitFor(() => expect(screen.queryByTestId('input-sys')).toBeNull());
     await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(1));
+  });
+});
+
+describe('HistoryScreen — правка и удаление (TASK-038 §5/§19/§20)', () => {
+  /** Фикстура CRUD-тестов: 3 записи, desc (сегодня 2, вчера 1). */
+  function crudFixture(): MeasurementDto[] {
+    return [
+      dto('m-evening', wallNoon(TODAY_KEY)),
+      dto('m-morning', wallNoon(TODAY_KEY), { pulse: 70 }),
+      dto('m-yesterday', wallNoon(YESTERDAY_KEY)),
+    ];
+  }
+
+  /**
+   * Мост с маршрутизацией по каналам: list отдаёт текущее состояние rows,
+   * update/delete мутируются тестом напрямую (следующий refetch видит
+   * результат — «список обновился без перезагрузки», §20 AC1/AC3).
+   */
+  function mockCrudRoutes(
+    rows: MeasurementDto[],
+    overrides: { readonly update?: unknown; readonly delete?: unknown } = {},
+  ): void {
+    invoke = vi.fn((channel: string, payload: unknown) => {
+      if (channel === 'measurements/update') {
+        return Promise.resolve(
+          overrides.update ?? {
+            v: 1,
+            ok: true,
+            data: { measurement: dto('m-updated', wallNoon(TODAY_KEY)) },
+          },
+        );
+      }
+      if (channel === 'measurements/delete') {
+        return Promise.resolve(overrides.delete ?? { v: 1, ok: true, data: { deleted: true } });
+      }
+      void payload;
+      return Promise.resolve(LIST_OK({ items: [...rows], total: rows.length }));
+    });
+    Object.defineProperty(window, 'hl', {
+      configurable: true,
+      writable: true,
+      value: { invoke, on: vi.fn(() => () => undefined) },
+    });
+  }
+
+  beforeEach(() => {
+    useFormStore.getState().resetAll();
+  });
+
+  it('меню ⋮ в строке открывается: «Изменить» и «Удалить» (§19: меню открывается)', async () => {
+    const user = userEvent.setup();
+    const rows = crudFixture();
+    mockCrudRoutes(rows);
+    renderHistory();
+    await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(3));
+
+    await user.click(screen.getByTestId('row-menu-m-evening'));
+
+    await waitFor(() => expect(screen.getByTestId('row-menu-content')).toBeDefined());
+    expect(screen.getByTestId('row-menu-edit').textContent).toBe('Изменить');
+    expect(screen.getByTestId('row-menu-delete').textContent).toBe('Удалить');
+  });
+
+  it('«Изменить» → форма edit предзаполнена значениями записи, списка нет (§19)', async () => {
+    const user = userEvent.setup();
+    const rows = crudFixture();
+    mockCrudRoutes(rows);
+    renderHistory();
+    await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(3));
+
+    // m-morning — запись с пульсом 70 (фикстура).
+    await user.click(screen.getByTestId('row-menu-m-morning'));
+    await user.click(await screen.findByTestId('row-menu-edit'));
+
+    expect(screen.getByTestId('form-title').textContent).toBe('Изменение записи');
+    expect(screen.getByTestId<HTMLInputElement>('input-sys').value).toBe('125');
+    expect(screen.getByTestId<HTMLInputElement>('input-dia').value).toBe('82');
+    expect(screen.getByTestId<HTMLInputElement>('input-pulse').value).toBe('70');
+    expect(screen.queryByTestId('measurement-row')).toBeNull();
+  });
+
+  it('отмена правки (Esc) → список, запись на месте, фокус вернулся в строку (§20 AC2/AC5)', async () => {
+    const user = userEvent.setup();
+    const rows = crudFixture();
+    mockCrudRoutes(rows);
+    renderHistory();
+    await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(3));
+
+    await user.click(screen.getByTestId('row-menu-m-evening'));
+    await user.click(await screen.findByTestId('row-menu-edit'));
+    fireEvent.keyDown(screen.getByTestId('measurement-form'), { key: 'Escape' });
+
+    await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(3));
+    expect(useFormStore.getState().editingId).toBeNull();
+    // AC5: фокус возвращается в строку списка (кнопке меню той же записи).
+    await waitFor(() =>
+      expect(document.activeElement?.getAttribute('data-row-menu')).toBe('m-evening'),
+    );
+  });
+
+  it('правка 125→127: update-канал с id, список показывает 127 без перезагрузки, тост (§20 AC1)', async () => {
+    const user = userEvent.setup();
+    const rows = crudFixture();
+    // update мутирует состояние rows — следующий refetch вернёт 127 (без перезагрузки).
+    invoke = vi.fn((channel: string) => {
+      if (channel === 'measurements/update') {
+        const first = rows[0];
+        const updated: MeasurementDto =
+          first === undefined ? dto('m-evening', wallNoon(TODAY_KEY)) : { ...first, sys: 127 };
+        if (first !== undefined) {
+          rows[0] = updated;
+        }
+        return Promise.resolve({ v: 1, ok: true, data: { measurement: updated } });
+      }
+      return Promise.resolve(LIST_OK({ items: [...rows], total: rows.length }));
+    });
+    Object.defineProperty(window, 'hl', {
+      configurable: true,
+      writable: true,
+      value: { invoke, on: vi.fn(() => () => undefined) },
+    });
+    renderHistory();
+    await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(3));
+
+    await user.click(screen.getByTestId('row-menu-m-evening'));
+    await user.click(await screen.findByTestId('row-menu-edit'));
+    fireEvent.click(screen.getByRole('button', { name: 'Очистить поле' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 7' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        'measurements/update',
+        expect.objectContaining({ id: 'm-evening', sys: 127, dia: 82 }),
+      ),
+    );
+    // Список обновился без перезагрузки: мутированный refetch вернул 127 (AC1).
+    await waitFor(() => expect(screen.getByText('127/82')).toBeDefined());
+    expect(screen.queryByTestId('input-sys')).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByTestId('history-notice').textContent).toBe('Правка применена'),
+    );
+    // Порядок не изменился: правленая запись осталась в своей группе первой (AC1).
+    expect(
+      screen
+        .getAllByTestId('measurement-row')[0]
+        ?.querySelector('[data-row-menu]')
+        ?.getAttribute('data-row-menu'),
+    ).toBe('m-evening');
+  });
+
+  it('«Удалить» → диалог с датой/временем записи; «Отмена» — запись на месте (§20 AC3)', async () => {
+    const user = userEvent.setup();
+    const rows = crudFixture();
+    mockCrudRoutes(rows);
+    renderHistory();
+    await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(3));
+
+    await user.click(screen.getByTestId('row-menu-m-evening'));
+    await user.click(await screen.findByTestId('row-menu-delete'));
+
+    const title = screen.getByTestId('delete-confirm-title');
+    expect(title.textContent).toContain('Удалить запись от');
+    expect(title.textContent).toContain('12:00'); // wallNoon — настенное время записи
+    expect(screen.getByTestId('delete-confirm-body').textContent).toContain('необратимо');
+
+    fireEvent.click(screen.getByTestId('delete-cancel'));
+
+    await waitFor(() => expect(screen.queryByTestId('delete-confirm-dialog')).toBeNull());
+    expect(screen.getAllByTestId('measurement-row')).toHaveLength(3);
+    expect(invoke.mock.calls.some(([channel]) => channel === 'measurements/delete')).toBe(false);
+  });
+
+  it('«Удалить» в диалоге → measurements/delete {id}, запись исчезла, тост «Удалено» (§5/§20 AC3)', async () => {
+    const user = userEvent.setup();
+    const rows = crudFixture();
+    invoke = vi.fn((channel: string, payload: unknown) => {
+      if (channel === 'measurements/delete') {
+        const id = (payload as { id: string }).id;
+        const index = rows.findIndex((row) => row.id === id);
+        rows.splice(index, 1);
+        return Promise.resolve({ v: 1, ok: true, data: { deleted: true } });
+      }
+      return Promise.resolve(LIST_OK({ items: [...rows], total: rows.length }));
+    });
+    Object.defineProperty(window, 'hl', {
+      configurable: true,
+      writable: true,
+      value: { invoke, on: vi.fn(() => () => undefined) },
+    });
+    renderHistory();
+    await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(3));
+
+    await user.click(screen.getByTestId('row-menu-m-evening'));
+    await user.click(await screen.findByTestId('row-menu-delete'));
+    fireEvent.click(screen.getByTestId('delete-confirm'));
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('measurements/delete', { id: 'm-evening' }),
+    );
+    // Без перезагрузки: refetch после инвалидации вернул 2 записи (AC3).
+    await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(2));
+    expect(screen.queryByTestId('row-menu-m-evening')).toBeNull();
+    await waitFor(() => expect(screen.getByTestId('history-notice').textContent).toBe('Удалено'));
+    // AC5: фокус в строке списка (ближайшая оставшаяся строка).
+    await waitFor(() => expect(document.activeElement?.hasAttribute('data-row-menu')).toBe(true));
+  });
+
+  it('delete NOT_FOUND (§13) → тост «Запись уже удалена», диалог закрыт, список не тронут', async () => {
+    const user = userEvent.setup();
+    const rows = crudFixture();
+    mockCrudRoutes(rows, {
+      delete: {
+        v: 1,
+        ok: false,
+        error: { code: 'MEASUREMENT/NOT_FOUND', messageKey: 'errors.MEASUREMENT_NOT_FOUND' },
+      },
+    });
+    renderHistory();
+    await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(3));
+
+    await user.click(screen.getByTestId('row-menu-m-evening'));
+    await user.click(await screen.findByTestId('row-menu-delete'));
+    fireEvent.click(screen.getByTestId('delete-confirm'));
+
+    await waitFor(() => expect(screen.getByText('Запись уже удалена')).toBeDefined());
+    await waitFor(() => expect(screen.queryByTestId('delete-confirm-dialog')).toBeNull());
+    expect(screen.getAllByTestId('measurement-row')).toHaveLength(3);
   });
 });
 

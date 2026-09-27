@@ -7,14 +7,18 @@
  */
 import { useTranslation } from 'react-i18next';
 
+import type { MeasurementDto } from '@hl/contracts';
+
 import { formatDateTime } from '../../../lib/i18n-date';
 import { dayKind, type MeasurementDayGroup } from '../model/wall-date';
 import { MeasurementRow } from './MeasurementRow';
 
-/** Props группы: данные дня + «сейчас» экрана (§13). */
+/** Props группы: данные дня + «сейчас» экрана (§13); TASK-038: меню строк. */
 export interface DayGroupProps {
   readonly group: MeasurementDayGroup;
   readonly nowMs: number;
+  /** TASK-038 §5: меню действий строк — прозрачный колбэк от экрана (§15). */
+  readonly onRowAction?: (measurement: MeasurementDto, action: 'edit' | 'delete') => void;
 }
 
 /** Заголовок дня: относительные имена для сегодня/вчера, иначе — дата Intl (§17). */
@@ -30,7 +34,7 @@ function useDayTitle(group: MeasurementDayGroup, nowMs: number): string {
 }
 
 /** Группа дня журнала (§16: ul по дням → li, заголовки — h3). */
-export function DayGroup({ group, nowMs }: DayGroupProps): JSX.Element {
+export function DayGroup({ group, nowMs, onRowAction }: DayGroupProps): JSX.Element {
   const title = useDayTitle(group, nowMs);
 
   return (
@@ -38,7 +42,11 @@ export function DayGroup({ group, nowMs }: DayGroupProps): JSX.Element {
       <h3 className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">{title}</h3>
       <ul className="divide-y divide-neutral-200 dark:divide-neutral-700">
         {group.items.map((measurement) => (
-          <MeasurementRow key={measurement.id} measurement={measurement} />
+          <MeasurementRow
+            key={measurement.id}
+            measurement={measurement}
+            onRowAction={onRowAction}
+          />
         ))}
       </ul>
     </section>
