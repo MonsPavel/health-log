@@ -16,14 +16,13 @@
  * Флаг critical проставлен вручную по таблице TASK-020 §13 (180/120 high,
  * 90/60 low, границы включительно) — так боевую точку готовит адаптер порта.
  */
-import { Instant, type Instant } from '@hl/kernel';
+import { Instant } from '@hl/kernel';
 
 import type { PeriodStatistics, PartStats, ValueStats } from '../period-statistics.js';
 import type { MeasurementPoint } from '../ports/measurement-points.js';
 
 /** Пояс всех фикстур (фиксированный, без DST — настенное время воспроизводимо). */
 export const FIXTURE_TZ_ISO = '+03:00';
-const FIXTURE_TZ_OFFSET_MIN = 180;
 
 /** Точка периода из настенного времени (детерминизм NFR-10; offset хранится в точке). */
 export function point(
