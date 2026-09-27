@@ -240,6 +240,42 @@ describe('HistoryScreen — данные и группировка (§5/§13/§1
   });
 });
 
+describe('HistoryScreen — легенда флагов (TASK-042 §5)', () => {
+  it('есть запись с флагом (critical) → легенда над списком (flag-legend)', async () => {
+    invoke.mockResolvedValue(
+      LIST_OK({
+        items: [dto('m-high', wallNoon(TODAY_KEY), { sys: 190, dia: 125, critical: 'high' })],
+        total: 1,
+      }),
+    );
+    renderHistory();
+
+    await waitFor(() => expect(screen.getAllByTestId('day-group')).toHaveLength(1));
+
+    expect(screen.getByTestId('flag-legend')).toBeDefined();
+  });
+
+  it('есть запись с irregularPulse → легенда тоже показывается (§5: хоть один флаг)', async () => {
+    invoke.mockResolvedValue(
+      LIST_OK({ items: [dto('m-irr', wallNoon(TODAY_KEY), { irregularPulse: true })], total: 1 }),
+    );
+    renderHistory();
+
+    await waitFor(() => expect(screen.getAllByTestId('day-group')).toHaveLength(1));
+
+    expect(screen.getByTestId('flag-legend')).toBeDefined();
+  });
+
+  it('все записи без флагов → легенды нет (§5: только при наличии хоть одного флага)', async () => {
+    invoke.mockResolvedValue(LIST_OK({ items: [dto('m-plain', wallNoon(TODAY_KEY))], total: 1 }));
+    renderHistory();
+
+    await waitFor(() => expect(screen.getAllByTestId('day-group')).toHaveLength(1));
+
+    expect(screen.queryByTestId('flag-legend')).toBeNull();
+  });
+});
+
 describe('HistoryScreen — «Показать ещё» (§5/§10/§20)', () => {
   it('страница 200 из 201: подпись точна, клик → offset=200, затем кнопка скрыта', async () => {
     const page = (from: number, to: number): MeasurementDto[] =>

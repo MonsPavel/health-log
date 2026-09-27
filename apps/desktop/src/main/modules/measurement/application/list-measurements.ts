@@ -36,6 +36,7 @@ import { performance } from 'node:perf_hooks';
 
 import type { MeasurementDto } from '@hl/contracts';
 
+import { assessCritical } from '../domain/critical-value-policy.js';
 import type {
   BpMeasurementRepository,
   MeasurementQuery,
@@ -108,12 +109,22 @@ export class ListMeasurementsUseCase {
     ]);
 
     // 4. Маппинг DTO (§7): плоская форма канала; опционалы — только при наличии.
+    //    critical (TASK-042 §9): server-computed политика TASK-020 поверх DTO —
+    //    единый источник истины main (renderer правило не дублирует, §4); ключ
+    //    включается только при флаге — чистая форма по проводам (TASK-028 §7).
     // 5. Лог (§18): длительность и total — без значений (PHI).
     this.deps.logger.debug('listMeasurements', {
       durationMs: Math.round(performance.now() - startedAtMs),
       total,
     });
 
-    return { items: items.map(toMeasurementDto), total };
+    return {
+      items: items.map((m) => {
+        const dto = toMeasurementDto(m);
+        const critical = assessCritical(m.bp.sys, m.bp.dia);
+        return critical === undefined ? dto : { ...dto, critical };
+      }),
+      total,
+    };
   }
 }

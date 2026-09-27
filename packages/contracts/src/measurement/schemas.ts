@@ -135,6 +135,12 @@ export const MEASUREMENT_DELETE_REQUEST_SCHEMA = z.object({ id: MeasurementIdSch
  * (bp расплющен в sys/dia, takenAt — в takenAtUtcMs/tzOffsetMin). DTO ≠ агрегат:
  * маппинг — в main (адаптер контракта), renderer агрегат не видит. source —
  * MeasurementSource агрегата (TASK-017).
+ *
+ * critical (TASK-042 §5/§7) — аддитивное server-computed поле (конверт v не
+ * меняется, арх. 05 §6): результат политики TASK-020 assessCritical(sys, dia),
+ * проставляется list-хендлером main; optional — DTO без ключа (старые
+ * производители/потребители) остаётся валидным. Писать его со стороны renderer
+ * нельзя — источник истины один (main, §4).
  */
 export const MEASUREMENT_DTO_SCHEMA = z
   .object({
@@ -151,6 +157,7 @@ export const MEASUREMENT_DTO_SCHEMA = z
     source: z.enum(['manual', 'import']),
     createdAtUtcMs: z.number().int(),
     updatedAtUtcMs: z.number().int(),
+    critical: z.enum(['high', 'low']).optional(),
   })
   .strict();
 
