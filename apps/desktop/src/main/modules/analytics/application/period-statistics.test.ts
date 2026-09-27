@@ -5,14 +5,29 @@
 // (AC §20), delta только при обеих частях (§13), property-тесты fast-check:
 // перестановка записей не меняет агрегаты, добавление записи не уменьшает count/дни,
 // NaN-свобода (§19). Сборщик — чистая функция над точками порта (§9).
+// TASK-053 §5: интеграция классификатора — опциональный параметр шкалы (аддитивно:
+// без шкалы поля classification нет), поле заполняется на фикстурах (b)/(d)/(a);
+// insufficientData (пороги kernel) → средние подаются классификатору как undefined.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
 import { AI_MIN_DAYS, AI_MIN_MEASUREMENTS } from '@hl/kernel';
+import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 
+import { INSUFFICIENT_DATA_NOTE_TEXT } from '../domain/classifier.js';
 import { GOLDEN_FIXTURES, point } from './__fixtures__/periods.js';
 import { buildPeriodStatistics } from './period-statistics.js';
 import type { MeasurementPoint } from './ports/measurement-points.js';
+import type { GoldenFixture } from './__fixtures__/periods.js';
+
+/** Golden-фикстура по префиксу имени (без non-null assertion; ошибка — явный throw). */
+function fixture(namePrefix: string): GoldenFixture {
+  const found = GOLDEN_FIXTURES.find((f) => f.name.startsWith(namePrefix));
+  if (found === undefined) {
+    throw new Error(`golden-фикстура ${namePrefix} не найдена`);
+  }
+  return found;
+}
 
 /** Пути до NaN в структуре (AC §20 п. 2: пустой период без NaN). */
 function nanPaths(value: unknown, path = '$'): string[] {
@@ -183,10 +198,63 @@ describe('buildPeriodStatistics — критические значения и �
     expect(buildPeriodStatistics([later, earlier]).lastMeasurementUtcMs).toBe(later.takenAt.utcMs);
     expect(buildPeriodStatistics([earlier, later]).lastMeasurementUtcMs).toBe(later.takenAt.utcMs);
   });
+});
 
-  it('scaleCategories — резерв TASK-053: поле не проставляется сборщиком (§5)', () => {
+describe('buildPeriodStatistics — classification (TASK-053 §5, аддитивно)', () => {
+  it('без шкалы поля classification нет (расширение вызова аддитивно, §5)', () => {
     const stats = buildPeriodStatistics([point('2026-05-01', '07:00', 120, 80)]);
-    expect('scaleCategories' in stats).toBe(false);
+    expect('classification' in stats).toBe(false);
+  });
+
+  it('фикстура (b) onlyMorning + шкала → classification заполнена: мало данных → без категории (AC §20 п. 5)', () => {
+    const stats = buildPeriodStatistics(fixture('onlyMorning').points(), BP_OFFICE_ESC2018);
+    expect(stats.insufficientData.tooFewMeasurements).toBe(true);
+    expect(stats.classification).toEqual({
+      category: undefined,
+      notes: [{ kind: 'insufficientData', text: INSUFFICIENT_DATA_NOTE_TEXT }],
+    });
+  });
+
+  it('фикстура (a) classic30 + шкала → normal + обе заметки (округлённые avg 121.5/80.8 — как есть, §13)', () => {
+    const stats = buildPeriodStatistics(fixture('classic30').points(), BP_OFFICE_ESC2018);
+    expect(stats.classification?.category?.code).toBe('normal');
+    expect(stats.classification?.notes).toEqual([
+      { kind: 'homeBP', text: BP_OFFICE_ESC2018.homeBPNote },
+      { kind: 'specialGroups', text: BP_OFFICE_ESC2018.specialGroupsNote },
+    ]);
+  });
+
+  it('фикстура (d) threeRecords (3 записи) → category undefined + note insufficientData (AC §20 п. 3)', () => {
+    const stats = buildPeriodStatistics(fixture('threeRecords').points(), BP_OFFICE_ESC2018);
+    expect(stats.insufficientData).toEqual({ tooFewMeasurements: true, tooFewDays: true });
+    expect(stats.classification).toEqual({
+      category: undefined,
+      notes: [{ kind: 'insufficientData', text: INSUFFICIENT_DATA_NOTE_TEXT }],
+    });
+  });
+
+  it('пустой период + шкала → insufficientData-note без категории (обе tooFew true)', () => {
+    const stats = buildPeriodStatistics([], BP_OFFICE_ESC2018);
+    expect(stats.classification).toEqual({
+      category: undefined,
+      notes: [{ kind: 'insufficientData', text: INSUFFICIENT_DATA_NOTE_TEXT }],
+    });
+  });
+
+  it('ровно пороги kernel (7 измерений, 3 дня) → категория появляется (граница включительно)', () => {
+    const points = [
+      point('2026-05-01', '07:00', 120, 80),
+      point('2026-05-01', '20:00', 122, 81),
+      point('2026-05-01', '21:00', 121, 80),
+      point('2026-05-02', '07:00', 119, 79),
+      point('2026-05-02', '20:00', 123, 82),
+      point('2026-05-03', '07:00', 120, 80),
+      point('2026-05-03', '20:00', 121, 81),
+    ];
+    const stats = buildPeriodStatistics(points, BP_OFFICE_ESC2018);
+    expect(stats.insufficientData).toEqual({ tooFewMeasurements: false, tooFewDays: false });
+    // avg 120.9/80.4 → normal.
+    expect(stats.classification?.category?.code).toBe('normal');
   });
 });
 

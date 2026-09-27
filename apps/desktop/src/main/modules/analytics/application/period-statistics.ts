@@ -15,11 +15,19 @@
  * структура count=0 без NaN (§9, AC §20 п. 2). Округление avg/sd до 1 знака — §7,
  * делает домен (stats-math.summarize).
  *
- * scaleCategories — резерв TASK-053 (§5): поле объявлено в структуре, сборщик его
- * НЕ заполняет (классификация средних — отдельная задача, место зарезервировано).
+ * scaleCategories — резерв TASK-053 (§5): с TASK-053 заменён типизированным полем
+ * classification (категория «худшая из двух» + обязательные заметки FR-4.2): опциональный
+ * параметр шкалы (расширение вызова аддитивно — без шкалы поля нет), insufficientData
+ * (пороги kernel) → средние подаются классификатору как undefined → категория undefined
+ * + note insufficientData (§13).
  */
 import { AI_MIN_DAYS, AI_MIN_MEASUREMENTS } from '@hl/kernel';
 
+import {
+  classify,
+  type Classification,
+  type ScaleForClassification,
+} from '../domain/classifier.js';
 import { splitByDayPart } from '../domain/day-part.js';
 import { regularity } from '../domain/regularity.js';
 import {
@@ -72,8 +80,13 @@ export interface PeriodStatistics {
     readonly tooFewMeasurements: boolean;
     readonly tooFewDays: boolean;
   };
-  /** Резерв TASK-053: распределение средних по категориям шкалы — здесь не заполняется (§5). */
-  readonly scaleCategories?: unknown;
+  /**
+   * Классификация средних по активной шкале (TASK-053 §5): категория «худшая из
+   * двух» + ОБЕ заметки FR-4.2; insufficientData (пороги kernel) → категория
+   * undefined + note insufficientData (§13). Шкала не передана → поля нет
+   * (аддитивное расширение вызова).
+   */
+  readonly classification?: Classification;
 }
 
 /**
@@ -103,9 +116,16 @@ function partAverages(part: PartStats): BpAverages {
 
 /**
  * Собирает PeriodStatistics из сырых точек периода (§7). Чистая функция: результат
- * зависит только от аргумента, порядок точек не влияет (§19 property-тесты).
+ * зависит только от аргументов, порядок точек не влияет (§19 property-тесты).
+ * Шкала (TASK-053 §5) опциональна: передана → собранные средние классифицируются;
+ * при insufficientData (хотя бы один порог kernel поднят — единое правило EC-09)
+ * в classify уходят undefined вместо средних — пороги kernel не дублируются в
+ * классификаторе (§13: единый источник).
  */
-export function buildPeriodStatistics(points: readonly MeasurementPoint[]): PeriodStatistics {
+export function buildPeriodStatistics(
+  points: readonly MeasurementPoint[],
+  scale?: ScaleForClassification,
+): PeriodStatistics {
   const sysValues = points.map((point) => point.sys);
   const diaValues = points.map((point) => point.dia);
   const pulseValues = points.flatMap((point) => (point.pulse === undefined ? [] : [point.pulse]));
@@ -123,6 +143,11 @@ export function buildPeriodStatistics(points: readonly MeasurementPoint[]): Peri
   const days = regularity(points.map((point) => point.takenAt));
   const lastMeasurementUtcMs = max(points.map((point) => point.takenAt.utcMs));
 
+  const insufficientData = {
+    tooFewMeasurements: points.length < AI_MIN_MEASUREMENTS,
+    tooFewDays: days.daysWithMeasurements < AI_MIN_DAYS,
+  };
+
   const statistics: PeriodStatistics = {
     count: points.length,
     sys: summarize(sysValues),
@@ -135,12 +160,25 @@ export function buildPeriodStatistics(points: readonly MeasurementPoint[]): Peri
     critical: criticalPeriodFlag(points.map((point) => point.critical)),
     daysWithMeasurements: days.daysWithMeasurements,
     longestStreakDays: days.longestStreakDays,
-    insufficientData: {
-      tooFewMeasurements: points.length < AI_MIN_MEASUREMENTS,
-      tooFewDays: days.daysWithMeasurements < AI_MIN_DAYS,
-    },
+    insufficientData,
   };
 
+  // TASK-053 §5: шкала не передана → классификации нет (аддитивность); передана —
+  // округлённые avg подаются как есть (§13), при insufficientData — как undefined.
+  const insufficient = insufficientData.tooFewMeasurements || insufficientData.tooFewDays;
+  const classification =
+    scale === undefined
+      ? undefined
+      : classify(
+          insufficient ? undefined : statistics.sys.avg,
+          insufficient ? undefined : statistics.dia.avg,
+          scale,
+        );
+  const withClassification =
+    classification === undefined ? statistics : { ...statistics, classification };
+
   // Пустой период — поля нет вовсе (§7: lastMeasurementUtcMs? — опционально).
-  return lastMeasurementUtcMs === undefined ? statistics : { ...statistics, lastMeasurementUtcMs };
+  return lastMeasurementUtcMs === undefined
+    ? withClassification
+    : { ...withClassification, lastMeasurementUtcMs };
 }
