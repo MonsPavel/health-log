@@ -49,7 +49,7 @@
 | TASK-041 | done | | смержена |
 | TASK-042 | done | | смержена |
 | TASK-043 | done | | смержена |
-| TASK-044 | todo | | |
+| TASK-044 | done | | смержена |
 | TASK-045 | todo | | |
 | TASK-046 | todo | | |
 | TASK-047 | todo | | |
