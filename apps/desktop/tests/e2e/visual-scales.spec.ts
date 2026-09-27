@@ -151,7 +151,7 @@ test.describe('visual-матрица масштабов текста (TASK-048 �
         await applyAppearanceViaSettings(window, theme, scale);
 
         for (const route of ROUTES) {
-          await test.step(route.path, async () => {
+          await test.step(route, async () => {
             await window.getByRole('link', { name: labelOf(route) }).click();
             await expect(readyLocator(window, route)).toBeVisible();
             await expect(window).toHaveScreenshot(screenshotName(route, theme, scale), {
@@ -172,11 +172,8 @@ test.describe('visual-матрица масштабов текста (TASK-048 �
     const window = await app.firstWindow();
     await expect(window).toHaveTitle('Health Log');
 
-    const scale125 = SCALES[2];
-    if (scale125 === undefined) {
-      throw new Error('пресет 125 отсутствует в матрице');
-    }
-    await applyAppearanceViaSettings(window, THEMES[0]!, scale125);
+    // Пресеты матрицы фиксированы: индексы 2 (125%) и 0 (light) существуют всегда.
+    await applyAppearanceViaSettings(window, THEMES[0], SCALES[2]);
 
     await window.getByRole('link', { name: 'Журнал' }).click();
     const empty = window.getByTestId('empty-history');
