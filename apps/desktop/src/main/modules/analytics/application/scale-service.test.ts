@@ -24,19 +24,6 @@ import { AppError } from '@hl/kernel';
 import type { ScaleRecord, ScaleRecordInput, ScaleRepository } from './ports/scale-repository.js';
 import { ScaleService } from './scale-service.js';
 
-/** Тикающие часы: активации получают разные моменты (§13: max activated_at_utc). */
-const makeClock = (): { nowMs: () => number; tzOffsetMin: () => number } => {
-  let current = 1_758_816_000_000;
-  return {
-    nowMs: () => {
-      const value = current;
-      current += 1;
-      return value;
-    },
-    tzOffsetMin: () => 180,
-  };
-};
-
 /** Записи лога по уровням (§18-проверки). */
 type LogEntry = { level: 'info' | 'warn' | 'error'; message: string; meta?: Record<string, unknown> };
 
@@ -82,7 +69,6 @@ const makeService = (
   const logs: LogEntry[] = [];
   const service = new ScaleService({
     repo,
-    clock: makeClock(),
     logger: {
       info: (message, meta) => logs.push({ level: 'info', message, meta }),
       warn: (message, meta) => logs.push({ level: 'warn', message, meta }),
@@ -119,7 +105,6 @@ describe('ScaleService.ensureActivated — активация при старт�
     // Тот же репозиторий, «второй запуск» — новый экземпляр сервиса (перезапуск приложения).
     const second = new ScaleService({
       repo,
-      clock: makeClock(),
       logger: {
         info: (message, meta) => logs.push({ level: 'info', message, meta }),
         warn: () => {},
@@ -143,21 +128,31 @@ describe('ScaleService.ensureActivated — активация при старт�
       ?.activatedAtUtc;
     expect(oldActivatedAt).not.toBeNull();
 
-    const upgraded = makeService({ ...BP_OFFICE_ESC2018, version: '1.1.0' });
-    await upgraded.service.ensureActivated();
+    // Тот же репозиторий, данные пакета обновились до 1.1.0 (перезапуск с новой версией).
+    const upgradedLogs: LogEntry[] = [];
+    const upgraded = new ScaleService({
+      repo,
+      logger: {
+        info: (message, meta) => upgradedLogs.push({ level: 'info', message, meta }),
+        warn: () => {},
+        error: () => {},
+      },
+      data: { ...BP_OFFICE_ESC2018, version: '1.1.0' },
+    });
+    await upgraded.ensureActivated();
 
     // Новая версия записана и активирована.
-    expect(upgraded.repo.inserts).toHaveLength(1);
-    expect(upgraded.repo.inserts[0]?.version).toBe('1.1.0');
-    const active = await upgraded.repo.findActiveByCode('bp_office_esc2018');
+    expect(repo.inserts).toHaveLength(2);
+    expect(repo.inserts[1]?.version).toBe('1.1.0');
+    const active = await repo.findActiveByCode('bp_office_esc2018');
     expect(active?.version).toBe('1.1.0');
 
     // Старая версия — в истории, момент активации НЕ обнулён (правило §13).
-    const history = [...upgraded.repo.rows.values()].filter((row) => row.version === '1.0.0');
+    const history = [...repo.rows.values()].filter((row) => row.version === '1.0.0');
     expect(history).toHaveLength(1);
     expect(history[0]?.activatedAtUtc).toEqual(oldActivatedAt);
 
-    expect(upgraded.logs).toContainEqual(
+    expect(upgradedLogs).toContainEqual(
       expect.objectContaining({
         level: 'info',
         message: 'scale activated',
