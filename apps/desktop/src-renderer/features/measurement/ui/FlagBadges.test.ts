@@ -97,7 +97,9 @@ describe('FlagBadges — a11y-атрибуты (§16/§20)', () => {
     renderBadges(HIGH);
 
     const badge = screen.getByTestId('flag-critical');
-    expect(badge.getAttribute('aria-label')).toBe('Критическое значение: 190 на 125. Что это значит?');
+    expect(badge.getAttribute('aria-label')).toBe(
+      'Критическое значение: 190 на 125. Что это значит?',
+    );
     expect(badge.getAttribute('title')).toBe(badge.getAttribute('aria-label'));
   });
 
@@ -141,7 +143,9 @@ describe('FlagBadges — клик бейджа открывает CriticalPanel 
     await user.click(screen.getByTestId('flag-critical'));
 
     const panel = await screen.findByTestId('critical-panel');
-    expect(panel.textContent).toContain('Давление 190/125 может указывать на гипертонический криз.');
+    expect(panel.textContent).toContain(
+      'Давление 190/125 может указывать на гипертонический криз.',
+    );
     expect(panel.textContent).toContain('Немедленно обратитесь за медицинской помощью.');
   });
 

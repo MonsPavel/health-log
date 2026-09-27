@@ -84,7 +84,10 @@ export function FlagBadges({ measurement }: FlagBadgesProps): JSX.Element | null
         <button
           type="button"
           data-testid="flag-critical"
-          aria-label={t(CRITICAL_ARIA_KEY[critical], { sys: measurement.sys, dia: measurement.dia })}
+          aria-label={t(CRITICAL_ARIA_KEY[critical], {
+            sys: measurement.sys,
+            dia: measurement.dia,
+          })}
           title={t(CRITICAL_ARIA_KEY[critical], { sys: measurement.sys, dia: measurement.dia })}
           onClick={() => setPanelOpen(true)}
           className="flex min-h-11 shrink-0 items-center gap-1 rounded border border-accent px-2 text-xs font-semibold text-text hover:bg-neutral-100 dark:hover:bg-neutral-800"
