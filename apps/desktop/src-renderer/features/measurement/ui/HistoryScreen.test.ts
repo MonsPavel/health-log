@@ -333,6 +333,7 @@ describe('HistoryScreen — «Показать ещё» (§5/§10/§20)', () => 
     await waitFor(() =>
       expect(invoke).toHaveBeenLastCalledWith('measurements/list', {
         profileId: PROFILE_ID,
+        fromUtcMs: NOW_MS - 30 * DAY_MS, // TASK-044: дефолтный пресет 30д в запросе.
         limit: HISTORY_PAGE_LIMIT,
         offset: HISTORY_PAGE_LIMIT,
       }),
@@ -675,13 +676,14 @@ describe('HistoryScreen — axe (§20)', () => {
 });
 
 describe('HistoryScreen — фильтры (TASK-044 §19/§20)', () => {
-  /** Payload последнего вызова list (spy-проверки §19). */
+  /** Payload ПОСЛЕДНЕГО вызова list (spy-проверки §19: после смены фильтра). */
   function lastListPayload(): Record<string, unknown> {
-    const call = invoke.mock.calls.find(([channel]) => channel === 'measurements/list');
-    if (call === undefined) {
+    const listCalls = invoke.mock.calls.filter(([channel]) => channel === 'measurements/list');
+    const last = listCalls[listCalls.length - 1];
+    if (last === undefined) {
       throw new Error('measurements/list не вызывался');
     }
-    return call[1] as Record<string, unknown>;
+    return last[1] as Record<string, unknown>;
   }
 
   it('дефолт: первый запрос с границей 30 суток, toUtcMs/arm/hasNote отсутствуют (§5)', async () => {
