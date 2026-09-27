@@ -12,6 +12,10 @@
  * колбэк onRowAction(measurement, action) — стабильная идентичность между
  * рендерами не ломает memo (§15); решение о правке/удалении принимает экран.
  *
+ * TASK-048 §13 (аудит крупного режима): flex-wrap — на масштабах 112/125%
+ * содержимое строки переносится, а не перекрывается; единственная обрезка —
+ * заметка ellipsis с полным текстом в title (разрешено §5).
+ *
  * §15: memo на Row — 200 строк без виртуализации; ре-рендер группы — по id.
  */
 import { memo } from 'react';
@@ -59,7 +63,10 @@ export const MeasurementRow = memo(function MeasurementRow({
   };
 
   return (
-    <li data-testid="measurement-row" className="flex items-baseline gap-3 px-1 py-1.5 text-sm">
+    <li
+      data-testid="measurement-row"
+      className="flex flex-wrap items-baseline gap-3 px-1 py-1.5 text-sm"
+    >
       <span className="shrink-0 tabular-nums text-neutral-500">
         {formatDateTime(takenAt, { preset: 'time' })}
       </span>

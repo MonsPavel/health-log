@@ -27,6 +27,10 @@
  * при маунте после перезапуска с непустым черновиком — тост «Черновик восстановлен»
  * (role="status", один раз — consumeDraftRestored); кнопка «Очистить» чистит
  * черновиковые поля (рука/флаг — prefs — остаются).
+ *
+ * TASK-048 §13 (аудит крупного режима): discard-диалог — max-height + внутренний
+ * scroll, кнопочный ряд flex-wrap (масштабы 112/125%); цифровые поля и клавиатура
+ * — rem (растут с масштабом, цели ≥44px — проверка bounding box в e2e).
  */
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import {
@@ -672,7 +676,7 @@ export function MeasurementForm({
           <AlertDialog.Overlay className="fixed inset-0 bg-black/50" />
           <AlertDialog.Content
             data-testid="discard-edit-dialog"
-            className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg p-6 shadow-lg"
+            className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border border-border bg-bg p-6 shadow-lg"
           >
             <AlertDialog.Title className="text-lg font-semibold text-text">
               {t('measurement.form.discardTitle')}
@@ -680,7 +684,7 @@ export function MeasurementForm({
             <AlertDialog.Description asChild>
               <p className="mt-3 text-base text-text">{t('measurement.form.discardBody')}</p>
             </AlertDialog.Description>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
               <AlertDialog.Cancel asChild>
                 <button
                   type="button"

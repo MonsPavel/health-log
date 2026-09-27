@@ -24,6 +24,10 @@
  * ПРОПСЫ (§19): компонент презентационный — delete-вызов и возврат значений в форму
  * делает владелец (MeasurementForm): onKeep — запись остаётся; onDeleteFix —
  * «Удалить и исправить».
+ *
+ * TASK-048 §13 (аудит крупного режима): контент уже с max-height + внутренним
+ * scroll (прецедент для DeleteConfirmDialog/discard); кнопочный ряд flex-wrap —
+ * на масштабах 112/125% кнопки переносятся, не перекрываются.
  */
 import * as Dialog from '@radix-ui/react-dialog';
 import { useState } from 'react';
@@ -114,7 +118,7 @@ export function ConfirmFlagsDialog({
             </div>
           </Dialog.Description>
 
-          <div className="mt-6 flex justify-end gap-3">
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
             {/* Безопасное действие первым (§22): первый Tab и Enter-привычка ведут к нему. */}
             <button
               type="button"
