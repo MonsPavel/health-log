@@ -238,7 +238,10 @@ describe('walkFiles (рекурсивный обход: путь + размер 
     await mkdir(join(dir, 'locales'));
     await writeFile(join(dir, 'locales', 'en-US.pak'), Buffer.alloc(50, 1));
     await mkdir(join(dir, 'resources', 'app.asar.unpacked'), { recursive: true });
-    await writeFile(join(dir, 'resources', 'app.asar.unpacked', 'native.node'), Buffer.alloc(25, 1));
+    await writeFile(
+      join(dir, 'resources', 'app.asar.unpacked', 'native.node'),
+      Buffer.alloc(25, 1),
+    );
 
     const files = await walkFiles(dir);
     expect(files).toHaveLength(3);
@@ -262,7 +265,12 @@ describe('buildReport / buildJson (текстовый и JSON-отчёт — ч�
       { name: 'locales (Electron)', bytes: 100 * MB, mb: 100, sharePct: 33.3 },
     ],
     topFiles: [
-      { relPath: 'Health Log.exe', bytes: 200 * MB, mb: 200, component: 'electron-runtime (root files)' },
+      {
+        relPath: 'Health Log.exe',
+        bytes: 200 * MB,
+        mb: 200,
+        component: 'electron-runtime (root files)',
+      },
     ],
     exitCode: 0,
   };
@@ -353,7 +361,10 @@ describe('run (полный прогон на tmp-фикстурах: exit 0/1/2
   });
 
   it('warn-зона (1.5 МБ при limit 2 / warn 1) → exit 0 со строкой WARNING', async () => {
-    const distDir = await makeRelease({ installerBytes: Math.round(1.5 * MB), unpackedFileBytes: 1 });
+    const distDir = await makeRelease({
+      installerBytes: Math.round(1.5 * MB),
+      unpackedFileBytes: 1,
+    });
 
     const result = await run({ distDir, limitMb: 2, warnMb: 1 });
 
