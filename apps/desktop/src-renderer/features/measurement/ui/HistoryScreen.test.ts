@@ -163,7 +163,9 @@ describe('HistoryScreen — состояния (§10)', () => {
     renderHistory();
     await waitFor(() => expect(screen.getByTestId('empty-history')).toBeDefined());
 
-    fireEvent.click(within(screen.getByTestId('empty-history')).getByRole('button', { name: 'Добавить' }));
+    fireEvent.click(
+      within(screen.getByTestId('empty-history')).getByRole('button', { name: 'Добавить' }),
+    );
 
     expect(screen.getByTestId('input-sys')).toBeDefined();
     expect(screen.queryByTestId('empty-history')).toBeNull();
@@ -386,7 +388,9 @@ describe('HistoryScreen — live-обновление (§5/§10/§20)', () => {
     renderHistory();
 
     await waitFor(() => expect(screen.getByTestId('empty-history')).toBeDefined());
-    fireEvent.click(within(screen.getByTestId('empty-history')).getByRole('button', { name: 'Добавить' }));
+    fireEvent.click(
+      within(screen.getByTestId('empty-history')).getByRole('button', { name: 'Добавить' }),
+    );
     expect(screen.getByTestId('input-sys')).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ввести 1' }));
@@ -760,9 +764,7 @@ describe('HistoryScreen — фильтры (TASK-044 §19/§20)', () => {
     const probe = renderHistoryAt('/journal?period=7d&noted=1');
 
     await waitFor(() => expect(screen.getByTestId('empty-filtered')).toBeDefined());
-    expect(
-      screen.getByText('С фильтрами ничего не найдено — сбросьте фильтры.'),
-    ).toBeDefined();
+    expect(screen.getByText('С фильтрами ничего не найдено — сбросьте фильтры.')).toBeDefined();
     expect(screen.queryByTestId('empty-history')).toBeNull();
 
     fireEvent.click(screen.getByTestId('empty-filtered-reset'));
@@ -787,16 +789,14 @@ describe('HistoryScreen — фильтры (TASK-044 §19/§20)', () => {
       offset: 0,
     });
     // Состояние контролов восстановлено из URL (§10: URL — источник истины).
-    expect((screen.getByTestId('filter-period-7d') as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByTestId('filter-arm') as HTMLSelectElement).value).toBe('right');
-    expect((screen.getByTestId('filter-noted') as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByTestId<HTMLInputElement>('filter-period-7d').checked).toBe(true);
+    expect(screen.getByTestId<HTMLSelectElement>('filter-arm').value).toBe('right');
+    expect(screen.getByTestId<HTMLInputElement>('filter-noted').checked).toBe(true);
   });
 
   it('фокус остаётся на контроле фильтра после смены пресета (§16)', async () => {
     const user = userEvent.setup();
-    invoke.mockResolvedValue(
-      LIST_OK({ items: [dto('m-1', wallNoon(TODAY_KEY))], total: 1 }),
-    );
+    invoke.mockResolvedValue(LIST_OK({ items: [dto('m-1', wallNoon(TODAY_KEY))], total: 1 }));
     renderHistory();
     await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(1));
 

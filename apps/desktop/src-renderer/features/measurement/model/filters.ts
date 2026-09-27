@@ -62,7 +62,8 @@ export type MeasurementQueryFragment = Pick<
  * переданного nowUtcMs (момент применения), hand/hasNote — как есть.
  */
 export function toQuery(state: HistoryFilterState, nowUtcMs: number): MeasurementQueryFragment {
-  const days = state.period === 'all' || state.period === 'custom' ? undefined : PERIOD_DAYS[state.period];
+  const days =
+    state.period === 'all' || state.period === 'custom' ? undefined : PERIOD_DAYS[state.period];
   return {
     ...(days === undefined ? {} : { fromUtcMs: nowUtcMs - days * DAY_MS }),
     ...(state.arm === undefined ? {} : { arm: state.arm }),
@@ -84,8 +85,7 @@ export function parseHistoryFilters(params: ParamsReader): HistoryFilterState {
   const arm = params.get('arm');
   const noted = params.get('noted');
   const validPeriod = URL_PERIODS.find((candidate) => candidate === period);
-  const validArm: HistoryArm | undefined =
-    arm === 'left' || arm === 'right' ? arm : undefined;
+  const validArm: HistoryArm | undefined = arm === 'left' || arm === 'right' ? arm : undefined;
   return {
     period: validPeriod ?? DEFAULT_FILTER_STATE.period,
     ...(validArm === undefined ? {} : { arm: validArm }),
@@ -113,8 +113,6 @@ export function serializeHistoryFilters(state: HistoryFilterState): URLSearchPar
 /** Отлично ли состояние от дефолта (§10: пустой результат при активных фильтрах — особое состояние). */
 export function isFiltersActive(state: HistoryFilterState): boolean {
   return (
-    state.period !== DEFAULT_FILTER_STATE.period ||
-    state.arm !== undefined ||
-    state.noted === true
+    state.period !== DEFAULT_FILTER_STATE.period || state.arm !== undefined || state.noted === true
   );
 }

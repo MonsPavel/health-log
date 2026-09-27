@@ -20,7 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
 import '../../../i18n';
-import { DAY_MS } from '../model/filters';
+import { DAY_MS, type HistoryFilterState } from '../model/filters';
 import { HistoryFilters, useMeasurementFilters } from './HistoryFilters';
 import { useLocation } from 'react-router-dom';
 
@@ -39,7 +39,7 @@ function LocationProbeTarget({ probe }: { readonly probe: LocationProbe }): null
 }
 
 function renderFilters(
-  state = { period: '30d' as const },
+  state: HistoryFilterState = { period: '30d' },
   handlers: {
     readonly onPeriod?: (period: '7d' | '30d' | '90d' | 'all') => void;
     readonly onArm?: (arm: 'left' | 'right' | undefined) => void;
@@ -92,7 +92,7 @@ describe('HistoryFilters — структура и a11y (§16/§17)', () => {
     expect(screen.getByTestId('history-filters')).toBeDefined();
     // fieldset+legend — группа с именем «Период» (§16: нативная семантика radio).
     expect(screen.getByRole('group', { name: 'Период' })).toBeDefined();
-    const radios = screen.getAllByRole('radio') as HTMLInputElement[];
+    const radios = screen.getAllByRole('radio');
     expect(radios).toHaveLength(5);
     // Подписи пресетов — ключи §17: 7д/30д/90д/всё/произвольный.
     for (const [value, label] of [
@@ -105,21 +105,21 @@ describe('HistoryFilters — структура и a11y (§16/§17)', () => {
       expect(screen.getByTestId(`filter-period-${value}`).getAttribute('value')).toBe(value);
       expect(screen.getByLabelText(label)).toBeDefined();
     }
-    expect((screen.getByTestId('filter-period-custom') as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByTestId<HTMLInputElement>('filter-period-custom').disabled).toBe(true);
     expect(screen.queryByTestId('filter-period-custom')?.hasAttribute('checked')).toBe(false);
   });
 
   it('выбранный период отражает проп-состояние (контролируемый компонент)', () => {
     renderFilters({ period: '90d' });
 
-    expect((screen.getByTestId('filter-period-90d') as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByTestId('filter-period-30d') as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByTestId<HTMLInputElement>('filter-period-90d').checked).toBe(true);
+    expect(screen.getByTestId<HTMLInputElement>('filter-period-30d').checked).toBe(false);
   });
 
   it('select руки с label «Рука»: Все/Левая/Правая (§17 filters.arm.any/left/right)', () => {
     renderFilters();
 
-    const select = screen.getByLabelText('Рука') as HTMLSelectElement;
+    const select = screen.getByLabelText<HTMLSelectElement>('Рука');
     expect(select.tagName).toBe('SELECT');
     expect([...select.options].map((option) => option.textContent)).toEqual([
       'Все',
@@ -132,7 +132,7 @@ describe('HistoryFilters — структура и a11y (§16/§17)', () => {
   it('чекбокс «Только с заметками» с label, отмечен по проп-состоянию (§17 filters.noted)', () => {
     renderFilters({ period: '30d', noted: true });
 
-    const checkbox = screen.getByLabelText('Только с заметками') as HTMLInputElement;
+    const checkbox = screen.getByLabelText<HTMLInputElement>('Только с заметками');
     expect(checkbox.type).toBe('checkbox');
     expect(checkbox.checked).toBe(true);
   });
@@ -160,7 +160,7 @@ describe('HistoryFilters — структура и a11y (§16/§17)', () => {
 });
 
 describe('HistoryFilters — клики вызывают колбэки (§19)', () => {
-  it('клик пресета 7д → onPeriod("7d")', async () => {
+  it('клик пресета 7д → onPeriod("7d")', () => {
     const onPeriod = vi.fn();
     renderFilters({ period: '30d' }, { onPeriod });
 

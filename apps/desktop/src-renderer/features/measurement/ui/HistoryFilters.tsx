@@ -38,7 +38,16 @@ import {
 const PERIOD_OPTIONS = ['7d', '30d', '90d', 'all', 'custom'] as const;
 
 /** Ключи подписей периода — литералы в карте (§22). */
-const PERIOD_KEY: Readonly<Record<HistoryPeriod, 'measurement.filters.period.7d' | 'measurement.filters.period.30d' | 'measurement.filters.period.90d' | 'measurement.filters.period.all' | 'measurement.filters.period.custom'>> = {
+const PERIOD_KEY: Readonly<
+  Record<
+    HistoryPeriod,
+    | 'measurement.filters.period.7d'
+    | 'measurement.filters.period.30d'
+    | 'measurement.filters.period.90d'
+    | 'measurement.filters.period.all'
+    | 'measurement.filters.period.custom'
+  >
+> = {
   '7d': 'measurement.filters.period.7d',
   '30d': 'measurement.filters.period.30d',
   '90d': 'measurement.filters.period.90d',
@@ -48,7 +57,13 @@ const PERIOD_KEY: Readonly<Record<HistoryPeriod, 'measurement.filters.period.7d'
 
 /** Варианты фильтра руки (§17: filters.arm.any/left/right) — литералы ключей (§22). */
 const ARM_OPTIONS: Readonly<
-  { value: 'any' | 'left' | 'right'; key: 'measurement.filters.arm.any' | 'measurement.filters.arm.left' | 'measurement.filters.arm.right' }[]
+  {
+    value: 'any' | 'left' | 'right';
+    key:
+      | 'measurement.filters.arm.any'
+      | 'measurement.filters.arm.left'
+      | 'measurement.filters.arm.right';
+  }[]
 > = [
   { value: 'any', key: 'measurement.filters.arm.any' },
   { value: 'left', key: 'measurement.filters.arm.left' },
@@ -215,10 +230,7 @@ export function useMeasurementFilters(): MeasurementFilters {
     (arm: HistoryArm | undefined) => apply({ ...state, arm }),
     [apply, state],
   );
-  const setNoted = useCallback(
-    (noted: boolean) => apply({ ...state, noted }),
-    [apply, state],
-  );
+  const setNoted = useCallback((noted: boolean) => apply({ ...state, noted }), [apply, state]);
   const reset = useCallback(() => apply(DEFAULT_FILTER_STATE), [apply]);
 
   return { state, query, isActive: isFiltersActive(state), setPeriod, setArm, setNoted, reset };

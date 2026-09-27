@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { MeasurementDto, MeasurementListResponse } from '@hl/contracts';
 
+import type { MeasurementQueryFragment } from '../model/filters';
 import { IpcApiError, PROFILE_ID } from './use-add-measurement';
 import { HISTORY_PAGE_LIMIT, measurementsKey, useMeasurements } from './use-measurements';
 
@@ -163,17 +164,16 @@ describe('useMeasurements — фильтры в ключе и payload (TASK-044 
   });
 
   it('смена фильтра → новый ключ → повторный fetch с новыми границами (§10/§12)', async () => {
-    const filters = { current: { fromUtcMs: 1000 } as const };
+    const filters: { current: MeasurementQueryFragment } = { current: { fromUtcMs: 1000 } };
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
       createElement(QueryClientProvider, { client: queryClient }, children);
-    const { result, rerender } = renderHook(
-      () => useMeasurements(PROFILE_ID, filters.current),
-      { wrapper },
-    );
+    const { result, rerender } = renderHook(() => useMeasurements(PROFILE_ID, filters.current), {
+      wrapper,
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    filters.current = { fromUtcMs: 2000 } as const;
+    filters.current = { fromUtcMs: 2000 };
     rerender();
 
     await waitFor(() =>

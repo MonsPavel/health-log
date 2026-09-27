@@ -34,12 +34,15 @@ import { IpcApiError } from './use-add-measurement';
 /** Размер страницы истории (§5): дефолт канала list — 200 записей. */
 export const HISTORY_PAGE_LIMIT = 200;
 
+/** Третий элемент ключа (§12): лимит страницы + фрагмент фильтров (поля optional — sparse). */
+export type MeasurementsKeyPage = { readonly limit: number } & MeasurementQueryFragment;
+
 /** Ключ запроса истории (§12); корень 'measurements' — точка инвалидаций; фильтры — в третьем элементе. */
 export function measurementsKey(
   profileId: string,
   filters?: MeasurementQueryFragment,
-): readonly ['measurements', string, MeasurementListRequest] {
-  return ['measurements', profileId, { limit: HISTORY_PAGE_LIMIT, ...(filters ?? {}) }];
+): readonly ['measurements', string, MeasurementsKeyPage] {
+  return ['measurements', profileId, { limit: HISTORY_PAGE_LIMIT, ...filters }];
 }
 
 /** Вызов канала list: разворот конверта; failure → IpcApiError (§11). */
@@ -56,7 +59,12 @@ export function useMeasurements(profileId: string, filters?: MeasurementQueryFra
   return useInfiniteQuery({
     queryKey: measurementsKey(profileId, filters),
     queryFn: ({ pageParam }) =>
-      listMeasurements({ profileId, limit: HISTORY_PAGE_LIMIT, offset: pageParam, ...(filters ?? {}) }),
+      listMeasurements({
+        profileId,
+        limit: HISTORY_PAGE_LIMIT,
+        offset: pageParam,
+        ...(filters ?? {}),
+      }),
     initialPageParam: 0,
     placeholderData: keepPreviousData,
     getNextPageParam: (lastPage, allPages) => {
@@ -65,4 +73,3 @@ export function useMeasurements(profileId: string, filters?: MeasurementQueryFra
     },
   });
 }
-

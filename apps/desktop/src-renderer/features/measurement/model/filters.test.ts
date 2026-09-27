@@ -56,9 +56,7 @@ describe('toQuery — пресеты периода (§13)', () => {
 
 describe('toQuery — комбинация фильтров (§5/§20 AC2)', () => {
   it('период + рука + noted: все поля в одном query-фрагменте', () => {
-    expect(
-      toQuery({ period: '7d', arm: 'left', noted: true }, NOW_MS),
-    ).toStrictEqual({
+    expect(toQuery({ period: '7d', arm: 'left', noted: true }, NOW_MS)).toStrictEqual({
       fromUtcMs: NOW_MS - 7 * DAY_MS,
       arm: 'left',
       hasNote: true,
@@ -130,9 +128,9 @@ describe('serializeHistoryFilters — состояние → URL (§5/§12)', ()
   });
 
   it('полное состояние: period=7d&arm=left&noted=1', () => {
-    expect(
-      serializeHistoryFilters({ period: '7d', arm: 'left', noted: true }).toString(),
-    ).toBe('period=7d&arm=left&noted=1');
+    expect(serializeHistoryFilters({ period: '7d', arm: 'left', noted: true }).toString()).toBe(
+      'period=7d&arm=left&noted=1',
+    );
   });
 
   it('не заданные arm/noted в URL не попадают', () => {
