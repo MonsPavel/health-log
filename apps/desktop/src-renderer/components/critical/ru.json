@@ -1,0 +1,28 @@
+{
+  "panel": {
+    "high": {
+      "intro": "Давление {{pressure}} может указывать на гипертонический криз.",
+      "symptomsLead": "При симптомах:",
+      "symptomHeadache": "сильная головная боль",
+      "symptomChestPain": "боль в груди",
+      "symptomBreathlessness": "одышка",
+      "symptomSpeechOrVision": "нарушение речи или зрения",
+      "cta": "Немедленно обратитесь за медицинской помощью.",
+      "numbersLead": "Экстренные службы:"
+    },
+    "low": {
+      "body": "Давление {{pressure}} ниже типичных значений. При слабости или головокружении обсудите это с врачом."
+    },
+    "thresholds": {
+      "high": "≥180/120",
+      "low": "≤90/60"
+    },
+    "numbers": {
+      "withUnified": "{{primary}} ({{primaryLabel}}), {{unified}} ({{unifiedLabel}})",
+      "unifiedLabel": "единый",
+      "single": "{{primary}}",
+      "fallback": "Номер местной службы экстренной помощи"
+    },
+    "dismiss": "Понятно, скрыть"
+  }
+}
