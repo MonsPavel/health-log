@@ -7,6 +7,7 @@ import { SystemClock } from '@hl/kernel';
 import { createWindow, focusExistingWindow } from './create-window.js';
 import { installGlobalErrorHandlers } from './global-errors.js';
 import { createSecondInstanceHandler, ensureSingleInstance } from './single-instance.js';
+import { resolveUserDataPath } from './user-data-override.js';
 import { buildContainer, type Container } from '../container.js';
 import { installChannelBridge } from '../ipc/register-channel.js';
 import { createLogger, initFileLogging } from '../shared/logger/logger.js';
@@ -88,10 +89,14 @@ if (gotSingleInstanceLock) {
   void app.whenReady().then(async () => {
     initAppLogging();
     // TASK-027 §5/§13: реальные зависимости (пути, боевой vault, SystemClock).
+    // TASK-035 §4/§6/§9: путь контейнера — через resolveUserDataPath: в e2e-запуске
+    // (Playwright _electron) переменная HL_TEST_USER_DATA указывает на tmp-userData
+    // fixture — БД и vault.key изолированы от реальных данных; без переменной —
+    // app.getPath('userData') как раньше (только при заданной переменной — иначе игнор).
     // Init-ошибка (VAULT/*, STORAGE/*) пробрасывается выше → глобальный хендлер
     // TASK-011 (диалог + код, §9 TASK-027).
     container = await buildContainer({
-      userDataPath: app.getPath('userData'),
+      userDataPath: resolveUserDataPath(app.getPath('userData'), process.env),
       clock: new SystemClock(),
     });
     // TASK-008 §5: мост `hl:invoke` ставится один раз до создания окна; каналы
