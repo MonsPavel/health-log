@@ -40,7 +40,7 @@
 | TASK-032 | done | | смержена |
 | TASK-033 | done | | смержена |
 | TASK-034 | done | | смержена |
-| TASK-035 | todo | | |
+| TASK-035 | blocked | | заблокирована конвейером, мердж не выполнялся; наработки (smoke UC-01 + collectDiagnostics) сохранены на ветке task/TASK-035 |
 | TASK-036 | todo | | |
 | TASK-037 | todo | | |
 | TASK-038 | todo | | |
