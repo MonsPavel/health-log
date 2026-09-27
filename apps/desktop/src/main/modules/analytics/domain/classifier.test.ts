@@ -186,8 +186,18 @@ describe('classify — открытые границы и защита «вне 
   it('шкала без открытых сторон: выше всех диапазонов → последняя категория (§7)', () => {
     const capped = {
       categories: [
-        { code: 'optimal', label: 'A', sysRange: { min: 90, max: 100 }, diaRange: { min: 50, max: 60 } },
-        { code: 'normal', label: 'B', sysRange: { min: 110, max: 120 }, diaRange: { min: 70, max: 80 } },
+        {
+          code: 'optimal',
+          label: 'A',
+          sysRange: { min: 90, max: 100 },
+          diaRange: { min: 50, max: 60 },
+        },
+        {
+          code: 'normal',
+          label: 'B',
+          sysRange: { min: 110, max: 120 },
+          diaRange: { min: 70, max: 80 },
+        },
       ],
       homeBPNote: 'home',
       specialGroupsNote: 'groups',
@@ -199,8 +209,18 @@ describe('classify — открытые границы и защита «вне 
   it('шкала без открытых сторон: ниже всех диапазонов → первая категория (§7)', () => {
     const capped = {
       categories: [
-        { code: 'optimal', label: 'A', sysRange: { min: 90, max: 100 }, diaRange: { min: 50, max: 60 } },
-        { code: 'normal', label: 'B', sysRange: { min: 110, max: 120 }, diaRange: { min: 70, max: 80 } },
+        {
+          code: 'optimal',
+          label: 'A',
+          sysRange: { min: 90, max: 100 },
+          diaRange: { min: 50, max: 60 },
+        },
+        {
+          code: 'normal',
+          label: 'B',
+          sysRange: { min: 110, max: 120 },
+          diaRange: { min: 70, max: 80 },
+        },
       ],
       homeBPNote: 'home',
       specialGroupsNote: 'groups',
@@ -232,7 +252,11 @@ describe('classify — контракт типов (§5) и зеркала @hl/s
   });
 
   it('боевые данные пакета удовлетворяют поверхности классификатора (структурно)', () => {
-    const scale = { categories: SCALE.categories, homeBPNote: SCALE.homeBPNote, specialGroupsNote: SCALE.specialGroupsNote };
+    const scale = {
+      categories: SCALE.categories,
+      homeBPNote: SCALE.homeBPNote,
+      specialGroupsNote: SCALE.specialGroupsNote,
+    };
     expect(classify(138, 86, scale).category?.label).toBe('Высокое нормальное');
   });
 });

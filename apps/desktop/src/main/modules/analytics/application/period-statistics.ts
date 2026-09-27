@@ -23,7 +23,11 @@
  */
 import { AI_MIN_DAYS, AI_MIN_MEASUREMENTS } from '@hl/kernel';
 
-import { classify, type Classification, type ScaleForClassification } from '../domain/classifier.js';
+import {
+  classify,
+  type Classification,
+  type ScaleForClassification,
+} from '../domain/classifier.js';
 import { splitByDayPart } from '../domain/day-part.js';
 import { regularity } from '../domain/regularity.js';
 import {

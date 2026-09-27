@@ -198,7 +198,6 @@ describe('buildPeriodStatistics — критические значения и �
     expect(buildPeriodStatistics([later, earlier]).lastMeasurementUtcMs).toBe(later.takenAt.utcMs);
     expect(buildPeriodStatistics([earlier, later]).lastMeasurementUtcMs).toBe(later.takenAt.utcMs);
   });
-
 });
 
 describe('buildPeriodStatistics — classification (TASK-053 §5, аддитивно)', () => {
