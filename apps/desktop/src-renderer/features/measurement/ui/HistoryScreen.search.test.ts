@@ -11,7 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import type { MeasurementDto } from '@hl/contracts';
 
@@ -43,7 +43,8 @@ function dto(id: string, overrides: Partial<MeasurementDto> = {}): MeasurementDt
   };
 }
 
-let invoke: ReturnType<typeof vi.fn>;
+/** Мост-мок: сигнатура с Promise-ответом — mockImplementation(mock-а) допускает async. */
+let invoke: Mock<(channel: string, payload: unknown) => Promise<unknown>>;
 
 interface LocationProbe {
   search: string;

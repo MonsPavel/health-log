@@ -77,7 +77,8 @@ export function useNotesSearch(query: string) {
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
   return useQuery({
     queryKey: notesSearchKey(debouncedQuery),
-    queryFn: ({ signal }) => searchNotes({ query: debouncedQuery, limit: SEARCH_PAGE_LIMIT }, signal),
+    queryFn: ({ signal }) =>
+      searchNotes({ query: debouncedQuery, limit: SEARCH_PAGE_LIMIT }, signal),
     enabled: debouncedQuery !== '',
     placeholderData: keepPreviousData,
   });

@@ -52,11 +52,7 @@ import { useToast } from '../../../app/toast';
 import { useHlEvent } from '../../../lib/events';
 import { IpcApiError, PROFILE_ID } from '../api/use-add-measurement';
 import { measurementsKey, useMeasurements } from '../api/use-measurements';
-import {
-  SEARCH_KEY_ROOT,
-  SEARCH_PAGE_LIMIT,
-  useNotesSearch,
-} from '../api/use-notes-search';
+import { SEARCH_KEY_ROOT, SEARCH_PAGE_LIMIT, useNotesSearch } from '../api/use-notes-search';
 import { useDeleteMeasurement } from '../api/use-delete-measurement';
 import { useFormStore } from '../model/form-store';
 import { groupByDay } from '../model/wall-date';
@@ -99,9 +95,7 @@ type SearchFoundKey =
   | 'measurement.search.foundN_other';
 
 /** Категория plural → полный литерал ключа каталога (§22). */
-const FOUND_KEY: Readonly<
-  Record<'one' | 'few' | 'many' | 'other', SearchFoundKey>
-> = {
+const FOUND_KEY: Readonly<Record<'one' | 'few' | 'many' | 'other', SearchFoundKey>> = {
   one: 'measurement.search.foundN_one',
   few: 'measurement.search.foundN_few',
   many: 'measurement.search.foundN_many',
@@ -210,7 +204,10 @@ function EmptySearch(): JSX.Element {
   const { t } = useTranslation();
 
   return (
-    <div data-testid="empty-search" className="flex flex-col items-center gap-2 px-6 py-16 text-center">
+    <div
+      data-testid="empty-search"
+      className="flex flex-col items-center gap-2 px-6 py-16 text-center"
+    >
       <span aria-hidden="true" className="text-5xl" role="presentation">
         🔍
       </span>
@@ -398,7 +395,12 @@ export function HistoryScreen(): JSX.Element {
 
       {/* TASK-045 §16/§17: «Найдено N» — aria-live строка режима поиска. */}
       {isSearching && items.length > 0 && (
-        <p data-testid="search-found" role="status" aria-live="polite" className="mb-2 text-sm text-neutral-500">
+        <p
+          data-testid="search-found"
+          role="status"
+          aria-live="polite"
+          className="mb-2 text-sm text-neutral-500"
+        >
           {t(foundKeyFor(items.length), { n: items.length })}
         </p>
       )}

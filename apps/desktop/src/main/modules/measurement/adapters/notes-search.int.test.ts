@@ -249,9 +249,9 @@ describe('NotesSearchAdapter — LIKE-fallback (§13)', () => {
     insertMeasurement(db, 'm-1', 'путь C:\\users\\заметка');
     const adapter = new NotesSearchAdapter(db);
 
-    expect(
-      (await adapter.searchNotes({ query: 'C:\\users', limit: 50 })).map((m) => m.id),
-    ).toEqual(['m-1']);
+    expect((await adapter.searchNotes({ query: 'C:\\users', limit: 50 })).map((m) => m.id)).toEqual(
+      ['m-1'],
+    );
     db.close();
   });
 

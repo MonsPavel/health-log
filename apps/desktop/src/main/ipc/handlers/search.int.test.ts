@@ -17,7 +17,7 @@ import {
   MEASUREMENT_ADD_RESPONSE_SCHEMA,
   NOTES_SEARCH_RESPONSE_SCHEMA,
 } from '@hl/contracts';
-import { AppError, FixedClock, unsafeUnwrap, type Result } from '@hl/kernel';
+import { AppError, FixedClock, type Result } from '@hl/kernel';
 
 import { buildContainer } from '../../container.js';
 import {

@@ -58,7 +58,21 @@ const insertMeasurement = (db: EncryptedDatabase, id: string, note: string | nul
     'INSERT INTO bp_measurement ' +
       '(id, profile_id, taken_at_utc, tz_offset_minutes, sys, dia, pulse, irregular_pulse, arm, note, source, created_at_utc, updated_at_utc) ' +
       'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-  ).run(id, 'seed-profile-0001', 1_700_000_000_000, 180, 120, 80, 60, 0, 'left', note, 'manual', 1_700_000_000_000, 1_700_000_000_000);
+  ).run(
+    id,
+    'seed-profile-0001',
+    1_700_000_000_000,
+    180,
+    120,
+    80,
+    60,
+    0,
+    'left',
+    note,
+    'manual',
+    1_700_000_000_000,
+    1_700_000_000_000,
+  );
 };
 
 /** MATCH-поиск по FTS-индексу: rowid'ы найденных строк bp_measurement. */
@@ -81,15 +95,19 @@ describe('миграция v2 — FTS по заметкам (TASK-045 §19/§20)
   it('(1) v2 создаёт bp_measurement_fts (fts5=1) + 3 триггера; schema_version=2 (§19 п. 1/§20)', async () => {
     const db = await migrateFresh('fts-schema.sqlite');
 
-    const tables = db.prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bp_measurement_fts'",
-    ).all() as { name: string }[];
+    const tables = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bp_measurement_fts'",
+      )
+      .all() as { name: string }[];
     expect(tables).toHaveLength(1);
 
     const sql = (
-      db.prepare(
-        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'bp_measurement_fts'",
-      ).get() as { sql: string }
+      db
+        .prepare(
+          "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'bp_measurement_fts'",
+        )
+        .get() as { sql: string }
     ).sql;
     expect(sql).toContain('fts5');
     expect(sql).toContain("content='bp_measurement'");
@@ -179,9 +197,9 @@ describe('миграция v2 — FTS по заметкам (TASK-045 §19/§20)
     expect(matchRowIds(db, '"голова"')).toHaveLength(1);
     // LIKE-подстрока находит словоформу (fallback §13 — адаптер, здесь индекс-уровень).
     const likeHits = (
-      db.prepare("SELECT id FROM bp_measurement WHERE note LIKE ? ESCAPE '\\'").all(
-        '%болел%',
-      ) as { id: string }[]
+      db.prepare("SELECT id FROM bp_measurement WHERE note LIKE ? ESCAPE '\\'").all('%болел%') as {
+        id: string;
+      }[]
     ).map((row) => row.id);
     expect(likeHits).toEqual(['m-1']);
     db.close();

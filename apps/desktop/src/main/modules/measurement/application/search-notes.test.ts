@@ -100,7 +100,12 @@ describe('SearchNotesUseCase — ответ и маппинг (§7)', () => {
     expect(result.query).toBe('голова');
     expect(result.items).toHaveLength(2);
     expect(result.items[0]).toMatchObject({ id: fresh.id, sys: 120, dia: 80, note: 'после кофе' });
-    expect(result.items[1]).toMatchObject({ id: critical.id, sys: 190, dia: 110, critical: 'high' });
+    expect(result.items[1]).toMatchObject({
+      id: critical.id,
+      sys: 190,
+      dia: 110,
+      critical: 'high',
+    });
     // Плоский DTO: агрегат наружу не уходит (маппинг — в main, §7).
     expect(result.items[0]).not.toHaveProperty('bp');
     expect(result.items[0]).not.toHaveProperty('takenAt');

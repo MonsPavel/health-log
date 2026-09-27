@@ -30,7 +30,11 @@
  */
 import type Database from 'better-sqlite3';
 
-import type { BpMeasurement, NotesSearchPort, NotesSearchQuery } from '../application/ports/notes-search.js';
+import type {
+  BpMeasurement,
+  NotesSearchPort,
+  NotesSearchQuery,
+} from '../application/ports/notes-search.js';
 
 /** Минимальная поверхность логгера адаптера (§18; матрица арх. 03 §4 — no-op в тестах). */
 export interface NotesSearchLogger {

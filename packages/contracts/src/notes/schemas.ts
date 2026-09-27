@@ -28,12 +28,7 @@ export const NOTES_SEARCH_MAX_LIMIT = 200;
 export const NOTES_SEARCH_REQUEST_SCHEMA = z
   .object({
     query: z.string().max(NOTES_QUERY_MAX_LENGTH),
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(NOTES_SEARCH_MAX_LIMIT)
-      .default(NOTES_SEARCH_DEFAULT_LIMIT),
+    limit: z.number().int().min(1).max(NOTES_SEARCH_MAX_LIMIT).default(NOTES_SEARCH_DEFAULT_LIMIT),
   })
   .strict();
 

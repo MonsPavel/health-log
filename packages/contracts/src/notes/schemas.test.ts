@@ -66,9 +66,7 @@ describe('NOTES_SEARCH_RESPONSE_SCHEMA — ответ notes/search (§11: {items
     });
     expect(NOTES_SEARCH_RESPONSE_SCHEMA.safeParse({ items: [] }).success).toBe(true);
     expect(NOTES_SEARCH_RESPONSE_SCHEMA.safeParse({}).success).toBe(false);
-    expect(
-      NOTES_SEARCH_RESPONSE_SCHEMA.safeParse({ items: [], total: 0 }).success,
-    ).toBe(false);
+    expect(NOTES_SEARCH_RESPONSE_SCHEMA.safeParse({ items: [], total: 0 }).success).toBe(false);
   });
 
   it('элемент items обязан быть полным MeasurementDto (строгая схема TASK-028)', () => {
