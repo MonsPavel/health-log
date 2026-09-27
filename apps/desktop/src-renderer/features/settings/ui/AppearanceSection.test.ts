@@ -1,11 +1,12 @@
 /**
  * TASK-047 §5/§16/§19: UI-тест секции «Вид» — полная цепочка «клик → usePreferences
  * (optimistic) → ThemeProvider → <html>» с моком каналов (§19 матрица):
- *  - контролы отражают prefs (тёмная checked, масштаб, формат);
+ *  - контролы отражают prefs (тёмная checked, масштаб);
  *  - смена темы → вызов канала prefs/set И html[data-theme] (AC);
  *  - смена масштаба → класс hl-text-* на <html> сразу (AC6);
- *  - select формата даты → prefs/set; пример перерисовывается под пресет;
  *  - отказ сохранения: optimistic-откат — checked и <html> вернулись (§10).
+ * Формат даты с TASK-049 — в «Продвинутых» (AdvancedSection.test.ts): видна только
+ * при advancedMode=true, скрытие — условный рендер из DOM (§16).
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -67,7 +68,6 @@ describe('AppearanceSection — секция «Вид» (§5/§16)', () => {
     );
     expect(screen.getByRole('group', { name: 'Тема' })).toBeDefined();
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Обычный' }).checked).toBe(true);
-    expect(screen.getByLabelText<HTMLSelectElement>('Формат даты').value).toBe('auto');
   });
 
   it('клик «Светлая»: prefs/set {patch:{theme}} и html[data-theme="light"] (AC)', async () => {
@@ -101,21 +101,6 @@ describe('AppearanceSection — секция «Вид» (§5/§16)', () => {
     );
     await waitFor(() =>
       expect(document.documentElement.classList.contains('hl-text-112')).toBe(true),
-    );
-  });
-
-  it('select формата даты: prefs/set {patch:{dateFormat}}; пример перерисовался под пресет', async () => {
-    renderSection();
-    await waitFor(() => expect(screen.getByLabelText('Формат даты')).toBeDefined());
-
-    invoke.mockResolvedValueOnce(OK(PREFS({ dateFormat: 'mdy' })));
-    fireEvent.change(screen.getByLabelText('Формат даты'), { target: { value: 'mdy' } });
-
-    await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('prefs/set', { patch: { dateFormat: 'mdy' } }),
-    );
-    await waitFor(() =>
-      expect(screen.getByTestId('date-format-preview').textContent).toContain('01/31/2026'),
     );
   });
 
