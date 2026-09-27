@@ -60,8 +60,11 @@ import { createPingHandler } from './ipc/handlers/ping.js';
 import { createSearchNotesHandler } from './ipc/handlers/search.js';
 import { createGetPrefsHandler, createSetPrefsHandler } from './ipc/handlers/prefs.js';
 import { createGetActiveScaleHandler } from './ipc/handlers/scales.js';
+import { createGetPeriodStatisticsHandler } from './ipc/handlers/stats.js';
 import { createChannelRegistry, type ChannelRegistry } from './ipc/register-channel.js';
+import { MeasurementPointsAdapter } from './modules/analytics/adapters/measurement-points-adapter.js';
 import { SqliteScaleRepository } from './modules/analytics/adapters/sqlite-scale-repository.js';
+import { GetPeriodStatistics } from './modules/analytics/application/get-period-statistics.js';
 import { ScaleService } from './modules/analytics/application/scale-service.js';
 import { SqliteBpMeasurementRepository } from './modules/measurement/adapters/sqlite-measurement-repository.js';
 import { NotesSearchAdapter } from './modules/measurement/adapters/notes-search.js';
@@ -275,6 +278,16 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     // Активация — часть старта (§5): отказ STORAGE/* пробрасывается выше →
     // глобальный хендлер TASK-011 (шкала критична, §7).
     await scaleService.ensureActivated();
+    //      TASK-054: GetPeriodStatistics — use case канала stats/period (тонкая
+    //      сборка: период → границы → точки порта → read model 052 + classification
+    //      053 → {stats, scale}). Порт точек — адаптер над журналом измерений
+    //      (без нового SQL), шкала — ScaleService выше.
+    const measurementPoints = new MeasurementPointsAdapter(measurementRepo);
+    const getPeriodStatistics = new GetPeriodStatistics({
+      points: measurementPoints,
+      scales: scaleService,
+      clock,
+    });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -335,6 +348,13 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       'scales/active',
       CHANNEL_SCHEMAS['scales/active'],
       createGetActiveScaleHandler(scaleService),
+    );
+    // TASK-054 §5/§11: stats/period — use case getPeriodStatistics; лог длительности
+    // §18 (`stats/period period=… durationMs=… count=…`) — категория ipc.
+    channels.register(
+      'stats/period',
+      CHANNEL_SCHEMAS['stats/period'],
+      createGetPeriodStatisticsHandler(getPeriodStatistics, createLogger('ipc')),
     );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
