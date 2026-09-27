@@ -81,7 +81,8 @@ type PasteField = Exclude<NumericField, 'pulse'>;
 /** Одиночное число ≤3 цифр — штатная вставка в текущее поле (TASK-040 §5). */
 const SINGLE_NUMBER_RE = /^\s*(\d{1,3})\s*$/;
 
-/** Подписи числовых полей — литералы (§22: динамические ключи запрещены). */const FIELD_LABEL_KEY: Readonly<
+/** Подписи числовых полей — литералы (§22: динамические ключи запрещены). */
+const FIELD_LABEL_KEY: Readonly<
   Record<
     NumericField,
     'measurement.fields.sys' | 'measurement.fields.dia' | 'measurement.fields.pulse'
