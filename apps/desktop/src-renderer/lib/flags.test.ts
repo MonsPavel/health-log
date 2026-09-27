@@ -115,11 +115,13 @@ describe('типы реестра (AC-4, §19)', () => {
   });
 
   it('неизвестный флаг — ошибка компиляции (AC-4)', () => {
-    const readUnknown = (name: 'ai.chat'): boolean =>
-      // @ts-expect-error FlagName не содержит ai.chat — флаг войдёт в P4/P5 (§5)
-      FLAGS[name].default;
-    // Не выполняется (только тип-проверка) — прецедент channels.test.ts.
-    expectTypeOf(readUnknown).returns.toEqualTypeOf<boolean>();
+    const getFlag = (name: FlagName): FlagDefinition => FLAGS[name];
+    const readUnknown = (): FlagDefinition =>
+      // @ts-expect-error FlagName не содержит ai.chat — флаг войдёт в P4/P5 (§5).
+      // Прецедент channels.test.ts: подавление на аргументе-литерале (§22: только тип).
+      getFlag('ai.chat');
+    // Не выполняется (только тип-проверка).
+    expectTypeOf(readUnknown).returns.toEqualTypeOf<FlagDefinition>();
   });
 
   it('добавление нового флага (§5: reports.aiSection в P4/P5) не ломает существующих (§19)', () => {

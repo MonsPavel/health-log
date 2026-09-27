@@ -8,12 +8,13 @@
  *    нет, формат даты сохранился (§13: toggle туда-сюда не сбрасывает);
  *  - AC-3: перезапуск после включения — режим сохранён (prefs — источник).
  */
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../i18n';
+import { createQueryClient } from '../../../lib/query-client';
 import { SettingsScreen } from './SettingsScreen';
 
 let invoke: ReturnType<typeof vi.fn>;
@@ -29,10 +30,14 @@ const PREFS = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/** QueryClient боевых дефолтов (§12: retry 0, staleTime Infinity — §12 кэш). */
 function renderScreen(): void {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
-    createElement(QueryClientProvider, { client: queryClient }, createElement(SettingsScreen)),
+    createElement(
+      QueryClientProvider,
+      { client: createQueryClient() },
+      createElement(SettingsScreen),
+    ),
   );
 }
 
@@ -65,6 +70,8 @@ describe('SettingsScreen — простой/продвинутый режим (T
   it('отключение простого режима: prefs/set advancedMode:true → секция видна, формат даты в DOM (AC-2)', async () => {
     renderScreen();
     const sw = await screen.findByRole('switch', { name: 'Простой режим' });
+    // §10: пока prefs не загружены, switch disabled — ждём активации (клик не «впустую»).
+    await waitFor(() => expect(sw.hasAttribute('disabled')).toBe(false));
 
     invoke.mockResolvedValueOnce(OK(PREFS({ advancedMode: true })));
     fireEvent.click(sw);
@@ -108,7 +115,7 @@ describe('SettingsScreen — простой/продвинутый режим (T
 
     // Свежий монтаж читает сохранённый prefs: секция есть без кликов.
     expect(await screen.findByTestId('advanced-section')).toBeDefined();
-    const select = (await screen.findByLabelText('Формат даты')) as HTMLSelectElement;
+    const select = await screen.findByLabelText<HTMLSelectElement>('Формат даты');
     expect(select.value).toBe('dmy');
     expect(screen.getByRole('switch', { name: 'Простой режим' }).getAttribute('aria-checked')).toBe(
       'false',
