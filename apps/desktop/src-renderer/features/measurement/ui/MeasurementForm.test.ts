@@ -12,7 +12,7 @@ import userEvent from '@testing-library/user-event';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { MeasurementAddResponse } from '@hl/contracts';
+import type { MeasurementAddResponse, MeasurementDto } from '@hl/contracts';
 
 import '../../../i18n';
 import { ToastProvider } from '../../../app/toast';
@@ -41,7 +41,11 @@ const ADD_RESPONSE: MeasurementAddResponse = {
 let invoke: ReturnType<typeof vi.fn>;
 
 function renderForm(
-  props: { readonly onSuccess?: (result: MeasurementAddResponse) => void } = {},
+  props: {
+    readonly onSuccess?: (result: MeasurementAddResponse) => void;
+    readonly onEditSuccess?: (id: string) => void;
+    readonly onCancel?: () => void;
+  } = {},
 ): void {
   const queryClient = new QueryClient();
   render(
@@ -557,5 +561,208 @@ describe('MeasurementForm — диалог подтверждений (TASK-032 
     await waitFor(() => expect(screen.queryByTestId('confirm-flags-dialog')).toBeNull());
     expect(sysInput().value).toBe('');
     expect(diaInput().value).toBe('');
+  });
+});
+
+describe('MeasurementForm — режим edit (TASK-038 §5/§10/§19/§20)', () => {
+  /** Смещение устройства теста (машинонезависимо, прецедент HistoryScreen.test). */
+  const TZ = -new Date().getTimezoneOffset();
+  /** Запись с настенным временем 2026-09-24 21:30 в поясе устройства. */
+  const EDIT_DTO: MeasurementDto = {
+    id: 'm-1',
+    profileId: 'seed-profile-0001',
+    sys: 125,
+    dia: 82,
+    pulse: 70,
+    irregularPulse: true,
+    arm: 'left',
+    note: 'утром',
+    takenAtUtcMs: Date.UTC(2026, 8, 24, 21, 30) - TZ * 60_000,
+    tzOffsetMin: TZ,
+    source: 'manual',
+    createdAtUtcMs: Date.UTC(2026, 8, 24, 21, 30) - TZ * 60_000,
+    updatedAtUtcMs: Date.UTC(2026, 8, 24, 21, 30) - TZ * 60_000,
+  };
+  /** Конверт успешного update (§11: ответ {measurement}). */
+  const UPDATE_OK = { v: 1, ok: true, data: { measurement: EDIT_DTO } };
+
+  function startEditDto(): void {
+    useFormStore.getState().startEdit(EDIT_DTO);
+  }
+
+  function editTitle(): HTMLElement {
+    return screen.getByTestId('form-title');
+  }
+
+  it('форма предзаполнена из DTO: числа, пульс, флаг, рука, заметка, дата/время; заголовок editTitle (§10)', () => {
+    startEditDto();
+    renderForm();
+
+    expect(editTitle().textContent).toBe('Изменение записи');
+    expect(screen.queryByText(/Первое измерение/u)).toBeNull();
+    expect(sysInput().value).toBe('125');
+    expect(diaInput().value).toBe('82');
+    expect(pulseInput().value).toBe('70');
+    expect(
+      screen.getByRole<HTMLInputElement>('checkbox', { name: 'Неровный пульс' }).checked,
+    ).toBe(true);
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Левая' }).checked).toBe(true);
+    expect((screen.getByLabelText('Заметка') as HTMLTextAreaElement).value).toBe('утром');
+    expect((screen.getByLabelText('Дата') as HTMLInputElement).value).toBe('2026-09-24');
+    expect((screen.getByLabelText('Время') as HTMLInputElement).value).toBe('21:30');
+  });
+
+  it('режим add: заголовок-подсказка без editTitle (§10)', () => {
+    renderForm();
+
+    expect(screen.queryByTestId('form-title')).toBeNull();
+    expect(screen.getByText(/Первое измерение/u)).toBeDefined();
+  });
+
+  it('правка 125→127: submit вызывает measurements/update с id и новыми значениями (§20 AC1)', async () => {
+    const onEditSuccess = vi.fn();
+    invoke = vi.fn().mockResolvedValue(UPDATE_OK);
+    Object.defineProperty(window, 'hl', {
+      configurable: true,
+      writable: true,
+      value: { invoke, on: vi.fn(() => () => undefined) },
+    });
+    startEditDto();
+    renderForm({ onEditSuccess });
+
+    // 125 → 127: очистить sys (фокус уже в sys), ввести 127.
+    fireEvent.click(screen.getByRole('button', { name: 'Очистить поле' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 7' }));
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(onEditSuccess).toHaveBeenCalledWith('m-1'));
+    expect(invoke).toHaveBeenCalledTimes(1);
+    const [channel, payload] = invoke.mock.calls[0] as [string, Record<string, unknown>];
+    expect(channel).toBe('measurements/update');
+    expect(payload).toMatchObject({ id: 'm-1', sys: 127, dia: 82, pulse: 70 });
+    // Настенное время записи сохранено (правка 125→127 не двигала момент, §20 AC1).
+    const takenAt = payload.takenAt as { utcMs: number; tzOffsetMin: number };
+    const wall = new Date(takenAt.utcMs + takenAt.tzOffsetMin * 60_000);
+    expect([wall.getUTCFullYear(), wall.getUTCMonth() + 1, wall.getUTCDate()]).toEqual([
+      2026, 9, 24,
+    ]);
+    expect([wall.getUTCHours(), wall.getUTCMinutes()]).toEqual([21, 30]);
+  });
+
+  it('после успешной правки: editingId null, поля сброшены (возврат к режиму add, §5)', async () => {
+    invoke = vi.fn().mockResolvedValue(UPDATE_OK);
+    Object.defineProperty(window, 'hl', {
+      configurable: true,
+      writable: true,
+      value: { invoke, on: vi.fn(() => () => undefined) },
+    });
+    startEditDto();
+    renderForm({ onEditSuccess: () => undefined });
+
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(useFormStore.getState().editingId).toBeNull());
+    expect(useFormStore.getState().sys).toBe('');
+    expect(useFormStore.getState().note).toBe('');
+  });
+
+  it('Esc в чистой правке: onCancel вызван, editingId null, запись не изменялась (§5/§20 AC2)', () => {
+    const onCancel = vi.fn();
+    startEditDto();
+    renderForm({ onCancel });
+
+    fireEvent.keyDown(screen.getByTestId('measurement-form'), { key: 'Escape' });
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(useFormStore.getState().editingId).toBeNull();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('Esc при dirty → диалог «Закрыть без сохранения?»; «Отмена» — правка продолжается (§22)', async () => {
+    const onCancel = vi.fn();
+    startEditDto();
+    renderForm({ onCancel });
+
+    fireEvent.change(screen.getByLabelText('Заметка'), { target: { value: 'вечером' } });
+    fireEvent.keyDown(screen.getByTestId('measurement-form'), { key: 'Escape' });
+
+    const dialog = screen.getByTestId('discard-edit-dialog');
+    expect(dialog.textContent).toContain('Закрыть без сохранения');
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(useFormStore.getState().editingId).toBe('m-1');
+
+    // «Отмена» в диалоге — форма остаётся открытой со значениями (§22).
+    fireEvent.click(screen.getByTestId('discard-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('discard-edit-dialog')).toBeNull());
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(useFormStore.getState().editingId).toBe('m-1');
+    expect((screen.getByLabelText('Заметка') as HTMLTextAreaElement).value).toBe('вечером');
+  });
+
+  it('Esc при dirty → «Закрыть без сохранения»: onCancel, editingId null (§22)', async () => {
+    const onCancel = vi.fn();
+    startEditDto();
+    renderForm({ onCancel });
+
+    fireEvent.change(screen.getByLabelText('Заметка'), { target: { value: 'вечером' } });
+    fireEvent.keyDown(screen.getByTestId('measurement-form'), { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('discard-confirm'));
+
+    await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+    expect(useFormStore.getState().editingId).toBeNull();
+    expect(useFormStore.getState().note).toBe('');
+  });
+
+  it('«Отмена» в чистой правке закрывает форму без диалога (§5)', () => {
+    const onCancel = vi.fn();
+    startEditDto();
+    renderForm({ onCancel });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(useFormStore.getState().editingId).toBeNull();
+    expect(screen.queryByTestId('discard-edit-dialog')).toBeNull();
+  });
+
+  it('update NOT_FOUND → тост «Запись уже удалена», onCancel, форма сброшена (§13)', async () => {
+    const onCancel = vi.fn();
+    invoke = vi.fn().mockResolvedValue({
+      v: 1,
+      ok: false,
+      error: { code: 'MEASUREMENT/NOT_FOUND', messageKey: 'errors.MEASUREMENT_NOT_FOUND' },
+    });
+    Object.defineProperty(window, 'hl', {
+      configurable: true,
+      writable: true,
+      value: { invoke, on: vi.fn(() => () => undefined) },
+    });
+    startEditDto();
+    renderForm({ onCancel });
+
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(screen.getByText('Запись уже удалена')).toBeDefined());
+    await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+    expect(useFormStore.getState().editingId).toBeNull();
+    expect(useFormStore.getState().sys).toBe('');
+  });
+
+  it('будущее время при правке: ошибка FUTURE_TIME, сохранение заблокировано, значения на месте (§20 AC4)', () => {
+    startEditDto();
+    renderForm();
+
+    fireEvent.change(screen.getByLabelText('Дата'), { target: { value: '2099-01-01' } });
+
+    // Тот же текст каталога, что у тоста FUTURE_TIME; форма открыта, значения не тронуты.
+    expect(screen.getByText('Время измерения не может быть в будущем.')).toBeDefined();
+    expect(saveButton().disabled).toBe(true);
+    expect(sysInput().value).toBe('125');
+    expect(diaInput().value).toBe('82');
+
+    fireEvent.click(saveButton());
+    expect(invoke).not.toHaveBeenCalled();
   });
 });
