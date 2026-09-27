@@ -1,0 +1,47 @@
+{
+  "$comment": "OQ-6: пороги верифицировать по первоисточнику (ESC/ESH 2018, таблица 4.1 SRS 04) перед публичным релизом.",
+  "code": "bp_office_esc2018",
+  "version": "1.0.0",
+  "sourceLabel": "ESC/ESH 2018",
+  "language": "ru",
+  "categories": [
+    {
+      "code": "optimal",
+      "label": "Оптимальное",
+      "sysRange": { "min": null, "max": 119 },
+      "diaRange": { "min": null, "max": 79 }
+    },
+    {
+      "code": "normal",
+      "label": "Нормальное",
+      "sysRange": { "min": 120, "max": 129 },
+      "diaRange": { "min": 80, "max": 84 }
+    },
+    {
+      "code": "high_normal",
+      "label": "Высокое нормальное",
+      "sysRange": { "min": 130, "max": 139 },
+      "diaRange": { "min": 85, "max": 89 }
+    },
+    {
+      "code": "hypertension1",
+      "label": "АГ 1 степени",
+      "sysRange": { "min": 140, "max": 159 },
+      "diaRange": { "min": 90, "max": 99 }
+    },
+    {
+      "code": "hypertension2",
+      "label": "АГ 2 степени",
+      "sysRange": { "min": 160, "max": 179 },
+      "diaRange": { "min": 100, "max": 109 }
+    },
+    {
+      "code": "hypertension3",
+      "label": "АГ 3 степени",
+      "sysRange": { "min": 180, "max": null },
+      "diaRange": { "min": 110, "max": null }
+    }
+  ],
+  "homeBPNote": "Для домашних измерений порог смещён: среднее домашнее АД ≥135/85 мм рт. ст. соответствует офисному ≥140/90.",
+  "specialGroupsNote": "Пороги не применимы при беременности, у детей и подростков, при некоторых заболеваниях — обсудите значения с врачом."
+}

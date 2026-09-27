@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b && node -e \"require('fs').copyFileSync('src/bp-office-esc2018.json','dist/bp-office-esc2018.json')\""
   },
   "devDependencies": {
     "zod": "^4.6.5"
