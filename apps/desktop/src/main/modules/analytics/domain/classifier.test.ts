@@ -110,14 +110,95 @@ describe('classify — границы категорий §19 (exhaustive по �
     { avgSys: 60, avgDia: 100, expected: 'hypertension2', why: 'dia 100 ровно — низ АГ2' },
     { avgSys: 60, avgDia: 109, expected: 'hypertension2', why: 'dia 109 — верх АГ2' },
     { avgSys: 60, avgDia: 110, expected: 'hypertension3', why: 'dia 110 ровно — низ АГ3' },
-    // Дробные средние из 052 (§13: подаются как есть): щель (119;120) между
-    // целыми диапазонами — «первая по стороне выхода» = optimal (§7).
-    { avgSys: 119.5, avgDia: 79.5, expected: 'optimal', why: 'дробные 119.5/79.5 — ниже normal' },
   ];
 
   for (const c of cases) {
     it(`${c.avgSys}/${c.avgDia} → ${c.expected} (${c.why})`, () => {
       expect(classify(c.avgSys, c.avgDia, SCALE).category?.code).toBe(c.expected);
+    });
+  }
+});
+
+describe('classify — дробные средние в щелях целых границ (§7 «по стороне выхода»)', () => {
+  // Округлённые до 1 знака средние из 052 подаются как есть (§13) и попадают в щели
+  // между целыми диапазонами (129.5, 139.4, 84.5, …). §7: категория «по стороне
+  // выхода» — щель примыкает к более тяжёлой соседней категории, поэтому в щели
+  // берётся СОСЕДНЯЯ БОЛЕЕ ТЯЖЁЛАЯ (первая, чей min больше значения); занижение
+  // (например 179.5 → «Оптимальное») — опасное «молчаливое смещение» (§3).
+  const gapCases: readonly {
+    readonly avgSys: number;
+    readonly avgDia: number;
+    readonly expected: ScaleCategory['code'];
+    readonly why: string;
+  }[] = [
+    {
+      avgSys: 119.5,
+      avgDia: 60,
+      expected: 'normal',
+      why: 'щель (119;120): соседняя тяжёлая — normal, не optimal',
+    },
+    {
+      avgSys: 129.5,
+      avgDia: 60,
+      expected: 'high_normal',
+      why: 'щель (129;130): соседняя тяжёлая — high_normal',
+    },
+    {
+      avgSys: 139.4,
+      avgDia: 60,
+      expected: 'hypertension1',
+      why: 'щель (139;140): 139.4 — соседняя тяжёлая — АГ1',
+    },
+    {
+      avgSys: 159.5,
+      avgDia: 60,
+      expected: 'hypertension2',
+      why: 'щель (159;160): соседняя тяжёлая — АГ2',
+    },
+    {
+      avgSys: 179.5,
+      avgDia: 60,
+      expected: 'hypertension3',
+      why: 'щель (179;180) у порога АГ3/критического: соседняя тяжёлая — АГ3',
+    },
+    {
+      avgSys: 60,
+      avgDia: 79.5,
+      expected: 'normal',
+      why: 'dia-щель (79;80): соседняя тяжёлая — normal',
+    },
+    {
+      avgSys: 60,
+      avgDia: 84.5,
+      expected: 'high_normal',
+      why: 'dia-щель (84;85): соседняя тяжёлая — high_normal',
+    },
+    {
+      avgSys: 60,
+      avgDia: 89.5,
+      expected: 'hypertension1',
+      why: 'dia-щель (89;90): соседняя тяжёлая — АГ1',
+    },
+    {
+      avgSys: 60,
+      avgDia: 109.5,
+      expected: 'hypertension3',
+      why: 'dia-щель (109;110): соседняя тяжёлая — АГ3',
+    },
+    {
+      avgSys: 129.4,
+      avgDia: 84.4,
+      expected: 'high_normal',
+      why: 'обе в щелях: худшая из соседних тяжёлых — high_normal',
+    },
+  ];
+
+  for (const c of gapCases) {
+    it(`${c.avgSys}/${c.avgDia} → ${c.expected} (${c.why})`, () => {
+      const result = classify(c.avgSys, c.avgDia, SCALE);
+      expect(result.category?.code).toBe(c.expected);
+      // Категория в щели сопровождается обеими заметками, как и любая другая (AC §20).
+      expect(result.notes).toEqual(MANDATORY_NOTES);
     });
   }
 });
@@ -226,6 +307,33 @@ describe('classify — открытые границы и защита «вне 
       specialGroupsNote: 'groups',
     } as const;
     expect(classify(80, 55, capped).category?.code).toBe('optimal');
+  });
+
+  it('шкала без открытых сторон: значение в СРЕДНЕЙ щели → соседняя более тяжёлая (§7)', () => {
+    const capped = {
+      categories: [
+        {
+          code: 'optimal',
+          label: 'A',
+          sysRange: { min: 90, max: 100 },
+          diaRange: { min: 50, max: 60 },
+        },
+        {
+          code: 'normal',
+          label: 'B',
+          sysRange: { min: 110, max: 120 },
+          diaRange: { min: 70, max: 80 },
+        },
+      ],
+      homeBPNote: 'home',
+      specialGroupsNote: 'groups',
+    } as const;
+    // 105 — щель между A (max 100) и B (min 110): сторона выхода к тяжёлой B.
+    expect(classify(105, 55, capped).category?.code).toBe('normal');
+    expect(classify(105, 55, capped).notes).toEqual([
+      { kind: 'homeBP', text: 'home' },
+      { kind: 'specialGroups', text: 'groups' },
+    ]);
   });
 
   it('пустой список категорий (невозможно по форме канала) → без категории и без заметок', () => {
