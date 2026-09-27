@@ -102,3 +102,39 @@ export function summarize(values: readonly number[]): ValueStats {
     sd: sd === undefined ? undefined : round1(sd),
   };
 }
+
+/** Пара средних СДА/ДДА (вход difference — §5); значения уже округлены до 1 знака (§7). */
+export interface BpAverages {
+  readonly sys: number;
+  readonly dia: number;
+}
+
+/**
+ * Разница вечер−утро по каждому из СДА/ДДА (§5/§13: delta только при наличии обеих
+ * частей — решение о вызове принимает сборщик). Отрицательная разница (вечер ниже
+ * утра) валидна клинически и не «зажимается». Результат округлён до 1 знака (§7).
+ */
+export function difference(morning: BpAverages, evening: BpAverages): BpAverages {
+  return { sys: round1(evening.sys - morning.sys), dia: round1(evening.dia - morning.dia) };
+}
+
+/** Флаг критического значения точки (семантика политики TASK-020; ставит адаптер порта). */
+export type CriticalFlag = 'high' | 'low' | undefined;
+
+/** Пометка критических значений периода (§7/FR-4.3): были ли high и были ли low. */
+export interface CriticalPeriodFlags {
+  readonly high: boolean;
+  readonly low: boolean;
+}
+
+/**
+ * Пометка критических значений за период (§5: «были ли high/low — политика TASK-020
+ * по точкам»): агрегат по флагам точек (пороги — в measurement/domain/constants,
+ * сюда не дублируются). Пустой период → оба false — булевы поля структуры §7.
+ */
+export function criticalPeriodFlag(flags: readonly CriticalFlag[]): CriticalPeriodFlags {
+  return {
+    high: flags.some((flag) => flag === 'high'),
+    low: flags.some((flag) => flag === 'low'),
+  };
+}

@@ -7,7 +7,16 @@
 // усреднений нет. Функции чистые (арх. 02 §5): только аргументы, без времени и I/O.
 import { describe, expect, it } from 'vitest';
 
-import { mean, max, min, round1, sampleSd, summarize } from './stats-math.js';
+import {
+  criticalPeriodFlag,
+  difference,
+  mean,
+  max,
+  min,
+  round1,
+  sampleSd,
+  summarize,
+} from './stats-math.js';
 
 describe('mean — среднее арифметическое (§5)', () => {
   it('пустой набор → undefined (не NaN — AC §20)', () => {
@@ -98,5 +107,53 @@ describe('summarize — сборка ValueStats (avg/sd округлены до 
     expect(stats.max).toBe(82);
     expect(stats.avg).toBe(81);
     expect(stats.sd).toBe(1);
+  });
+});
+
+describe('difference — вечер минус утро (§5/§13)', () => {
+  it('эталон: утро 120.5/80.5, вечер 122.5/81 → 2 / 0.5 (§19, фикс. (a))', () => {
+    expect(difference({ sys: 120.5, dia: 80.5 }, { sys: 122.5, dia: 81 })).toEqual({
+      sys: 2,
+      dia: 0.5,
+    });
+  });
+
+  it('вечер ниже утра → отрицательная разница (клинически валидна)', () => {
+    expect(difference({ sys: 130, dia: 85 }, { sys: 122, dia: 80 })).toEqual({
+      sys: -8,
+      dia: -5,
+    });
+  });
+
+  it('дробный результат округляется до 1 знака (§7)', () => {
+    expect(difference({ sys: 120.55, dia: 80 }, { sys: 122.51, dia: 81.13 })).toEqual({
+      sys: 2,
+      dia: 1.1,
+    });
+  });
+});
+
+describe('criticalPeriodFlag — были ли high/low за период (§5, политика TASK-020)', () => {
+  it('пустой период → оба false (не undefined — булевы поля §7)', () => {
+    expect(criticalPeriodFlag([])).toEqual({ high: false, low: false });
+  });
+
+  it('флагов нет → оба false (фикс. (a)–(d))', () => {
+    expect(criticalPeriodFlag([undefined, undefined, undefined])).toEqual({
+      high: false,
+      low: false,
+    });
+  });
+
+  it('только high → {high: true, low: false}', () => {
+    expect(criticalPeriodFlag([undefined, 'high', undefined])).toEqual({ high: true, low: false });
+  });
+
+  it('только low → {high: false, low: true}', () => {
+    expect(criticalPeriodFlag([undefined, 'low'])).toEqual({ high: false, low: true });
+  });
+
+  it('оба типа в периоде → оба true (фикс. (e))', () => {
+    expect(criticalPeriodFlag(['high', undefined, 'low'])).toEqual({ high: true, low: true });
   });
 });
