@@ -11,7 +11,8 @@
  *    (долгая миграция блокирует старт, §22; для данных — отдельный механизм, §23).
  */
 import { V1_INITIAL_SCHEMA } from './v1-initial-schema.js';
+import { V2_FTS_NOTES } from './v2-fts.js';
 import type { Migration } from '../migration-runner.js';
 
-/** Все миграции проекта по возрастанию version. v1 — TASK-025. */
-export const MIGRATIONS: readonly Migration[] = [V1_INITIAL_SCHEMA];
+/** Все миграции проекта по возрастанию version. v1 — TASK-025; v2 — TASK-045. */
+export const MIGRATIONS: readonly Migration[] = [V1_INITIAL_SCHEMA, V2_FTS_NOTES];
