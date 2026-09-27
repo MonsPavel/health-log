@@ -54,12 +54,7 @@ const THRESHOLD_KEY: Readonly<
  * Панель критических значений (§2). Презентационная: данные — props + реестр
  * номеров; скрытие — onDismiss владельцу (§10). Никаких сетевых вызовов (§14).
  */
-export function CriticalPanel({
-  flag,
-  onDismiss,
-  sys,
-  dia,
-}: CriticalPanelProps): JSX.Element {
+export function CriticalPanel({ flag, onDismiss, sys, dia }: CriticalPanelProps): JSX.Element {
   const { t, i18n } = useTranslation();
 
   // §13: значения записи в тексте (190/125); без значений — порог SRS («≥180/120»).
@@ -94,9 +89,7 @@ export function CriticalPanel({
     >
       {flag === 'high' ? (
         <>
-          <p className="font-semibold text-text">
-            {t('critical.panel.high.intro', { pressure })}
-          </p>
+          <p className="font-semibold text-text">{t('critical.panel.high.intro', { pressure })}</p>
           <p className="mt-2 text-text">{t('critical.panel.high.symptomsLead')}</p>
           <ul className="mt-1 list-disc pl-5 text-text">
             <li>{t('critical.panel.high.symptomHeadache')}</li>
