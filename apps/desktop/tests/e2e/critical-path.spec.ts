@@ -21,7 +21,8 @@ import { join } from 'node:path';
 
 import { expect, test as base, type ElectronApplication } from '@playwright/test';
 
-import { closeApp, launchApp } from './helpers/launch.js';
+import { collectDiagnostics } from './helpers/collect-diagnostics.js';
+import { closeApp, launchApp, mainProcessLogsDir } from './helpers/launch.js';
 
 /** Имена файлов изоляции в tmp-userData (container.ts/VAULT_KEY_FILENAME). */
 const DB_FILENAME = 'health-log.db';
@@ -32,14 +33,26 @@ const VAULT_FILENAME = 'vault.key';
  * теста (§14: tmp-userData очищается); launch — tracked-обёртка launchApp: страховка
  * в teardown закрывает незакрытые процессы (упавший тест не держит tmp на Windows —
  * иначе rm не пройдёт), graceful closeApp идемпотентен (§22).
+ *
+ * §19/§24 (ревью приёмки): при падении теста — до rm — диагностика прогона
+ * (tmp-userData + общий ротационный main-лог, см. mainProcessLogsDir) копируется в
+ * test-results: код ошибки repo.add/IPC виден только в логе, следующий прогон его
+ * перезаписывает. Зелёный прогон ничего не копирует.
  */
 const test = base.extend<{
   tmpUserData: string;
   launch: (userData: string) => Promise<ElectronApplication>;
 }>({
-  tmpUserData: async ({}, use) => {
+  tmpUserData: async ({}, use, testInfo) => {
     const dir = await mkdtemp(join(tmpdir(), 'hl-e2e-'));
     await use(dir);
+    if (testInfo.status !== testInfo.expectedStatus) {
+      await collectDiagnostics({
+        userDataDir: dir,
+        logsDir: mainProcessLogsDir(),
+        destDir: testInfo.outputPath('failure-diagnostics'),
+      });
+    }
     await rm(dir, { recursive: true, force: true });
   },
   launch: async ({}, use) => {

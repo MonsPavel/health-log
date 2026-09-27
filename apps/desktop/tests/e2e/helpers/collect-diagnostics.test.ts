@@ -93,6 +93,6 @@ describe('collectDiagnostics (TASK-035)', () => {
     expect(manifest.userData).toEqual([]);
     expect(manifest.errors.length).toBeGreaterThan(0);
     // Файлов userdata не появилось — каталог Nested не скопирован как файл.
-    expect(readdir(join(destDir, 'userdata'))).resolves.toEqual([]);
+    expect(await readdir(join(destDir, 'userdata'))).toEqual([]);
   });
 });

@@ -27,6 +27,17 @@ export interface LaunchAppOptions {
 }
 
 /**
+ * Каталог main-логов приложения при e2e-запуске (эмпирика TASK-035): raw-file entry
+ * (`electron dist/main/app/bootstrap.js`) — имя приложения «Electron», логи pino-roll
+ * пишутся в %APPDATA%/Electron/logs (hl.1.log — активный), НЕ в tmp-userData. Файл
+ * общий для всех прогонов и перезаписывается — дамп diagnostics при падении забирает
+ * его ДО следующего запуска (§19: падение = расследование).
+ */
+export function mainProcessLogsDir(): string {
+  return join(process.env['APPDATA'] ?? '', 'Electron', 'logs');
+}
+
+/**
  * Запускает приложение с изолированным userData. env копируется из process.env
  * (_electron.launch заменяет окружение целиком), HL_TEST_USER_DATA добавляется,
  * ELECTRON_RENDERER_URL удаляется — окно грузит собранный dist-renderer (§13

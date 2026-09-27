@@ -14,6 +14,9 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  /** Только сценарии (.spec.ts): юнит-тесты helpers (*.test.ts) — слой Vitest
+   *  (проект desktop-e2e корневого конфига), Playwright их не запускает. */
+  testMatch: '**/*.spec.ts',
   /** §5: 30 с на тест (два запуска приложения в сценарии персистентности). */
   timeout: 30_000,
   /** §5/§15: Electron-глобальное состояние — параллельность запрещена. */
