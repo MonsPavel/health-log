@@ -165,16 +165,13 @@ export function buildPeriodStatistics(
 
   // TASK-053 §5: шкала не передана → классификации нет (аддитивность); передана —
   // округлённые avg подаются как есть (§13), при insufficientData — как undefined.
+  const insufficient = insufficientData.tooFewMeasurements || insufficientData.tooFewDays;
   const classification =
     scale === undefined
       ? undefined
       : classify(
-          insufficientData.tooFewMeasurements || insufficientData.tooFewDays
-            ? undefined
-            : statistics.sys.avg,
-          insufficientData.tooFewMeasurements || insufficientData.tooFewDays
-            ? undefined
-            : statistics.dia.avg,
+          insufficient ? undefined : statistics.sys.avg,
+          insufficient ? undefined : statistics.dia.avg,
           scale,
         );
   const withClassification =

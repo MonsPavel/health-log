@@ -48,7 +48,7 @@ export interface ScaleForClassification {
   readonly specialGroupsNote: string;
 }
 
-/** Роди примечания (§5); тексты homeBP/specialGroups — из данных шкалы. */
+/** Род примечания (§5); тексты homeBP/specialGroups — из данных шкалы. */
 export type ClassificationNoteKind = 'homeBP' | 'specialGroups' | 'insufficientData';
 
 /** Примечание, неотделимое от результата классификации (§3/§5). */
