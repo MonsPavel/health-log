@@ -92,10 +92,5 @@ describe('tokens.css — структура (§5)', () => {
     }
   });
 
-  it('rem-масштаб текста: классы 100% / 112.5% / 125% на html (FR-8.2)', () => {
-    const content = readFileSync(TOKENS_PATH, 'utf8');
-    expect(content).toMatch(/html\.hl-text-112\s*\{\s*font-size:\s*112\.5%/);
-    expect(content).toMatch(/html\.hl-text-125\s*\{\s*font-size:\s*125%/);
-    expect(content).toMatch(/font-size:\s*100%/);
-  });
+  // Rem-масштаб текста (классы hl-text-*) — с TASK-048 тестируется в scale.test.ts.
 });

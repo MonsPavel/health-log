@@ -11,6 +11,13 @@
  */
 @import 'tailwindcss';
 
+/*
+ * TASK-048 §6: масштаб-классы крупного режима текста (html.hl-text-*, три пресета
+ * FR-8.2) — отдельным файлом scale.css; импорт до базового слоя, чтобы правила
+ * применялись к <html> в бандле (порядок: токены → масштаб → tailwind-мост).
+ */
+@import './scale.css';
+
 @theme inline {
   --color-bg: var(--hl-bg);
   --color-text: var(--hl-text);
