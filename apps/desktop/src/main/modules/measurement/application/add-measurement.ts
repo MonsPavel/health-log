@@ -99,6 +99,10 @@ export interface AddResult {
  * Instant — в пару takenAtUtcMs/tzOffsetMin. Опциональные поля (pulse/note) включаются
  * в объект только при наличии — чистая форма по проводам. Реэкспортируется для
  * следующих use case'ов журнала (TASK-030/037 — тот же DTO).
+ *
+ * critical (TASK-042 §11) здесь НЕ проставляется: ответ add несёт критичность через
+ * flags.criticalValue (дублирование допустимо и документируется); поле critical DTO
+ * — server-computed list-хендлера (list-measurements.ts, политика TASK-020).
  */
 export function toMeasurementDto(m: BpMeasurement): MeasurementDto {
   return {
