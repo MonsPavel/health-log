@@ -4,6 +4,11 @@
  * «Оставить» → onKeep без delete, «Удалить и исправить» → onDeleteFix, Esc → keep
  * (безопасное действие по умолчанию — §10/§16), опасная кнопка НЕ в автофокусе (§10),
  * фокус-ловушка (Tab зациклен — §16/§19), axe без critical (§16, прецедент формы).
+ *
+ * TASK-041 §5/§19: при criticalValue — вместо сокращённого блока компонент
+ * CriticalPanel (полный текст FR-7.4 + номера служб): значения записи через
+ * criticalValues; «Понятно, скрыть» скрывает панель, диалог и остальные
+ * подсказки остаются (§10 — dismiss в пределах этой записи).
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -35,6 +40,7 @@ const BOTH_PLUS_CRITICAL: MeasurementFlags = {
 function renderDialog(
   flags: MeasurementFlags,
   handlers: { onKeep?: () => void; onDeleteFix?: () => void } = {},
+  options: { criticalValues?: { sys: number; dia: number } } = {},
 ): void {
   render(
     createElement(ConfirmFlagsDialog, {
@@ -42,6 +48,7 @@ function renderDialog(
       flags,
       onKeep: handlers.onKeep ?? (() => undefined),
       onDeleteFix: handlers.onDeleteFix ?? (() => undefined),
+      criticalValues: options.criticalValues,
     }),
   );
 }
@@ -60,7 +67,7 @@ describe('ConfirmFlagsDialog — подсказки из флагов (§19/§17
     // field интерполируется локализованной подписью поля (sys → «Верхнее (СДА)»).
     expect(hint.textContent).toContain('Верхнее (СДА)');
     expect(screen.queryByTestId('hint-duplicate')).toBeNull();
-    expect(screen.queryByTestId('hint-critical')).toBeNull();
+    expect(screen.queryByTestId('critical-panel')).toBeNull();
   });
 
   it('typo в поле dia: подпись поля «Нижнее (ДДА)»', () => {
@@ -77,7 +84,7 @@ describe('ConfirmFlagsDialog — подсказки из флагов (§19/§17
 
     expect(screen.getByTestId('hint-duplicate').textContent).toContain('Такая запись уже есть');
     expect(screen.queryByTestId('hint-typo')).toBeNull();
-    expect(screen.queryByTestId('hint-critical')).toBeNull();
+    expect(screen.queryByTestId('critical-panel')).toBeNull();
   });
 
   it('оба флага: одна карточка с двумя строками — typo и duplicate (§13, не два диалога)', () => {
@@ -89,14 +96,52 @@ describe('ConfirmFlagsDialog — подсказки из флагов (§19/§17
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
   });
 
-  it('оба+critical: секция срочности первой, до typo-подсказки (§13)', () => {
+  it('оба+critical: панель TASK-041 (полный текст FR-7.4) первой, до typo-подсказки (§13)', () => {
+    renderDialog(BOTH_PLUS_CRITICAL, {}, { criticalValues: { sys: 200, dia: 130 } });
+
+    const panel = screen.getByTestId('critical-panel');
+    // Полный текст FR-7.4 вместо сокращённого «может быть опасным» (TASK-041 §5).
+    expect(panel.textContent).toContain(
+      'Давление 200/130 может указывать на гипертонический криз.',
+    );
+    expect(panel.textContent).toContain('Немедленно обратитесь за медицинской помощью.');
+    expect(panel.textContent).toContain('103 (скорая), 112 (единый)');
+    const typo = screen.getByTestId('hint-typo');
+    // Порядок в DOM: typo следует ЗА панелью → срочность первой (§13).
+    expect(panel.compareDocumentPosition(typo) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
+  it('criticalValue без criticalValues: в тексте порог SRS «≥180/120» (§13 golden)', () => {
     renderDialog(BOTH_PLUS_CRITICAL);
 
-    const critical = screen.getByTestId('hint-critical');
-    const typo = screen.getByTestId('hint-typo');
-    expect(critical.textContent).toContain('Давление ≥180/120 может быть опасным');
-    // Порядок в DOM: typo следует ЗА critical → critical первый (§13 — срочность первой).
-    expect(critical.compareDocumentPosition(typo) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(screen.getByTestId('critical-panel').textContent).toContain(
+      'Давление ≥180/120 может указывать на гипертонический криз.',
+    );
+  });
+
+  it('criticalValue=low: мягкая low-панель без номеров и паники (§5/§20 AC-6.2-дух)', () => {
+    renderDialog(
+      { duplicate: false, criticalValue: 'low' },
+      {},
+      { criticalValues: { sys: 85, dia: 55 } },
+    );
+
+    const panel = screen.getByTestId('critical-panel');
+    expect(panel.textContent).toContain('Давление 85/55 ниже типичных значений.');
+    expect(panel.textContent).not.toContain('103');
+    expect(panel.getAttribute('role')).toBeNull();
+  });
+
+  it('criticalValue: «Понятно, скрыть» скрывает панель, диалог и typo-подсказка остаются (§5/§10)', async () => {
+    const user = userEvent.setup();
+    renderDialog(BOTH_PLUS_CRITICAL);
+    expect(screen.getByTestId('critical-panel')).toBeDefined();
+
+    await user.click(screen.getByTestId('critical-panel-dismiss'));
+
+    expect(screen.queryByTestId('critical-panel')).toBeNull();
+    expect(screen.getByTestId('confirm-flags-dialog')).toBeDefined();
+    expect(screen.getByTestId('hint-typo')).toBeDefined();
   });
 });
 

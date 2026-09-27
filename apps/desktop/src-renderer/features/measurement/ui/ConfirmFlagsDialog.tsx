@@ -3,8 +3,12 @@
  * с флагами (UC-01 A1/A2): подсказки из флагов ответа add — typo («Обычно около
  * {{median}}…»), duplicate («Такая запись уже есть…»); кнопки «Оставить» (безопасное)
  * / «Удалить и исправить» (удаление + возврат в форму — оркестрация в MeasurementForm).
- * При criticalValue — та же модальность показывает сокращённую секцию срочности
- * (FR-7.4 кратко; полный текст/номера служб — TASK-041).
+ *
+ * TASK-041 §5: при criticalValue сокращённая секция срочности ЗАМЕНЕНА компонентом
+ * CriticalPanel (полный текст FR-7.4 + номера служб по локали): значения записи
+ * приходят через criticalValues (из ответа add — measurement.sys/dia); «Понятно,
+ * скрыть» скрывает панель в пределах ЭТОЙ записи (локальный state диалога — §10/§12;
+ * диалог монтируется заново на новую запись — панель показывается каждый раз, §13).
  *
  * КОМБИНАЦИИ (§13): typo+duplicate — одна карточка с двумя строками (не два диалога);
  * criticalValue + typo — обе секции, срочность первой.
@@ -22,9 +26,12 @@
  * «Удалить и исправить».
  */
 import * as Dialog from '@radix-ui/react-dialog';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { MeasurementFlags } from '@hl/contracts';
+
+import { CriticalPanel } from '../../../components/critical-panel/CriticalPanel';
 
 /** Props диалога: флаги ответа add + решения пользователя. */
 export interface ConfirmFlagsDialogProps {
@@ -36,6 +43,8 @@ export interface ConfirmFlagsDialogProps {
   readonly onKeep: () => void;
   /** «Удалить и исправить» — владелец вызывает measurements/delete и возвращает ввод. */
   readonly onDeleteFix: () => void;
+  /** TASK-041 §5/§13: значения записи для панели критических ({sys}/{dia} в тексте). */
+  readonly criticalValues?: { readonly sys: number; readonly dia: number };
 }
 
 /** Подписи полей typo-подсказки — литералы (§22: динамические ключи запрещены). */
@@ -52,8 +61,12 @@ export function ConfirmFlagsDialog({
   flags,
   onKeep,
   onDeleteFix,
+  criticalValues,
 }: ConfirmFlagsDialogProps): JSX.Element {
   const { t } = useTranslation();
+  // TASK-041 §10/§12: dismiss панели — локальный state в пределах этой записи;
+  // размонтирование диалога (закрытие/новая запись) сбрасывает его.
+  const [criticalDismissed, setCriticalDismissed] = useState(false);
 
   return (
     <Dialog.Root
@@ -78,10 +91,13 @@ export function ConfirmFlagsDialog({
           {/* §10: aria-describedby на блок подсказок — Radix связывает Description. */}
           <Dialog.Description asChild>
             <div className="mt-3 flex flex-col gap-2 text-base text-text">
-              {flags.criticalValue !== undefined && (
-                <p data-testid="hint-critical" className="font-semibold">
-                  {t('measurement.dialog.critical.short')}
-                </p>
+              {flags.criticalValue !== undefined && !criticalDismissed && (
+                <CriticalPanel
+                  flag={flags.criticalValue}
+                  onDismiss={() => setCriticalDismissed(true)}
+                  sys={criticalValues?.sys}
+                  dia={criticalValues?.dia}
+                />
               )}
               {flags.typo !== undefined && (
                 <p data-testid="hint-typo">
