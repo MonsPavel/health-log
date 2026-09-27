@@ -39,6 +39,9 @@ export default defineConfig({
       // TASK-034 §24: тест скрипта аудита размера packaged-артефактов (scripts .mjs,
       // чистые функции + прогон run() на tmp-dist).
       testProject('desktop-scripts', ['apps/desktop/scripts/**/*.test.mjs']),
+      // TASK-036 §19: тест скрипта аудита размера установщика (tools/scripts .mjs,
+      // чистые расчёты + прогон run()/CLI на tmp-фикстурах).
+      testProject('tools-scripts', ['tools/scripts/**/*.test.mjs']),
     ],
   },
 });
