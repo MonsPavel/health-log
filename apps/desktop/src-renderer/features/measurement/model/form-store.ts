@@ -125,6 +125,12 @@ export interface FormDraftActions {
   removeLastDigit: (field: NumericField) => void;
   /** Очистить числовое поле (кнопка «очистить»). */
   clearField: (field: NumericField) => void;
+  /**
+   * TASK-040 §5/§12: умная вставка пары «120/80» из буфера — sys и dia заполняются
+   * ОДНИМ set (единый re-render, одна запись persist). dia, введённый ранее,
+   * перезаписывается парой (§13: пользователь вставляет пару — ожидаемо).
+   */
+  setPressure: (sys: string, dia: string) => void;
   /** Сменить руку (сегмент-контрол); выбор запоминается до конца сессии. */
   setArm: (arm: Arm) => void;
   /** Поставить/снять флаг «неровный пульс». */
@@ -251,6 +257,9 @@ const draftStore: StateCreator<FormStoreState, [], [], FormStoreState> = (set, g
   removeLastDigit: (field) => set((state) => ({ [field]: state[field].slice(0, -1) })),
 
   clearField: (field) => set({ [field]: '' }),
+
+  // TASK-040 §12: оба поля одним set — один re-render, одна запись persist.
+  setPressure: (sys, dia) => set({ sys, dia }),
 
   setArm: (arm) => set({ arm }),
 
