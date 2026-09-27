@@ -3,7 +3,10 @@
  * 125/82, «70 уд/мин» (пульс опционален), рука (title-атрибут — «иконка» §5,
  * MVP без библиотеки иконок: компактный текст-бейдж с подсказкой), заметка —
  * обрезанные 40 символов в подстроке (§14 — экранирование делает React) с полным
- * текстом в title. Флаг-место — пустой aria-hidden span: бейджи флагов — TASK-042.
+ * текстом в title.
+ *
+ * TASK-042 §5/§13: флаг-место — FlagBadges (critical-бейдж кнопкой → панель
+ * TASK-041, irregular — tooltip; без флагов — пусто, место не резервируется).
  *
  * TASK-038 §5/§16: меню действий (⋮, RowMenu): «Изменить»/«Удалить». Единственный
  * колбэк onRowAction(measurement, action) — стабильная идентичность между
@@ -17,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import type { MeasurementDto } from '@hl/contracts';
 
 import { formatDateTime } from '../../../lib/i18n-date';
+import { FlagBadges } from './FlagBadges';
 import { RowMenu } from './RowMenu';
 
 /** Лимит заметки в строке (§14): длиннее — обрезка с многоточием, полный текст в title. */
@@ -75,8 +79,11 @@ export const MeasurementRow = memo(function MeasurementRow({
           {truncateNote(measurement.note)}
         </span>
       )}
-      {/* Флаг-место (TASK-042 — бейджи): пока пусто, из a11y-дерева скрыт (§16). */}
-      <span aria-hidden="true" data-testid="row-flag-slot" className="ml-auto" />
+      {/* TASK-042 §5/§13: бейджи флагов (FlagBadges); без флагов — пусто, место не
+          резервируется (компактность, §13). ml-auto — якорь правого края строки. */}
+      <span data-testid="row-flag-slot" className="ml-auto flex shrink-0 items-center gap-1.5">
+        <FlagBadges measurement={measurement} />
+      </span>
       {/* TASK-038 §5: меню действий записи — «Изменить»/«Удалить». */}
       <RowMenu
         measurementId={measurement.id}

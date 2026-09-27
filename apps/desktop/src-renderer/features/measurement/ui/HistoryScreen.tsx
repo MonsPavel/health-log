@@ -41,6 +41,7 @@ import { groupByDay } from '../model/wall-date';
 import { DayGroup } from './DayGroup';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { EmptyHistory } from './EmptyHistory';
+import { FlagLegend } from './FlagBadges';
 import { MeasurementForm } from './MeasurementForm';
 
 /** Вид вкладки журнала: список истории или форма ввода (§5). */
@@ -239,6 +240,8 @@ export function HistoryScreen(): JSX.Element {
   // «Сейчас» — один на рендер: заголовки дней стабильны внутри прохода (§13).
   const nowMs = Date.now();
   const total = measurements.data.pages[0]?.total ?? 0;
+  // TASK-042 §5: легенда флагов — только при наличии хоть одного флага в списке.
+  const hasFlags = items.some((m) => m.critical !== undefined || m.irregularPulse);
 
   return (
     <section className="p-4">
@@ -252,6 +255,9 @@ export function HistoryScreen(): JSX.Element {
           {t('measurement.history.add')}
         </button>
       </header>
+
+      {/* TASK-042 §5: легенда флагов над списком — обучающая строка при наличии флагов. */}
+      {hasFlags && <FlagLegend />}
 
       {groupByDay(items).map((group) => (
         <DayGroup key={group.key} group={group} nowMs={nowMs} onRowAction={handleRowAction} />
