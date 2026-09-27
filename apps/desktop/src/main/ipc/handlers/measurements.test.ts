@@ -10,15 +10,22 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   MEASUREMENT_ADD_RESPONSE_SCHEMA,
   MEASUREMENT_LIST_RESPONSE_SCHEMA,
+  MEASUREMENT_UPDATE_RESPONSE_SCHEMA,
   type MeasurementAddRequest,
+  type MeasurementUpdateRequest,
 } from '@hl/contracts';
 import { FixedClock, unsafeUnwrap } from '@hl/kernel';
 
 import { InMemoryBpMeasurementRepository } from '../../modules/measurement/adapters/measurement-repo.fake.js';
 import { AddMeasurementUseCase } from '../../modules/measurement/application/add-measurement.js';
 import { ListMeasurementsUseCase } from '../../modules/measurement/application/list-measurements.js';
+import { UpdateMeasurementUseCase } from '../../modules/measurement/application/update-measurement.js';
 import { BpMeasurement } from '../../modules/measurement/domain/bp-measurement.js';
-import { createAddMeasurementHandler, createListMeasurementHandler } from './measurements.js';
+import {
+  createAddMeasurementHandler,
+  createListMeasurementHandler,
+  createUpdateMeasurementHandler,
+} from './measurements.js';
 
 /** Фиксированное «сейчас» и пояс (UTC+3) — детерминизм NFR-10. */
 const NOW_MS = 1_758_816_000_000; // 2025-09-25T16:00:00Z
@@ -100,6 +107,102 @@ const listRecord = (
       clock,
     ),
   );
+
+/**
+ * TASK-037 §9/§11: юниты хендлера `measurements/update` — маппинг Result use case'а →
+ * ответ канала: ok → MeasurementUpdateResponse (проверка строгой схемой TASK-028 —
+ * контракт формы доказан парсом; ответ {measurement} — §66 TASK-028, флаги use case'а
+ * остаются в main-логе §18), err → AppError наружу (каркас TASK-008 конвертирует его
+ * в ApiFailure(toDto)); NOT_FOUND и FUTURE_TIME проходят как есть.
+ */
+const updatePayload = (overrides: Partial<MeasurementUpdateRequest> = {}): MeasurementUpdateRequest => ({
+  id: 'seed-id',
+  sys: 120,
+  dia: 80,
+  pulse: 70,
+  irregularPulse: false,
+  arm: 'left',
+  takenAt: { utcMs: NOW_MS - MINUTE_MS, tzOffsetMin: TZ },
+  ...overrides,
+});
+
+/** Хендлер update на реальном use case с fake-repo (§19). */
+const makeUpdateHandler = () => {
+  const repo = new InMemoryBpMeasurementRepository();
+  const events = { emit: vi.fn() };
+  const logger = { debug: vi.fn(), info: vi.fn(), error: vi.fn() };
+  const useCase = new UpdateMeasurementUseCase({ repo, clock, events, logger });
+  return { handler: createUpdateMeasurementHandler(useCase), repo };
+};
+
+describe('createUpdateMeasurementHandler — Result → ответ канала (TASK-037 §9/§11)', () => {
+  it('ok → MeasurementUpdateResponse, форма валидна строгой схемой; запись обновлена', async () => {
+    const { handler, repo } = makeUpdateHandler();
+    const existing = unsafeUnwrap(
+      BpMeasurement.create(
+        {
+          profileId: 'profile-1',
+          sys: 125,
+          dia: 82,
+          irregularPulse: false,
+          arm: 'left',
+          takenAt: { utcMs: NOW_MS - 5 * MINUTE_MS, tzOffsetMin: TZ },
+        },
+        clock,
+      ),
+    );
+    await repo.add(existing);
+
+    const response = await handler(
+      updatePayload({ id: existing.id, sys: 130, dia: 84, arm: 'right' }),
+    );
+
+    // Строгая .strict()-схема канала принимает ответ — контракт §11 TASK-028 доказан
+    // (ответ {measurement}: duplicate отсутствует, флаги — не часть провода).
+    expect(MEASUREMENT_UPDATE_RESPONSE_SCHEMA.parse(response)).toEqual(response);
+    expect(response.measurement).toMatchObject({
+      id: existing.id,
+      sys: 130,
+      dia: 84,
+      arm: 'right',
+      updatedAtUtcMs: NOW_MS,
+    });
+    expect((await repo.getById(existing.id))?.bp.sys).toBe(130);
+  });
+
+  it('err (NOT_FOUND) → AppError наружу с кодом MEASUREMENT/NOT_FOUND (каркас вернёт ApiFailure)', async () => {
+    const { handler } = makeUpdateHandler();
+
+    const promise = handler(updatePayload({ id: 'no-such-id' }));
+
+    await expect(promise).rejects.toMatchObject({ code: 'MEASUREMENT/NOT_FOUND' });
+  });
+
+  it('err (будущее время) → AppError наружу с кодом; запись не изменена', async () => {
+    const { handler, repo } = makeUpdateHandler();
+    const existing = unsafeUnwrap(
+      BpMeasurement.create(
+        {
+          profileId: 'profile-1',
+          sys: 125,
+          dia: 82,
+          irregularPulse: false,
+          arm: 'left',
+          takenAt: { utcMs: NOW_MS - 5 * MINUTE_MS, tzOffsetMin: TZ },
+        },
+        clock,
+      ),
+    );
+    await repo.add(existing);
+
+    const promise = handler(
+      updatePayload({ id: existing.id, takenAt: { utcMs: NOW_MS + MINUTE_MS, tzOffsetMin: TZ } }),
+    );
+
+    await expect(promise).rejects.toMatchObject({ code: 'MEASUREMENT/FUTURE_TIME' });
+    expect((await repo.getById(existing.id))?.bp.sys).toBe(125);
+  });
+});
 
 /** Хендлер list на реальном use case с fake-repo (§19 TASK-030). */
 const makeListHandler = () => {

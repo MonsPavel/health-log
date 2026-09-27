@@ -20,6 +20,8 @@ import type {
   MeasurementAddResponse,
   MeasurementListRequest,
   MeasurementListResponse,
+  MeasurementUpdateRequest,
+  MeasurementUpdateResponse,
 } from '@hl/contracts';
 
 import {
@@ -27,6 +29,7 @@ import {
   AddMeasurementUseCase,
 } from '../../modules/measurement/application/add-measurement.js';
 import { ListMeasurementsUseCase } from '../../modules/measurement/application/list-measurements.js';
+import { UpdateMeasurementUseCase } from '../../modules/measurement/application/update-measurement.js';
 
 /** Ответ add (§11): {measurement, flags} — typo/criticalValue включаются только при наличии. */
 function toAddResponse(add: AddResult): MeasurementAddResponse {
@@ -65,4 +68,31 @@ export function createListMeasurementHandler(
   useCase: ListMeasurementsUseCase,
 ): (payload: MeasurementListRequest) => Promise<MeasurementListResponse> {
   return async (payload) => useCase.execute(payload);
+}
+
+/**
+ * Фабрика хендлера `measurements/update` (TASK-037 §5/§9/§11): use case инъекцируется
+ * контейнером (TASK-027), слой тот же тонкий. Payload — схема TASK-028 {id, …поля},
+ * структурно совпадает с UpdateMeasurementCommand use case'а — передаётся как есть.
+ * Ответ — {measurement} по строгой схеме TASK-028 (§66 TASK-028: «update → {measurement}»):
+ * флаги эвристик результата use case (UpdateResult §7) в провод не идут — их потребитель
+ * в main — лог §18; duplicate в ответе отсутствует по построению (решение §5).
+ *  - ok  → ответ канала {measurement} по строгой схеме TASK-028;
+ *  - err → AppError бросается наружу: каркас ловит его и возвращает ApiFailure(toDto)
+ *    (register-channel §13 п. 3–4, прецедент add); NOT_FOUND и FUTURE_TIME проходят
+ *    как есть (§22: единые коды CRUD).
+ */
+export function createUpdateMeasurementHandler(
+  useCase: UpdateMeasurementUseCase,
+): (payload: MeasurementUpdateRequest) => Promise<MeasurementUpdateResponse> {
+  return async (payload) => {
+    const result = await useCase.execute(payload);
+    if (isErr(result)) {
+      // Ошибка уходит значением → исключением ровно на границе каркаса, где ей
+      // место: AppError → {ok:false, error:toDto} (NFR-12, TASK-008 §13 п. 3).
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт §9; каркас register-channel конвертирует его в ApiFailure(toDto), прецедент measurements-delete.ts)
+      throw result.error;
+    }
+    return { measurement: result.value.measurement };
+  };
 }
