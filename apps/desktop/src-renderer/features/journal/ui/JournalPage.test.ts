@@ -6,6 +6,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { MeasurementDto } from '@hl/contracts';
@@ -50,11 +51,16 @@ describe('JournalPage — вкладка журнала (§4 TASK-033)', () => {
       value: { invoke, on: vi.fn(() => () => undefined) },
     });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // TASK-044: HistoryScreen читает фильтры через useSearchParams — нужен Router.
     render(
       createElement(
         QueryClientProvider,
         { client: queryClient },
-        createElement(ToastProvider, null, createElement(JournalPage)),
+        createElement(
+          MemoryRouter,
+          { initialEntries: ['/journal'] },
+          createElement(ToastProvider, null, createElement(JournalPage)),
+        ),
       ),
     );
 

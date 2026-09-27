@@ -75,7 +75,10 @@ describe('AppRouter — маршруты (§5)', () => {
     expect(await screen.findByTestId('empty-history')).not.toBeNull();
     expect(screen.getByText('Пока нет измерений')).not.toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
+    // TASK-044: в пустом состоянии две кнопки «Добавить» (шапка + CTA) — кликаем CTA.
+    fireEvent.click(
+      within(screen.getByTestId('empty-history')).getByRole('button', { name: 'Добавить' }),
+    );
 
     await waitFor(() => expect(screen.getByTestId('input-sys')).not.toBeNull());
     expect(screen.getByTestId('input-dia')).not.toBeNull();
