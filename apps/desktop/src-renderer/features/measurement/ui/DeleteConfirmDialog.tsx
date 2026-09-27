@@ -11,6 +11,10 @@
  * (Esc/«Отмена»/оверлей; Radix вызывает onOpenChange(false) и после Action).
  * «Отмена удаления сохраняет запись» из US-8 = отказ ДО подтверждения: данных
  * после подтверждения уже нет — undo-тоста нет (§5 решение).
+ *
+ * TASK-048 §13 (аудит крупного режима): max-height + внутренний scroll у
+ * контента (перенос прецедента ConfirmFlagsDialog); кнопочный ряд flex-wrap —
+ * на масштабах 112/125% кнопки переносятся, не перекрываются.
  */
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { useTranslation } from 'react-i18next';
@@ -50,7 +54,7 @@ export function DeleteConfirmDialog({
         <AlertDialog.Overlay className="fixed inset-0 bg-black/50" />
         <AlertDialog.Content
           data-testid="delete-confirm-dialog"
-          className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg p-6 shadow-lg"
+          className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border border-border bg-bg p-6 shadow-lg"
         >
           <AlertDialog.Title
             data-testid="delete-confirm-title"
@@ -76,7 +80,7 @@ export function DeleteConfirmDialog({
             </p>
           </AlertDialog.Description>
 
-          <div className="mt-6 flex justify-end gap-3">
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
             {/* Безопасное действие: фокус при открытии и первый Tab — к «Отмене» (§16). */}
             <AlertDialog.Cancel asChild>
               <button
