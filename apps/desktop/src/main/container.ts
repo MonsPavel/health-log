@@ -57,6 +57,7 @@ import {
 import { createDeleteMeasurementHandler } from './ipc/handlers/measurements-delete.js';
 import { createPingHandler } from './ipc/handlers/ping.js';
 import { createSearchNotesHandler } from './ipc/handlers/search.js';
+import { createGetPrefsHandler, createSetPrefsHandler } from './ipc/handlers/prefs.js';
 import { createChannelRegistry, type ChannelRegistry } from './ipc/register-channel.js';
 import { SqliteBpMeasurementRepository } from './modules/measurement/adapters/sqlite-measurement-repository.js';
 import { NotesSearchAdapter } from './modules/measurement/adapters/notes-search.js';
@@ -66,6 +67,8 @@ import { ListMeasurementsUseCase } from './modules/measurement/application/list-
 import type { BpMeasurementRepository } from './modules/measurement/application/ports/bp-measurement-repository.js';
 import { SearchNotesUseCase } from './modules/measurement/application/search-notes.js';
 import { UpdateMeasurementUseCase } from './modules/measurement/application/update-measurement.js';
+import { SettingsStore } from './modules/settings-profile/adapters/settings-store.js';
+import { PreferencesService } from './modules/settings-profile/application/preferences-service.js';
 import {
   SafeStorageKeyVault,
   type VaultSafeStorage,
@@ -255,6 +258,11 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       events,
       logger,
     });
+    //      TASK-047: PreferencesService — единый документ prefs в app_setting v3;
+    //      set публикует prefs:changed (renderer перечитывает — мгновенное
+    //      применение темы/масштаба, §10).
+    const settingsStore = new SettingsStore(db, { clock, logger: dbLogger });
+    const preferencesService = new PreferencesService({ store: settingsStore, events, logger });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -296,6 +304,18 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       'notes/search',
       CHANNEL_SCHEMAS['notes/search'],
       createSearchNotesHandler(searchNotes),
+    );
+    // TASK-047 §5/§11: prefs/get|set — use case preferencesService (дефолты/merge —
+    // сервис; patch валидирует strip-схема каркаса и сервис; STORAGE/* — адаптер).
+    channels.register(
+      'prefs/get',
+      CHANNEL_SCHEMAS['prefs/get'],
+      createGetPrefsHandler(preferencesService),
+    );
+    channels.register(
+      'prefs/set',
+      CHANNEL_SCHEMAS['prefs/set'],
+      createSetPrefsHandler(preferencesService),
     );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
