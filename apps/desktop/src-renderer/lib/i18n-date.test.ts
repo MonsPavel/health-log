@@ -10,6 +10,37 @@ import { describe, expect, it } from 'vitest';
 
 import { formatDateTime } from './i18n-date';
 
+describe('formatDateTime — пресет prefs.dateFormat (TASK-047 §13)', () => {
+  const instant = { utcMs: Date.UTC(2026, 8, 25, 11, 30), tzOffsetMin: 180 };
+
+  it('auto (по умолчанию): Intl по локали — формат от locale-параметра', () => {
+    expect(formatDateTime(instant, { preset: 'date', dateFormat: 'auto' })).toBe('25.09.2026');
+    expect(formatDateTime(instant, { preset: 'date' })).toBe('25.09.2026');
+  });
+
+  it('dmy: явный день-месяц-год независимо от locale', () => {
+    expect(formatDateTime(instant, { locale: 'en-US', preset: 'date', dateFormat: 'dmy' })).toBe(
+      '25.09.2026',
+    );
+    expect(
+      formatDateTime(instant, { locale: 'en-US', preset: 'datetime', dateFormat: 'dmy' }),
+    ).toBe('25.09.2026, 14:30');
+  });
+
+  it('mdy: явный месяц-день-год независимо от locale', () => {
+    expect(formatDateTime(instant, { locale: 'ru-RU', preset: 'date', dateFormat: 'mdy' })).toBe(
+      '09/25/2026',
+    );
+    expect(
+      formatDateTime(instant, { locale: 'ru-RU', preset: 'datetime', dateFormat: 'mdy' }),
+    ).toBe('09/25/2026, 14:30');
+  });
+
+  it('пресет time dateFormat не меняет (формат часа не зависит от порядка даты)', () => {
+    expect(formatDateTime(instant, { preset: 'time', dateFormat: 'mdy' })).toBe('14:30');
+  });
+});
+
 describe('formatDateTime — настенное время через Intl (§7)', () => {
   it('datetime: ru-RU, UTC+3 — 11:30 UTC = 14:30 настенного', () => {
     const instant = { utcMs: Date.UTC(2026, 8, 25, 11, 30), tzOffsetMin: 180 };
