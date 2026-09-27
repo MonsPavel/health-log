@@ -67,6 +67,10 @@
     "confirm": "Удалить",
     "cancel": "Отмена"
   },
+  "toast": {
+    "deleted": "Удалено",
+    "edited": "Правка применена"
+  },
   "errors": {
     "required": "Введите значение",
     "whenIncomplete": "Укажите дату и время"

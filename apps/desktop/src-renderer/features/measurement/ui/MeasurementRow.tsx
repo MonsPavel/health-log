@@ -5,6 +5,10 @@
  * обрезанные 40 символов в подстроке (§14 — экранирование делает React) с полным
  * текстом в title. Флаг-место — пустой aria-hidden span: бейджи флагов — TASK-042.
  *
+ * TASK-038 §5/§16: меню действий (⋮, RowMenu): «Изменить»/«Удалить». Единственный
+ * колбэк onRowAction(measurement, action) — стабильная идентичность между
+ * рендерами не ломает memo (§15); решение о правке/удалении принимает экран.
+ *
  * §15: memo на Row — 200 строк без виртуализации; ре-рендер группы — по id.
  */
 import { memo } from 'react';
@@ -13,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import type { MeasurementDto } from '@hl/contracts';
 
 import { formatDateTime } from '../../../lib/i18n-date';
+import { RowMenu } from './RowMenu';
 
 /** Лимит заметки в строке (§14): длиннее — обрезка с многоточием, полный текст в title. */
 const NOTE_ROW_LENGTH = 40;
@@ -30,14 +35,17 @@ function truncateNote(note: string): string {
   return note.length > NOTE_ROW_LENGTH ? `${note.slice(0, NOTE_ROW_LENGTH)}…` : note;
 }
 
-/** Props строки: только DTO — memo сравнивает по ссылке записи (§15). */
+/** Props строки: DTO + меню действий — memo сравнивает по ссылке записи и колбэка (§15). */
 export interface MeasurementRowProps {
   readonly measurement: MeasurementDto;
+  /** TASK-038 §5: меню действий строки; решение (edit/delete) принимает экран. */
+  readonly onRowAction?: (measurement: MeasurementDto, action: 'edit' | 'delete') => void;
 }
 
 /** Строка записи журнала (§16: читаемая последовательность время → давление → пульс → рука). */
 export const MeasurementRow = memo(function MeasurementRow({
   measurement,
+  onRowAction,
 }: MeasurementRowProps): JSX.Element {
   const { t } = useTranslation();
   const armLabel = t(ARM_KEY[measurement.arm]);
@@ -69,6 +77,12 @@ export const MeasurementRow = memo(function MeasurementRow({
       )}
       {/* Флаг-место (TASK-042 — бейджи): пока пусто, из a11y-дерева скрыт (§16). */}
       <span aria-hidden="true" data-testid="row-flag-slot" className="ml-auto" />
+      {/* TASK-038 §5: меню действий записи — «Изменить»/«Удалить». */}
+      <RowMenu
+        measurementId={measurement.id}
+        onEdit={() => onRowAction?.(measurement, 'edit')}
+        onDelete={() => onRowAction?.(measurement, 'delete')}
+      />
     </li>
   );
 });
