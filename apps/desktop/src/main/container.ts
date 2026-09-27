@@ -56,12 +56,15 @@ import {
 } from './ipc/handlers/measurements.js';
 import { createDeleteMeasurementHandler } from './ipc/handlers/measurements-delete.js';
 import { createPingHandler } from './ipc/handlers/ping.js';
+import { createSearchNotesHandler } from './ipc/handlers/search.js';
 import { createChannelRegistry, type ChannelRegistry } from './ipc/register-channel.js';
 import { SqliteBpMeasurementRepository } from './modules/measurement/adapters/sqlite-measurement-repository.js';
+import { NotesSearchAdapter } from './modules/measurement/adapters/notes-search.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
 import { DeleteMeasurementUseCase } from './modules/measurement/application/delete-measurement.js';
 import { ListMeasurementsUseCase } from './modules/measurement/application/list-measurements.js';
 import type { BpMeasurementRepository } from './modules/measurement/application/ports/bp-measurement-repository.js';
+import { SearchNotesUseCase } from './modules/measurement/application/search-notes.js';
 import { UpdateMeasurementUseCase } from './modules/measurement/application/update-measurement.js';
 import {
   SafeStorageKeyVault,
@@ -218,6 +221,8 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     // 6. Репозиторий (TASK-026; боевой логгер createLogger('db') — TASK-026 §18).
     // БУДУЩАЯ РАБОТА (§23): сюда же встают use case'ы 029+ и прочие модули.
     const measurementRepo = new SqliteBpMeasurementRepository(db, { logger: dbLogger });
+    // TASK-045 §5: адаптер FTS-поиска заметок над индексом миграции v2 (та же БД).
+    const notesSearch = new NotesSearchAdapter(db, { logger: dbLogger });
 
     // 7. События (TASK-009): боевая категория events вместо консольного дефолта.
     const events = new EventBus(createLogger('events'));
@@ -230,6 +235,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //      значения»; события — в порядке add.
     //      TASK-037: UpdateMeasurement — полная правка через edit-фабрику; typo
     //      пересчитывается без правимой записи, duplicate не пересчитывается.
+    //      TASK-045: SearchNotes — FTS-поиск заметок (событий не публикует).
     const addMeasurement = new AddMeasurementUseCase({
       repo: measurementRepo,
       clock,
@@ -237,6 +243,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       logger,
     });
     const listMeasurements = new ListMeasurementsUseCase({ repo: measurementRepo, logger });
+    const searchNotes = new SearchNotesUseCase({ search: notesSearch, logger });
     const deleteMeasurement = new DeleteMeasurementUseCase({
       repo: measurementRepo,
       events,
@@ -282,6 +289,13 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       'measurements/delete',
       CHANNEL_SCHEMAS['measurements/delete'],
       createDeleteMeasurementHandler(deleteMeasurement),
+    );
+    // TASK-045 §5/§11: notes/search — use case searchNotes (мусорный запрос —
+    // пустой результат, не ошибка; ошибки канала — только APP/INTERNAL).
+    channels.register(
+      'notes/search',
+      CHANNEL_SCHEMAS['notes/search'],
+      createSearchNotesHandler(searchNotes),
     );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
