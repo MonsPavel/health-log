@@ -23,10 +23,13 @@ const setupFiles = [fileURLToPath(new URL('./vitest.setup.ts', import.meta.url))
  * (register-channel и далее) импортируют @hl/kernel и @hl/contracts по имени, и
  * без алиаса vitest резолвил бы их через dist (сборка перед pnpm test). Тесты
  * герметичны от порядка сборки: pnpm test работает на свежем checkout.
+ * TASK-051: @hl/scales-data — данные шкалы (потребитель ScaleService) — тем же
+ * способом, на исходники (без предварительной сборки пакета).
  */
 const workspaceAliases = {
   '@hl/kernel': fileURLToPath(new URL('./packages/kernel/src/index.ts', import.meta.url)),
   '@hl/contracts': fileURLToPath(new URL('./packages/contracts/src/index.ts', import.meta.url)),
+  '@hl/scales-data': fileURLToPath(new URL('./packages/scales-data/src/index.ts', import.meta.url)),
 };
 
 /** Общие настройки каждого тестового проекта монорепо (§5, §13). */
