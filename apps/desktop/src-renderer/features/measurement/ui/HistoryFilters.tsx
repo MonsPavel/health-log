@@ -3,17 +3,21 @@
  *
  * Компонент — презентационный (§16: значения — проп-состояние, события —
  * колбэки): сегмент-контрол периода на нативных radio в fieldset/legend
- * (прецедент ArmSegment TASK-031), «Произвольный» — disabled-заглушка до
- * TASK-046 (§5) с пояснением в title; select руки и чекбокс «Только с
- * заметками» с label; кнопка сброса. Панель НЕ размонтируется при смене
- * фильтров/данных (HistoryScreen держит её в списке всегда) — фокус остаётся
- * на контроле (§16).
+ * (прецедент ArmSegment TASK-031); «Произвольный» (TASK-046 §5) включает
+ * CustomRangeFields — два нативных date-input «С»/«По» с валидацией; select
+ * руки и чекбокс «Только с заметками» с label; кнопка сброса. Панель НЕ
+ * размонтируется при смене фильтров/данных (HistoryScreen держит её в списке
+ * всегда) — фокус остаётся на контроле (§16).
  *
  * Хук (§5/§12/§13): URL — источник истины. useSearchParams читается парсером
- * модели (мусор → дефолт, §14); «сейчас» для границ пресета фиксируется в
- * момент применения (memo по канонической строке URL — не на каждый рендер,
- * §13); каждое применение переписывает URL сериализатором (replace — фильтры
- * не засоряют историю навигации); reset возвращает ?period=30d (§5).
+ * модели (мусор → дефолт, §14); «сейчас» для границ пресета/диапазона
+ * фиксируется в момент применения (memo по канонической строке URL — не на
+ * каждый рендер, §13); каждое применение переписывает URL сериализатором
+ * (replace — фильтры не засоряют историю навигации); reset возвращает
+ * ?period=30d (§5). setRange (TASK-046) применяет только валидные даты —
+ * invalid-состояние блокируется в CustomRangeFields (§19); setPeriod('custom')
+ * сохраняет введённый диапазон (возврат на пресет и обратно), уход на пресет
+ * даты убирает.
  *
  * Ключи каталога — литералы в картах (§22: динамических ключей нет, прецедент
  * NOTICE_KEY/ARM_KEY TASK-038/031 — check-i18n ищет полные литералы).
@@ -41,8 +45,9 @@ import {
   type MeasurementQueryFragment,
 } from '../model/filters';
 import { SEARCH_DEBOUNCE_MS } from '../api/use-notes-search';
+import { CustomRangeFields } from './CustomRangeFields';
 
-/** Пункты сегмента периода (§17: ключи filters.period.*, custom — заглушка). */
+/** Пункты сегмента периода (§17: ключи filters.period.*; custom — TASK-046). */
 const PERIOD_OPTIONS = ['7d', '30d', '90d', 'all', 'custom'] as const;
 
 /** Ключи подписей периода — литералы в карте (§22). */
@@ -82,14 +87,16 @@ const ARM_OPTIONS: Readonly<
 export interface HistoryFiltersProps {
   /** Текущее состояние фильтров (URL-восстановлено хуком). */
   readonly state: HistoryFilterState;
-  /** Выбор пресета периода (custom недостижим — радио disabled). */
-  readonly onPeriod: (period: Exclude<HistoryPeriod, 'custom'>) => void;
+  /** Выбор периода — пресет или «Произвольный» (TASK-046 §5). */
+  readonly onPeriod: (period: HistoryPeriod) => void;
   /** Выбор руки; undefined — «все». */
   readonly onArm: (arm: HistoryArm | undefined) => void;
   /** Переключение «только с заметками». */
   readonly onNoted: (noted: boolean) => void;
   /** Применение поискового запроса (после debounce; '' — очистка, §5 TASK-045). */
   readonly onQuery: (query: string) => void;
+  /** Применение валидного диапазона custom (§5 TASK-046; invalid блокирует CustomRangeFields). */
+  readonly onRange: (from: string | undefined, to: string | undefined) => void;
   /** Сброс к дефолту (?period=30d, §5). */
   readonly onReset: () => void;
 }
@@ -101,6 +108,7 @@ export function HistoryFilters({
   onArm,
   onNoted,
   onQuery,
+  onRange,
   onReset,
 }: HistoryFiltersProps): JSX.Element {
   const { t } = useTranslation();
@@ -132,34 +140,31 @@ export function HistoryFilters({
       <fieldset className="border-0 p-0">
         <legend className="text-sm text-accent">{t('measurement.filters.periodLabel')}</legend>
         <div className="flex gap-2">
-          {PERIOD_OPTIONS.map((period) => {
-            const isCustomStub = period === 'custom';
-            return (
-              <label
-                key={period}
-                title={isCustomStub ? t('measurement.filters.customStub') : undefined}
-                className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-base hover:bg-accent/10 data-disabled:cursor-default data-disabled:opacity-50"
-                data-disabled={isCustomStub ? 'true' : undefined}
-              >
-                <input
-                  type="radio"
-                  name="history-period"
-                  data-testid={`filter-period-${period}`}
-                  value={period}
-                  checked={state.period === period}
-                  disabled={isCustomStub}
-                  onChange={() => {
-                    if (period !== 'custom') {
-                      onPeriod(period);
-                    }
-                  }}
-                  className="h-5 w-5 accent-[var(--hl-accent)]"
-                />
-                {t(PERIOD_KEY[period])}
-              </label>
-            );
-          })}
+          {PERIOD_OPTIONS.map((period) => (
+            <label
+              key={period}
+              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-base hover:bg-accent/10 data-disabled:cursor-default data-disabled:opacity-50"
+            >
+              <input
+                type="radio"
+                name="history-period"
+                data-testid={`filter-period-${period}`}
+                value={period}
+                checked={state.period === period}
+                onChange={() => onPeriod(period)}
+                className="h-5 w-5 accent-[var(--hl-accent)]"
+              />
+              {t(PERIOD_KEY[period])}
+            </label>
+          ))}
         </div>
+        {/* TASK-046 §5/§10: поля произвольного периода — только в режиме custom;
+            invalid-ввод блокируется внутри (§19), в URL уходят лишь валидные даты. */}
+        {state.period === 'custom' && (
+          <div className="mt-3">
+            <CustomRangeFields from={state.from} to={state.to} onApply={onRange} />
+          </div>
+        )}
       </fieldset>
 
       <div className="flex flex-col gap-1">
@@ -253,14 +258,16 @@ export interface MeasurementFilters {
   readonly query: MeasurementQueryFragment;
   /** Отличается ли состояние от дефолта (§10: особое пустое состояние). */
   readonly isActive: boolean;
-  /** Выбор пресета периода — момент клика фиксирует «сейчас» границы (§13). */
-  readonly setPeriod: (period: Exclude<HistoryPeriod, 'custom'>) => void;
+  /** Выбор периода — пресет или «Произвольный»; момент клика фиксирует «сейчас» границ (§13). */
+  readonly setPeriod: (period: HistoryPeriod) => void;
   /** Выбор руки (undefined — «все», параметр из URL убирается). */
   readonly setArm: (arm: HistoryArm | undefined) => void;
   /** Переключение «только с заметками» (false — параметр убирается). */
   readonly setNoted: (noted: boolean) => void;
   /** Применение поискового запроса (TASK-045): '' — параметр q убирается. */
   readonly setQuery: (query: string) => void;
+  /** Применение валидного диапазона custom (TASK-046 §5; undefined — поле не задано). */
+  readonly setRange: (from: string | undefined, to: string | undefined) => void;
   /** Сброс к дефолту: URL → ?period=30d (§5). */
   readonly reset: () => void;
 }
@@ -288,8 +295,23 @@ export function useMeasurementFilters(): MeasurementFilters {
     [setSearchParams],
   );
 
+  // TASK-046 §5: «Произвольный» сохраняет уже введённый диапазон (возврат с
+  // пресета восстанавливает поля); уход на пресет даты убирает (параметры
+  // from/to — только режима custom, §5).
   const setPeriod = useCallback(
-    (period: Exclude<HistoryPeriod, 'custom'>) => apply({ ...state, period }),
+    (period: HistoryPeriod) => {
+      if (period === 'custom') {
+        apply({ ...state, period: 'custom' });
+        return;
+      }
+      const { arm, noted, q } = state;
+      apply({
+        period,
+        ...(arm === undefined ? {} : { arm }),
+        ...(noted === true ? { noted } : {}),
+        ...(q === undefined ? {} : { q }),
+      });
+    },
     [apply, state],
   );
   const setArm = useCallback(
@@ -305,6 +327,23 @@ export function useMeasurementFilters(): MeasurementFilters {
     },
     [apply, state],
   );
+  // TASK-046 §5/§12: диапазон custom в URL (period=custom&from=&to=); оба поля
+  // пустые — режим custom без дат (§10: границы 30d); спредом из state старые
+  // даты не тащим — убранные поля обязаны исчезнуть из адреса.
+  const setRange = useCallback(
+    (from: string | undefined, to: string | undefined) => {
+      const { arm, noted, q } = state;
+      apply({
+        period: 'custom',
+        ...(from === undefined ? {} : { from }),
+        ...(to === undefined ? {} : { to }),
+        ...(arm === undefined ? {} : { arm }),
+        ...(noted === true ? { noted } : {}),
+        ...(q === undefined ? {} : { q }),
+      });
+    },
+    [apply, state],
+  );
   const reset = useCallback(() => apply(DEFAULT_FILTER_STATE), [apply]);
 
   return {
@@ -315,6 +354,7 @@ export function useMeasurementFilters(): MeasurementFilters {
     setArm,
     setNoted,
     setQuery,
+    setRange,
     reset,
   };
 }
