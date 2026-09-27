@@ -3,11 +3,15 @@
  *
  * toQuery (§13): пресет Nд → fromUtcMs = nowUtcMs − N*86400000 ВКЛЮЧИТЕЛЬНО
  * (граница пресета — точка включения записи портом TASK-021), toUtcMs отсутствует;
- * «всё» → from/to нет; custom — заглушка до TASK-046 (границ нет, парсером в URL
- * не восстанавливается). arm/hasNote пробрасываются как есть.
+ * «всё» → from/to нет. TASK-046 custom: границы настенных дней from/to через
+ * parseRange (§7), неполный диапазон — открытая сторона (§10), пустые оба и
+ * невалидные даты — границы дефолтного 30d (§10/§14). arm/hasNote пробрасываются
+ * как есть.
  *
  * Парсер (§14): мусорный URL → дефолт 30d без ошибок; строгие enum-значения
- * (7D ≠ 7d); noted только '1'; посторонние параметры игнорируются.
+ * (7D ≠ 7d); noted только '1'; посторонние параметры игнорируются. TASK-046:
+ * from/to — только при period=custom, строгий ISO-календарь, мусор отбрасывается,
+ * from > to — весь custom мусорен → дефолт.
  *
  * Сериализатор (§5/§12): период в URL ВСЕГДА (дефолт — period=30d — виден в
  * адресе), arm/noted — только непустые; roundtrip parse∘serialize — тождество
@@ -26,9 +30,25 @@ import {
   serializeHistoryFilters,
   toQuery,
 } from './filters';
+import { MS_PER_MINUTE, tzOffsetMinOf } from './taken-at';
 
 /** Фиксированное «сейчас» — не Date.now (чистая функция, детерминизм §19). */
 const NOW_MS = Date.UTC(2026, 8, 27, 15, 0);
+
+/** Смещение зоны устройства для NOW (toQuery custom берёт зону момента now). */
+const OFFSET_MIN = tzOffsetMinOf(NOW_MS);
+
+/** Настенная полночь даты 'YYYY-MM-DD' в зоне OFFSET → ожидаемый fromUtcMs. */
+function wallStart(dateStr: string): number {
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  return Date.UTC(y ?? 1970, (mo ?? 1) - 1, d ?? 1) - OFFSET_MIN * MS_PER_MINUTE;
+}
+
+/** 23:59:59.999 настенной даты в зоне OFFSET → ожидаемый toUtcMs (§13 включительно). */
+function wallEnd(dateStr: string): number {
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  return Date.UTC(y ?? 1970, (mo ?? 1) - 1, d ?? 1) + DAY_MS - 1 - OFFSET_MIN * MS_PER_MINUTE;
+}
 
 describe('toQuery — пресеты периода (§13)', () => {
   it('7д: fromUtcMs = now − 7 суток ровно, toUtcMs отсутствует (граница включительная — TASK-021)', () => {
@@ -53,8 +73,10 @@ describe('toQuery — пресеты периода (§13)', () => {
     expect(toQuery({ period: 'all' }, NOW_MS)).toStrictEqual({});
   });
 
-  it('custom — заглушка до TASK-046: границ нет (состояние типа допустимо, UI не создаёт)', () => {
-    expect(toQuery({ period: 'custom' }, NOW_MS)).toStrictEqual({});
+  it('custom без дат (§10: пустые оба) → границы дефолтного 30d — режим custom, запрос как 30d', () => {
+    expect(toQuery({ period: 'custom' }, NOW_MS)).toStrictEqual({
+      fromUtcMs: NOW_MS - 30 * DAY_MS,
+    });
   });
 });
 
@@ -94,9 +116,9 @@ describe('parseHistoryFilters — URL → состояние (§7/§14)', () => 
     });
   });
 
-  it('чувствительность к регистру и unknown-период: 7D/custom → дефолт (custom парсится с TASK-046)', () => {
+  it('чувствительность к регистру: 7D → дефолт; period=custom — валиден (TASK-046 §5)', () => {
     expect(parseHistoryFilters(params('period=7D'))).toStrictEqual({ period: '30d' });
-    expect(parseHistoryFilters(params('period=custom'))).toStrictEqual({ period: '30d' });
+    expect(parseHistoryFilters(params('period=custom'))).toStrictEqual({ period: 'custom' });
   });
 
   it('рука: left/right читаются, мусор → не задана', () => {
@@ -147,6 +169,134 @@ describe('roundtrip parse∘serialize — тождество на UI-дости�
     const state = { period, arm: 'left', noted: true } as const;
     expect(parseHistoryFilters(serializeHistoryFilters(state))).toStrictEqual(state);
     expect(parseHistoryFilters(serializeHistoryFilters({ period }))).toStrictEqual({ period });
+  });
+});
+
+// TASK-046 §5/§7/§10: произвольный период — state {period:'custom', from?, to?},
+// toQuery через parseRange (настенные границы §13), URL period=custom&from=&to=.
+describe('TASK-046: toQuery — custom через parseRange (§7/§10/§13)', () => {
+  it('оба поля: from = полночь настенного from-дня, to = 23:59:59.999 настенного to-дня', () => {
+    expect(
+      toQuery({ period: 'custom', from: '2026-03-01', to: '2026-03-15' }, NOW_MS),
+    ).toStrictEqual({
+      fromUtcMs: wallStart('2026-03-01'),
+      toUtcMs: wallEnd('2026-03-15'),
+    });
+  });
+
+  it('только from — «от даты до ∞» (§10 прогрессивно)', () => {
+    expect(toQuery({ period: 'custom', from: '2026-03-01' }, NOW_MS)).toStrictEqual({
+      fromUtcMs: wallStart('2026-03-01'),
+    });
+  });
+
+  it('только to — «до даты от −∞», to не в будущем (§10/EC-20)', () => {
+    expect(toQuery({ period: 'custom', to: '2026-03-15' }, NOW_MS)).toStrictEqual({
+      toUtcMs: wallEnd('2026-03-15'),
+    });
+    expect(toQuery({ period: 'custom', to: '2026-09-28' }, NOW_MS)).toStrictEqual({
+      fromUtcMs: NOW_MS - 30 * DAY_MS,
+    });
+  });
+
+  it('невалидная пара в состоянии (from>to — рукописный URL): границы дефолтного 30d (§14)', () => {
+    expect(
+      toQuery({ period: 'custom', from: '2026-03-15', to: '2026-03-01' }, NOW_MS),
+    ).toStrictEqual({ fromUtcMs: NOW_MS - 30 * DAY_MS });
+  });
+
+  it('мусор в состоянии (from=xx — парсер такое не создаёт, защита в глубину): дефолт 30d', () => {
+    expect(toQuery({ period: 'custom', from: 'xx', to: '2026-02-30' }, NOW_MS)).toStrictEqual({
+      fromUtcMs: NOW_MS - 30 * DAY_MS,
+    });
+  });
+
+  it('рука/заметки сочетаются с custom-границами (§5: единый query-фрагмент)', () => {
+    expect(
+      toQuery({ period: 'custom', from: '2026-03-01', to: '2026-03-15', arm: 'right', noted: true }, NOW_MS),
+    ).toStrictEqual({
+      fromUtcMs: wallStart('2026-03-01'),
+      toUtcMs: wallEnd('2026-03-15'),
+      arm: 'right',
+      hasNote: true,
+    });
+  });
+});
+
+describe('TASK-046: parseHistoryFilters — from/to только при custom (§5/§14)', () => {
+  /** Читатель по строке запроса (та же минимальная поверхность, что у useSearchParams). */
+  function params(search: string): URLSearchParams {
+    return new URLSearchParams(search);
+  }
+
+  it('period=custom&from&to — состояние с датами (§5 URL-формат)', () => {
+    expect(parseHistoryFilters(params('period=custom&from=2026-03-01&to=2026-03-15'))).toStrictEqual(
+      { period: 'custom', from: '2026-03-01', to: '2026-03-15' },
+    );
+  });
+
+  it('period=custom без дат — режим custom с пустыми полями (не дефолт: поля видимы)', () => {
+    expect(parseHistoryFilters(params('period=custom'))).toStrictEqual({ period: 'custom' });
+  });
+
+  it.each([
+    'from=xx',
+    'from=2026-3-1',
+    'from=2026-02-30',
+    'from=2026-03-01T00:00',
+    'from=',
+  ] as const)('мусорный %s отбрасывается, дата не в состоянии (§14)', (fragment) => {
+    expect(parseHistoryFilters(params(`period=custom&${fragment}&to=2026-03-15`))).toStrictEqual({
+      period: 'custom',
+      to: '2026-03-15',
+    });
+  });
+
+  it('from > to (рукописный URL) — весь custom мусорен → дефолт 30d (§14/AC2)', () => {
+    expect(
+      parseHistoryFilters(params('period=custom&from=2026-03-15&to=2026-03-01')),
+    ).toStrictEqual(DEFAULT_FILTER_STATE);
+  });
+
+  it('from/to при пресете — игнорируются (параметры только режима custom, §5)', () => {
+    expect(parseHistoryFilters(params('period=7d&from=2026-03-01&to=2026-03-15'))).toStrictEqual({
+      period: '7d',
+    });
+  });
+});
+
+describe('TASK-046: serializeHistoryFilters и roundtrip custom (§5/§12)', () => {
+  it('custom с датами: period=custom&from=…&to=… (§2 URL-формат)', () => {
+    expect(
+      serializeHistoryFilters({ period: 'custom', from: '2026-03-01', to: '2026-03-15' }).toString(),
+    ).toBe('period=custom&from=2026-03-01&to=2026-03-15');
+  });
+
+  it('custom без дат: только period=custom (поля пустые — режим выбираем)', () => {
+    expect(serializeHistoryFilters({ period: 'custom' }).toString()).toBe('period=custom');
+  });
+
+  it('у пресетов from/to в URL не пишутся, даже если попали в состояние', () => {
+    expect(
+      serializeHistoryFilters({ period: '7d', from: '2026-03-01', to: '2026-03-15' }).toString(),
+    ).toBe('period=7d');
+  });
+
+  it('roundtrip custom: parse∘serialize — тождество (§12, AC5 перезагрузка)', () => {
+    const state = { period: 'custom', from: '2026-03-01', to: '2026-03-15' } as const;
+    expect(parseHistoryFilters(serializeHistoryFilters(state))).toStrictEqual(state);
+    expect(parseHistoryFilters(serializeHistoryFilters({ period: 'custom', from: state.from }))).toStrictEqual({
+      period: 'custom',
+      from: state.from,
+    });
+    expect(parseHistoryFilters(serializeHistoryFilters({ period: 'custom' }))).toStrictEqual({
+      period: 'custom',
+    });
+  });
+
+  it('isFiltersActive: custom — активные фильтры (особое пустое состояние, §10)', () => {
+    expect(isFiltersActive({ period: 'custom' })).toBe(true);
+    expect(isFiltersActive({ period: 'custom', from: '2026-03-01' })).toBe(true);
   });
 });
 
