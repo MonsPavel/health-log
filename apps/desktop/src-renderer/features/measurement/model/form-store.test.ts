@@ -281,7 +281,7 @@ describe('form-store — persist черновика (TASK-039 §5/§19)', () => 
     const state = storedState(DRAFT_KEY);
     expect(state).toMatchObject({
       sys: '125',
-      dia: '8',
+      dia: '82',
       note: 'черновик',
       when: { date: '2026-09-24', time: '21:30' },
     });
@@ -453,7 +453,7 @@ describe('form-store — persist черновика (TASK-039 §5/§19)', () => 
     // Тост восстановления — один раз: флаг ставится при гидрации и снимается consume.
     expect(s.draftRestored).toBe(true);
     expect(s.consumeDraftRestored()).toBe(true);
-    expect(s.draftRestored).toBe(false);
+    expect(fresh.getState().draftRestored).toBe(false);
   });
 
   it('пустой черновик при старте → draftRestored false (тост не нужен)', async () => {
