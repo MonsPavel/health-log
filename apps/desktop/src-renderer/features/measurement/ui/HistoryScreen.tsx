@@ -32,6 +32,14 @@
  * FR-2.3) → measurements/delete → invalidate (мутация) + тост «Удалено».
  * NOT_FOUND при delete/update — тост «Запись уже удалена» (§13). Фокус-возврат
  * в строку после действий (§16/§20 AC5): data-row-menu якоря + effect.
+ *
+ * TASK-045 §5/§10/§12/§13/§16/§17: поиск по заметкам. Непустой ?q= — режим поиска:
+ * данные из notes/search (по всей БД), фильтры периода/руки/заметок сужают результат
+ * на клиенте (matchesDtoFilters — §10); список-канал при этом отключён (enabled:
+ * false — данные не смешиваются). Подписи режима поиска: «Найдено N» aria-live
+ * (§16, плюрализация §17), «показаны первые 50» при равенстве лимиту (§13),
+ * пустой результат — search.empty (§10). Событие measurement:changed инвалидирует
+ * и поисковую ветку кэша ['measurements','search'] (§12).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -44,9 +52,11 @@ import { useToast } from '../../../app/toast';
 import { useHlEvent } from '../../../lib/events';
 import { IpcApiError, PROFILE_ID } from '../api/use-add-measurement';
 import { measurementsKey, useMeasurements } from '../api/use-measurements';
+import { SEARCH_KEY_ROOT, SEARCH_PAGE_LIMIT, useNotesSearch } from '../api/use-notes-search';
 import { useDeleteMeasurement } from '../api/use-delete-measurement';
 import { useFormStore } from '../model/form-store';
 import { groupByDay } from '../model/wall-date';
+import { matchesDtoFilters } from '../model/filters';
 import { DayGroup } from './DayGroup';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { EmptyHistory } from './EmptyHistory';
@@ -70,6 +80,41 @@ const NOTICE_KEY: Readonly<
   deleted: 'measurement.toast.deleted',
   edited: 'measurement.toast.edited',
 };
+
+/**
+ * TASK-045 §17: «Найдено N» — плюрализация. i18next-каталог хранит формы суффиксами
+ * LDML (_one/_few/_many/_other), выбор — Intl.PluralRules('ru') в карте с ПОЛНЫМИ
+ * литералами ключей (§22: check-i18n видит каждый ключ; переменная категории в
+ * ключ не подставляется). Подстановка {{n}} — интерполяция, не plural-механика
+ * i18next (иначе ключ с суффиксом ре-резолвится повторно).
+ */
+type SearchFoundKey =
+  | 'measurement.search.foundN_one'
+  | 'measurement.search.foundN_few'
+  | 'measurement.search.foundN_many'
+  | 'measurement.search.foundN_other';
+
+/** Категория plural → полный литерал ключа каталога (§22). */
+const FOUND_KEY: Readonly<Record<'one' | 'few' | 'many' | 'other', SearchFoundKey>> = {
+  one: 'measurement.search.foundN_one',
+  few: 'measurement.search.foundN_few',
+  many: 'measurement.search.foundN_many',
+  other: 'measurement.search.foundN_other',
+};
+
+/** Ключ «Найдено N» по числу (§17): Intl.PluralRules('ru') + карта литералов. */
+function foundKeyFor(count: number): SearchFoundKey {
+  switch (new Intl.PluralRules('ru').select(count)) {
+    case 'one':
+      return FOUND_KEY.one;
+    case 'few':
+      return FOUND_KEY.few;
+    case 'many':
+      return FOUND_KEY.many;
+    default:
+      return FOUND_KEY.other;
+  }
+}
 
 /** Экранирование id для селектора-атрибута (CSS.escape отсутствует в jsdom). */
 function escapeSelector(value: string): string {
@@ -149,6 +194,28 @@ function EmptyFiltered({ onReset }: { readonly onReset: () => void }): JSX.Eleme
   );
 }
 
+/**
+ * Пустой результат поиска (TASK-045 §10/§17): «измените запрос» — отдельное
+ * состояние, не путать с EmptyHistory («вообще нет данных») и EmptyFiltered
+ * («фльтры без результата»). Причина пустоты видна в поисковой строке — кнопка
+ * сброса не нужна.
+ */
+function EmptySearch(): JSX.Element {
+  const { t } = useTranslation();
+
+  return (
+    <div
+      data-testid="empty-search"
+      className="flex flex-col items-center gap-2 px-6 py-16 text-center"
+    >
+      <span aria-hidden="true" className="text-5xl" role="presentation">
+        🔍
+      </span>
+      <p className="text-base font-medium">{t('measurement.search.empty')}</p>
+    </div>
+  );
+}
+
 /** Экран «Журнал»: история по дням + форма ввода (§2); с TASK-038 — правка/удаление. */
 export function HistoryScreen(): JSX.Element {
   const { t } = useTranslation();
@@ -166,8 +233,13 @@ export function HistoryScreen(): JSX.Element {
   /** id удаляемой записи — excludeId фокуса (refetch может прийти позже фокуса). */
   const deletedIdRef = useRef<string | null>(null);
   // TASK-044 §5/§12: фильтры — из URL (хук), query-фрагмент — в ключе кэша списка.
+  // TASK-045 §10/§12: непустой ?q= — режим поиска: данные из notes/search (вся БД),
+  // фильтры сужают результат на клиенте; список-канал в этом режиме отключён.
   const filters = useMeasurementFilters();
-  const measurements = useMeasurements(PROFILE_ID, filters.query);
+  const searchQuery = filters.state.q ?? '';
+  const isSearching = searchQuery !== '';
+  const measurements = useMeasurements(PROFILE_ID, filters.query, { enabled: !isSearching });
+  const search = useNotesSearch(searchQuery);
 
   // TASK-038 §16/§20 AC5: фокус-возврат — после смены вида на список, когда
   // строки снова в DOM; запись удалена → ближайшая оставшаяся (focusRowMenu).
@@ -188,20 +260,30 @@ export function HistoryScreen(): JSX.Element {
     return () => clearTimeout(timer);
   }, [notice]);
 
-  // Live-обновление (§5/§12): событие точечно инвалидирует ключ списка профиля.
+  // Live-обновление (§5/§12): событие точечно инвалидирует ключ списка профиля и
+  // поисковую ветку кэша (TASK-045 §12: ['measurements','search']).
   useHlEvent('measurement:changed', (payload) => {
     void queryClient.invalidateQueries({ queryKey: measurementsKey(payload.profileId) });
+    void queryClient.invalidateQueries({ queryKey: [...SEARCH_KEY_ROOT] });
   });
 
   // Ошибка чтения (§10): тост по dto (IpcApiError → dto отказа, иное → INTERNAL);
-  // текст дублирует панель ошибки, повтор — кнопкой ниже.
+  // текст дублирует панель ошибки, повтор — кнопкой ниже. Режим поиска — ошибка search.
   useEffect(() => {
-    if (!measurements.isError) {
+    const error = isSearching ? search.error : measurements.error;
+    const isError = isSearching ? search.isError : measurements.isError;
+    if (!isError) {
       return;
     }
-    const { error } = measurements;
     showToast(error instanceof IpcApiError ? error.dto : APP_INTERNAL_ERROR);
-  }, [measurements.isError, measurements.error, showToast]);
+  }, [
+    isSearching,
+    search.isError,
+    search.error,
+    measurements.isError,
+    measurements.error,
+    showToast,
+  ]);
 
   /**
    * TASK-038 §5/§12: меню строки — единственный стабильный колбэк (memo §15).
@@ -253,17 +335,19 @@ export function HistoryScreen(): JSX.Element {
     );
   }
 
-  if (measurements.isPending) {
+  // TASK-045 §10: pending/ошибка — по активному источнику данных (поиск или список).
+  const isPending = isSearching ? search.isPending : measurements.isPending;
+  if (isPending) {
     return <HistorySkeleton />;
   }
 
-  if (measurements.isError) {
+  if (isSearching ? search.isError : measurements.isError) {
     return (
       <section className="flex flex-col items-center gap-3 px-6 py-16 text-center">
         <h2 className="text-lg font-semibold">{t('common.nav.journal')}</h2>
         <button
           type="button"
-          onClick={() => void measurements.refetch()}
+          onClick={() => void (isSearching ? search.refetch() : measurements.refetch())}
           className="rounded-md border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800"
         >
           {t('measurement.history.retry')}
@@ -272,13 +356,15 @@ export function HistoryScreen(): JSX.Element {
     );
   }
 
-  // keepPreviousData (§10/§16): при смене фильтра data — предыдущий список,
-  // пока грузится новый ключ; isPlaceholderData здесь не различаем — панель
-  // и список остаются смонтированными, фокус на фильтре не сбрасывается.
-  const items = measurements.data.pages.flatMap((page) => page.items);
+  // Данные (§10): поиск — ответ notes/search, суженный фильтрами на клиенте
+  // (matchesDtoFilters); список — страницы useInfiniteQuery. В режиме поиска
+  // список-запрос отключён (enabled:false) — его data undefined, не читаем.
+  const items = isSearching
+    ? (search.data?.items ?? []).filter((dto) => matchesDtoFilters(filters.query, dto))
+    : (measurements.data?.pages.flatMap((page) => page.items) ?? []);
   // «Сейчас» — один на рендер: заголовки дней стабильны внутри прохода (§13).
   const nowMs = Date.now();
-  const total = measurements.data.pages[0]?.total ?? 0;
+  const total = measurements.data?.pages[0]?.total ?? 0;
   // TASK-042 §5: легенда флагов — только при наличии хоть одного флага в списке.
   const hasFlags = items.some((m) => m.critical !== undefined || m.irregularPulse);
 
@@ -296,20 +382,44 @@ export function HistoryScreen(): JSX.Element {
       </header>
 
       {/* TASK-044 §5: панель фильтров — период/рука/заметки/сброс; URL — источник
-          истины (§12). Панель не размонтируется при смене данных — фокус остаётся (§16). */}
+          истины (§12). Панель не размонтируется при смене данных — фокус остаётся (§16).
+          TASK-045 §5: строка поиска — в панели (debounce 300 мс, §10). */}
       <HistoryFilters
         state={filters.state}
         onPeriod={filters.setPeriod}
         onArm={filters.setArm}
         onNoted={filters.setNoted}
+        onQuery={filters.setQuery}
         onReset={filters.reset}
       />
+
+      {/* TASK-045 §16/§17: «Найдено N» — aria-live строка режима поиска. */}
+      {isSearching && items.length > 0 && (
+        <p
+          data-testid="search-found"
+          role="status"
+          aria-live="polite"
+          className="mb-2 text-sm text-neutral-500"
+        >
+          {t(foundKeyFor(items.length), { n: items.length })}
+        </p>
+      )}
+
+      {/* TASK-045 §13: результат равен лимиту страницы — предупреждение об усечении. */}
+      {isSearching && items.length === SEARCH_PAGE_LIMIT && (
+        <p data-testid="search-truncated" className="mb-2 text-xs text-neutral-500">
+          {t('measurement.search.truncated50', { n: SEARCH_PAGE_LIMIT })}
+        </p>
+      )}
 
       {/* TASK-042 §5: легенда флагов над списком — обучающая строка при наличии флагов. */}
       {hasFlags && <FlagLegend />}
 
       {items.length === 0 ? (
-        // §10: пусто при активных фильтрах — «сбросьте фильтры», не «нет данных».
+        // §10: в режиме поиска пустой результат — «измените запрос» (§17 search.empty).
+        isSearching ? (
+          <EmptySearch />
+        ) : // §10: пусто при активных фильтрах — «сбросьте фильтры», не «нет данных».
         filters.isActive ? (
           <EmptyFiltered onReset={filters.reset} />
         ) : (
@@ -348,7 +458,9 @@ export function HistoryScreen(): JSX.Element {
         }}
       />
 
-      {items.length > 0 && (
+      {/* TASK-038 §5: подпись и «Показать ещё» — только режим списка (поиск: foundN,
+          усечение §13; total/пагинации у notes/search нет, §11). */}
+      {items.length > 0 && !isSearching && (
         <>
           <p data-testid="history-shown" className="mt-2 text-xs text-neutral-500">
             {t('measurement.history.shownOf', { shown: items.length, total })}

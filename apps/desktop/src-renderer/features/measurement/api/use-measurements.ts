@@ -54,8 +54,18 @@ async function listMeasurements(request: MeasurementListRequest): Promise<Measur
   return result.data;
 }
 
-/** Хук истории (§5): страницы по {limit:200}, offset растёт на загруженное; фильтры (TASK-044) — в ключе и payload. */
-export function useMeasurements(profileId: string, filters?: MeasurementQueryFragment) {
+/** Опции хука (TASK-045 §10): enabled=false — режим поиска, список не запрашивается. */
+export interface UseMeasurementsOptions {
+  /** false → запрос отключён (поиск активен — данные идут из notes/search, §10). */
+  readonly enabled?: boolean;
+}
+
+/** Хук истории (§5): страницы по {limit:200}, offset растёт на загруженное; фильтры (TASK-044) — в ключе и payload; TASK-045: enabled выключает запрос в режиме поиска. */
+export function useMeasurements(
+  profileId: string,
+  filters?: MeasurementQueryFragment,
+  options: UseMeasurementsOptions = {},
+) {
   return useInfiniteQuery({
     queryKey: measurementsKey(profileId, filters),
     queryFn: ({ pageParam }) =>
@@ -65,6 +75,7 @@ export function useMeasurements(profileId: string, filters?: MeasurementQueryFra
         offset: pageParam,
         ...(filters ?? {}),
       }),
+    enabled: options.enabled ?? true,
     initialPageParam: 0,
     placeholderData: keepPreviousData,
     getNextPageParam: (lastPage, allPages) => {

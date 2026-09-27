@@ -19,7 +19,7 @@
  * неизвестные значения → дефолт (мусор URL не выдаёт ошибок и не доходит до
  * запроса list, §14), посторонние параметры игнорирует.
  */
-import type { MeasurementListRequest } from '@hl/contracts';
+import type { MeasurementDto, MeasurementListRequest } from '@hl/contracts';
 
 /** Период пресета (§7); custom — заглушка до TASK-046. */
 export type HistoryPeriod = '7d' | '30d' | '90d' | 'all' | 'custom';
@@ -27,11 +27,13 @@ export type HistoryPeriod = '7d' | '30d' | '90d' | 'all' | 'custom';
 /** Рука фильтра — те же значения, что ArmSchema контрактов (§4). */
 export type HistoryArm = MeasurementListRequest['arm'];
 
-/** Состояние панели фильтров (§7): URL-восстановимо, дефолт — 30d. */
+/** Состояние панели фильтров (§7): URL-восстановимо, дефолт — 30d. TASK-045: + q. */
 export interface HistoryFilterState {
   readonly period: HistoryPeriod;
   readonly arm?: HistoryArm;
   readonly noted?: boolean;
+  /** Строка поиска по заметкам (§5: URL ?q=); пустой/пробельный ввод — параметра нет. */
+  readonly q?: string;
 }
 
 /** Сутки в мс — единица пресетов (§22: принято 7×24ч, не календарная неделя). */
@@ -84,12 +86,17 @@ export function parseHistoryFilters(params: ParamsReader): HistoryFilterState {
   const period = params.get('period');
   const arm = params.get('arm');
   const noted = params.get('noted');
+  // TASK-045 §10: q — поисковая строка; пустая/пробельная считается отсутствующей
+  // (поиск не активен), непустая — хранится как есть (trim делает хук поиска).
+  const q = params.get('q');
+  const validQ = q !== null && q.trim() !== '' ? q : undefined;
   const validPeriod = URL_PERIODS.find((candidate) => candidate === period);
   const validArm: HistoryArm | undefined = arm === 'left' || arm === 'right' ? arm : undefined;
   return {
     period: validPeriod ?? DEFAULT_FILTER_STATE.period,
     ...(validArm === undefined ? {} : { arm: validArm }),
     ...(noted === '1' ? { noted: true } : {}),
+    ...(validQ === undefined ? {} : { q: validQ }),
   };
 }
 
@@ -107,12 +114,44 @@ export function serializeHistoryFilters(state: HistoryFilterState): URLSearchPar
   if (state.noted === true) {
     params.set('noted', '1');
   }
+  // TASK-045 §5: q — как есть (непустоту гарантирует парсер/хук).
+  if (state.q !== undefined) {
+    params.set('q', state.q);
+  }
   return params;
 }
 
 /** Отлично ли состояние от дефолта (§10: пустой результат при активных фильтрах — особое состояние). */
 export function isFiltersActive(state: HistoryFilterState): boolean {
   return (
-    state.period !== DEFAULT_FILTER_STATE.period || state.arm !== undefined || state.noted === true
+    state.period !== DEFAULT_FILTER_STATE.period ||
+    state.arm !== undefined ||
+    state.noted === true ||
+    state.q !== undefined
   );
+}
+
+/**
+ * TASK-045 §10: клиентское сужение результата поиска фильтрами периода/руки/заметок.
+ * Поиск (notes/search) возвращает записи по всей БД — фильтры поверх применяются в
+ * renderer. Семантика — та же, что у фрагмента запроса list: границы включительно
+ * (прецедент порта TASK-021), hasNote=true → заметка есть.
+ */
+export function matchesDtoFilters(
+  fragment: MeasurementQueryFragment,
+  dto: Pick<MeasurementDto, 'takenAtUtcMs' | 'arm' | 'note'>,
+): boolean {
+  if (fragment.fromUtcMs !== undefined && dto.takenAtUtcMs < fragment.fromUtcMs) {
+    return false;
+  }
+  if (fragment.toUtcMs !== undefined && dto.takenAtUtcMs > fragment.toUtcMs) {
+    return false;
+  }
+  if (fragment.arm !== undefined && dto.arm !== fragment.arm) {
+    return false;
+  }
+  if (fragment.hasNote === true && dto.note === undefined) {
+    return false;
+  }
+  return true;
 }

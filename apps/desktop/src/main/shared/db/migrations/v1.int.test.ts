@@ -10,7 +10,8 @@
  *  4. вставка без profile_id → ошибка ограничения; с несуществующим profile_id →
  *     FK-ошибка (foreign_keys=ON — openEncrypted, TASK-022 §8);
  *  5. индекс idx_bp_profile_time существует;
- *  6. meta: data_version = '1' (и schema_version = '1' — runner).
+ *  6. meta: data_version = '1' (schema_version — максимум реестра MIGRATIONS; с
+ *     TASK-045 реестр до v2, поэтому ожидание читается из реестра).
  * Дополнительно (§20):
  *  - DDL поимённо совпадает с арх. 04 §3: колонки обеих таблиц — по порядку;
  *  - повторное применение v1 невозможно — runner-защита: второй migrate() — no-op,
@@ -185,12 +186,15 @@ describe('миграция v1 — начальная схема (TASK-025 §19/�
     db.close();
   });
 
-  it('(6) meta: data_version = "1" (и schema_version = "1" — runner) (§19 п. 6)', async () => {
+  it('(6) meta: data_version = "1", schema_version = последняя версия реестра (§19 п. 6)', async () => {
     const db = await migrateFresh('meta.sqlite');
 
+    // TASK-045: реестр MIGRATIONS вырос до v2 — schema_version = максимум реестра
+    // (runner приводит к актуальной), data_version по-прежнему сеет только v1.
+    const latest = String(MIGRATIONS.at(-1)?.version);
     expect(readMetaRows(db)).toEqual([
       { key: 'data_version', value: '1' },
-      { key: 'schema_version', value: '1' },
+      { key: 'schema_version', value: latest },
     ]);
     db.close();
   });
@@ -223,14 +227,16 @@ describe('миграция v1 — начальная схема (TASK-025 §19/�
     const db = openEncrypted(join(dir, 'reapply.sqlite'), randomBytes(32).toString('hex'));
     await new MigrationRunner({ migrations: MIGRATIONS }).migrate(db);
 
-    // Второй запуск того же реестра: runner обязан пропустить v1 (schema_version=1).
-    // Если бы миграция переигралась — CREATE TABLE дал бы «table already exists»,
-    // а повторный INSERT в meta — нарушение PK; оба сценария = падение теста.
+    // Второй запуск того же реестра: runner обязан пропустить всё применённое
+    // (schema_version = последняя версия реестра). Если бы v1 переигралась —
+    // CREATE TABLE дал бы «table already exists», а повторный INSERT в meta —
+    // нарушение PK; оба сценария = падение теста.
     await new MigrationRunner({ migrations: MIGRATIONS }).migrate(db);
 
+    const latest = String(MIGRATIONS.at(-1)?.version);
     expect(readMetaRows(db)).toEqual([
       { key: 'data_version', value: '1' },
-      { key: 'schema_version', value: '1' },
+      { key: 'schema_version', value: latest },
     ]);
     expect((db.prepare('SELECT count(*) AS n FROM profile').get() as { n: number }).n).toBe(1);
     db.close();

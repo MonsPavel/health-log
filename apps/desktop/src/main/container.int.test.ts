@@ -5,7 +5,8 @@
  *
  * Матрица:
  *  - полный цикл (§19): пустой tmp-userData → buildContainer → файл БД существует,
- *    schema_version=1; ping-вызов через зарегистрированный каркас (§11 — registry
+ *    schema_version = последняя версия реестра MIGRATIONS (с TASK-045 — v2); ping-вызов
+ *    через зарегистрированный каркас (§11 — registry
  *    TASK-008 внутри контейнера) → конверт {v:1, ok:true, data:{pong:true, ts}} с
  *    временем FixedClock (внедрение порта проверено фактом);
  *  - повторный buildContainer на том же userData (§19): миграций нет (schema_version
@@ -44,6 +45,7 @@ import {
   type KeyVault,
   type WrappedKeyBlob,
 } from './modules/security/application/ports/key-vault.js';
+import { MIGRATIONS } from './shared/db/migrations/index.js';
 
 /** Фиксированный тестовый ключ (§19: мок-vault отдаёт стабильный hex) — 32 байта. */
 const KEY_HEX = 'ab'.repeat(32);
@@ -118,16 +120,17 @@ describe('buildContainer — полный цикл §19 (последовате�
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('1. первый старт: БД создана, schema_version=1, ping через каркас отвечает (§19)', async () => {
+  it('1. первый старт: БД создана, schema_version=максимум реестра, ping через каркас отвечает (§19)', async () => {
     container1 = await buildContainer(makeDeps(dir, clock));
 
     // Файл БД по пути §8 существует.
     expect(existsSync(join(dir, DATABASE_FILENAME))).toBe(true);
-    // Миграция v1 применена контейнером: schema_version=1.
+    // Миграции применены контейнером: schema_version = последняя версия реестра
+    // (с TASK-045 реестр MIGRATIONS до v2 — ожидание из реестра, не литерал).
     const version = container1.db
       .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
       .get() as { value: string };
-    expect(version.value).toBe('1');
+    expect(version.value).toBe(String(MIGRATIONS.at(-1)?.version));
     // ping через зарегистрированный каркас (§11): конверт TASK-008 + ts из FixedClock.
     const envelope = await container1.channels.dispatch({ channel: 'app/ping', payload: {} });
     expect(envelope).toEqual({
@@ -189,7 +192,7 @@ describe('buildContainer — полный цикл §19 (последовате�
     const version = container2.db
       .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
       .get() as { value: string };
-    expect(version.value).toBe('1');
+    expect(version.value).toBe(String(MIGRATIONS.at(-1)?.version));
     // Контейнер полнофункционален: вторая запись проходит (готовит содержательный WAL
     // для следующего кейса — закрытие с чекпоинтом).
     const second = unsafeUnwrap(

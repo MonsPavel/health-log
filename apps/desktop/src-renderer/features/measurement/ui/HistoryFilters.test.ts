@@ -44,6 +44,7 @@ function renderFilters(
     readonly onPeriod?: (period: '7d' | '30d' | '90d' | 'all') => void;
     readonly onArm?: (arm: 'left' | 'right' | undefined) => void;
     readonly onNoted?: (noted: boolean) => void;
+    readonly onQuery?: (query: string) => void;
     readonly onReset?: () => void;
   } = {},
 ): void {
@@ -53,6 +54,7 @@ function renderFilters(
       onPeriod: handlers.onPeriod ?? (() => undefined),
       onArm: handlers.onArm ?? (() => undefined),
       onNoted: handlers.onNoted ?? (() => undefined),
+      onQuery: handlers.onQuery ?? (() => undefined),
       onReset: handlers.onReset ?? (() => undefined),
     }),
   );
@@ -150,6 +152,7 @@ describe('HistoryFilters — структура и a11y (§16/§17)', () => {
         onPeriod: () => undefined,
         onArm: () => undefined,
         onNoted: () => undefined,
+        onQuery: () => undefined,
         onReset: () => undefined,
       }),
     );
