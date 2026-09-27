@@ -383,13 +383,16 @@ export function HistoryScreen(): JSX.Element {
 
       {/* TASK-044 §5: панель фильтров — период/рука/заметки/сброс; URL — источник
           истины (§12). Панель не размонтируется при смене данных — фокус остаётся (§16).
-          TASK-045 §5: строка поиска — в панели (debounce 300 мс, §10). */}
+          TASK-045 §5: строка поиска — в панели (debounce 300 мс, §10).
+          TASK-046 §5: произвольный период — CustomRangeFields в панели, setRange
+          применяет валидный диапазон в URL (invalid блокирует компонент, §19). */}
       <HistoryFilters
         state={filters.state}
         onPeriod={filters.setPeriod}
         onArm={filters.setArm}
         onNoted={filters.setNoted}
         onQuery={filters.setQuery}
+        onRange={filters.setRange}
         onReset={filters.reset}
       />
 

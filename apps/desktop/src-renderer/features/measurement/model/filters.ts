@@ -1,11 +1,15 @@
 /**
  * TASK-044 §7/§13/§14: чистая модель фильтров истории — состояние ↔ URL ↔ query.
  *
- * Состояние (§7): HistoryFilterState {period, arm?, noted?}; custom — элемент
- * типа, зарезервированный под произвольный диапазон TASK-046 (§23): UI его не
- * создаёт, toQuery границ не даёт, парсер в URL его не восстанавливает —
- * встреченный в адресе custom (старая ссылка/рука будущего) считается мусором и
- * даёт дефолт, как и любой невалидный период (§14).
+ * Состояние (§7): HistoryFilterState {period, from?, to?, arm?, noted?, q?}.
+ * TASK-046 custom: period='custom' — произвольный диапазон с настенными датами
+ * from/to ('YYYY-MM-DD', ISO). Границы запроса (§13) считаются toQuery через
+ * parseRange (model/range §7): from = полночь настенного дня, to =
+ * 23:59:59.999 настенного дня включительно — записи включаются по настенному
+ * дню измерения (согласовано с группировкой TASK-033). Неполный диапазон —
+ * открытая сторона (§10 прогрессивно: только from → «от даты до ∞»); пустые
+ * оба и невалидные даты → границы дефолтного 30d (§10/§14), режим custom в URL
+ * при этом сохраняется — поля остаются видимы.
  *
  * Границы пресета (§13): fromUtcMs = nowUtcMs − N*86400000 ВКЛЮЧИТЕЛЬНО —
  * запись ровно на границе 7 дней попадает в выборку (включительные границы
@@ -15,13 +19,20 @@
  *
  * URL (§3/§12): источник истины фильтров — сериализуем и шаро-пригоден.
  * Сериализатор всегда пишет period (дефолт 30d виден в адресе — сброс даёт
- * `?period=30d`, §5); arm/noted — только непустые (`noted=1`). Парсер строгий:
- * неизвестные значения → дефолт (мусор URL не выдаёт ошибок и не доходит до
- * запроса list, §14), посторонние параметры игнорирует.
+ * `?period=30d`, §5); custom добавляет from/to (§5: `period=custom&from=&to=`),
+ * arm/noted — только непустые (`noted=1`). Парсер строгий: неизвестные значения
+ * → дефолт; from/to читаются только при period=custom, строгий ISO-календарь
+ * (parseIsoDate), мусор отбрасывается, from > to — весь custom мусорен →
+ * дефолт (мусор URL не выдаёт ошибок и не доходит до запроса list, §14);
+ * посторонние параметры игнорирует. to-в-будущем парсер не видит (нужен now) —
+ * отсекается toQuery (parseRange futureTo → дефолт 30d, EC-20).
  */
 import type { MeasurementDto, MeasurementListRequest } from '@hl/contracts';
 
-/** Период пресета (§7); custom — заглушка до TASK-046. */
+import { parseIsoDate, parseRange } from './range';
+import { tzOffsetMinOf } from './taken-at';
+
+/** Период фильтра (§7): пресеты и произвольный диапазон (TASK-046 §5). */
 export type HistoryPeriod = '7d' | '30d' | '90d' | 'all' | 'custom';
 
 /** Рука фильтра — те же значения, что ArmSchema контрактов (§4). */
@@ -30,6 +41,10 @@ export type HistoryArm = MeasurementListRequest['arm'];
 /** Состояние панели фильтров (§7): URL-восстановимо, дефолт — 30d. TASK-045: + q. */
 export interface HistoryFilterState {
   readonly period: HistoryPeriod;
+  /** Настенная дата «от» 'YYYY-MM-DD' — только режим custom (TASK-046 §5). */
+  readonly from?: string;
+  /** Настенная дата «до» 'YYYY-MM-DD' — только режим custom (TASK-046 §5). */
+  readonly to?: string;
   readonly arm?: HistoryArm;
   readonly noted?: boolean;
   /** Строка поиска по заметкам (§5: URL ?q=); пустой/пробельный ввод — параметра нет. */
@@ -62,14 +77,33 @@ export type MeasurementQueryFragment = Pick<
 /**
  * Состояние → фрагмент запроса list (§7): чистая функция; границы пресета — от
  * переданного nowUtcMs (момент применения), hand/hasNote — как есть.
+ * TASK-046 custom (§7/§10): границы настенных дней через parseRange в зоне
+ * устройства момента now (tzOffsetMinOf); пустые оба и невалидные даты →
+ * границы дефолтного 30d (§10/§14) — запрос без границ («всё») из custom не
+ * строится никогда.
  */
 export function toQuery(state: HistoryFilterState, nowUtcMs: number): MeasurementQueryFragment {
-  const days =
-    state.period === 'all' || state.period === 'custom' ? undefined : PERIOD_DAYS[state.period];
-  return {
-    ...(days === undefined ? {} : { fromUtcMs: nowUtcMs - days * DAY_MS }),
+  const tail = {
     ...(state.arm === undefined ? {} : { arm: state.arm }),
     ...(state.noted === true ? { hasNote: true } : {}),
+  };
+  if (state.period === 'custom') {
+    const range = parseRange(state.from, state.to, nowUtcMs, tzOffsetMinOf(nowUtcMs));
+    if (range.ok && (range.fromUtcMs !== undefined || range.toUtcMs !== undefined)) {
+      return {
+        ...(range.fromUtcMs === undefined ? {} : { fromUtcMs: range.fromUtcMs }),
+        ...(range.toUtcMs === undefined ? {} : { toUtcMs: range.toUtcMs }),
+        ...tail,
+      };
+    }
+    // §10 (пустые оба) / §14 (invalidFormat/invalidOrder/futureTo — рукописный
+    // URL): дефолтные границы 30d, диапазон «всё» из мусора не получается.
+    return { fromUtcMs: nowUtcMs - PERIOD_DAYS['30d'] * DAY_MS, ...tail };
+  }
+  const days = state.period === 'all' ? undefined : PERIOD_DAYS[state.period];
+  return {
+    ...(days === undefined ? {} : { fromUtcMs: nowUtcMs - days * DAY_MS }),
+    ...tail,
   };
 }
 
@@ -78,8 +112,8 @@ interface ParamsReader {
   get(name: string): string | null;
 }
 
-/** Периоды, валидные в URL; custom появится с поддержкой from/to (TASK-046, §23). */
-const URL_PERIODS = ['7d', '30d', '90d', 'all'] as const;
+/** Периоды, валидные в URL (§5: custom — с from/to, TASK-046). */
+const URL_PERIODS = ['7d', '30d', '90d', 'all', 'custom'] as const;
 
 /** Парсер URL → состояние (§7/§14): мусор в любом поле → дефолт этого поля. */
 export function parseHistoryFilters(params: ParamsReader): HistoryFilterState {
@@ -92,8 +126,23 @@ export function parseHistoryFilters(params: ParamsReader): HistoryFilterState {
   const validQ = q !== null && q.trim() !== '' ? q : undefined;
   const validPeriod = URL_PERIODS.find((candidate) => candidate === period);
   const validArm: HistoryArm | undefined = arm === 'left' || arm === 'right' ? arm : undefined;
+  // TASK-046 §5/§14: from/to — только в режиме custom, строгий ISO-календарь
+  // (parseIsoDate); мусорная дата отбрасывается, from > to — весь custom мусорен
+  // (период → дефолт; у нормализованных ISO-строк порядок виден лексикографически).
+  // futureTo парсер не проверяет (нужен now) — отсекает toQuery (дефолт 30d, EC-20).
+  const isCustom = validPeriod === 'custom';
+  const fromRaw = isCustom ? params.get('from') : null;
+  const toRaw = isCustom ? params.get('to') : null;
+  const from = fromRaw === null ? null : parseIsoDate(fromRaw);
+  const to = toRaw === null ? null : parseIsoDate(toRaw);
+  const rangeBroken =
+    from !== null && to !== null && fromRaw !== null && toRaw !== null && fromRaw > toRaw;
   return {
-    period: validPeriod ?? DEFAULT_FILTER_STATE.period,
+    period: rangeBroken
+      ? DEFAULT_FILTER_STATE.period
+      : (validPeriod ?? DEFAULT_FILTER_STATE.period),
+    ...(from === null || fromRaw === null || rangeBroken ? {} : { from: fromRaw }),
+    ...(to === null || toRaw === null || rangeBroken ? {} : { to: toRaw }),
     ...(validArm === undefined ? {} : { arm: validArm }),
     ...(noted === '1' ? { noted: true } : {}),
     ...(validQ === undefined ? {} : { q: validQ }),
@@ -102,12 +151,21 @@ export function parseHistoryFilters(params: ParamsReader): HistoryFilterState {
 
 /**
  * Состояние → URLSearchParams (§12): period всегда (дефолт виден в адресе),
- * arm/noted — только заданные. Для period='custom' пишет значение как есть —
- * парсер его пока свёл бы к дефолту; UI custom не создаёт (§23 — TASK-046).
+ * from/to — при custom (§5: `period=custom&from=&to=`), arm/noted — только
+ * заданные.
  */
 export function serializeHistoryFilters(state: HistoryFilterState): URLSearchParams {
   const params = new URLSearchParams();
   params.set('period', state.period);
+  // TASK-046 §5: даты custom — как есть (валидность гарантирует парсер/UI).
+  if (state.period === 'custom') {
+    if (state.from !== undefined) {
+      params.set('from', state.from);
+    }
+    if (state.to !== undefined) {
+      params.set('to', state.to);
+    }
+  }
   if (state.arm !== undefined) {
     params.set('arm', state.arm);
   }

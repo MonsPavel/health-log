@@ -27,6 +27,7 @@ function renderFilters(
       onArm: () => undefined,
       onNoted: () => undefined,
       onReset: () => undefined,
+      onRange: () => undefined,
       onQuery: handlers.onQuery ?? (() => undefined),
     }),
   );
@@ -162,6 +163,7 @@ describe('строка поиска — синхронизация с внешн
         onArm: () => undefined,
         onNoted: () => undefined,
         onReset: () => undefined,
+        onRange: () => undefined,
         onQuery: () => undefined,
       }),
     );
@@ -174,6 +176,7 @@ describe('строка поиска — синхронизация с внешн
         onArm: () => undefined,
         onNoted: () => undefined,
         onReset: () => undefined,
+        onRange: () => undefined,
         onQuery: () => undefined,
       }),
     );

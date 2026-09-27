@@ -20,7 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
 import '../../../i18n';
-import { DAY_MS, type HistoryFilterState } from '../model/filters';
+import { DAY_MS, type HistoryFilterState, type HistoryPeriod } from '../model/filters';
 import { HistoryFilters, useMeasurementFilters } from './HistoryFilters';
 import { useLocation } from 'react-router-dom';
 
@@ -41,10 +41,11 @@ function LocationProbeTarget({ probe }: { readonly probe: LocationProbe }): null
 function renderFilters(
   state: HistoryFilterState = { period: '30d' },
   handlers: {
-    readonly onPeriod?: (period: '7d' | '30d' | '90d' | 'all') => void;
+    readonly onPeriod?: (period: HistoryPeriod) => void;
     readonly onArm?: (arm: 'left' | 'right' | undefined) => void;
     readonly onNoted?: (noted: boolean) => void;
     readonly onQuery?: (query: string) => void;
+    readonly onRange?: (from: string | undefined, to: string | undefined) => void;
     readonly onReset?: () => void;
   } = {},
 ): void {
@@ -55,6 +56,7 @@ function renderFilters(
       onArm: handlers.onArm ?? (() => undefined),
       onNoted: handlers.onNoted ?? (() => undefined),
       onQuery: handlers.onQuery ?? (() => undefined),
+      onRange: handlers.onRange ?? (() => undefined),
       onReset: handlers.onReset ?? (() => undefined),
     }),
   );
@@ -88,7 +90,7 @@ afterEach(() => {
 });
 
 describe('HistoryFilters — структура и a11y (§16/§17)', () => {
-  it('панель: 5 радио периода (custom — disabled-заглушка), подписи из каталога', () => {
+  it('панель: 5 радио периода (все активны, custom — TASK-046), подписи из каталога', () => {
     renderFilters();
 
     expect(screen.getByTestId('history-filters')).toBeDefined();
@@ -107,7 +109,8 @@ describe('HistoryFilters — структура и a11y (§16/§17)', () => {
       expect(screen.getByTestId(`filter-period-${value}`).getAttribute('value')).toBe(value);
       expect(screen.getByLabelText(label)).toBeDefined();
     }
-    expect(screen.getByTestId<HTMLInputElement>('filter-period-custom').disabled).toBe(true);
+    // TASK-046: заглушка снята — «Произвольный» активен.
+    expect(screen.getByTestId<HTMLInputElement>('filter-period-custom').disabled).toBe(false);
     expect(screen.queryByTestId('filter-period-custom')?.hasAttribute('checked')).toBe(false);
   });
 
@@ -153,6 +156,7 @@ describe('HistoryFilters — структура и a11y (§16/§17)', () => {
         onArm: () => undefined,
         onNoted: () => undefined,
         onQuery: () => undefined,
+        onRange: () => undefined,
         onReset: () => undefined,
       }),
     );
@@ -170,6 +174,15 @@ describe('HistoryFilters — клики вызывают колбэки (§19)',
     fireEvent.click(screen.getByTestId('filter-period-7d'));
 
     expect(onPeriod).toHaveBeenCalledWith('7d');
+  });
+
+  it('клик «Произвольный» → onPeriod("custom") (TASK-046 §5: заглушка снята)', () => {
+    const onPeriod = vi.fn();
+    renderFilters({ period: '30d' }, { onPeriod });
+
+    fireEvent.click(screen.getByTestId('filter-period-custom'));
+
+    expect(onPeriod).toHaveBeenCalledWith('custom');
   });
 
   it('select руки: left → onArm("left"), обратно «Все» → onArm(undefined)', async () => {
