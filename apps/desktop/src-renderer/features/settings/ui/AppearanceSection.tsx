@@ -95,9 +95,7 @@ export function AppearanceSection(): JSX.Element {
 
   return (
     <fieldset className="border-0 p-0" disabled={loading}>
-      <legend className="mb-2 text-base font-medium">
-        {t('settings.appearance.section')}
-      </legend>
+      <legend className="mb-2 text-base font-medium">{t('settings.appearance.section')}</legend>
       <div className="flex flex-col gap-4">
         <RadioGroup
           name="theme"

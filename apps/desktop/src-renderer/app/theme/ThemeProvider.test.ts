@@ -91,9 +91,7 @@ const DEFAULT_PREFS = {
 /** Рендер ThemeProvider с QueryClientProvider (usePreferences требует кэш, §10). */
 function renderProviders(ui: ReactNode): ReturnType<typeof render> {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    createElement(QueryClientProvider, { client: queryClient }, ui),
-  );
+  return render(createElement(QueryClientProvider, { client: queryClient }, ui));
 }
 
 beforeEach(() => {
@@ -119,7 +117,9 @@ describe('ThemeProvider — источник prefs (TASK-047 §6/§10)', () => {
     stubMatchMedia(false);
     invoke.mockResolvedValue(OK({ ...DEFAULT_PREFS, theme: 'dark' }));
 
-    renderProviders(createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })));
+    renderProviders(
+      createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })),
+    );
 
     await waitFor(() => expect(screen.getByTestId('mode').textContent).toBe('dark'));
     expect(htmlTheme()).toBe('dark');
@@ -130,7 +130,9 @@ describe('ThemeProvider — источник prefs (TASK-047 §6/§10)', () => {
     stubMatchMedia(false);
     invoke.mockResolvedValue(OK({ ...DEFAULT_PREFS, textScale: '125' }));
 
-    renderProviders(createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })));
+    renderProviders(
+      createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })),
+    );
 
     await waitFor(() =>
       expect(document.documentElement.classList.contains('hl-text-125')).toBe(true),
@@ -142,17 +144,21 @@ describe('ThemeProvider — источник prefs (TASK-047 §6/§10)', () => {
     localStorage.setItem(THEME_STORAGE_KEY, 'dark');
     invoke.mockReturnValue(new Promise(() => undefined)); // prefs/get висит
 
-    renderProviders(createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })));
+    renderProviders(
+      createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })),
+    );
 
     expect(htmlTheme()).toBe('dark');
   });
 
-  it('до загрузки prefs: легаси hl.textScale=125 — класс из localStorage; после prefs — из prefs', async () => {
+  it('до загрузки prefs: легаси hl.textScale=125 — класс из localStorage; после prefs — из prefs', () => {
     stubMatchMedia(false);
     localStorage.setItem(TEXT_SCALE_STORAGE_KEY, '125');
     invoke.mockReturnValue(new Promise(() => undefined));
 
-    renderProviders(createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })));
+    renderProviders(
+      createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })),
+    );
 
     expect(document.documentElement.classList.contains('hl-text-125')).toBe(true);
     expect(document.documentElement.classList.contains('hl-text-100')).toBe(false);
@@ -164,7 +170,9 @@ describe('ThemeProvider — источник prefs (TASK-047 §6/§10)', () => {
       .mockResolvedValueOnce(OK(DEFAULT_PREFS))
       .mockResolvedValueOnce(OK({ ...DEFAULT_PREFS, theme: 'dark' }));
 
-    renderProviders(createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })));
+    renderProviders(
+      createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })),
+    );
     await waitFor(() => expect(screen.getByTestId('mode').textContent).toBe('system'));
 
     fireEvent.click(screen.getByRole('button', { name: 'switch' }));
@@ -179,7 +187,9 @@ describe('ThemeProvider — источник prefs (TASK-047 §6/§10)', () => {
 
   it('system следит за prefers-color-scheme: смена медиа-запроса живьём меняет тему', async () => {
     const media = stubMatchMedia(false);
-    renderProviders(createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })));
+    renderProviders(
+      createElement(ThemeProvider, null, createElement(ThemeProbe, { next: 'dark' })),
+    );
     await waitFor(() => expect(screen.getByTestId('mode').textContent).toBe('system'));
 
     expect(htmlTheme()).toBe('light');

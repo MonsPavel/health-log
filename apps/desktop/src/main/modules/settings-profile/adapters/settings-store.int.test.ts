@@ -18,7 +18,7 @@ import { AppError, FixedClock } from '@hl/kernel';
 
 import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
 import { MigrationRunner } from '../../../shared/db/migration-runner.js';
-import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite.js';
+import { openEncrypted } from '../../../shared/db/sqlite.js';
 import { SettingsStore } from './settings-store.js';
 
 /** tmp-каталоги этой сессии — удаляются в afterAll (§14). */
@@ -58,9 +58,9 @@ describe('SettingsStore — get/set по ключу над app_setting (TASK-047
 
     await store.set('prefs', JSON.stringify({ value: 'ок' }));
 
-    const row = db.prepare('SELECT value_json, updated_at_utc FROM app_setting WHERE key = ?').get(
-      'prefs',
-    ) as { value_json: string; updated_at_utc: number };
+    const row = db
+      .prepare('SELECT value_json, updated_at_utc FROM app_setting WHERE key = ?')
+      .get('prefs') as { value_json: string; updated_at_utc: number };
     expect(row.value_json).toBe('{"value":"ок"}');
     expect(row.updated_at_utc).toBe(nowMs);
     expect(store.get('prefs', PayloadSchema)).toEqual({ value: 'ок' });

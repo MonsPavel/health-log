@@ -202,7 +202,7 @@ describe('usePreferences — событие prefs:changed (§12 main-источ�
     expect(invoke).toHaveBeenCalledTimes(1);
 
     invoke.mockResolvedValue(OK_ENVELOPE({ ...DEFAULT_PREFS, theme: 'dark' }));
-    await act(async () => {
+    act(() => {
       listener?.({ patchKeys: ['theme'] });
     });
 

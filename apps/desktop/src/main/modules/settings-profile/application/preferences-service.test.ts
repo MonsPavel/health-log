@@ -44,12 +44,15 @@ class FakeStore implements SettingsStorePort {
     return parsed.success ? parsed.data : undefined;
   }
 
-  async set(key: string, valueJson: string): Promise<void> {
+  set(key: string, valueJson: string): Promise<void> {
     if (this.setFailure !== undefined) {
-      throw this.setFailure;
+      // Имитация боевого адаптера: наружу AppError (не Error) — контракт порта §9.
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+      return Promise.reject(this.setFailure);
     }
     this.setCalls.push({ key, valueJson });
     this.rows.set(key, valueJson);
+    return Promise.resolve();
   }
 }
 
@@ -154,9 +157,9 @@ describe('PreferencesService — setPrefs (§7/§9/§11/§20)', () => {
     const store = new FakeStore();
     const { service, events } = makeService(store);
 
-    const error = await service.setPrefs({ theme: 123 } as unknown as PrefsPatch).catch(
-      (e: unknown) => e,
-    );
+    const error = await service
+      .setPrefs({ theme: 123 } as unknown as PrefsPatch)
+      .catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).code).toBe('VALIDATION/FAILED');

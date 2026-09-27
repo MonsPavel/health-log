@@ -16,4 +16,12 @@ export {
   TEXT_SCALE_SCHEMA,
   THEME_SCHEMA,
 } from './schemas.js';
-export type { NetConsents, Prefs, PrefsPatch } from './types.js';
+export type {
+  NetConsents,
+  Prefs,
+  PrefsGetRequest,
+  PrefsGetResponse,
+  PrefsPatch,
+  PrefsSetRequest,
+  PrefsSetResponse,
+} from './types.js';

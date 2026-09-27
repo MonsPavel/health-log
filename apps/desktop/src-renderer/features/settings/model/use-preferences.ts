@@ -20,7 +20,13 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { THEME_SCHEMA, TEXT_SCALE_SCHEMA, type AppErrorDto, type Prefs, type PrefsPatch } from '@hl/contracts';
+import {
+  THEME_SCHEMA,
+  TEXT_SCALE_SCHEMA,
+  type AppErrorDto,
+  type Prefs,
+  type PrefsPatch,
+} from '@hl/contracts';
 
 import { call } from '../../../src/lib/ipc';
 import { useHlEvent } from '../../../lib/events';
@@ -109,7 +115,7 @@ export function usePreferences() {
 
   const query = useQuery({ queryKey: PREFS_QUERY_KEY, queryFn: loadPrefs });
 
-  const setPreferences = useMutation<Prefs, Error, PrefsPatch>({
+  const setPreferences = useMutation<Prefs, Error, PrefsPatch, { previous: Prefs | undefined }>({
     mutationFn: setPrefs,
     // §10 optimistic: patch в кэш сразу; previous — в контекст для отката.
     onMutate: async (patch) => {

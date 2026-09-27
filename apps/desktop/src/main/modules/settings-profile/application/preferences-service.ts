@@ -81,16 +81,17 @@ export class PreferencesService {
   /**
    * Полный документ настроек (§11): чтение ключа со схемой адаптера; отсутствие или
    * повреждение (адаптер отсёк по §14) → DEFAULT_PREFS + warn (§20 AC3), без креша.
+   * Контракт асинхронный (порт) — синхронное чтение заворачивается в Promise.
    */
-  async getPrefs(): Promise<Prefs> {
+  getPrefs(): Promise<Prefs> {
     const stored = this.store.get(PREFS_STORAGE_KEY, PREFS_SCHEMA);
     if (stored === undefined) {
       this.logger.warn('prefs: документ отсутствует/повреждён — применены дефолты', {
         key: PREFS_STORAGE_KEY,
       });
-      return DEFAULT_PREFS;
+      return Promise.resolve(DEFAULT_PREFS);
     }
-    return stored;
+    return Promise.resolve(stored);
   }
 
   /**
@@ -104,7 +105,12 @@ export class PreferencesService {
     const parsed = PREFS_PATCH_SCHEMA.safeParse(patch);
     if (!parsed.success) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт §9, прецедент settings-store)
-      throw AppError.of('VALIDATION/FAILED', VALIDATION_FAILED_MESSAGE_KEY, undefined, parsed.error);
+      throw AppError.of(
+        'VALIDATION/FAILED',
+        VALIDATION_FAILED_MESSAGE_KEY,
+        undefined,
+        parsed.error,
+      );
     }
     const validPatch = parsed.data;
 

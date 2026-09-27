@@ -64,16 +64,19 @@ const tableColumns = (
 
 /** Вставка настройки (форма адаптера SettingsStore, §5). */
 const insertSetting = (db: EncryptedDatabase, key: string, valueJson: string): void => {
-  db.prepare(
-    'INSERT INTO app_setting (key, value_json, updated_at_utc) VALUES (?, ?, ?)',
-  ).run(key, valueJson, 1_700_000_000_000);
+  db.prepare('INSERT INTO app_setting (key, value_json, updated_at_utc) VALUES (?, ?, ?)').run(
+    key,
+    valueJson,
+    1_700_000_000_000,
+  );
 };
 
 /** Читает value_json по ключу (или undefined). */
 const readSetting = (db: EncryptedDatabase, key: string): string | undefined =>
-  (db.prepare('SELECT value_json FROM app_setting WHERE key = ?').get(key) as
-    | { value_json: string }
-    | undefined)?.value_json;
+  (
+    db.prepare('SELECT value_json FROM app_setting WHERE key = ?').get(key) as
+      { value_json: string } | undefined
+  )?.value_json;
 
 describe('миграция v3 — app_setting (TASK-047 §19/§20)', () => {
   it('(1) v3 создаёт app_setting с DDL §5: key PK, value_json NOT NULL, updated_at_utc NOT NULL; schema_version=3', async () => {
@@ -103,7 +106,9 @@ describe('миграция v3 — app_setting (TASK-047 §19/§20)', () => {
 
     expect(readSetting(db, 'prefs')).toBe('{"theme":"dark"}');
 
-    expect(() => insertSetting(db, 'prefs', '{"theme":"light"}')).toThrowError(/UNIQUE|constraint/i);
+    expect(() => insertSetting(db, 'prefs', '{"theme":"light"}')).toThrowError(
+      /UNIQUE|constraint/i,
+    );
     db.close();
   });
 

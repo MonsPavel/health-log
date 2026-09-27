@@ -9,7 +9,7 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { createElement, type ReactNode } from 'react';
+import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../i18n';
@@ -36,7 +36,7 @@ function renderSection(): void {
       QueryClientProvider,
       { client: queryClient },
       createElement(ThemeProvider, null, createElement(AppearanceSection)),
-    ) as ReactNode,
+    ),
   );
 }
 
@@ -67,15 +67,15 @@ describe('AppearanceSection — секция «Вид» (§5/§16)', () => {
     );
     expect(screen.getByRole('group', { name: 'Тема' })).toBeDefined();
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Обычный' }).checked).toBe(true);
-    expect(
-      (screen.getByLabelText('Формат даты') as HTMLSelectElement).value,
-    ).toBe('auto');
+    expect(screen.getByLabelText<HTMLSelectElement>('Формат даты').value).toBe('auto');
   });
 
   it('клик «Светлая»: prefs/set {patch:{theme}} и html[data-theme="light"] (AC)', async () => {
     invoke.mockResolvedValue(OK(PREFS({ theme: 'dark' })));
     renderSection();
-    await waitFor(() => expect(screen.getByRole('radio', { name: 'Тёмная' }).checked).toBe(true));
+    await waitFor(() =>
+      expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Тёмная' }).checked).toBe(true),
+    );
 
     invoke.mockResolvedValueOnce(OK(PREFS({ theme: 'light' })));
     fireEvent.click(screen.getByRole('radio', { name: 'Светлая' }));
@@ -89,7 +89,9 @@ describe('AppearanceSection — секция «Вид» (§5/§16)', () => {
 
   it('клик «Крупный» (112.5): prefs/set и класс hl-text-112 на <html> мгновенно (AC6)', async () => {
     renderSection();
-    await waitFor(() => expect(screen.getByRole('radio', { name: 'Обычный' }).checked).toBe(true));
+    await waitFor(() =>
+      expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Обычный' }).checked).toBe(true),
+    );
 
     invoke.mockResolvedValueOnce(OK(PREFS({ textScale: '112.5' })));
     fireEvent.click(screen.getByRole('radio', { name: 'Крупный' }));
@@ -120,9 +122,7 @@ describe('AppearanceSection — секция «Вид» (§5/§16)', () => {
   it('отказ сохранения: optimistic-откат — checked и <html> вернулись (§10)', async () => {
     invoke.mockResolvedValue(OK(PREFS({ theme: 'dark' })));
     renderSection();
-    await waitFor(() =>
-      expect(document.documentElement.getAttribute('data-theme')).toBe('dark'),
-    );
+    await waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('dark'));
 
     invoke.mockResolvedValueOnce({
       v: 1,
@@ -131,7 +131,11 @@ describe('AppearanceSection — секция «Вид» (§5/§16)', () => {
     });
     fireEvent.click(screen.getByRole('radio', { name: 'Светлая' }));
 
-    await waitFor(() => expect(screen.getByText('Не удалось сохранить настройку — значение возвращено')).toBeDefined());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Не удалось сохранить настройку — значение возвращено'),
+      ).toBeDefined(),
+    );
     await waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('dark'));
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Тёмная' }).checked).toBe(true);
   });

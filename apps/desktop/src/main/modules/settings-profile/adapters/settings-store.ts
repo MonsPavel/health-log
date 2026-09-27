@@ -106,10 +106,15 @@ export class SettingsStore implements SettingsStorePort {
     return parsed.data;
   }
 
-  /** Запись (§9): async-метод — синхронный сбой better-sqlite3 превращается в
-   *  Promise-rejection (контракт порта асинхронный, §19). Отказ SQL → AppError
-   *  STORAGE/FAILED: наружу только код, причина в cause (§14). */
-  async set(key: string, valueJson: string): Promise<void> {
+  /** Запись (§9): синхронный сбой better-sqlite3 заворачивается в Promise-цепочку —
+   *  контракт порта асинхронный, throw внутри .then → rejection (§19). Отказ SQL →
+   *  AppError STORAGE/FAILED: наружу только код, причина в cause (§14). */
+  set(key: string, valueJson: string): Promise<void> {
+    return Promise.resolve().then(() => this.writeSync(key, valueJson));
+  }
+
+  /** Тело записи: UPSERT с updated_at_utc из Clock; сбой → AppError (маппинг §9). */
+  private writeSync(key: string, valueJson: string): void {
     try {
       this.upsertStmt.run({
         key,

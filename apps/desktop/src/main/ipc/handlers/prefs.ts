@@ -7,7 +7,12 @@
  *  - prefs/set {patch} → обновлённый ПОЛНЫЙ документ; отказы: VALIDATION/FAILED
  *    (невалидный patch — сервис, §11) и STORAGE/* (запись — адаптер, §9).
  */
-import type { PrefsGetRequest, PrefsGetResponse, PrefsSetRequest, PrefsSetResponse } from '@hl/contracts';
+import type {
+  PrefsGetRequest,
+  PrefsGetResponse,
+  PrefsSetRequest,
+  PrefsSetResponse,
+} from '@hl/contracts';
 
 import type { PreferencesService } from '../../modules/settings-profile/application/preferences-service.js';
 
