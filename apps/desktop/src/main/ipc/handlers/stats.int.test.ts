@@ -197,12 +197,16 @@ describe('stats/period через контейнер — полный путь (
         category: undefined,
         notes: [{ kind: 'insufficientData', text: INSUFFICIENT_DATA_NOTE_TEXT }],
       });
-      // Значения при этом посчитаны (честные цифры с пометкой, §3).
+      // Значения при этом посчитаны (честные цифры с пометкой, §3): эталон 052
+      // целиком + insufficient-classification 053.
       expect(parsed.stats.count).toBe(3);
-      expect(parsed.stats.sys).toEqual(golden.expected.sys);
-      // И равен эталону 052 целиком (эталон без classification — он добавился в канале).
-      const { classification, ...stats } = parsed.stats;
-      expect(stats).toEqual(golden.expected);
+      expect(parsed.stats).toEqual({
+        ...golden.expected,
+        classification: {
+          category: undefined,
+          notes: [{ kind: 'insufficientData', text: INSUFFICIENT_DATA_NOTE_TEXT }],
+        },
+      });
     } finally {
       container.close();
       rmSync(dir, { recursive: true, force: true });
@@ -262,8 +266,20 @@ describe('stats/period через контейнер — полный путь (
     try {
       const boundaryUtcMs = NOW_MS - 30 * 24 * 60 * 60 * 1000;
       await addPoints(container, [
-        { sys: 122, dia: 81, pulse: 63, takenAt: { utcMs: boundaryUtcMs, tzOffsetMin: TZ }, critical: undefined },
-        { sys: 121, dia: 80, pulse: 62, takenAt: { utcMs: boundaryUtcMs - 1, tzOffsetMin: TZ }, critical: undefined },
+        {
+          sys: 122,
+          dia: 81,
+          pulse: 63,
+          takenAt: { utcMs: boundaryUtcMs, tzOffsetMin: TZ },
+          critical: undefined,
+        },
+        {
+          sys: 121,
+          dia: 80,
+          pulse: 62,
+          takenAt: { utcMs: boundaryUtcMs - 1, tzOffsetMin: TZ },
+          critical: undefined,
+        },
       ]);
 
       const envelope = await statsRequest(container, { profileId: 'profile-1', period: '30d' });
@@ -289,10 +305,34 @@ describe('stats/period через контейнер — полный путь (
       const fromUtcMs = fixtureInstant('2026-03-05', '00:00').utcMs;
       const toUtcMs = fixtureInstant('2026-03-05', '23:59').utcMs;
       await addPoints(container, [
-        { sys: 120, dia: 80, pulse: 60, takenAt: { utcMs: fromUtcMs, tzOffsetMin: TZ }, critical: undefined },
-        { sys: 122, dia: 81, pulse: 62, takenAt: { utcMs: toUtcMs, tzOffsetMin: TZ }, critical: undefined },
-        { sys: 125, dia: 85, pulse: 65, takenAt: { utcMs: toUtcMs + 60_000, tzOffsetMin: TZ }, critical: undefined },
-        { sys: 118, dia: 79, pulse: 58, takenAt: { utcMs: fromUtcMs - 60_000, tzOffsetMin: TZ }, critical: undefined },
+        {
+          sys: 120,
+          dia: 80,
+          pulse: 60,
+          takenAt: { utcMs: fromUtcMs, tzOffsetMin: TZ },
+          critical: undefined,
+        },
+        {
+          sys: 122,
+          dia: 81,
+          pulse: 62,
+          takenAt: { utcMs: toUtcMs, tzOffsetMin: TZ },
+          critical: undefined,
+        },
+        {
+          sys: 125,
+          dia: 85,
+          pulse: 65,
+          takenAt: { utcMs: toUtcMs + 60_000, tzOffsetMin: TZ },
+          critical: undefined,
+        },
+        {
+          sys: 118,
+          dia: 79,
+          pulse: 58,
+          takenAt: { utcMs: fromUtcMs - 60_000, tzOffsetMin: TZ },
+          critical: undefined,
+        },
       ]);
 
       const envelope = await statsRequest(container, {

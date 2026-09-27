@@ -7,5 +7,8 @@
  */
 export type { Arm } from './domain/arm.js';
 export type { BpMeasurement, MeasurementSource } from './domain/bp-measurement.js';
-export type { BpMeasurementRepository, MeasurementQuery } from './application/ports/bp-measurement-repository.js';
+export type {
+  BpMeasurementRepository,
+  MeasurementQuery,
+} from './application/ports/bp-measurement-repository.js';
 export { assessCritical, type CriticalFlag } from './domain/critical-value-policy.js';

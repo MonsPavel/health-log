@@ -32,9 +32,7 @@ const PROFILE_ID_MAX_LENGTH = 64;
  */
 export const STATS_PERIOD_PARAM_SCHEMA = z.union([
   z.enum(['7d', '30d', '90d', 'all']),
-  z
-    .object({ fromUtcMs: z.number().int(), toUtcMs: z.number().int() })
-    .strict(),
+  z.object({ fromUtcMs: z.number().int(), toUtcMs: z.number().int() }).strict(),
 ]);
 
 /** Агрегаты одного канала значений (052 §7): avg/min/max/sd, undefined-части отсутствуют. */
@@ -91,10 +89,7 @@ export const PERIOD_STATISTICS_DTO_SCHEMA = z
     morning: STATS_PART_STATS_SCHEMA.optional(),
     evening: STATS_PART_STATS_SCHEMA.optional(),
     other: STATS_PART_STATS_SCHEMA.optional(),
-    delta: z
-      .object({ sys: z.number(), dia: z.number() })
-      .strict()
-      .optional(),
+    delta: z.object({ sys: z.number(), dia: z.number() }).strict().optional(),
     critical: z.object({ high: z.boolean(), low: z.boolean() }).strict(),
     daysWithMeasurements: z.number().int(),
     longestStreakDays: z.number().int(),

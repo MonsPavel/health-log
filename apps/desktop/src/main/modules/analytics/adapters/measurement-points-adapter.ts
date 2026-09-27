@@ -12,7 +12,11 @@
  * Межмодульный импорт — только публичный API measurement/index.ts (арх. 03 §4,
  * правило module-public-api TASK-005). Асинхронность — единообразно с портом.
  */
-import { assessCritical, type BpMeasurement, type BpMeasurementRepository } from '../../measurement/index.js';
+import {
+  assessCritical,
+  type BpMeasurement,
+  type BpMeasurementRepository,
+} from '../../measurement/index.js';
 
 import type {
   MeasurementPoint,

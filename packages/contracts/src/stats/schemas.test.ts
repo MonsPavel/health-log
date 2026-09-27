@@ -32,9 +32,9 @@ describe('STATS_PERIOD_PARAM_SCHEMA — период канала (§5: прес
   });
 
   it('принимает custom {fromUtcMs, toUtcMs} — целые (TASK-046: границы включительно)', () => {
-    expect(
-      STATS_PERIOD_PARAM_SCHEMA.safeParse({ fromUtcMs: 0, toUtcMs: 86_400_000 }).success,
-    ).toBe(true);
+    expect(STATS_PERIOD_PARAM_SCHEMA.safeParse({ fromUtcMs: 0, toUtcMs: 86_400_000 }).success).toBe(
+      true,
+    );
     expect(STATS_PERIOD_PARAM_SCHEMA.safeParse({ fromUtcMs: -1, toUtcMs: 0 }).success).toBe(true);
   });
 
@@ -46,9 +46,7 @@ describe('STATS_PERIOD_PARAM_SCHEMA — период канала (§5: прес
   });
 
   it('отклоняет дробные границы custom и лишние поля (strict, §14)', () => {
-    expect(
-      STATS_PERIOD_PARAM_SCHEMA.safeParse({ fromUtcMs: 0.5, toUtcMs: 1 }).success,
-    ).toBe(false);
+    expect(STATS_PERIOD_PARAM_SCHEMA.safeParse({ fromUtcMs: 0.5, toUtcMs: 1 }).success).toBe(false);
     expect(
       STATS_PERIOD_PARAM_SCHEMA.safeParse({ fromUtcMs: 0, toUtcMs: 1, extra: 'x' }).success,
     ).toBe(false);
@@ -237,8 +235,12 @@ describe('STATS_RESPONSE_SCHEMA — ответ stats/period (§5: {stats, scale}
 
   it('version — семвер (переиспользование SCALE_VERSION_SCHEMA, §7 051)', () => {
     expect(SCALE_VERSION_SCHEMA.safeParse('1.0').success).toBe(false);
-    expect(STATS_RESPONSE_SCHEMA.safeParse({ stats: STATS, scale: { code: 'c', version: '1.0', sourceLabel: 's' } })
-      .success).toBe(false);
+    expect(
+      STATS_RESPONSE_SCHEMA.safeParse({
+        stats: STATS,
+        scale: { code: 'c', version: '1.0', sourceLabel: 's' },
+      }).success,
+    ).toBe(false);
   });
 
   it('strict: неизвестные поля в ответе отклоняются (§14)', () => {
