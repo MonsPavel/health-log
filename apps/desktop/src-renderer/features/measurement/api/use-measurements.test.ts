@@ -3,6 +3,10 @@
  * `measurements/list` (TASK-030): ключ ['measurements', profileId, {limit:200}],
  * первая страница offset=0, «Показать ещё» → offset=200 (количество загруженного),
  * следующей страницы нет, когда загружено >= total. Отказ конверта → IpcApiError.
+ *
+ * TASK-044 §5/§12: фильтры входят в аргументы хука — ключ кэша включает фрагмент
+ * (разные фильтры не конфликтуют, префикс ['measurements'] общий), payload запроса
+ * содержит fromUtcMs/arm/hasNote.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
@@ -34,11 +38,11 @@ const OK_ENVELOPE = (response: MeasurementListResponse) => ({ v: 1, ok: true, da
 
 let invoke: ReturnType<typeof vi.fn>;
 
-function renderMeasurements() {
+function renderMeasurements(filters?: Parameters<typeof useMeasurements>[1]) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
     createElement(QueryClientProvider, { client: queryClient }, children);
-  return renderHook(() => useMeasurements(PROFILE_ID), { wrapper });
+  return renderHook(() => useMeasurements(PROFILE_ID, filters), { wrapper });
 }
 
 beforeEach(() => {
@@ -126,5 +130,59 @@ describe('useMeasurements — offset-пагинация «Показать ещ�
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.hasNextPage).toBe(false);
+  });
+});
+
+describe('useMeasurements — фильтры в ключе и payload (TASK-044 §5/§12)', () => {
+  const FILTERS = { fromUtcMs: 111_111, arm: 'left', hasNote: true } as const;
+
+  it('ключ: фрагмент фильтров в третьем элементе, префикс [measurements, profileId] сохранён', () => {
+    expect(measurementsKey(PROFILE_ID, FILTERS)).toEqual([
+      'measurements',
+      PROFILE_ID,
+      { limit: 200, fromUtcMs: 111_111, arm: 'left', hasNote: true },
+    ]);
+  });
+
+  it('без фильтров ключ не содержит пустых полей (обратно-совместим с инвалидациями)', () => {
+    expect(measurementsKey(PROFILE_ID)).toEqual(['measurements', PROFILE_ID, { limit: 200 }]);
+  });
+
+  it('payload запроса: fromUtcMs/arm/hasNote рядом с limit/offset (§20 AC2)', async () => {
+    const { result } = renderMeasurements(FILTERS);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invoke).toHaveBeenCalledWith('measurements/list', {
+      profileId: PROFILE_ID,
+      fromUtcMs: 111_111,
+      arm: 'left',
+      hasNote: true,
+      limit: HISTORY_PAGE_LIMIT,
+      offset: 0,
+    });
+  });
+
+  it('смена фильтра → новый ключ → повторный fetch с новыми границами (§10/§12)', async () => {
+    const filters = { current: { fromUtcMs: 1000 } as const };
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    const { result, rerender } = renderHook(
+      () => useMeasurements(PROFILE_ID, filters.current),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    filters.current = { fromUtcMs: 2000 } as const;
+    rerender();
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenLastCalledWith('measurements/list', {
+        profileId: PROFILE_ID,
+        fromUtcMs: 2000,
+        limit: HISTORY_PAGE_LIMIT,
+        offset: 0,
+      }),
+    );
   });
 });
