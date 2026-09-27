@@ -22,9 +22,21 @@ import { MemoryRouter } from 'react-router-dom';
 import '../../../i18n';
 import { DAY_MS } from '../model/filters';
 import { HistoryFilters, useMeasurementFilters } from './HistoryFilters';
+import { useLocation } from 'react-router-dom';
 
 /** Фиксированное «сейчас» теста (§13: границы пресета — от момента применения). */
 const NOW_MS = Date.UTC(2026, 8, 27, 15, 0);
+
+/** Проба адреса: MemoryRouter не пишет window.location — читаем useLocation внутри. */
+interface LocationProbe {
+  search: string;
+}
+
+function LocationProbeTarget({ probe }: { readonly probe: LocationProbe }): null {
+  const { search } = useLocation();
+  probe.search = search;
+  return null;
+}
 
 function renderFilters(
   state = { period: '30d' as const },
@@ -49,13 +61,19 @@ function renderFilters(
 /** Обёртка renderHook: MemoryRouter с заданным начальным URL (§12: URL — источник истины). */
 function renderFiltersHook(initialEntry: string) {
   const queryClient = new QueryClient();
+  const probe: LocationProbe = { search: '' };
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
     createElement(
       QueryClientProvider,
       { client: queryClient },
-      createElement(MemoryRouter, { initialEntries: [initialEntry] }, children),
+      createElement(
+        MemoryRouter,
+        { initialEntries: [initialEntry] },
+        children,
+        createElement(LocationProbeTarget, { probe }),
+      ),
     );
-  return renderHook(() => useMeasurementFilters(), { wrapper });
+  return { ...renderHook(() => useMeasurementFilters(), { wrapper }), probe };
 }
 
 beforeEach(() => {
@@ -108,7 +126,7 @@ describe('HistoryFilters — структура и a11y (§16/§17)', () => {
       'Левая',
       'Правая',
     ]);
-    expect(select.value).toBe('');
+    expect(select.value).toBe('any');
   });
 
   it('чекбокс «Только с заметками» с label, отмечен по проп-состоянию (§17 filters.noted)', () => {
@@ -159,7 +177,7 @@ describe('HistoryFilters — клики вызывают колбэки (§19)',
     await user.selectOptions(screen.getByLabelText('Рука'), 'left');
     expect(onArm).toHaveBeenLastCalledWith('left');
 
-    await user.selectOptions(screen.getByLabelText('Рука'), '');
+    await user.selectOptions(screen.getByLabelText('Рука'), 'any');
     expect(onArm).toHaveBeenLastCalledWith(undefined);
   });
 
@@ -224,13 +242,13 @@ describe('useMeasurementFilters — чтение URL (§12/§13/§14)', () => {
 
 describe('useMeasurementFilters — применение фильтров переписывает URL (§5/§12)', () => {
   it('setPeriod("all") → ?period=all, query без fromUtcMs', async () => {
-    const { result } = renderFiltersHook('/journal');
+    const { result, probe } = renderFiltersHook('/journal');
 
     result.current.setPeriod('all');
 
     await waitFor(() => expect(result.current.state).toStrictEqual({ period: 'all' }));
     expect(result.current.query).toStrictEqual({});
-    expect(window.location.hash).toContain('period=all');
+    expect(probe.search).toBe('?period=all');
   });
 
   it('setArm("right") добавляет arm=right; setArm(undefined) убирает параметр', async () => {
@@ -278,14 +296,12 @@ describe('useMeasurementFilters — применение фильтров пер
   });
 
   it('reset → URL в дефолт period=30d, arm/noted сняты (§5)', async () => {
-    const { result } = renderFiltersHook('/journal?period=7d&arm=left&noted=1');
+    const { result, probe } = renderFiltersHook('/journal?period=7d&arm=left&noted=1');
 
     result.current.reset();
 
     await waitFor(() => expect(result.current.state).toStrictEqual({ period: '30d' }));
     expect(result.current.isActive).toBe(false);
-    expect(window.location.hash).toContain('period=30d');
-    expect(window.location.hash).not.toContain('arm=');
-    expect(window.location.hash).not.toContain('noted=');
+    expect(probe.search).toBe('?period=30d');
   });
 });
