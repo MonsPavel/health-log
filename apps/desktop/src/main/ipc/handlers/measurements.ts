@@ -1,6 +1,7 @@
 /**
  * Хендлеры каналов журнала измерений (TASK-029 §5/§9/§11: `measurements/add`;
- * TASK-030 §5/§9/§11: `measurements/list`; update/delete — TASK-037 по мере появления).
+ * TASK-030 §5/§9/§11: `measurements/list`; TASK-037 §5/§9/§11: `measurements/update` —
+ * с этого момента полный CRUD-набор журнала: add/list/update/delete).
  * Слой тонкий: zod-валидацию запроса делает каркас TASK-008 до вызова хендлера, здесь —
  * только вызов use case'а и маппинг Result → контракт канала:
  *  - ok  → ответ канала по строгой схеме TASK-028;
@@ -9,10 +10,11 @@
  *    хендлер не строит конверт вручную.
  *
  * Payload — схемы TASK-028: поля add структурно совпадают с CreateMeasurementCommand
- * домена (TASK-017), query list — с MeasurementQuery порта (TASK-021); числа границ
- * синхронизированы контракт-тестом contracts-sync (§19 TASK-028). У list доменных
- * отказов нет (§9 TASK-030) — хендлер возвращает страницу значением, только
- * инфраструктурный неуспех дошёл бы до каркаса (APP/INTERNAL).
+ * домена (TASK-017), update — с {id} + EditMeasurementCommand, query list — с
+ * MeasurementQuery порта (TASK-021); числа границ синхронизированы контракт-тестом
+ * contracts-sync (§19 TASK-028). У list доменных отказов нет (§9 TASK-030) — хендлер
+ * возвращает страницу значением, только инфраструктурный неуспех дошёл бы до каркаса
+ * (APP/INTERNAL).
  */
 import { isErr } from '@hl/kernel';
 import type {
