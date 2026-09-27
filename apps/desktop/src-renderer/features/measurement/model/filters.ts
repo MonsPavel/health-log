@@ -138,7 +138,9 @@ export function parseHistoryFilters(params: ParamsReader): HistoryFilterState {
   const rangeBroken =
     from !== null && to !== null && fromRaw !== null && toRaw !== null && fromRaw > toRaw;
   return {
-    period: rangeBroken ? DEFAULT_FILTER_STATE.period : (validPeriod ?? DEFAULT_FILTER_STATE.period),
+    period: rangeBroken
+      ? DEFAULT_FILTER_STATE.period
+      : (validPeriod ?? DEFAULT_FILTER_STATE.period),
     ...(from === null || fromRaw === null || rangeBroken ? {} : { from: fromRaw }),
     ...(to === null || toRaw === null || rangeBroken ? {} : { to: toRaw }),
     ...(validArm === undefined ? {} : { arm: validArm }),

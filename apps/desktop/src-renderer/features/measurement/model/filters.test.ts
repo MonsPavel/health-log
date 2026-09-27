@@ -213,7 +213,10 @@ describe('TASK-046: toQuery — custom через parseRange (§7/§10/§13)', (
 
   it('рука/заметки сочетаются с custom-границами (§5: единый query-фрагмент)', () => {
     expect(
-      toQuery({ period: 'custom', from: '2026-03-01', to: '2026-03-15', arm: 'right', noted: true }, NOW_MS),
+      toQuery(
+        { period: 'custom', from: '2026-03-01', to: '2026-03-15', arm: 'right', noted: true },
+        NOW_MS,
+      ),
     ).toStrictEqual({
       fromUtcMs: wallStart('2026-03-01'),
       toUtcMs: wallEnd('2026-03-15'),
@@ -230,9 +233,9 @@ describe('TASK-046: parseHistoryFilters — from/to только при custom (
   }
 
   it('period=custom&from&to — состояние с датами (§5 URL-формат)', () => {
-    expect(parseHistoryFilters(params('period=custom&from=2026-03-01&to=2026-03-15'))).toStrictEqual(
-      { period: 'custom', from: '2026-03-01', to: '2026-03-15' },
-    );
+    expect(
+      parseHistoryFilters(params('period=custom&from=2026-03-01&to=2026-03-15')),
+    ).toStrictEqual({ period: 'custom', from: '2026-03-01', to: '2026-03-15' });
   });
 
   it('period=custom без дат — режим custom с пустыми полями (не дефолт: поля видимы)', () => {
@@ -268,7 +271,11 @@ describe('TASK-046: parseHistoryFilters — from/to только при custom (
 describe('TASK-046: serializeHistoryFilters и roundtrip custom (§5/§12)', () => {
   it('custom с датами: period=custom&from=…&to=… (§2 URL-формат)', () => {
     expect(
-      serializeHistoryFilters({ period: 'custom', from: '2026-03-01', to: '2026-03-15' }).toString(),
+      serializeHistoryFilters({
+        period: 'custom',
+        from: '2026-03-01',
+        to: '2026-03-15',
+      }).toString(),
     ).toBe('period=custom&from=2026-03-01&to=2026-03-15');
   });
 
@@ -285,7 +292,9 @@ describe('TASK-046: serializeHistoryFilters и roundtrip custom (§5/§12)', () 
   it('roundtrip custom: parse∘serialize — тождество (§12, AC5 перезагрузка)', () => {
     const state = { period: 'custom', from: '2026-03-01', to: '2026-03-15' } as const;
     expect(parseHistoryFilters(serializeHistoryFilters(state))).toStrictEqual(state);
-    expect(parseHistoryFilters(serializeHistoryFilters({ period: 'custom', from: state.from }))).toStrictEqual({
+    expect(
+      parseHistoryFilters(serializeHistoryFilters({ period: 'custom', from: state.from })),
+    ).toStrictEqual({
       period: 'custom',
       from: state.from,
     });

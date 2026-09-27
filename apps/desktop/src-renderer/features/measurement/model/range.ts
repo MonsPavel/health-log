@@ -77,8 +77,7 @@ export interface RangeBounds {
 
 /** Результат parseRange: границы или ошибка валидации (дискриминатор ok — прецедент конвертов IPC). */
 export type ParseRangeResult =
-  | ({ readonly ok: true } & RangeBounds)
-  | { readonly ok: false; readonly error: RangeErrorKind };
+  ({ readonly ok: true } & RangeBounds) | { readonly ok: false; readonly error: RangeErrorKind };
 
 /** Номер настенного дня (дней с эпохи) календарной даты — целочисленное сравнение дат. */
 function dayNumberOf(y: number, mo: number, d: number): number {

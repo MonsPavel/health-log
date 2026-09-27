@@ -164,7 +164,10 @@ describe('parseRange — неполный диапазон (§10 прогрес�
 describe('parseRange — настенное правило ночной записи (§13/§22)', () => {
   /** Диапазон «вчера» по настенному дню устройства (UTC+3): 2026-09-26. */
   const yesterday = parseRange('2026-09-26', '2026-09-26', NOW_MS, TZ_180);
-  if (!yesterday.ok) {
+  const yesterdayFrom =
+    yesterday.ok && yesterday.fromUtcMs !== undefined ? yesterday.fromUtcMs : NaN;
+  const yesterdayTo = yesterday.ok && yesterday.toUtcMs !== undefined ? yesterday.toUtcMs : NaN;
+  if (Number.isNaN(yesterdayFrom) || Number.isNaN(yesterdayTo)) {
     throw new Error('ожидался валидный диапазон');
   }
 
@@ -173,8 +176,8 @@ describe('parseRange — настенное правило ночной запи
     // наивный utc-фильтр по 26-му запись потерял бы — §22 снят настенным правилом).
     const nightUtcMs = wallToUtc(2026, 9, 26, 0, 15);
     expect(new Date(nightUtcMs).getUTCDate()).toBe(25); // доказательство ловушки utc-дня
-    expect(yesterday.fromUtcMs).toBeLessThanOrEqual(nightUtcMs);
-    expect(nightUtcMs).toBeLessThanOrEqual(yesterday.toUtcMs);
+    expect(yesterdayFrom).toBeLessThanOrEqual(nightUtcMs);
+    expect(nightUtcMs).toBeLessThanOrEqual(yesterdayTo);
   });
 
   it('запись 00:30 настенного 27-го («сегодня», свой offset +180) — UTC-день 26-й, но НЕ входит', () => {
@@ -182,20 +185,21 @@ describe('parseRange — настенное правило ночной запи
     // наивный utc-фильтр включил бы — настенное правило исключает.
     const utcMs = wallToUtc(2026, 9, 27, 0, 30);
     expect(new Date(utcMs).getUTCDate()).toBe(26); // доказательство ловушки utc-дня
-    expect(utcMs).toBeGreaterThan(yesterday.toUtcMs);
+    expect(utcMs).toBeGreaterThan(yesterdayTo);
   });
 });
 
 describe('parseRange — DST-переход внутри диапазона при фиксированном offset (§13)', () => {
   it('2026-03-01..2026-04-01 (переход EU 2026-03-29): настенные дни не дублируются', () => {
     const range = parseRange('2026-03-01', '2026-04-01', NOW_MS, TZ_180);
-    if (!range.ok) {
+    if (!range.ok || range.fromUtcMs === undefined || range.toUtcMs === undefined) {
       throw new Error('ожидался валидный диапазон');
     }
+    const { fromUtcMs, toUtcMs } = range;
     // Фиксированный offset → настенные дни идут подряд по 24 ч: ровно 32 суток
     // минус 1 мс включительной границы — ни дублей, ни выпавших часов.
-    expect(range.toUtcMs - range.fromUtcMs).toBe(32 * DAY_MS - 1);
-    expect(range.fromUtcMs).toBe(wallToUtc(2026, 3, 1));
-    expect(range.toUtcMs).toBe(wallToUtc(2026, 4, 1, 23, 59) + 59_999);
+    expect(toUtcMs - fromUtcMs).toBe(32 * DAY_MS - 1);
+    expect(fromUtcMs).toBe(wallToUtc(2026, 3, 1));
+    expect(toUtcMs).toBe(wallToUtc(2026, 4, 1, 23, 59) + 59_999);
   });
 });
