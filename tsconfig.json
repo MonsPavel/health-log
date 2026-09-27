@@ -12,6 +12,7 @@
     "vitest.setup.ts",
     "vitest.config.ts",
     "packages/*/src/**/*.test.ts",
+    "packages/*/test/**/*.test.ts",
     "apps/desktop/src/main/**/*.test.ts",
     "apps/desktop/playwright.config.ts",
     "apps/desktop/tests/e2e/**/*.ts"

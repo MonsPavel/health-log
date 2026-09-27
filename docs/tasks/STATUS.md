@@ -55,7 +55,7 @@
 | TASK-047 | done | | смержена |
 | TASK-048 | done | | смержена |
 | TASK-049 | done | | смержена |
-| TASK-050 | todo | | |
+| TASK-050 | done | | смержена |
 | TASK-051 | todo | | |
 | TASK-052 | todo | | |
 | TASK-053 | todo | | |

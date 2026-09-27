@@ -174,7 +174,11 @@ importers:
 
   packages/kernel: {}
 
-  packages/scales-data: {}
+  packages/scales-data:
+    devDependencies:
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
 packages:
 
