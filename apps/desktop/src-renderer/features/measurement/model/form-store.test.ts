@@ -305,7 +305,7 @@ describe('form-store — persist черновика (TASK-039 §5/§19)', () => 
       }),
     );
 
-    useFormStore.persist.rehydrate();
+    void useFormStore.persist.rehydrate();
 
     const s = useFormStore.getState();
     expect(s.sys).toBe('125');
@@ -327,13 +327,21 @@ describe('form-store — persist черновика (TASK-039 §5/§19)', () => 
           note: '',
           when: 'now',
           editingId: 'm-9',
-          editBase: { sys: '1', dia: '1', pulse: '', irregular: false, arm: 'left', note: '', when: 'now' },
+          editBase: {
+            sys: '1',
+            dia: '1',
+            pulse: '',
+            irregular: false,
+            arm: 'left',
+            note: '',
+            when: 'now',
+          },
         },
         version: 1,
       }),
     );
 
-    useFormStore.persist.rehydrate();
+    void useFormStore.persist.rehydrate();
 
     const s = useFormStore.getState();
     expect(s.sys).toBe('9'); // черновиковое поле восстановлено
@@ -358,7 +366,7 @@ describe('form-store — persist черновика (TASK-039 §5/§19)', () => 
       }),
     );
 
-    useFormStore.persist.rehydrate();
+    void useFormStore.persist.rehydrate();
 
     const s = useFormStore.getState();
     expect(s.sys).toBe('130');

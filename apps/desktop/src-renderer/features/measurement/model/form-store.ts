@@ -305,7 +305,7 @@ function readEnvelope(key: string): { state?: unknown; version?: number } | null
     if (typeof parsed !== 'object' || parsed === null) {
       return null;
     }
-    return parsed as { state?: unknown; version?: number };
+    return parsed;
   } catch {
     return null;
   }
@@ -395,11 +395,13 @@ export interface PersistedPrefs {
 
 /**
  * Срез persist-слоя до раскладки адаптером: черновик → `hl.formDraft`,
- * предпочтения → `hl.formPrefs` (адаптер — createDraftPrefsStorage).
+ * предпочтения → `hl.formPrefs` (адаптер — createDraftPrefsStorage). Части
+ * опциональны: из хранилища конверт может отсутствовать/быть повреждён —
+ * merge/migrate сводят отсутствующие части к дефолтам.
  */
 interface PersistedSlice {
-  draft: PersistedDraft;
-  prefs: PersistedPrefs;
+  draft?: PersistedDraft;
+  prefs?: PersistedPrefs;
 }
 
 /** Ключ persist предпочтений (ключ черновика — name слоя, `hl.formDraft`). */
@@ -443,7 +445,9 @@ function sanitizePrefs(raw: unknown): PersistedPrefs {
 }
 
 /** Непуст ли черновик (тост восстановления — §5: «при непустом»). */
-function hasDraftContent(state: Pick<FormDraftState, 'sys' | 'dia' | 'pulse' | 'note' | 'when'>): boolean {
+function hasDraftContent(
+  state: Pick<FormDraftState, 'sys' | 'dia' | 'pulse' | 'note' | 'when'>,
+): boolean {
   return (
     state.sys !== '' ||
     state.dia !== '' ||

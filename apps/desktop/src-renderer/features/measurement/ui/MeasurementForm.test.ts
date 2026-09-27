@@ -783,7 +783,7 @@ describe('MeasurementForm — восстановление черновика (T
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ state, version: 1 }));
     useFormStore.getState().resetAll();
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ state, version: 1 }));
-    useFormStore.persist.rehydrate();
+    void useFormStore.persist.rehydrate();
   }
 
   function restoredToast(): HTMLElement {
