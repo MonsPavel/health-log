@@ -39,9 +39,16 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
     expect(HL_EVENT_PAYLOAD_KEYS['app:log']).toEqual(['level', 'messageKey']);
   });
 
+  it('содержит prefs:changed с payload {patchKeys} — имена изменённых ключей, не значения (TASK-047 §5/§7)', () => {
+    expectTypeOf<HlEventMap['prefs:changed']>().toEqualTypeOf<{
+      readonly patchKeys: readonly string[];
+    }>();
+    expect(HL_EVENT_PAYLOAD_KEYS['prefs:changed']).toEqual(['patchKeys']);
+  });
+
   it('runtime-реестр HL_EVENT_PAYLOAD_KEYS покрывает карту без лишних имён', () => {
     expect(Object.keys(HL_EVENT_PAYLOAD_KEYS).sort()).toEqual(
-      ['app:log', 'data:versionBumped', 'measurement:changed'].sort(),
+      ['app:log', 'data:versionBumped', 'measurement:changed', 'prefs:changed'].sort(),
     );
   });
 });

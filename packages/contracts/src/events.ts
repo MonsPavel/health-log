@@ -24,6 +24,12 @@ export interface HlEventMap {
   'data:versionBumped': { readonly newVersion: number };
   /** Изменены измерения профиля: перечитать список (FR-5.x, TASK-026/029 — публикаторы). */
   'measurement:changed': { readonly profileId: string };
+  /**
+   * Изменены настройки (TASK-047 §5/§7): сигнал рендереру перечитать ['prefs'] —
+   * мгновенное применение темы/масштаба без перезапуска (§10). Payload — ТОЛЬКО
+   * имена изменённых ключей patch (компактность §7), не значения.
+   */
+  'prefs:changed': { readonly patchKeys: readonly string[] };
   /** Технологическое событие журнала main (§18): только ключ сообщения, без PHI. */
   'app:log': { readonly level: HlLogLevel; readonly messageKey: string };
 }
@@ -36,6 +42,7 @@ export interface HlEventMap {
 export const HL_EVENT_PAYLOAD_KEYS = {
   'data:versionBumped': ['newVersion'],
   'measurement:changed': ['profileId'],
+  'prefs:changed': ['patchKeys'],
   'app:log': ['level', 'messageKey'],
 } as const satisfies {
   readonly [K in keyof HlEventMap]: readonly (keyof HlEventMap[K])[];
