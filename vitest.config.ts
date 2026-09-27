@@ -6,9 +6,10 @@
  * установленной мажорной версии (§22, мажор зафиксирован в lockfile).
  *
  * Покрытие (§5, §18): provider v8, merged-отчёт по всему workspace (text в консоль +
- * lcov в coverage/, только локальный артефакт). Пороги покрытия — TODO(TASK-052):
- * 90% (NFR-10) включаются, когда есть что мерить — домен аналитики; до тех пор
- * coverage — отчёт без гейта.
+ * lcov в coverage/, только локальный артефакт). Пороги (NFR-10): с TASK-052 включён
+ * гейт 90% для домена аналитики (TASK-052 §6/§20: чистые формулы статистики —
+ * клинический контракт, ошибки эталонов недопустимы); остальные зоны — отчёт без
+ * гейта, пороги подключаются задачами своих модулей.
  */
 import { defineConfig } from 'vitest/config';
 
@@ -23,7 +24,16 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       include: ['packages/*/src/**', 'apps/desktop/src/main/**'],
-      // thresholds: TODO(TASK-052) — порог 90% (NFR-10) для домена аналитики.
+      // TASK-052 §6/§20: coverage-гейт ≥90% по analytics/domain (statements/branches/
+      // functions/lines); ключ-glob — порог применяется только к зоне домена аналитики.
+      thresholds: {
+        'apps/desktop/src/main/modules/analytics/domain/**': {
+          statements: 90,
+          branches: 90,
+          functions: 90,
+          lines: 90,
+        },
+      },
     },
     projects: [
       testProject('kernel', ['packages/kernel/src/**/*.test.ts']),
