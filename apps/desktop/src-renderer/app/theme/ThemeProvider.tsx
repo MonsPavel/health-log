@@ -1,16 +1,19 @@
 /**
- * TASK-013 §5/§12/§13: ThemeProvider — режимы system|light|dark, data-theme на
- * <html>, живое слежение за prefers-color-scheme в режиме system (§13, без
- * перезагрузки). Выбор сохраняется в localStorage `hl.theme` — ключи зарезервированы
- * для миграции в prefs (TASK-047); localStorage не хранит ничего чувствительного
- * (§14). Токены применяются CSS-переменными — дерево не ре-рендерится от смены
- * темы (арх. 06 §7).
+ * TASK-013 §5/§12/§13 + TASK-047 §5/§6/§10/§13: ThemeProvider — режимы
+ * system|light|dark и rem-масштаб текста, data-theme/класс hl-text-* на <html>,
+ * живое слежение за prefers-color-scheme в режиме system (без перезагрузки).
  *
- * applyPersistedAppearance — вызывается в main.tsx ДО createRoot.render: тема и
- * rem-масштаб текста (классы hl-text-*, FR-8.2) применяются до первого рендера —
- * защита от FOUC (§13). Inline-скрипт в index.html невозможен: prod-CSP
- * script-src 'self' запрещает inline-код (TASK-008 §14) — тот же эффект даёт
- * отдельный модуль, исполняемый до рендера.
+ * ИСТОЧНИК (сменился в TASK-047 §6): настройки приходят из prefs (usePreferences →
+ * каналы prefs/get|set, §10/§12) — применение мгновенное по подписке на prefs и
+ * событию prefs:changed (§20 AC6), персистентность — в БД (AC2). localStorage
+ * (hl.theme/hl.textScale) остаётся только fallback-ом ДО первой загрузки prefs:
+ * applyPersistedAppearance применяет его до рендера (защита от FOUC, §13), а
+ * readStoredMode/readStoredTextScale покрывают окно до ответа prefs/get. После
+ * one-time миграции localStorage→БД (TASK-047 §12) ключи удалены — fallback
+ * естественно вырождается в дефолты.
+ *
+ * Токены применяются CSS-переменными — дерево не ре-рендерится от смены темы
+ * (арх. 06 §7). localStorage не хранит ничего чувствительного (§14).
  */
 import {
   createContext,
@@ -22,16 +25,18 @@ import {
   type ReactNode,
 } from 'react';
 
+import { usePreferences } from '../../features/settings/model/use-preferences';
+
 /** Режим темы: system следит за ОС, light/dark — явный выбор (§5). */
 export type ThemeMode = 'system' | 'light' | 'dark';
 
 /** Разрешённая тема — значение атрибута data-theme на <html>. */
 export type ResolvedTheme = 'light' | 'dark';
 
-/** Ключ localStorage режима темы (§12; миграция в prefs — TASK-047). */
+/** Ключ localStorage режима темы (TASK-013 §12; миграция в prefs — TASK-047). */
 export const THEME_STORAGE_KEY = 'hl.theme';
 
-/** Ключ localStorage масштаба текста: '100' | '112.5' | '125' (§12). */
+/** Ключ localStorage масштаба текста: '100' | '112.5' | '125' (TASK-013 §12). */
 export const TEXT_SCALE_STORAGE_KEY = 'hl.textScale';
 
 const DARK_MEDIA_QUERY = '(prefers-color-scheme: dark)';
@@ -50,7 +55,7 @@ export interface ThemeApi {
   readonly mode: ThemeMode;
   /** Фактическая тема после разрешения system (значение data-theme). */
   readonly resolvedTheme: ResolvedTheme;
-  /** Смена режима с записью в localStorage (§12). */
+  /** Смена режима — через prefs/set (TASK-047 §10; localStorage больше не пишется). */
   readonly setMode: (mode: ThemeMode) => void;
 }
 
@@ -65,8 +70,7 @@ export function useTheme(): ThemeApi {
   return api;
 }
 
-/** Чтение режима из localStorage; мусор/отсутствие → system. localStorage может
- *  быть недоступен (запрещён политикой) — §14: только тема/масштаб, сбой глушится. */
+/** Чтение режима из localStorage (fallback до prefs, см. шапку); мусор/нет → system. */
 function readStoredMode(): ThemeMode {
   try {
     const raw = localStorage.getItem(THEME_STORAGE_KEY);
@@ -89,30 +93,38 @@ export function resolveTheme(mode: ThemeMode, systemDark: boolean): ResolvedThem
   return systemDark ? 'dark' : 'light';
 }
 
-/** Безопасное чтение класса масштаба из localStorage; мусор → обычный (FR-8.2). */
-function readTextScaleClass(): string {
+/** Безопасное чтение сырого ключа масштаба из localStorage (fallback до prefs); мусор → '100'. */
+function readStoredTextScale(): string {
   try {
     const raw = localStorage.getItem(TEXT_SCALE_STORAGE_KEY);
-    return (raw !== null && TEXT_SCALE_CLASSES[raw]) || DEFAULT_TEXT_SCALE_CLASS;
+    return raw !== null && TEXT_SCALE_CLASSES[raw] !== undefined ? raw : '100';
   } catch {
-    return DEFAULT_TEXT_SCALE_CLASS;
+    return '100';
   }
 }
 
 /**
  * Применение сохранённых темы и масштаба до первого рендера (§13): вызывается из
- * main.tsx до createRoot.render. Повторный вызов безвреден (идемпотентен).
+ * main.tsx до createRoot.render. Читает ТОЛЬКО легаси-localStorage (после one-time
+ * миграции TASK-047 ключей нет — безопасные дефолты). Повторный вызов безвреден.
  */
 export function applyPersistedAppearance(): void {
   const html = document.documentElement;
   html.setAttribute('data-theme', resolveTheme(readStoredMode(), systemPrefersDark()));
   html.classList.remove(...Object.values(TEXT_SCALE_CLASSES));
-  html.classList.add(readTextScaleClass());
+  html.classList.add(TEXT_SCALE_CLASSES[readStoredTextScale()] ?? DEFAULT_TEXT_SCALE_CLASS);
 }
 
-/** Провайдер темы: data-theme на <html>, подписка prefers-color-scheme в system. */
+/** Провайдер темы: data-theme + класс масштаба на <html>; источник — prefs (§6/§10). */
 export function ThemeProvider({ children }: { readonly children: ReactNode }): JSX.Element {
-  const [mode, setModeState] = useState<ThemeMode>(readStoredMode);
+  const { prefs, setPreferences } = usePreferences();
+
+  // Fallback до первого prefs/get: легаси-localStorage (после миграции — дефолты).
+  const [legacyMode] = useState<ThemeMode>(readStoredMode);
+  const [legacyTextScale] = useState<string>(readStoredTextScale);
+
+  const mode: ThemeMode = prefs?.theme ?? legacyMode;
+  const textScaleKey: string = prefs?.textScale ?? legacyTextScale;
   const [systemDark, setSystemDark] = useState<boolean>(systemPrefersDark);
 
   // §13: живое переключение в режиме system; перечитываем медиа-запрос при возврате
@@ -134,18 +146,25 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }): J
 
   const resolvedTheme = resolveTheme(mode, systemDark);
 
+  // §13/AC6: применение к <html> немедленно — смена источника (TASK-047) механику
+  // TASK-013 не меняет: атрибут/класс следят за значением prefs.
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', resolvedTheme);
   }, [resolvedTheme]);
 
-  const setMode = useCallback((next: ThemeMode): void => {
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, next);
-    } catch {
-      // localStorage недоступен — тема проживёт до перезапуска в текущем значении
-    }
-    setModeState(next);
-  }, []);
+  useEffect(() => {
+    const html = document.documentElement;
+    html.classList.remove(...Object.values(TEXT_SCALE_CLASSES));
+    html.classList.add(TEXT_SCALE_CLASSES[textScaleKey] ?? DEFAULT_TEXT_SCALE_CLASS);
+  }, [textScaleKey]);
+
+  const setMode = useCallback(
+    (next: ThemeMode): void => {
+      // §10: мутация prefs/set (optimistic в usePreferences; персистентность — БД).
+      setPreferences.mutate({ theme: next });
+    },
+    [setPreferences],
+  );
 
   const api = useMemo<ThemeApi>(
     () => ({ mode, resolvedTheme, setMode }),

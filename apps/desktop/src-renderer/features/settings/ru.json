@@ -1,0 +1,20 @@
+{
+  "title": "Настройки",
+  "appearance": {
+    "section": "Вид",
+    "theme": "Тема",
+    "themeSystem": "Системная",
+    "themeLight": "Светлая",
+    "themeDark": "Тёмная",
+    "textScale": "Размер текста",
+    "textScale100": "Обычный",
+    "textScale112": "Крупный",
+    "textScale125": "Очень крупный",
+    "dateFormat": "Формат даты",
+    "dateFormatAuto": "Как в системе",
+    "dateFormatDmy": "ДД.ММ.ГГГГ",
+    "dateFormatMdy": "ММ/ДД/ГГГГ",
+    "dateFormatPreview": "Пример: {{example}}",
+    "saveError": "Не удалось сохранить настройку — значение возвращено"
+  }
+}

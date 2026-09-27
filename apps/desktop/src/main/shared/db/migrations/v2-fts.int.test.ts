@@ -124,7 +124,8 @@ describe('миграция v2 — FTS по заметкам (TASK-045 §19/§20)
     const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as {
       value: string;
     };
-    expect(version.value).toBe('2');
+    // TASK-047: максимум РЕЕСТРА (реестр растёт вперёд — v3+), не литерал (прецедент v1).
+    expect(version.value).toBe(String(MIGRATIONS.at(-1)?.version));
     db.close();
   });
 
@@ -225,6 +226,7 @@ describe('миграция v2 — FTS по заметкам (TASK-045 §19/§20)
 
   it('(6) реестр MIGRATIONS содержит v2 второй версией, модуль экспортирует её DDL-имя', () => {
     expect(V2_FTS_NOTES.version).toBe(2);
-    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2]);
+    // TASK-047: v2 — ВТОРАЯ версия реестра; хвост реестра (v3+) растёт задачами.
+    expect(MIGRATIONS.map((migration) => migration.version).slice(0, 2)).toEqual([1, 2]);
   });
 });

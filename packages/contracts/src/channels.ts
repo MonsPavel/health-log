@@ -3,6 +3,7 @@
  *
  * Прикладные каналы — `домен/действие` (арх. 05 §2), union растит компилятор:
  * новый канал добавляется в ChannelName и в CHANNEL_SCHEMAS (schemas.ts).
+ * prefs/get|set — TASK-047 §5/§11 (схемы — prefs/schemas.ts).
  *
  * Транспорт: рендерер вызывает единственный зарегистрированный в main канал
  * `hl:invoke` с `{channel, payload}` (§13 п. 1 — «канал существует?» проверяет
@@ -27,7 +28,9 @@ export type ChannelName =
   | 'measurements/list'
   | 'measurements/update'
   | 'measurements/delete'
-  | 'notes/search';
+  | 'notes/search'
+  | 'prefs/get'
+  | 'prefs/set';
 
 /** Транспортный канал каркаса: не прикладной, в CHANNEL_SCHEMAS не входит. */
 export const HL_INVOKE_CHANNEL = 'hl:invoke';

@@ -10,7 +10,7 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createElement } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppProviders } from './providers';
 import { AppRouter } from './router';
@@ -25,8 +25,10 @@ const SECTIONS = [
   { href: '#/settings', label: 'Настройки' },
 ] as const;
 
-/** Маршруты-заглушки (журнал с TASK-031 — форма ввода, не заглушка). */
-const PLACEHOLDER_SECTIONS = SECTIONS.filter((section) => section.href !== '#/journal');
+/** Маршруты-заглушки (журнал с TASK-031 — форма ввода; настройки с TASK-047 — реальный экран). */
+const WIP_SECTIONS = SECTIONS.filter(
+  (section) => section.href !== '#/journal' && section.href !== '#/settings',
+);
 
 function renderRouterAt(hash: string): void {
   window.location.hash = hash;
@@ -37,7 +39,7 @@ function renderRouterAt(hash: string): void {
   );
 }
 
-/** Мост window.hl для маршрутов с журналом (list → пустая страница; прецедент App.test.ts). */
+/** Мост window.hl (прецедент App.test.ts, TASK-011): list → пустая страница. */
 function mockHlBridge(): void {
   Object.defineProperty(window, 'hl', {
     configurable: true,
@@ -49,6 +51,12 @@ function mockHlBridge(): void {
   });
 }
 
+beforeEach(() => {
+  // TASK-047: ThemeProvider читает prefs (usePreferences → invoke + useHlEvent) на
+  // КАЖДОМ маршруте — мост обязателен всем кейсам, не только журналу.
+  mockHlBridge();
+});
+
 afterEach(() => {
   cleanup();
   window.location.hash = '';
@@ -56,7 +64,7 @@ afterEach(() => {
 });
 
 describe('AppRouter — маршруты (§5)', () => {
-  it.each(PLACEHOLDER_SECTIONS)(
+  it.each(WIP_SECTIONS)(
     '$href: заголовок «$label» из каталога и обучающий пустой текст (FR-9.2)',
     async ({ href, label }) => {
       renderRouterAt(href);
@@ -67,9 +75,8 @@ describe('AppRouter — маршруты (§5)', () => {
   );
 
   it('#/journal: экран истории, «Добавить» открывает форму измерения (TASK-033 §4)', async () => {
-    // Мост журнала (прецедент window.hl в App.test.ts, TASK-011): list → пусто,
+    // Мост журнала: list → пусто (доответ mockHlBridge в beforeEach),
     // экран истории показывает пустое состояние с CTA.
-    mockHlBridge();
     renderRouterAt('#/journal');
 
     expect(await screen.findByTestId('empty-history')).not.toBeNull();
@@ -83,6 +90,15 @@ describe('AppRouter — маршруты (§5)', () => {
     await waitFor(() => expect(screen.getByTestId('input-sys')).not.toBeNull());
     expect(screen.getByTestId('input-dia')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Сохранить' })).not.toBeNull();
+  });
+
+  it('#/settings: экран настроек (TASK-047) — заголовок и секция «Вид» с радиогруппой темы', async () => {
+    renderRouterAt('#/settings');
+
+    expect(await screen.findByRole('heading', { name: 'Настройки' })).not.toBeNull();
+    expect(screen.getByRole('group', { name: 'Тема' })).not.toBeNull();
+    expect(screen.getByRole('group', { name: 'Размер текста' })).not.toBeNull();
+    expect(screen.getByLabelText('Формат даты')).not.toBeNull();
   });
 
   it('«/» перенаправляет на /dashboard', async () => {
@@ -118,8 +134,7 @@ describe('Sidebar — семантика и активный раздел (§10/
   });
 
   it('активный раздел помечен aria-current="page", остальные — нет', async () => {
-    // Журнал монтирует HistoryScreen (TASK-033) — мост обязателен и здесь.
-    mockHlBridge();
+    // Журнал монтирует HistoryScreen (TASK-033) — мост из beforeEach.
     renderRouterAt('#/journal');
 
     const nav = await screen.findByRole('navigation', { name: 'Разделы' });

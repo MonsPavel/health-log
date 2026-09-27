@@ -17,6 +17,12 @@ import {
   MEASUREMENT_UPDATE_RESPONSE_SCHEMA,
 } from './measurement/schemas.js';
 import { NOTES_SEARCH_REQUEST_SCHEMA, NOTES_SEARCH_RESPONSE_SCHEMA } from './notes/schemas.js';
+import {
+  PREFS_GET_REQUEST_SCHEMA,
+  PREFS_GET_RESPONSE_SCHEMA,
+  PREFS_SET_REQUEST_SCHEMA,
+  PREFS_SET_RESPONSE_SCHEMA,
+} from './prefs/schemas.js';
 
 /** Пара схем канала: запрос валидируется в main до handler, ответ — контракт хендлера. */
 export interface ChannelSchemas<TRequest = unknown, TResponse = unknown> {
@@ -77,5 +83,18 @@ export const CHANNEL_SCHEMAS = {
   'notes/search': {
     request: NOTES_SEARCH_REQUEST_SCHEMA,
     response: NOTES_SEARCH_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-047 §5/§11: настройки — prefs/get (полный документ) и prefs/set
+   * {patch} → обновлённый полный. Patch — strip-режим (неизвестные ключи
+   * отбрасываются zod, неверный тип — VALIDATION/FAILED); merge — в сервисе.
+   */
+  'prefs/get': {
+    request: PREFS_GET_REQUEST_SCHEMA,
+    response: PREFS_GET_RESPONSE_SCHEMA,
+  },
+  'prefs/set': {
+    request: PREFS_SET_REQUEST_SCHEMA,
+    response: PREFS_SET_RESPONSE_SCHEMA,
   },
 } satisfies Record<ChannelName, ChannelSchemas>;

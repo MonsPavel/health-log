@@ -36,12 +36,12 @@ const TEST_FILE_PATTERN = /\.test\.tsx?$/;
  * Кандидаты-ключи: строковые литералы с префиксом группы каталога. Явный префикс
  * отсекает ложные срабатывания на обычных строках (§22) и фиксирует конвенцию
  * «полное имя ключа в литерале». Группы: common, errors — каталоги i18n/ru;
- * feature-namespace'ы (первый — measurement, TASK-031) — каталоги
+ * feature-namespace'ы (первый — measurement, TASK-031; settings — TASK-047) — каталоги
  * features/<фича>/ru.json; каталоги общих компонентов (первый — critical, TASK-041)
  * — components/<имя>/ru.json; новая группа = добавление своего имени в альтернацию.
  */
 const KEY_LITERAL_PATTERN =
-  /(['"])(common|errors|measurement|critical)\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)\1/g;
+  /(['"])(common|errors|measurement|settings|critical)\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)\1/g;
 
 /** Namespace, чьи ключи приходят динамически и вне unused-проверки (арх. 06 §6). */
 const DYNAMIC_CONSUMPTION_NAMESPACES = new Set(['errors']);

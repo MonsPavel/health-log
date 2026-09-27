@@ -1,7 +1,11 @@
 /**
  * TASK-013 §5/§12: корневые провайдеры рендерера. Порядок: i18n (side-effect init —
- * каталог inline, синхронно к первому рендеру) → ThemeProvider (data-theme на
- * <html>) → QueryClientProvider (кэш серверных данных; транспорт — с TASK-030, §11).
+ * каталог inline, синхронно к первому рендеру) → QueryClientProvider (кэш серверных
+ * данных) → ThemeProvider (data-theme/масштаб на <html>).
+ *
+ * ПОРЯДОК (смена TASK-047 §6/§10): ThemeProvider читает настройки из prefs через
+ * usePreferences (useQuery/useMutation) — ему нужен QueryClient ВЫШЕ по дереву,
+ * поэтому QueryClientProvider теперь внешний.
  *
  * QueryClient создаётся один на жизнь окна (useState-инициализатор — без
  * пересоздания при ре-рендере и StrictMode double-invoke): defaultOptions §12 —
@@ -19,8 +23,8 @@ export function AppProviders({ children }: { readonly children: ReactNode }): JS
   const [queryClient] = useState(createQueryClient);
 
   return (
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>{children}</ThemeProvider>
+    </QueryClientProvider>
   );
 }

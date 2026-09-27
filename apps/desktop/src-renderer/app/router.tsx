@@ -23,8 +23,8 @@ const AiPage = lazy(() => import('../features/ai/ui/AiPage').then((m) => ({ defa
 const ReportsPage = lazy(() =>
   import('../features/reports/ui/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
-const SettingsPage = lazy(() =>
-  import('../features/settings/ui/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+const SettingsScreen = lazy(() =>
+  import('../features/settings/ui/SettingsScreen').then((m) => ({ default: m.SettingsScreen })),
 );
 
 /** Fallback код-сплита: нейтральный текст из каталога (§17). */
@@ -46,7 +46,7 @@ function RouteTree(): JSX.Element {
       <Route path="/journal" element={<JournalPage />} />
       <Route path="/ai" element={<AiPage />} />
       <Route path="/reports" element={<ReportsPage />} />
-      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/settings" element={<SettingsScreen />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

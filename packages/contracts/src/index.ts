@@ -35,3 +35,4 @@ export {
 export { CHANNEL_SCHEMAS, type ChannelSchemas } from './schemas.js';
 export * from './measurement/index.js';
 export * from './notes/index.js';
+export * from './prefs/index.js';
