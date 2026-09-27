@@ -24,6 +24,7 @@
     "check:i18n": "node tools/scripts/check-i18n.mjs",
     "depcruise": "depcruise . --config",
     "prepare-native": "pnpm --filter @hl/desktop prepare-native",
+    "size:audit": "node tools/scripts/size-audit.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
