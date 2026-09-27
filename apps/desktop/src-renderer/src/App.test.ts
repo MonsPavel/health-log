@@ -6,7 +6,7 @@
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App, RendererCrashScreen } from './App';
 
@@ -17,6 +17,19 @@ function renderApp(): void {
 function renderCrashScreen(): void {
   render(createElement(RendererCrashScreen, { messageKey: 'errors.renderer', digest: '1a2b3c4d' }));
 }
+
+beforeEach(() => {
+  // TASK-047: ThemeProvider читает prefs (usePreferences → window.hl) на маунте App —
+  // мост обязателен и здесь (прецедент router.test.ts).
+  Object.defineProperty(window, 'hl', {
+    configurable: true,
+    writable: true,
+    value: {
+      invoke: vi.fn().mockResolvedValue({ v: 1, ok: true, data: { items: [], total: 0 } }),
+      on: vi.fn(() => () => undefined),
+    },
+  });
+});
 
 afterEach(() => {
   cleanup();

@@ -7,8 +7,9 @@
  * ru/errors.json (internal/validation/renderer — согласованы с TASK-008/011: тот же
  * файл, что читает translateMessageKey), feature-каталоги (features/⟨фича⟩/ru.json —
  * первый measurement, TASK-031: ключи с префиксом имени фичи) и каталог общих
- * компонентов components/critical/ru.json (TASK-041, группа critical). Один namespace
- * 'translation' с группами common./errors./measurement./critical.: ключи в коде совпадают со
+ * компонентов components/critical/ru.json (TASK-041, группа critical); settings —
+ * TASK-047 (features/settings/ru.json). Один namespace
+ * 'translation' с группами common./errors./measurement./settings./critical.: ключи в коде совпадают со
  * строками messageKey контрактов ('errors.renderer' — прецедент ErrorBoundary, TASK-011).
  *
  * escapeValue: false — экранирование делает React, ICU-подстановки включатся с
@@ -21,10 +22,11 @@ import { initReactI18next } from 'react-i18next';
 import common from './ru/common.json';
 import errors from './ru/errors.json';
 import measurement from '../features/measurement/ru.json';
+import settings from '../features/settings/ru.json';
 import critical from '../components/critical/ru.json';
 
 const resources = {
-  ru: { translation: { common, errors, measurement, critical } },
+  ru: { translation: { common, errors, measurement, settings, critical } },
 } as const;
 
 if (!i18next.isInitialized) {
