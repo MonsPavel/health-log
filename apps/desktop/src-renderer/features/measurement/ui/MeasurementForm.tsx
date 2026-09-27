@@ -29,7 +29,14 @@
  * черновиковые поля (рука/флаг — prefs — остаются).
  */
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type KeyboardEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { MeasurementAddResponse, MeasurementFlags } from '@hl/contracts';
@@ -43,6 +50,7 @@ import {
 import { useDeleteMeasurement } from '../api/use-delete-measurement';
 import { assembleUpdateRequest, useUpdateMeasurement } from '../api/use-update-measurement';
 import { isEditDirty, useFormStore } from '../model/form-store';
+import { parseBpPair } from '../model/parse-bp-pair';
 import { ArmSegment } from './ArmSegment';
 import { ConfirmFlagsDialog } from './ConfirmFlagsDialog';
 import { DigitPad } from './DigitPad';
@@ -66,6 +74,12 @@ const NEXT_FIELD: Readonly<Record<NumericField, NumericField | null>> = {
   dia: 'pulse',
   pulse: null,
 };
+
+/** Поля с умной вставкой пары из буфера (TASK-040 §5): sys и dia — pulse не включён. */
+type PasteField = Exclude<NumericField, 'pulse'>;
+
+/** Одиночное число ≤3 цифр — штатная вставка в текущее поле (TASK-040 §5). */
+const SINGLE_NUMBER_RE = /^\s*(\d{1,3})\s*$/;
 
 /** Подписи числовых полей — литералы (§22: динамические ключи запрещены). */
 const FIELD_LABEL_KEY: Readonly<
@@ -113,6 +127,7 @@ export function MeasurementForm({
   const appendDigit = useFormStore((s) => s.appendDigit);
   const removeLastDigit = useFormStore((s) => s.removeLastDigit);
   const clearField = useFormStore((s) => s.clearField);
+  const setPressure = useFormStore((s) => s.setPressure);
   const setArm = useFormStore((s) => s.setArm);
   const setIrregular = useFormStore((s) => s.setIrregular);
   const setNote = useFormStore((s) => s.setNote);
@@ -134,6 +149,11 @@ export function MeasurementForm({
    * draftRestored, consumeDraftRestored).
    */
   const [draftRestoredToast, setDraftRestoredToast] = useState(false);
+  /**
+   * TASK-040 §5/§10/§16: тост-подсказка «Не удалось разобрать вставку» (role="status",
+   * не блокирующий) — при paste-мусоре в sys/dia; поля не тронуты, фокус не уходит.
+   */
+  const [pasteFailedToast, setPasteFailedToast] = useState(false);
   /**
    * TASK-032 §5/§10: ответ add с флагами — диалог «Проверьте значения» открыт.
    * Черновик store НЕ очищается до подтверждения (§10: «он не очищался до
@@ -191,6 +211,15 @@ export function MeasurementForm({
     const timer = setTimeout(() => setDraftRestoredToast(false), SAVED_TOAST_MS);
     return () => clearTimeout(timer);
   }, [draftRestoredToast]);
+
+  // Тост-подсказка вставки скрывается сам (§10 — не блокирующий).
+  useEffect(() => {
+    if (!pasteFailedToast) {
+      return undefined;
+    }
+    const timer = setTimeout(() => setPasteFailedToast(false), SAVED_TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [pasteFailedToast]);
 
   // TASK-032 §10: фокус в sys после закрытия диалога «Удалить и исправить» —
   // в эффекте (диалог уже размонтирован, восстановление фокуса Radix позади).
@@ -378,6 +407,44 @@ export function MeasurementForm({
   };
 
   /**
+   * TASK-040 §5/§10/§13/§14: вставка из буфера в поле давления — перехват до
+   * штатной вставки. Пара «120/80» (разделитель / , ; - и пробелы) → оба поля
+   * ОДНИМ setPressure (§12), фокус в pulse; одиночное число ≤3 цифр → штатная
+   * вставка в текущее поле (штатные действия набора: очистить + цифры); иначе
+   * (мусор / 2+ числа >3 цифр) — тост-подсказка, содержимое полей НЕ изменено
+   * (EC-18), фокус не уходит (§16). Пустой буфер — тихий no-op. Текст буфера
+   * парсится в памяти, в DOM/логи не попадает (§14).
+   */
+  const handlePaste = (field: PasteField, event: ClipboardEvent<HTMLInputElement>): void => {
+    const text = event.clipboardData.getData('text');
+    const pair = parseBpPair(text);
+    if (pair !== undefined) {
+      event.preventDefault();
+      setPressure(String(pair.sys), String(pair.dia));
+      setActiveField('pulse');
+      pulseRef.current?.focus();
+      return;
+    }
+    const single = SINGLE_NUMBER_RE.exec(text);
+    if (single !== null) {
+      event.preventDefault();
+      const digits = single[1];
+      if (digits === undefined) {
+        return;
+      }
+      clearField(field);
+      for (const digit of digits) {
+        appendDigit(field, digit);
+      }
+      return;
+    }
+    if (text.trim() !== '') {
+      event.preventDefault();
+      setPasteFailedToast(true);
+    }
+  };
+
+  /**
    * Submit (§13): takenAt на момент submit; invalid — показать required-ошибки.
    * TASK-038 §5: в режиме edit (editingId из store) — submit → update с тем же
    * черновиком (§4: одна точка валидации — assembleUpdateRequest поверх add).
@@ -432,6 +499,7 @@ export function MeasurementForm({
           value={value}
           onFocus={() => setActiveField(field)}
           onKeyDown={(event) => handleKeyDown(field, event)}
+          onPaste={field === 'pulse' ? undefined : (event) => handlePaste(field, event)}
           aria-invalid={error === undefined ? undefined : true}
           aria-describedby={describedBy}
           className="min-h-11 w-24 rounded-md border border-border bg-bg text-center text-2xl text-text"
@@ -480,6 +548,13 @@ export function MeasurementForm({
       {draftRestoredToast && (
         <div role="status" data-testid="draft-restored-toast" className="text-base font-semibold">
           {t('measurement.form.draftRestored')}
+        </div>
+      )}
+
+      {/* TASK-040 §5/§16: подсказка при нераспознанной вставке — polite-статус. */}
+      {pasteFailedToast && (
+        <div role="status" data-testid="paste-failed-toast" className="text-base font-semibold">
+          {t('measurement.form.pasteFailed')}
         </div>
       )}
 

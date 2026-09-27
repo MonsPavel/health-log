@@ -90,6 +90,53 @@ describe('form-store — числовые поля (§5: крупные кноп
   });
 });
 
+/**
+ * TASK-040 §5/§12: умная вставка пары «120/80» — заполнение ОБАХ числовых полей
+ * одним store-действием (один set — единый re-render и одна запись persist).
+ */
+describe('form-store — setPressure: пара из буфера (TASK-040 §12)', () => {
+  it('setPressure заполняет sys и dia; остальные поля не тронуты', () => {
+    useFormStore.getState().setPressure('125', '82');
+
+    const s = useFormStore.getState();
+    expect(s.sys).toBe('125');
+    expect(s.dia).toBe('82');
+    expect(s.pulse).toBe('');
+    expect(s.note).toBe('');
+  });
+
+  it('одно действие — одно уведомление подписчикам (§12: единый re-render)', () => {
+    let notifications = 0;
+    const unsubscribe = useFormStore.subscribe(() => {
+      notifications += 1;
+    });
+
+    useFormStore.getState().setPressure('125', '82');
+
+    unsubscribe();
+    expect(notifications).toBe(1);
+  });
+
+  it('прежнее dia перезаписывается парой (§13: пользователь вставляет пару)', () => {
+    useFormStore.getState().appendDigit('dia', '9');
+    useFormStore.getState().appendDigit('dia', '9');
+
+    useFormStore.getState().setPressure('125', '82');
+
+    expect(useFormStore.getState().dia).toBe('82');
+  });
+
+  it('пара пишется в persist-черновик hl.formDraft (TASK-039 §12: каждый set персистится)', () => {
+    useFormStore.getState().setPressure('125', '82');
+
+    const raw = localStorage.getItem('hl.formDraft');
+    expect(raw).not.toBeNull();
+    const stored = JSON.parse(raw as string) as { state: Record<string, unknown> };
+    expect(stored.state.sys).toBe('125');
+    expect(stored.state.dia).toBe('82');
+  });
+});
+
 describe('form-store — рука и флаг (§20: рука по умолчанию = предыдущая)', () => {
   it('setArm меняет руку, setIrregular — флаг', () => {
     const s = useFormStore.getState();
