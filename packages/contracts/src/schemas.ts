@@ -23,6 +23,10 @@ import {
   PREFS_SET_REQUEST_SCHEMA,
   PREFS_SET_RESPONSE_SCHEMA,
 } from './prefs/schemas.js';
+import {
+  SCALES_ACTIVE_REQUEST_SCHEMA,
+  SCALES_ACTIVE_RESPONSE_SCHEMA,
+} from './scales.js';
 
 /** Пара схем канала: запрос валидируется в main до handler, ответ — контракт хендлера. */
 export interface ChannelSchemas<TRequest = unknown, TResponse = unknown> {
@@ -96,5 +100,14 @@ export const CHANNEL_SCHEMAS = {
   'prefs/set': {
     request: PREFS_SET_REQUEST_SCHEMA,
     response: PREFS_SET_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-051 §5/§11: активная справочная шкала — {} → полная форма ActiveScale
+   * (code, version, sourceLabel, категории, обе заметки). Статический между
+   * запусками (данные — из комплекта, §14): кэш рендерера staleTime Infinity.
+   */
+  'scales/active': {
+    request: SCALES_ACTIVE_REQUEST_SCHEMA,
+    response: SCALES_ACTIVE_RESPONSE_SCHEMA,
   },
 } satisfies Record<ChannelName, ChannelSchemas>;
