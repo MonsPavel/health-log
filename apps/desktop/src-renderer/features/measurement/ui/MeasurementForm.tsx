@@ -640,13 +640,18 @@ export function MeasurementForm({
         onClear={() => handleClear(activeField)}
       />
 
-      {/* TASK-032 §5: модальный поток «Проверьте значения» при флагах ответа add. */}
+      {/* TASK-032 §5: модальный поток «Проверьте значения» при флагах ответа add.
+          TASK-041 §5: значения записи — в панель критических ({sys}/{dia} в тексте). */}
       {flagsDialog !== null && (
         <ConfirmFlagsDialog
           open
           flags={flagsDialog.flags}
           onKeep={handleKeep}
           onDeleteFix={handleDeleteFix}
+          criticalValues={{
+            sys: flagsDialog.measurement.sys,
+            dia: flagsDialog.measurement.dia,
+          }}
         />
       )}
 

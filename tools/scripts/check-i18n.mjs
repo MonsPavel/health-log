@@ -15,6 +15,9 @@
  * файлы (*.test.ts/tsx) не считаются ни источником ключей, ни их потреблением.
  * При первом обоснованном исключении — замена на eslint-плагин (TD-IMP-2).
  *
+ * TASK-041: каталоги общих компонентов components/<имя>/ru.json (namespace = имя
+ * каталога, первый — critical) — та же семантика, что feature-каталоги.
+ *
  * CLI: node tools/scripts/check-i18n.mjs [--src <dir>] [--i18n <dir>]
  * По умолчанию — apps/desktop/src-renderer и его i18n/ от корня монорепо.
  * Exit 0 — чисто; exit 1 — есть расхождения. Подключается в CI с TASK-014 (§17).
@@ -34,10 +37,11 @@ const TEST_FILE_PATTERN = /\.test\.tsx?$/;
  * отсекает ложные срабатывания на обычных строках (§22) и фиксирует конвенцию
  * «полное имя ключа в литерале». Группы: common, errors — каталоги i18n/ru;
  * feature-namespace'ы (первый — measurement, TASK-031) — каталоги
- * features/<фича>/ru.json; новая фича = добавление своего имени в альтернацию.
+ * features/<фича>/ru.json; каталоги общих компонентов (первый — critical, TASK-041)
+ * — components/<имя>/ru.json; новая группа = добавление своего имени в альтернацию.
  */
 const KEY_LITERAL_PATTERN =
-  /(['"])(common|errors|measurement)\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)\1/g;
+  /(['"])(common|errors|measurement|critical)\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)\1/g;
 
 /** Namespace, чьи ключи приходят динамически и вне unused-проверки (арх. 06 §6). */
 const DYNAMIC_CONSUMPTION_NAMESPACES = new Set(['errors']);
@@ -101,27 +105,37 @@ export function flattenCatalogKeys(i18nDir) {
   return keys;
 }
 
-/**
- * Feature-каталоги (TASK-031): features/<фича>/ru.json — namespace = имя каталога
+/** Feature-каталоги (TASK-031): features/<фича>/ru.json — namespace = имя каталога
  * фичи (файл локали один — ru источник истины, §17). Отсутствие features/ или
- * каталогов у фичи — не ошибка.
- */
+ * каталогов у фичи — не ошибка. */
 export function flattenFeatureCatalogKeys(srcDir) {
+  return flattenGroupedCatalogKeys(join(srcDir, 'features'));
+}
+
+/**
+ * Каталоги общих компонентов (TASK-041): components/<имя>/ru.json — namespace =
+ * имя каталога. Отсутствие components/ — не ошибка.
+ */
+export function flattenComponentCatalogKeys(srcDir) {
+  return flattenGroupedCatalogKeys(join(srcDir, 'components'));
+}
+
+/** Обход групповых каталогов <dir>/<имя>/ru.json: ключи с префиксом имени каталога. */
+function flattenGroupedCatalogKeys(groupDir) {
   const keys = new Set();
-  const featuresDir = join(srcDir, 'features');
-  let featureDirs;
+  let dirs;
   try {
-    featureDirs = readdirSync(featuresDir, { withFileTypes: true });
+    dirs = readdirSync(groupDir, { withFileTypes: true });
   } catch {
     return keys;
   }
-  for (const entry of featureDirs) {
-    const catalogPath = join(featuresDir, entry.name, 'ru.json');
+  for (const entry of dirs) {
+    const catalogPath = join(groupDir, entry.name, 'ru.json');
     let content;
     try {
       content = JSON.parse(readFileSync(catalogPath, 'utf8'));
     } catch {
-      continue; // нет ru.json у фичи — ключей нет
+      continue; // нет ru.json у каталога группы — ключей нет
     }
     const flatten = (node, prefix) => {
       for (const [name, value] of Object.entries(node)) {
@@ -149,7 +163,11 @@ function namespaceOf(key) {
  */
 export function checkI18nKeys({ srcDir, i18nDir }) {
   const used = extractUsedKeys(srcDir);
-  const catalog = new Set([...flattenCatalogKeys(i18nDir), ...flattenFeatureCatalogKeys(srcDir)]);
+  const catalog = new Set([
+    ...flattenCatalogKeys(i18nDir),
+    ...flattenFeatureCatalogKeys(srcDir),
+    ...flattenComponentCatalogKeys(srcDir),
+  ]);
 
   const missing = [];
   for (const [key, files] of used) {
@@ -198,8 +216,11 @@ function main() {
     process.exitCode = 1;
     return;
   }
-  const total = new Set([...flattenCatalogKeys(i18nDir), ...flattenFeatureCatalogKeys(srcDir)])
-    .size;
+  const total = new Set([
+    ...flattenCatalogKeys(i18nDir),
+    ...flattenFeatureCatalogKeys(srcDir),
+    ...flattenComponentCatalogKeys(srcDir),
+  ]).size;
   console.log(`check:i18n: OK — каталог согласован (${total} ключей)`);
 }
 

@@ -53,6 +53,7 @@ async function makeFixture(
   common: object,
   errors: object,
   featureCatalogs: Record<string, object> = {},
+  componentCatalogs: Record<string, object> = {},
 ) {
   const root = await mkdtemp(TMP_ROOT);
   tempDirs.push(root);
@@ -67,6 +68,12 @@ async function makeFixture(
   }
   for (const [name, catalog] of Object.entries(featureCatalogs)) {
     const filePath = join(srcDir, 'features', name, 'ru.json');
+    await mkdir(join(filePath, '..'), { recursive: true });
+    await writeFile(filePath, JSON.stringify(catalog), 'utf8');
+  }
+  // TASK-041: каталоги общих компонентов — src/components/<имя>/ru.json.
+  for (const [name, catalog] of Object.entries(componentCatalogs)) {
+    const filePath = join(srcDir, 'components', name, 'ru.json');
     await mkdir(join(filePath, '..'), { recursive: true });
     await writeFile(filePath, JSON.stringify(catalog), 'utf8');
   }
@@ -214,5 +221,58 @@ describe('check-i18n — сверка ключей с каталогом (§17)'
 
     expect(code).toBe(1);
     expect(stdout).toContain('measurement.fields.unused');
+  });
+
+  // --- TASK-041: каталоги общих компонентов (components/<имя>/ru.json, namespace = имя). ---
+
+  it('каталог компонентов: использованный ключ critical.* найден — exit 0', async () => {
+    const { srcDir, i18nDir } = await makeFixture(
+      {
+        'components/critical-panel/CriticalPanel.tsx': `const label = t('critical.panel.dismiss'); const other = t('common.wip');\n`,
+      },
+      { wip: 'Экран появится после настройки' },
+      { internal: '…' },
+      {},
+      { critical: { panel: { dismiss: 'Понятно, скрыть' } } },
+    );
+
+    const { code, stdout } = await runScript(srcDir, i18nDir);
+
+    expect(code).toBe(0);
+    expect(stdout).toContain('OK');
+  });
+
+  it('каталог компонентов: недостающий ключ critical.* — exit 1 с именем ключа', async () => {
+    const { srcDir, i18nDir } = await makeFixture(
+      {
+        'components/critical-panel/CriticalPanel.tsx': `const label = t('critical.panel.nope');\n`,
+      },
+      { wip: 'Экран появится после настройки' },
+      { internal: '…' },
+      {},
+      { critical: { panel: { dismiss: 'Понятно, скрыть' } } },
+    );
+
+    const { code, stdout } = await runScript(srcDir, i18nDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain('critical.panel.nope');
+  });
+
+  it('каталог компонентов: неиспользуемый ключ critical.* — exit 1 (мертвый текст)', async () => {
+    const { srcDir, i18nDir } = await makeFixture(
+      {
+        'components/critical-panel/CriticalPanel.tsx': `const label = t('critical.panel.dismiss');\n`,
+      },
+      { wip: 'Экран появится после настройки' },
+      { internal: '…' },
+      {},
+      { critical: { panel: { dismiss: 'Понятно, скрыть', unused: 'Никто не ссылается' } } },
+    );
+
+    const { code, stdout } = await runScript(srcDir, i18nDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain('critical.panel.unused');
   });
 });
