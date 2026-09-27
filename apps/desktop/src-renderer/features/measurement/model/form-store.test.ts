@@ -1,16 +1,21 @@
 /**
- * TASK-031 §12/§19: тест базового zustand-черновика формы (БЕЗ persist — объём
- * TASK-039, §5). Модель: числа — строки цифр (≤3, клавиатура 0–9), when —
- * 'now' | {date, time}; сброс после сохранения чистит числа/заметку/when,
- * рука и флаг остаются (§5: «очистка полей (рука/флаги остаются)»).
+ * TASK-031 §12/§19 + TASK-039 §5/§19: тест zustand-черновика формы. Модель: числа —
+ * строки цифр (≤3, клавиатура 0–9), when — 'now' | {date, time}; сброс после
+ * сохранения чистит числа/заметку/when, рука и флаг остаются (§5 TASK-031).
+ *
+ * TASK-039 §5/§19: persist черновика в localStorage (`hl.formDraft`, версия 1) и
+ * предпочтений (`hl.formPrefs` — рука/флаг, TASK-039 §20: не очищаются при
+ * сохранении). Раундтрип: seed → rehydrate; полный «перезапуск» — vi.resetModules +
+ * динамический импорт (гидрация при создании store — §12).
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { MeasurementDto } from '@hl/contracts';
 
 import { isEditDirty, useFormStore } from './form-store';
 
 beforeEach(() => {
+  localStorage.clear();
   useFormStore.getState().resetAll();
 });
 
@@ -244,5 +249,247 @@ describe('form-store — режим edit (TASK-038 §4/§10/§12: editingId, sta
     useFormStore.getState().cancelEdit();
 
     expect(useFormStore.getState().sys).toBe('1');
+  });
+});
+
+/**
+ * TASK-039 §5/§19/§20: persist черновика. Ключи: `hl.formDraft` (sys/dia/pulse/
+ * note/when — очищается при сохранении/отмене/«Очистить») и `hl.formPrefs`
+ * (arm/irregular — предпочтения, §20 РЕШЕНИЕ: не очищаются при сохранении).
+ * Формат значения — StorageValue zustand: {state, version}.
+ */
+describe('form-store — persist черновика (TASK-039 §5/§19)', () => {
+  const DRAFT_KEY = 'hl.formDraft';
+  const PREFS_KEY = 'hl.formPrefs';
+
+  /** Прочитать state из persist-ключа (JSON StorageValue). */
+  function storedState(key: string): Record<string, unknown> {
+    const raw = localStorage.getItem(key);
+    expect(raw).not.toBeNull();
+    return (JSON.parse(raw as string) as { state: Record<string, unknown>; version: number }).state;
+  }
+
+  it('запись: заполнение полей пишет черновик в localStorage с version 1 (§5)', () => {
+    useFormStore.getState().appendDigit('sys', '1');
+    useFormStore.getState().appendDigit('sys', '2');
+    useFormStore.getState().appendDigit('sys', '5');
+    useFormStore.getState().appendDigit('dia', '8');
+    useFormStore.getState().appendDigit('dia', '2');
+    useFormStore.getState().setNote('черновик');
+    useFormStore.getState().setWhenManual('2026-09-24', '21:30');
+
+    const state = storedState(DRAFT_KEY);
+    expect(state).toMatchObject({
+      sys: '125',
+      dia: '82',
+      note: 'черновик',
+      when: { date: '2026-09-24', time: '21:30' },
+    });
+    const envelope = JSON.parse(localStorage.getItem(DRAFT_KEY) as string) as { version: number };
+    expect(envelope.version).toBe(1);
+  });
+
+  it('раундтрип: seed → rehydrate восстанавливает черновиковые поля (§19)', () => {
+    useFormStore.getState().resetAll();
+    localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({
+        state: {
+          sys: '125',
+          dia: '82',
+          pulse: '70',
+          note: 'черновик',
+          when: { date: '2026-09-24', time: '21:30' },
+        },
+        version: 1,
+      }),
+    );
+
+    void useFormStore.persist.rehydrate();
+
+    const s = useFormStore.getState();
+    expect(s.sys).toBe('125');
+    expect(s.dia).toBe('82');
+    expect(s.pulse).toBe('70');
+    expect(s.note).toBe('черновик');
+    expect(s.when).toEqual({ date: '2026-09-24', time: '21:30' });
+  });
+
+  it('partialize: transient-поля (editingId/editBase) не персистятся и не восстанавливаются (§19: submit-флаг)', () => {
+    useFormStore.getState().resetAll();
+    localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({
+        state: {
+          sys: '9',
+          dia: '',
+          pulse: '',
+          note: '',
+          when: 'now',
+          editingId: 'm-9',
+          editBase: {
+            sys: '1',
+            dia: '1',
+            pulse: '',
+            irregular: false,
+            arm: 'left',
+            note: '',
+            when: 'now',
+          },
+        },
+        version: 1,
+      }),
+    );
+
+    void useFormStore.persist.rehydrate();
+
+    const s = useFormStore.getState();
+    expect(s.sys).toBe('9'); // черновиковое поле восстановлено
+    expect(s.editingId).toBeNull(); // transient — нет
+    expect(s.editBase).toBeNull();
+    expect(isEditDirty(useFormStore.getState())).toBe(false);
+  });
+
+  it('migrate v0→v1: payload version 0 восстанавливается и перезаписывается как version 1 (§5)', () => {
+    useFormStore.getState().resetAll();
+    localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({
+        state: {
+          sys: '130',
+          dia: '85',
+          pulse: '70',
+          note: 'старый черновик',
+          when: { date: '2026-09-01', time: '08:00' },
+        },
+        version: 0,
+      }),
+    );
+
+    void useFormStore.persist.rehydrate();
+
+    const s = useFormStore.getState();
+    expect(s.sys).toBe('130');
+    expect(s.dia).toBe('85');
+    expect(s.pulse).toBe('70');
+    expect(s.note).toBe('старый черновик');
+    expect(s.when).toEqual({ date: '2026-09-01', time: '08:00' });
+    // После миграции zustand перезаписывает ключ с текущей версией схемы.
+    const envelope = JSON.parse(localStorage.getItem(DRAFT_KEY) as string) as { version: number };
+    expect(envelope.version).toBe(1);
+  });
+
+  it('повреждённый JSON при старте → дефолты без креша (§13-3, AC4)', async () => {
+    localStorage.setItem(DRAFT_KEY, '{повреждённый json');
+    vi.resetModules();
+
+    const { useFormStore: fresh } = await import('./form-store');
+
+    const s = fresh.getState();
+    expect(s.sys).toBe('');
+    expect(s.dia).toBe('');
+    expect(s.pulse).toBe('');
+    expect(s.note).toBe('');
+    expect(s.when).toBe('now');
+  });
+
+  it('очистка onSuccess: resetAfterSave → hl.formDraft пуст, hl.formPrefs сохраняет руку/флаг (AC2)', () => {
+    useFormStore.getState().appendDigit('sys', '1');
+    useFormStore.getState().appendDigit('dia', '8');
+    useFormStore.getState().setNote('черновик');
+    useFormStore.getState().setArm('left');
+    useFormStore.getState().setIrregular(true);
+
+    useFormStore.getState().resetAfterSave();
+
+    const draft = storedState(DRAFT_KEY);
+    expect(draft.sys).toBe('');
+    expect(draft.dia).toBe('');
+    expect(draft.pulse).toBe('');
+    expect(draft.note).toBe('');
+    expect(draft.when).toBe('now');
+    // §20 РЕШЕНИЕ: рука/флаг — предпочтения (hl.formPrefs), НЕ очищаются при сохранении.
+    expect(storedState(PREFS_KEY)).toEqual({ arm: 'left', irregular: true });
+  });
+
+  it('режим edit не пишет черновик: правка значений не попадает в hl.formDraft (AC5)', () => {
+    useFormStore.getState().startEdit(editDto());
+    useFormStore.getState().setNote('правка черновика');
+    useFormStore.getState().appendDigit('sys', '9');
+
+    const draft = storedState(DRAFT_KEY);
+    expect(draft.note).toBe('');
+    expect(draft.sys).toBe('');
+  });
+
+  it('cancelEdit (режим edit) очищает черновик в localStorage (§5)', () => {
+    useFormStore.getState().startEdit(editDto());
+
+    useFormStore.getState().cancelEdit();
+
+    const draft = storedState(DRAFT_KEY);
+    expect(draft.sys).toBe('');
+    expect(draft.note).toBe('');
+    expect(draft.when).toBe('now');
+  });
+
+  it('предпочтения: setArm/setIrregular пишутся в hl.formPrefs (§20)', () => {
+    useFormStore.getState().setArm('left');
+    useFormStore.getState().setIrregular(true);
+
+    expect(storedState(PREFS_KEY)).toEqual({ arm: 'left', irregular: true });
+  });
+
+  it('«перезапуск»: новый экземпляр модуля восстанавливает черновик + prefs и ставит draftRestored (AC1)', async () => {
+    useFormStore.getState().appendDigit('sys', '1');
+    useFormStore.getState().appendDigit('sys', '2');
+    useFormStore.getState().appendDigit('sys', '5');
+    useFormStore.getState().setNote('черновик');
+    useFormStore.getState().setArm('left');
+    useFormStore.getState().setIrregular(true);
+    vi.resetModules();
+
+    const { useFormStore: fresh } = await import('./form-store');
+
+    const s = fresh.getState();
+    // Черновик восстановлен (§2: переживает перезапуск).
+    expect(s.sys).toBe('125');
+    expect(s.note).toBe('черновик');
+    // Рука/флаг — из hl.formPrefs (§20).
+    expect(s.arm).toBe('left');
+    expect(s.irregular).toBe(true);
+    // Тост восстановления — один раз: флаг ставится при гидрации и снимается consume.
+    expect(s.draftRestored).toBe(true);
+    expect(s.consumeDraftRestored()).toBe(true);
+    expect(fresh.getState().draftRestored).toBe(false);
+  });
+
+  it('пустой черновик при старте → draftRestored false (тост не нужен)', async () => {
+    vi.resetModules();
+
+    const { useFormStore: fresh } = await import('./form-store');
+
+    expect(fresh.getState().draftRestored).toBe(false);
+    expect(fresh.getState().consumeDraftRestored()).toBe(false);
+  });
+
+  it('изменена только рука (prefs) — draftRestored false: тост только для черновика (§5)', async () => {
+    useFormStore.getState().setArm('left');
+    vi.resetModules();
+
+    const { useFormStore: fresh } = await import('./form-store');
+
+    expect(fresh.getState().arm).toBe('left');
+    expect(fresh.getState().draftRestored).toBe(false);
+  });
+
+  it('непуст только режим «заднее число» — черновик непуст, тост восстановления (§5/§13-2)', async () => {
+    useFormStore.getState().setWhenManual('2026-09-24', '21:30');
+    vi.resetModules();
+
+    const { useFormStore: fresh } = await import('./form-store');
+
+    expect(fresh.getState().when).toEqual({ date: '2026-09-24', time: '21:30' });
+    expect(fresh.getState().draftRestored).toBe(true);
   });
 });

@@ -44,7 +44,7 @@
 | TASK-036 | done | | смержена |
 | TASK-037 | done | | смержена |
 | TASK-038 | done | | смержена |
-| TASK-039 | todo | | |
+| TASK-039 | done | | смержена |
 | TASK-040 | todo | | |
 | TASK-041 | todo | | |
 | TASK-042 | todo | | |

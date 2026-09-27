@@ -58,6 +58,7 @@ function renderForm(
 }
 
 beforeEach(() => {
+  localStorage.clear();
   useFormStore.getState().resetAll();
   invoke = vi.fn().mockResolvedValue(OK_ENVELOPE(ADD_RESPONSE));
   Object.defineProperty(window, 'hl', {
@@ -764,5 +765,119 @@ describe('MeasurementForm — режим edit (TASK-038 §5/§10/§19/§20)', ()
 
     fireEvent.click(saveButton());
     expect(invoke).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * TASK-039 §5/§16/§19/§20: восстановление черновика после краша. «Перезапуск»
+ * приложения моделируется seed'ом `hl.formDraft` + persist.rehydrate() (гидрация
+ * при создании store — §12), затем маунт формы: поля предзаполнены, тост
+ * «Черновик восстановлен» (role="status") — один раз; кнопка «Очистить» чистит
+ * черновиковые поля И localStorage (рука/флаг — prefs, остаются).
+ */
+describe('MeasurementForm — восстановление черновика (TASK-039 §5/§19)', () => {
+  const DRAFT_KEY = 'hl.formDraft';
+
+  /** Seed черновика в localStorage + гидрация (моделирует перезапуск приложения). */
+  function reseedDraft(state: Record<string, unknown>): void {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ state, version: 1 }));
+    useFormStore.getState().resetAll();
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ state, version: 1 }));
+    void useFormStore.persist.rehydrate();
+  }
+
+  function restoredToast(): HTMLElement {
+    return screen.getByTestId('draft-restored-toast');
+  }
+
+  it('маунт с черновиком: поля предзаполнены (включая заднее число) + тост role="status" (AC1)', () => {
+    reseedDraft({
+      sys: '125',
+      dia: '82',
+      pulse: '',
+      note: 'черновик',
+      when: { date: '2026-09-24', time: '21:30' },
+    });
+    renderForm();
+
+    expect(sysInput().value).toBe('125');
+    expect(diaInput().value).toBe('82');
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Заметка').value).toBe('черновик');
+    expect(screen.getByLabelText<HTMLInputElement>('Дата').value).toBe('2026-09-24');
+    expect(screen.getByLabelText<HTMLInputElement>('Время').value).toBe('21:30');
+    expect(restoredToast().getAttribute('role')).toBe('status');
+    expect(restoredToast().textContent).toBe('Черновик восстановлен');
+  });
+
+  it('тост показывается один раз: повторный маунт формы без тоста (§5)', () => {
+    reseedDraft({ sys: '125', dia: '', pulse: '', note: '', when: 'now' });
+    renderForm();
+    expect(restoredToast()).toBeDefined();
+    cleanup();
+
+    renderForm();
+
+    expect(screen.queryByTestId('draft-restored-toast')).toBeNull();
+  });
+
+  it('пустой черновик → тоста восстановления нет (§5: «при непустом»)', () => {
+    renderForm();
+
+    expect(screen.queryByTestId('draft-restored-toast')).toBeNull();
+  });
+
+  it('кнопка «Очистить»: черновиковые поля пусты и в форме, и в localStorage; рука/флаг остаются (AC3)', () => {
+    renderForm();
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 5' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 8' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+    fireEvent.change(screen.getByLabelText('Заметка'), { target: { value: 'черновик' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Левая' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Очистить' }));
+
+    expect(sysInput().value).toBe('');
+    expect(diaInput().value).toBe('');
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Заметка').value).toBe('');
+    // when возвращён в «сейчас» — ручные Дата/Время не рендерятся.
+    // Рука — предпочтение (hl.formPrefs), «Очистить» её не трогает (§20).
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Левая' }).checked).toBe(true);
+    const stored = JSON.parse(localStorage.getItem(DRAFT_KEY) as string) as {
+      state: Record<string, unknown>;
+    };
+    expect(stored.state.sys).toBe('');
+    expect(stored.state.dia).toBe('');
+    expect(stored.state.note).toBe('');
+    expect(stored.state.when).toBe('now');
+  });
+
+  it('успешное сохранение → hl.formDraft пуст в localStorage (AC2, числовые поля)', async () => {
+    renderForm();
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 5' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 8' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(screen.getByTestId('saved-toast')).toBeDefined());
+    const stored = JSON.parse(localStorage.getItem(DRAFT_KEY) as string) as {
+      state: Record<string, unknown>;
+    };
+    expect(stored.state.sys).toBe('');
+    expect(stored.state.dia).toBe('');
+    expect(stored.state.pulse).toBe('');
+    expect(stored.state.note).toBe('');
+  });
+
+  it('кнопка «Очистить» доступна скринридеру: aria-label «Очистить» (§16)', () => {
+    renderForm();
+
+    expect(screen.getByRole('button', { name: 'Очистить' }).getAttribute('aria-label')).toBe(
+      'Очистить',
+    );
   });
 });

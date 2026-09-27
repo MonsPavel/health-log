@@ -22,6 +22,11 @@
  * тост «Правка применена» и фокус-возврат в строку решает экран); Esc/«Отмена» →
  * cancelEdit (§5: возврат к режиму add без изменений) с dirty-барьером §22
  * (AlertDialog «Закрыть без сохранения?» — защита правки от потери).
+ *
+ * TASK-039 §5/§16: черновик персистится store'ом (`hl.formDraft`/`hl.formPrefs`):
+ * при маунте после перезапуска с непустым черновиком — тост «Черновик восстановлен»
+ * (role="status", один раз — consumeDraftRestored); кнопка «Очистить» чистит
+ * черновиковые поля (рука/флаг — prefs — остаются).
  */
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
@@ -124,6 +129,12 @@ export function MeasurementForm({
   /** Мгновенное подтверждение «Сохранено» (§10). */
   const [saved, setSaved] = useState(false);
   /**
+   * TASK-039 §5/§16: тост «Черновик восстановлен» — один раз после запуска,
+   * если при гидрации store восстановлен непустой черновик (transient-флаг
+   * draftRestored, consumeDraftRestored).
+   */
+  const [draftRestoredToast, setDraftRestoredToast] = useState(false);
+  /**
    * TASK-032 §5/§10: ответ add с флагами — диалог «Проверьте значения» открыт.
    * Черновик store НЕ очищается до подтверждения (§10: «он не очищался до
    * подтверждения» — значения возвращаются в форму удалением записи).
@@ -163,6 +174,23 @@ export function MeasurementForm({
     const timer = setTimeout(() => setSaved(false), SAVED_TOAST_MS);
     return () => clearTimeout(timer);
   }, [saved]);
+
+  // TASK-039 §5: consume transient-флага восстановления — тост только на первом
+  // маунте формы после запуска (перезапуск приложения с несохранённым черновиком).
+  useEffect(() => {
+    if (useFormStore.getState().consumeDraftRestored()) {
+      setDraftRestoredToast(true);
+    }
+  }, []);
+
+  // Тост «Черновик восстановлен» скрывается сам (§10 — как «Сохранено»).
+  useEffect(() => {
+    if (!draftRestoredToast) {
+      return undefined;
+    }
+    const timer = setTimeout(() => setDraftRestoredToast(false), SAVED_TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [draftRestoredToast]);
 
   // TASK-032 §10: фокус в sys после закрытия диалога «Удалить и исправить» —
   // в эффекте (диалог уже размонтирован, восстановление фокуса Radix позади).
@@ -448,6 +476,13 @@ export function MeasurementForm({
         </div>
       )}
 
+      {/* TASK-039 §5/§16: восстановление черновика после краша — polite-статус. */}
+      {draftRestoredToast && (
+        <div role="status" data-testid="draft-restored-toast" className="text-base font-semibold">
+          {t('measurement.form.draftRestored')}
+        </div>
+      )}
+
       <form
         className="flex flex-col gap-4"
         onSubmit={(event) => {
@@ -505,6 +540,20 @@ export function MeasurementForm({
             className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
           >
             {t('measurement.form.cancel')}
+          </button>
+          {/*
+            TASK-039 §5/§16/§20: явная очистка черновика — та же семантика, что
+            resetAfterSave (числа/заметка/when чистятся, рука/флаг — prefs —
+            остаются); localStorage `hl.formDraft` очищается persist-слоем.
+          */}
+          <button
+            type="button"
+            aria-label={t('measurement.form.clear')}
+            onClick={resetAfterSave}
+            disabled={mutation.isPending || updateMutation.isPending}
+            className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+          >
+            {t('measurement.form.clear')}
           </button>
         </div>
       </form>
