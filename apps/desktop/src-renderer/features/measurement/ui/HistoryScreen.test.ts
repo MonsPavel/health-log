@@ -7,10 +7,11 @@
  * к списку без перезагрузки, a11y-семантика (роли) и axe — без critical.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { createElement } from 'react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { MeasurementDto, MeasurementListResponse } from '@hl/contracts';
@@ -19,6 +20,7 @@ import '../../../i18n';
 import { ToastProvider } from '../../../app/toast';
 import { PROFILE_ID } from '../api/use-add-measurement';
 import { HISTORY_PAGE_LIMIT } from '../api/use-measurements';
+import { DAY_MS } from '../model/filters';
 import { useFormStore } from '../model/form-store';
 import { localDateKey, previousDayKey } from '../model/wall-date';
 import { HistoryScreen } from './HistoryScreen';
@@ -65,15 +67,42 @@ const LIST_OK = (response: MeasurementListResponse) => ({ v: 1, ok: true, data: 
 
 let invoke: ReturnType<typeof vi.fn>;
 
-function renderHistory(): void {
+/**
+ * Проба адреса (TASK-044): HistoryScreen использует useSearchParams — рендер
+ * требует Router-контекста; MemoryRouter не пишет window.location, поэтому
+ * текущая строка запроса считывается useLocation внутри дерева.
+ */
+interface LocationProbe {
+  search: string;
+}
+
+function LocationProbeTarget({ probe }: { readonly probe: LocationProbe }): null {
+  const { search } = useLocation();
+  probe.search = search;
+  return null;
+}
+
+function renderHistoryAt(initialEntry = '/journal'): LocationProbe {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const probe: LocationProbe = { search: '' };
   render(
     createElement(
       QueryClientProvider,
       { client: queryClient },
-      createElement(ToastProvider, null, createElement(HistoryScreen)),
+      createElement(
+        MemoryRouter,
+        { initialEntries: [initialEntry] },
+        createElement(ToastProvider, null, createElement(HistoryScreen)),
+        createElement(LocationProbeTarget, { probe }),
+      ),
     ),
   );
+  return probe;
+}
+
+/** Рендер истории с URL по умолчанию (§5). */
+function renderHistory(): void {
+  renderHistoryAt();
 }
 
 /** Мост с перехватом подписок: name → последний handler (для live-теста §19). */
@@ -119,12 +148,14 @@ describe('HistoryScreen — состояния (§10)', () => {
     renderHistory();
 
     return waitFor(() => {
-      expect(screen.getByTestId('empty-history')).toBeDefined();
+      const empty = screen.getByTestId('empty-history');
       expect(screen.getByText('Пока нет измерений')).toBeDefined();
       expect(
         screen.getByText('Измерьте давление и нажмите «Добавить» — история появится здесь.'),
       ).toBeDefined();
-      expect(screen.getByRole('button', { name: 'Добавить' })).toBeDefined();
+      // TASK-044: панель фильтров видна и в пустом состоянии; CTA — внутри empty-history.
+      expect(screen.getByTestId('history-filters')).toBeDefined();
+      expect(within(empty).getByRole('button', { name: 'Добавить' })).toBeDefined();
     });
   });
 
@@ -132,7 +163,7 @@ describe('HistoryScreen — состояния (§10)', () => {
     renderHistory();
     await waitFor(() => expect(screen.getByTestId('empty-history')).toBeDefined());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
+    fireEvent.click(within(screen.getByTestId('empty-history')).getByRole('button', { name: 'Добавить' }));
 
     expect(screen.getByTestId('input-sys')).toBeDefined();
     expect(screen.queryByTestId('empty-history')).toBeNull();
@@ -354,7 +385,7 @@ describe('HistoryScreen — live-обновление (§5/§10/§20)', () => {
     renderHistory();
 
     await waitFor(() => expect(screen.getByTestId('empty-history')).toBeDefined());
-    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
+    fireEvent.click(within(screen.getByTestId('empty-history')).getByRole('button', { name: 'Добавить' }));
     expect(screen.getByTestId('input-sys')).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ввести 1' }));
@@ -602,11 +633,17 @@ describe('HistoryScreen — правка и удаление (TASK-038 §5/§19/
 describe('HistoryScreen — axe (§20)', () => {
   it('пустое состояние и данные: violations с impact=critical отсутствуют', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const probe: { search: string } = { search: '' };
     const { container } = render(
       createElement(
         QueryClientProvider,
         { client: queryClient },
-        createElement(ToastProvider, null, createElement(HistoryScreen)),
+        createElement(
+          MemoryRouter,
+          { initialEntries: ['/journal'] },
+          createElement(ToastProvider, null, createElement(HistoryScreen)),
+          createElement(LocationProbeTarget, { probe }),
+        ),
       ),
     );
     await waitFor(() => expect(screen.getByTestId('empty-history')).toBeDefined());
@@ -623,11 +660,149 @@ describe('HistoryScreen — axe (§20)', () => {
       createElement(
         QueryClientProvider,
         { client: queryClient2 },
-        createElement(ToastProvider, null, createElement(HistoryScreen)),
+        createElement(
+          MemoryRouter,
+          { initialEntries: ['/journal'] },
+          createElement(ToastProvider, null, createElement(HistoryScreen)),
+          createElement(LocationProbeTarget, { probe }),
+        ),
       ),
     );
     await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(1));
     const dataResults = await axe.run(container2);
     expect(dataResults.violations.filter((v) => v.impact === 'critical')).toEqual([]);
+  });
+});
+
+describe('HistoryScreen — фильтры (TASK-044 §19/§20)', () => {
+  /** Payload последнего вызова list (spy-проверки §19). */
+  function lastListPayload(): Record<string, unknown> {
+    const call = invoke.mock.calls.find(([channel]) => channel === 'measurements/list');
+    if (call === undefined) {
+      throw new Error('measurements/list не вызывался');
+    }
+    return call[1] as Record<string, unknown>;
+  }
+
+  it('дефолт: первый запрос с границей 30 суток, toUtcMs/arm/hasNote отсутствуют (§5)', async () => {
+    invoke.mockResolvedValue(LIST_OK({ items: [], total: 0 }));
+    renderHistory();
+
+    await waitFor(() => expect(screen.getByTestId('history-filters')).toBeDefined());
+    expect(lastListPayload()).toStrictEqual({
+      profileId: PROFILE_ID,
+      fromUtcMs: NOW_MS - 30 * DAY_MS,
+      limit: HISTORY_PAGE_LIMIT,
+      offset: 0,
+    });
+  });
+
+  it('клик пресета 7д → URL period=7d, запрос с fromUtcMs = now − 7 суток (§20 AC1)', async () => {
+    invoke.mockResolvedValue(LIST_OK({ items: [], total: 0 }));
+    const probe = renderHistoryAt('/journal');
+    await waitFor(() => expect(screen.getByTestId('history-filters')).toBeDefined());
+
+    fireEvent.click(screen.getByTestId('filter-period-7d'));
+
+    await waitFor(() => expect(probe.search).toBe('?period=7d'));
+    await waitFor(() =>
+      expect(lastListPayload()).toStrictEqual({
+        profileId: PROFILE_ID,
+        fromUtcMs: NOW_MS - 7 * DAY_MS,
+        limit: HISTORY_PAGE_LIMIT,
+        offset: 0,
+      }),
+    );
+  });
+
+  it('комбинация период+рука+noted: все три поля в payload канала (§20 AC2)', async () => {
+    invoke.mockResolvedValue(LIST_OK({ items: [], total: 0 }));
+    renderHistory();
+    await waitFor(() => expect(screen.getByTestId('history-filters')).toBeDefined());
+
+    fireEvent.click(screen.getByTestId('filter-period-90d'));
+    fireEvent.change(screen.getByTestId('filter-arm'), { target: { value: 'left' } });
+    fireEvent.click(screen.getByTestId('filter-noted'));
+
+    await waitFor(() =>
+      expect(lastListPayload()).toStrictEqual({
+        profileId: PROFILE_ID,
+        fromUtcMs: NOW_MS - 90 * DAY_MS,
+        arm: 'left',
+        hasNote: true,
+        limit: HISTORY_PAGE_LIMIT,
+        offset: 0,
+      }),
+    );
+  });
+
+  it('мусорный URL → дефолт 30d без ошибок консоли (§20 AC3)', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    invoke.mockResolvedValue(LIST_OK({ items: [], total: 0 }));
+
+    renderHistoryAt('/journal?period=%3Cscript%3E&arm=center&noted=yes');
+
+    await waitFor(() => expect(screen.getByTestId('history-filters')).toBeDefined());
+    expect(lastListPayload()).toStrictEqual({
+      profileId: PROFILE_ID,
+      fromUtcMs: NOW_MS - 30 * DAY_MS,
+      limit: HISTORY_PAGE_LIMIT,
+      offset: 0,
+    });
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it('пустой результат при активных фильтрах → «сбросьте фильтры»; кнопка сброса работает (§20 AC4)', async () => {
+    invoke.mockResolvedValue(LIST_OK({ items: [], total: 0 }));
+    const probe = renderHistoryAt('/journal?period=7d&noted=1');
+
+    await waitFor(() => expect(screen.getByTestId('empty-filtered')).toBeDefined());
+    expect(
+      screen.getByText('С фильтрами ничего не найдено — сбросьте фильтры.'),
+    ).toBeDefined();
+    expect(screen.queryByTestId('empty-history')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('empty-filtered-reset'));
+
+    await waitFor(() => expect(probe.search).toBe('?period=30d'));
+    await waitFor(() => expect(screen.getByTestId('empty-history')).toBeDefined());
+    expect(screen.queryByTestId('empty-filtered')).toBeNull();
+  });
+
+  it('перезагрузка приложения с URL-фильтрами — фильтры восстановлены (§20 AC5)', async () => {
+    invoke.mockResolvedValue(LIST_OK({ items: [], total: 0 }));
+
+    renderHistoryAt('/journal?period=7d&arm=right&noted=1');
+
+    await waitFor(() => expect(screen.getByTestId('history-filters')).toBeDefined());
+    expect(lastListPayload()).toStrictEqual({
+      profileId: PROFILE_ID,
+      fromUtcMs: NOW_MS - 7 * DAY_MS,
+      arm: 'right',
+      hasNote: true,
+      limit: HISTORY_PAGE_LIMIT,
+      offset: 0,
+    });
+    // Состояние контролов восстановлено из URL (§10: URL — источник истины).
+    expect((screen.getByTestId('filter-period-7d') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByTestId('filter-arm') as HTMLSelectElement).value).toBe('right');
+    expect((screen.getByTestId('filter-noted') as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('фокус остаётся на контроле фильтра после смены пресета (§16)', async () => {
+    const user = userEvent.setup();
+    invoke.mockResolvedValue(
+      LIST_OK({ items: [dto('m-1', wallNoon(TODAY_KEY))], total: 1 }),
+    );
+    renderHistory();
+    await waitFor(() => expect(screen.getAllByTestId('measurement-row')).toHaveLength(1));
+
+    await user.click(screen.getByTestId('filter-period-90d'));
+
+    // Список перезагрузился под новый ключ (keepPreviousData §10), панель на месте —
+    // фокус не сброшен на body (§16).
+    await waitFor(() => expect(screen.getByTestId('history-filters')).toBeDefined());
+    expect(document.activeElement?.getAttribute('data-testid')).toBe('filter-period-90d');
   });
 });
