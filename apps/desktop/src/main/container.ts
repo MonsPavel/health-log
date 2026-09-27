@@ -52,6 +52,7 @@ import { EventBus } from './events/event-bus.js';
 import {
   createAddMeasurementHandler,
   createListMeasurementHandler,
+  createUpdateMeasurementHandler,
 } from './ipc/handlers/measurements.js';
 import { createDeleteMeasurementHandler } from './ipc/handlers/measurements-delete.js';
 import { createPingHandler } from './ipc/handlers/ping.js';
@@ -61,6 +62,7 @@ import { AddMeasurementUseCase } from './modules/measurement/application/add-mea
 import { DeleteMeasurementUseCase } from './modules/measurement/application/delete-measurement.js';
 import { ListMeasurementsUseCase } from './modules/measurement/application/list-measurements.js';
 import type { BpMeasurementRepository } from './modules/measurement/application/ports/bp-measurement-repository.js';
+import { UpdateMeasurementUseCase } from './modules/measurement/application/update-measurement.js';
 import {
   SafeStorageKeyVault,
   type VaultSafeStorage,
@@ -226,6 +228,8 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //      TASK-030: ListMeasurements — тонкое чтение журнала (событий не публикует).
     //      TASK-032: DeleteMeasurement — удаление созданного в потоке «Проверьте
     //      значения»; события — в порядке add.
+    //      TASK-037: UpdateMeasurement — полная правка через edit-фабрику; typo
+    //      пересчитывается без правимой записи, duplicate не пересчитывается.
     const addMeasurement = new AddMeasurementUseCase({
       repo: measurementRepo,
       clock,
@@ -238,14 +242,20 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       events,
       logger,
     });
+    const updateMeasurement = new UpdateMeasurementUseCase({
+      repo: measurementRepo,
+      clock,
+      events,
+      logger,
+    });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
     //    (детерминизм тестов, NFR-10); app/log-client-error (TASK-011) — прикладной
     //    канал ErrorBoundary; measurements/add (TASK-029) — use case addMeasurement;
     //    measurements/list (TASK-030) — use case listMeasurements; measurements/delete
-    //    (TASK-032) — use case deleteMeasurement. Хендлеры задач 037+ (update и
-    //    full-edit к delete) регистрируются здесь же по мере появления (место помечено).
+    //    (TASK-032) — use case deleteMeasurement; measurements/update (TASK-037) —
+    //    use case updateMeasurement (сводная регистрация всех 4 каналов журнала).
     const channels = createChannelRegistry(createLogger('ipc'));
     channels.register('app/ping', CHANNEL_SCHEMAS['app/ping'], createPingHandler(clock));
     channels.register(
@@ -262,6 +272,11 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       'measurements/list',
       CHANNEL_SCHEMAS['measurements/list'],
       createListMeasurementHandler(listMeasurements),
+    );
+    channels.register(
+      'measurements/update',
+      CHANNEL_SCHEMAS['measurements/update'],
+      createUpdateMeasurementHandler(updateMeasurement),
     );
     channels.register(
       'measurements/delete',
