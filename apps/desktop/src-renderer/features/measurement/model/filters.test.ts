@@ -15,9 +15,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import type { MeasurementDto } from '@hl/contracts';
+
 import {
   DAY_MS,
   DEFAULT_FILTER_STATE,
+  isFiltersActive,
+  matchesDtoFilters,
   parseHistoryFilters,
   serializeHistoryFilters,
   toQuery,
@@ -143,5 +147,76 @@ describe('roundtrip parse∘serialize — тождество на UI-дости�
     const state = { period, arm: 'left', noted: true } as const;
     expect(parseHistoryFilters(serializeHistoryFilters(state))).toStrictEqual(state);
     expect(parseHistoryFilters(serializeHistoryFilters({ period }))).toStrictEqual({ period });
+  });
+});
+
+// TASK-045 §5/§10/§12: строка поиска — q в состоянии фильтров (URL ?q=), клиентское
+// сужение результата поиска фильтрами (search возвращает по всей БД — §10).
+describe('TASK-045: параметр q — состояние ↔ URL', () => {
+  /** Читатель по строке запроса (та же минимальная поверхность, что у useSearchParams). */
+  function params(search: string): URLSearchParams {
+    return new URLSearchParams(search);
+  }
+
+  it('парсер: q читается, пробельная/пустая q → поле отсутствует (мусор → дефолт, §14)', () => {
+    expect(parseHistoryFilters(params('period=30d&q=болела'))).toStrictEqual({
+      period: '30d',
+      q: 'болела',
+    });
+    expect(parseHistoryFilters(params('q=   '))).toStrictEqual({ period: '30d' });
+    expect(parseHistoryFilters(params('q='))).toStrictEqual({ period: '30d' });
+  });
+
+  it('сериализатор: q только непустая; roundtrip сохраняет (URLSearchParams кодирует кириллицу)', () => {
+    const withQuery = serializeHistoryFilters({ period: '30d', q: 'голова' });
+    expect(withQuery.get('q')).toBe('голова');
+    expect(serializeHistoryFilters({ period: 'all' }).toString()).toBe('period=all');
+    const state = { period: '7d', q: 'кофе' } as const;
+    expect(parseHistoryFilters(serializeHistoryFilters(state))).toStrictEqual(state);
+  });
+
+  it('isFiltersActive: непустая q — активные фильтры (особое пустое состояние, §10)', () => {
+    expect(isFiltersActive({ period: '30d', q: 'кофе' })).toBe(true);
+    expect(isFiltersActive({ period: '30d' })).toBe(false);
+  });
+
+  it('toQuery: q НЕ входит во фрагмент list (поиск — отдельный канал, §10/§11)', () => {
+    expect(toQuery({ period: 'all', q: 'кофе' }, NOW_MS)).toStrictEqual({});
+  });
+});
+
+describe('TASK-045: matchesDtoFilters — клиентское сужение результата поиска (§10)', () => {
+  const dto = (overrides: Partial<MeasurementDto> = {}): MeasurementDto => ({
+    id: 'm-1',
+    profileId: 'p',
+    sys: 120,
+    dia: 80,
+    irregularPulse: false,
+    arm: 'left',
+    note: 'болела голова',
+    takenAtUtcMs: NOW_MS - DAY_MS,
+    tzOffsetMin: 180,
+    source: 'manual',
+    createdAtUtcMs: NOW_MS - DAY_MS,
+    updatedAtUtcMs: NOW_MS - DAY_MS,
+    ...overrides,
+  });
+
+  it('пустой фрагмент — проходит всё', () => {
+    expect(matchesDtoFilters({}, dto())).toBe(true);
+  });
+
+  it('период: from/to включительно (прецедент порта TASK-021)', () => {
+    const fragment = { fromUtcMs: NOW_MS - 2 * DAY_MS, toUtcMs: NOW_MS };
+    expect(matchesDtoFilters(fragment, dto())).toBe(true);
+    expect(matchesDtoFilters(fragment, dto({ takenAtUtcMs: NOW_MS - 3 * DAY_MS }))).toBe(false);
+    expect(matchesDtoFilters(fragment, dto({ takenAtUtcMs: NOW_MS - 2 * DAY_MS }))).toBe(true);
+  });
+
+  it('рука и «только с заметками»', () => {
+    expect(matchesDtoFilters({ arm: 'right' }, dto())).toBe(false);
+    expect(matchesDtoFilters({ arm: 'left' }, dto())).toBe(true);
+    expect(matchesDtoFilters({ hasNote: true }, dto({ note: undefined }))).toBe(false);
+    expect(matchesDtoFilters({ hasNote: true }, dto())).toBe(true);
   });
 });

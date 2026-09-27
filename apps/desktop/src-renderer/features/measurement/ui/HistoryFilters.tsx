@@ -17,8 +17,15 @@
  *
  * Ключи каталога — литералы в картах (§22: динамических ключей нет, прецедент
  * NOTICE_KEY/ARM_KEY TASK-038/031 — check-i18n ищет полные литералы).
+ *
+ * TASK-045 §5/§10/§12/§16: строка поиска по заметкам (type="search" с label, §16).
+ * Черновик ввода — локальное состояние компонента; применение в URL — через
+ * debounce 300 мс (§10, SEARCH_DEBOUNCE_MS): каждое нажатие клавиши не переписывает
+ * адрес и не создаёт ключи кэша. Esc очищает поле и применяет пустой запрос
+ * немедленно (§16); ×-кнопка — то же (§10). Внешняя смена state.q (сброс фильтров)
+ * синхронизирует черновик.
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 
@@ -33,6 +40,7 @@ import {
   type HistoryPeriod,
   type MeasurementQueryFragment,
 } from '../model/filters';
+import { SEARCH_DEBOUNCE_MS } from '../api/use-notes-search';
 
 /** Пункты сегмента периода (§17: ключи filters.period.*, custom — заглушка). */
 const PERIOD_OPTIONS = ['7d', '30d', '90d', 'all', 'custom'] as const;
@@ -80,19 +88,41 @@ export interface HistoryFiltersProps {
   readonly onArm: (arm: HistoryArm | undefined) => void;
   /** Переключение «только с заметками». */
   readonly onNoted: (noted: boolean) => void;
+  /** Применение поискового запроса (после debounce; '' — очистка, §5 TASK-045). */
+  readonly onQuery: (query: string) => void;
   /** Сброс к дефолту (?period=30d, §5). */
   readonly onReset: () => void;
 }
 
-/** Панель фильтров над историей (§2): период, рука, заметки, сброс. */
+/** Панель фильтров над историей (§2): период, рука, заметки, поиск, сброс. */
 export function HistoryFilters({
   state,
   onPeriod,
   onArm,
   onNoted,
+  onQuery,
   onReset,
 }: HistoryFiltersProps): JSX.Element {
   const { t } = useTranslation();
+  // TASK-045 §10/§12: черновик поисковой строки — локально; в URL — после debounce.
+  const [queryDraft, setQueryDraft] = useState(state.q ?? '');
+  // Внешняя смена состояния (сброс фильтров, ссылка с ?q=) синхронизирует черновик.
+  useEffect(() => {
+    setQueryDraft(state.q ?? '');
+  }, [state.q]);
+  // Debounce применения (§10): таймер перезапускается на каждое изменение черновика.
+  useEffect(() => {
+    if (queryDraft === (state.q ?? '')) {
+      return undefined;
+    }
+    const timer = setTimeout(() => onQuery(queryDraft), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [queryDraft, state.q, onQuery]);
+  // Очистка (Esc/×, §10/§16): немедленно, без ожидания debounce.
+  const clearQuery = useCallback(() => {
+    setQueryDraft('');
+    onQuery('');
+  }, [onQuery]);
 
   return (
     <div
@@ -169,6 +199,40 @@ export function HistoryFilters({
         {t('measurement.filters.noted')}
       </label>
 
+      <div className="flex flex-col gap-1">
+        {/* TASK-045 §16: label + type="search"; Esc очищает (§16), ×-кнопка — тоже (§10). */}
+        <label htmlFor="filter-query" className="text-sm text-accent">
+          {t('measurement.search.placeholder')}
+        </label>
+        <div className="flex items-center gap-1">
+          <input
+            id="filter-query"
+            type="search"
+            data-testid="filter-query"
+            value={queryDraft}
+            placeholder={t('measurement.search.placeholder')}
+            onChange={(event) => setQueryDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                clearQuery();
+              }
+            }}
+            className="min-h-11 w-56 rounded-md border border-border bg-transparent px-3 py-2 text-base"
+          />
+          {queryDraft !== '' && (
+            <button
+              type="button"
+              data-testid="filter-query-clear"
+              aria-label={t('measurement.search.clear')}
+              onClick={clearQuery}
+              className="min-h-11 min-w-11 rounded-md border border-border px-3 text-base hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+
       <button
         type="button"
         data-testid="filters-reset"
@@ -195,6 +259,8 @@ export interface MeasurementFilters {
   readonly setArm: (arm: HistoryArm | undefined) => void;
   /** Переключение «только с заметками» (false — параметр убирается). */
   readonly setNoted: (noted: boolean) => void;
+  /** Применение поискового запроса (TASK-045): '' — параметр q убирается. */
+  readonly setQuery: (query: string) => void;
   /** Сброс к дефолту: URL → ?period=30d (§5). */
   readonly reset: () => void;
 }
@@ -231,7 +297,24 @@ export function useMeasurementFilters(): MeasurementFilters {
     [apply, state],
   );
   const setNoted = useCallback((noted: boolean) => apply({ ...state, noted }), [apply, state]);
+  // TASK-045 §5/§12: применённый запрос живёт в URL (?q=); пустой — параметр убирается.
+  const setQuery = useCallback(
+    (query: string) => {
+      const trimmed = query.trim();
+      apply({ ...state, ...(trimmed === '' ? { q: undefined } : { q: trimmed }) });
+    },
+    [apply, state],
+  );
   const reset = useCallback(() => apply(DEFAULT_FILTER_STATE), [apply]);
 
-  return { state, query, isActive: isFiltersActive(state), setPeriod, setArm, setNoted, reset };
+  return {
+    state,
+    query,
+    isActive: isFiltersActive(state),
+    setPeriod,
+    setArm,
+    setNoted,
+    setQuery,
+    reset,
+  };
 }
