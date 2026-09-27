@@ -28,7 +28,12 @@ export default defineConfig({
     projects: [
       testProject('kernel', ['packages/kernel/src/**/*.test.ts']),
       testProject('contracts', ['packages/contracts/src/**/*.test.ts']),
-      testProject('scales-data', ['packages/scales-data/src/**/*.test.ts']),
+      // TASK-050 §6: schema-тест схемы/данных живёт в выделенном каталоге test/
+      // (вне tsc-сборки пакета; типы теста проверяет корневой tsconfig.json).
+      testProject('scales-data', [
+        'packages/scales-data/src/**/*.test.ts',
+        'packages/scales-data/test/**/*.test.ts',
+      ]),
       testProject('desktop-main', ['apps/desktop/src/main/**/*.test.ts']),
       // desktop-renderer: jsdom-проект включён в TASK-009 — обязательный тест хука
       // useHlEvent (§19/§20/§24: отписка при unmount). Минимальная версия заготовки
