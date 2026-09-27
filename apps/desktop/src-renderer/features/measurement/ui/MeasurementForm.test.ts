@@ -769,6 +769,112 @@ describe('MeasurementForm — режим edit (TASK-038 §5/§10/§19/§20)', ()
 });
 
 /**
+ * TASK-040 §5/§10/§13/§16/§19/§20: умная вставка «120/80» — paste-события полей
+ * sys/dia (§19: fireEvent.paste с clipboardData-фикстурой). Пара → оба поля +
+ * фокус в pulse; одиночное число ≤3 цифр → штатная вставка в текущее поле;
+ * мусор → тост role="status" `measurement.form.pasteFailed`, поля НЕ изменены,
+ * фокус не уходит (EC-18: не потерять введённое). Поле pulse — не включено (§5).
+ */
+describe('MeasurementForm — умная вставка (TASK-040 §5/§19/§20)', () => {
+  /** Вставка текста в поле: fireEvent.paste с clipboardData-фикстурой (§19). */
+  function pasteText(target: HTMLElement, text: string): void {
+    fireEvent.paste(target, { clipboardData: { getData: () => text } });
+  }
+
+  function pasteFailedToast(): HTMLElement {
+    return screen.getByTestId('paste-failed-toast');
+  }
+
+  it('AC2: «125/ 82» в sys → sys=125, dia=82, фокус в pulse (§5)', () => {
+    renderForm();
+
+    pasteText(sysInput(), '125/ 82');
+
+    expect(sysInput().value).toBe('125');
+    expect(diaInput().value).toBe('82');
+    expect(document.activeElement).toBe(pulseInput());
+  });
+
+  it('пара, вставленная в dia, заполняет оба поля симметрично (§4/§5)', () => {
+    renderForm();
+
+    pasteText(diaInput(), '120/80');
+
+    expect(sysInput().value).toBe('120');
+    expect(diaInput().value).toBe('80');
+    expect(document.activeElement).toBe(pulseInput());
+  });
+
+  it('AC3: «не помню» в sys → тост pasteFailed (role="status"), поля НЕ изменены (EC-18)', () => {
+    renderForm();
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+
+    pasteText(sysInput(), 'не помню');
+
+    expect(pasteFailedToast().getAttribute('role')).toBe('status');
+    expect(pasteFailedToast().textContent).toBe('Не удалось разобрать вставку — введите вручную');
+    // EC-18: введённое не потеряно; dia пуст, фокус не уходит из поля (§16).
+    expect(sysInput().value).toBe('12');
+    expect(diaInput().value).toBe('');
+    expect(document.activeElement).toBe(sysInput());
+  });
+
+  it('«1200/80» (sys >3 цифр) → тост, поля НЕ изменены (§13)', () => {
+    renderForm();
+
+    pasteText(sysInput(), '1200/80');
+
+    expect(pasteFailedToast()).toBeDefined();
+    expect(sysInput().value).toBe('');
+    expect(diaInput().value).toBe('');
+  });
+
+  it('AC4: одиночное «120» в sys → штатная вставка (120 в поле), без тоста', () => {
+    renderForm();
+
+    pasteText(sysInput(), '120');
+
+    expect(sysInput().value).toBe('120');
+    expect(diaInput().value).toBe('');
+    expect(screen.queryByTestId('paste-failed-toast')).toBeNull();
+  });
+
+  it('одиночное «70» в dia → dia=70, sys не тронут (§5: в текущее поле)', () => {
+    renderForm();
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ввести 5' }));
+
+    pasteText(diaInput(), '70');
+
+    expect(sysInput().value).toBe('125');
+    expect(diaInput().value).toBe('70');
+    expect(screen.queryByTestId('paste-failed-toast')).toBeNull();
+  });
+
+  it('пустой буфер — тихо: без тоста и без изменений', () => {
+    renderForm();
+
+    pasteText(sysInput(), '');
+
+    expect(screen.queryByTestId('paste-failed-toast')).toBeNull();
+    expect(sysInput().value).toBe('');
+  });
+
+  it('поле pulse — вне объёма (§5): вставка пары не перехватывается', () => {
+    renderForm();
+
+    pasteText(pulseInput(), '120/80');
+
+    expect(sysInput().value).toBe('');
+    expect(diaInput().value).toBe('');
+    expect(pulseInput().value).toBe('');
+    expect(screen.queryByTestId('paste-failed-toast')).toBeNull();
+  });
+});
+
+/**
  * TASK-039 §5/§16/§19/§20: восстановление черновика после краша. «Перезапуск»
  * приложения моделируется seed'ом `hl.formDraft` + persist.rehydrate() (гидрация
  * при создании store — §12), затем маунт формы: поля предзаполнены, тост

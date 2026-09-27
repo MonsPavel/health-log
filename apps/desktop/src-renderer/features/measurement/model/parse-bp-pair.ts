@@ -42,8 +42,14 @@ export function parseBpPair(text: string): BpPair | undefined {
   if (match === null) {
     return undefined;
   }
-  const sys = Number(match[1]);
-  const dia = Number(match[2]);
+  // Группы обязательны в шаблоне; guard — для noUncheckedIndexedAccess.
+  const sysText = match[1];
+  const diaText = match[2];
+  if (sysText === undefined || diaText === undefined) {
+    return undefined;
+  }
+  const sys = Number(sysText);
+  const dia = Number(diaText);
   if (sys < SYS_MIN || sys > SYS_MAX || dia < DIA_MIN || dia > DIA_MAX) {
     return undefined;
   }
