@@ -102,7 +102,7 @@ describe('CHANNEL_SCHEMAS["app/log-client-error"] — клиентский от�
 });
 
 describe('CHANNEL_SCHEMAS — дисциплина реестра (§5)', () => {
-  it('реестр типизирован по ChannelName: каркасные + 4 канала измерений (TASK-028)', () => {
+  it('реестр типизирован по ChannelName: каркасные + 4 канала измерений (TASK-028) + notes/search (TASK-045)', () => {
     expect(Object.keys(CHANNEL_SCHEMAS)).toEqual([
       'app/ping',
       'app/log-client-error',
@@ -110,6 +110,7 @@ describe('CHANNEL_SCHEMAS — дисциплина реестра (§5)', () => 
       'measurements/list',
       'measurements/update',
       'measurements/delete',
+      'notes/search',
     ]);
   });
 

@@ -34,3 +34,4 @@ export {
 } from './events.js';
 export { CHANNEL_SCHEMAS, type ChannelSchemas } from './schemas.js';
 export * from './measurement/index.js';
+export * from './notes/index.js';
