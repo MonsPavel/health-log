@@ -21,7 +21,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { AppError, FixedClock } from '@hl/kernel';
+import { AppError, type Clock } from '@hl/kernel';
 
 import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
 import { MigrationRunner } from '../../../shared/db/migration-runner.js';
@@ -29,6 +29,21 @@ import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite
 import { SqliteScaleRepository } from './sqlite-scale-repository.js';
 
 const NOW_MS = 1_758_816_000_000;
+
+/** Тикающие часы: первый nowMs() = NOW_MS, каждый следующий +1 мс — разные активации имеют разные моменты. */
+class TickingClock implements Clock {
+  private current = NOW_MS;
+
+  nowMs(): number {
+    const value = this.current;
+    this.current += 1;
+    return value;
+  }
+
+  tzOffsetMin(): number {
+    return 180;
+  }
+}
 
 /** tmp-каталоги этой сессии — удаляются в afterAll (§14). */
 const dirs: string[] = [];
@@ -45,7 +60,7 @@ const makeRepo = async (name: string): Promise<{ db: EncryptedDatabase; repo: Sq
   dirs.push(dir);
   const db = openEncrypted(join(dir, name), randomBytes(32).toString('hex'));
   await new MigrationRunner({ migrations: [...MIGRATIONS] }).migrate(db);
-  return { db, repo: new SqliteScaleRepository(db, { clock: new FixedClock(NOW_MS, 180) }) };
+  return { db, repo: new SqliteScaleRepository(db, { clock: new TickingClock() }) };
 };
 
 const CODE = 'bp_office_esc2018';
