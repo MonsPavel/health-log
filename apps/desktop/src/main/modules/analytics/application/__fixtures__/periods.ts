@@ -255,7 +255,12 @@ export const GOLDEN_FIXTURES: readonly GoldenFixture[] = [
       dia: vs(82.3, 80, 85, 2.5),
       pulse: vs(63.3, 60, 70, 5.8),
       morning: part(2, vs(122.5, 120, 125, 3.5), vs(81, 80, 82, 1.4), vs(60, 60, 60, 0)),
-      evening: part(1, vs(130, 130, 130, undefined), vs(85, 85, 85, undefined), vs(70, 70, 70, undefined)),
+      evening: part(
+        1,
+        vs(130, 130, 130, undefined),
+        vs(85, 85, 85, undefined),
+        vs(70, 70, 70, undefined),
+      ),
       other: undefined,
       delta: { sys: 7.5, dia: 4 },
       critical: { high: false, low: false },

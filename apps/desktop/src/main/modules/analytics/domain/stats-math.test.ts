@@ -90,7 +90,12 @@ describe('round1 — округление до 1 знака (§7, правило
 
 describe('summarize — сборка ValueStats (avg/sd округлены до 1 знака, §7)', () => {
   it('пустой набор → все поля undefined (AC: пустой период без NaN)', () => {
-    expect(summarize([])).toEqual({ avg: undefined, min: undefined, max: undefined, sd: undefined });
+    expect(summarize([])).toEqual({
+      avg: undefined,
+      min: undefined,
+      max: undefined,
+      sd: undefined,
+    });
   });
 
   it('n=1 → avg/min/max = значение, sd undefined (§13)', () => {

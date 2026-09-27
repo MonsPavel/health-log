@@ -45,7 +45,10 @@ export function dayPartOf(instant: Instant): DayPart {
     (((Math.floor(instant.utcMs / MS_PER_MINUTE) + instant.tzOffsetMin) % MINUTES_PER_DAY) +
       MINUTES_PER_DAY) %
     MINUTES_PER_DAY;
-  if (wallMinute >= DAY_PART_WINDOWS_MIN.morningStart && wallMinute < DAY_PART_WINDOWS_MIN.morningEndExclusive) {
+  if (
+    wallMinute >= DAY_PART_WINDOWS_MIN.morningStart &&
+    wallMinute < DAY_PART_WINDOWS_MIN.morningEndExclusive
+  ) {
     return 'morning';
   }
   if (wallMinute >= DAY_PART_WINDOWS_MIN.eveningStart) {

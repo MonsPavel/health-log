@@ -228,7 +228,17 @@ describe('buildPeriodStatistics — свойства §19 (fast-check)', () => {
     fc.assert(
       fc.property(fc.array(pointArb, { maxLength: 60 }), (points) => {
         const stats = buildPeriodStatistics(points);
-        for (const channel of [stats.sys, stats.dia, stats.pulse, stats.morning?.sys, stats.morning?.dia, stats.evening?.sys, stats.evening?.dia, stats.other?.sys, stats.other?.dia]) {
+        for (const channel of [
+          stats.sys,
+          stats.dia,
+          stats.pulse,
+          stats.morning?.sys,
+          stats.morning?.dia,
+          stats.evening?.sys,
+          stats.evening?.dia,
+          stats.other?.sys,
+          stats.other?.dia,
+        ]) {
           if (channel === undefined || channel.avg === undefined) {
             continue;
           }

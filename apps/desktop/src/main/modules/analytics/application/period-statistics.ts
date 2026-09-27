@@ -142,7 +142,5 @@ export function buildPeriodStatistics(points: readonly MeasurementPoint[]): Peri
   };
 
   // Пустой период — поля нет вовсе (§7: lastMeasurementUtcMs? — опционально).
-  return lastMeasurementUtcMs === undefined
-    ? statistics
-    : { ...statistics, lastMeasurementUtcMs };
+  return lastMeasurementUtcMs === undefined ? statistics : { ...statistics, lastMeasurementUtcMs };
 }

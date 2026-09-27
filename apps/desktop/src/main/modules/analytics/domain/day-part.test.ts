@@ -14,23 +14,34 @@ import { DAY_PART_WINDOWS_MIN, dayPartOf, splitByDayPart } from './day-part.js';
 const wall = (iso: string): ReturnType<typeof Instant.fromIso> => Instant.fromIso(iso);
 
 describe('dayPartOf — таблица границ §13/AC §20 (UTC+3)', () => {
-  const cases: readonly { readonly iso: string; readonly expected: string; readonly why: string }[] =
-    [
-      { iso: '2026-03-01T05:59:00.000+03:00', expected: 'other', why: '05:59 — до окна утра' },
-      { iso: '2026-03-01T05:59:59.999+03:00', expected: 'other', why: '05:59:59.999 — до окна' },
-      { iso: '2026-03-01T06:00:00.000+03:00', expected: 'morning', why: 'ровно 06:00 → утро (§13)' },
-      { iso: '2026-03-01T09:30:00.000+03:00', expected: 'morning', why: 'середина окна утра' },
-      { iso: '2026-03-01T11:59:00.000+03:00', expected: 'morning', why: '11:59 → утро (AC §20)' },
-      { iso: '2026-03-01T11:59:59.999+03:00', expected: 'morning', why: '11:59:59.999 → утро (§13)' },
-      { iso: '2026-03-01T12:00:00.000+03:00', expected: 'other', why: 'ровно 12:00 → other (§13)' },
-      { iso: '2026-03-01T17:59:59.999+03:00', expected: 'other', why: '17:59:59.999 — до окна вечера' },
-      { iso: '2026-03-01T18:00:00.000+03:00', expected: 'evening', why: 'ровно 18:00 → вечер (§13)' },
-      { iso: '2026-03-01T21:45:00.000+03:00', expected: 'evening', why: 'середина окна вечера' },
-      { iso: '2026-03-01T23:59:00.000+03:00', expected: 'evening', why: '23:59 → вечер (AC §20)' },
-      { iso: '2026-03-01T23:59:59.999+03:00', expected: 'evening', why: '23:59:59.999 → вечер' },
-      { iso: '2026-03-01T00:15:00.000+03:00', expected: 'other', why: 'ночь 00:15 → other, не «вчера-вечер» (§13)' },
-      { iso: '2026-03-01T03:00:00.000+03:00', expected: 'other', why: 'ночь 03:00 → other' },
-    ];
+  const cases: readonly {
+    readonly iso: string;
+    readonly expected: string;
+    readonly why: string;
+  }[] = [
+    { iso: '2026-03-01T05:59:00.000+03:00', expected: 'other', why: '05:59 — до окна утра' },
+    { iso: '2026-03-01T05:59:59.999+03:00', expected: 'other', why: '05:59:59.999 — до окна' },
+    { iso: '2026-03-01T06:00:00.000+03:00', expected: 'morning', why: 'ровно 06:00 → утро (§13)' },
+    { iso: '2026-03-01T09:30:00.000+03:00', expected: 'morning', why: 'середина окна утра' },
+    { iso: '2026-03-01T11:59:00.000+03:00', expected: 'morning', why: '11:59 → утро (AC §20)' },
+    { iso: '2026-03-01T11:59:59.999+03:00', expected: 'morning', why: '11:59:59.999 → утро (§13)' },
+    { iso: '2026-03-01T12:00:00.000+03:00', expected: 'other', why: 'ровно 12:00 → other (§13)' },
+    {
+      iso: '2026-03-01T17:59:59.999+03:00',
+      expected: 'other',
+      why: '17:59:59.999 — до окна вечера',
+    },
+    { iso: '2026-03-01T18:00:00.000+03:00', expected: 'evening', why: 'ровно 18:00 → вечер (§13)' },
+    { iso: '2026-03-01T21:45:00.000+03:00', expected: 'evening', why: 'середина окна вечера' },
+    { iso: '2026-03-01T23:59:00.000+03:00', expected: 'evening', why: '23:59 → вечер (AC §20)' },
+    { iso: '2026-03-01T23:59:59.999+03:00', expected: 'evening', why: '23:59:59.999 → вечер' },
+    {
+      iso: '2026-03-01T00:15:00.000+03:00',
+      expected: 'other',
+      why: 'ночь 00:15 → other, не «вчера-вечер» (§13)',
+    },
+    { iso: '2026-03-01T03:00:00.000+03:00', expected: 'other', why: 'ночь 03:00 → other' },
+  ];
 
   for (const c of cases) {
     it(`${c.iso.slice(11, 23)} → ${c.expected} (${c.why})`, () => {
