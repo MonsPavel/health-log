@@ -379,6 +379,26 @@ describe('MEASUREMENT_DTO_SCHEMA — плоская форма агрегата 
   });
 });
 
+// TASK-042 §5/§7/§20: critical — аддитивное server-computed поле (политика TASK-020
+// в list-хендлере main), конверт v не меняется (арх. 05 §6).
+describe('MEASUREMENT_DTO_SCHEMA — critical (TASK-042: аддитивное поле)', () => {
+  it('DTO без critical валиден — старые потребители не ломаются (§20: схема аддитивна)', () => {
+    expect(MEASUREMENT_DTO_SCHEMA.safeParse(VALID_DTO).success).toBe(true);
+    expect(
+      MEASUREMENT_LIST_RESPONSE_SCHEMA.safeParse({ items: [VALID_DTO], total: 1 }).success,
+    ).toBe(true);
+  });
+
+  it('critical high/low — валидны; иное значение и не-строка — отказ', () => {
+    expect(MEASUREMENT_DTO_SCHEMA.safeParse({ ...VALID_DTO, critical: 'high' }).success).toBe(true);
+    expect(MEASUREMENT_DTO_SCHEMA.safeParse({ ...VALID_DTO, critical: 'low' }).success).toBe(true);
+    expect(MEASUREMENT_DTO_SCHEMA.safeParse({ ...VALID_DTO, critical: 'medium' }).success).toBe(
+      false,
+    );
+    expect(MEASUREMENT_DTO_SCHEMA.safeParse({ ...VALID_DTO, critical: 1 }).success).toBe(false);
+  });
+});
+
 describe('флаги эвристик в ответе add (§5/§11)', () => {
   it('TypoFlagDto: {field, median, value, deviation}; поле — только sys|dia (TASK-018)', () => {
     const typo: TypoFlagDto = { field: 'sys', median: 125.5, value: 215, deviation: 89.5 };
@@ -476,7 +496,7 @@ describe('типы выводятся из схем (§23: без ручной �
     }>();
   });
 
-  it('MeasurementDto — плоская форма агрегата (§7)', () => {
+  it('MeasurementDto — плоская форма агрегата (§7); critical — TASK-042 (аддитивно)', () => {
     expectTypeOf<MeasurementDto>().toEqualTypeOf<{
       id: string;
       profileId: string;
@@ -491,6 +511,7 @@ describe('типы выводятся из схем (§23: без ручной �
       source: 'manual' | 'import';
       createdAtUtcMs: number;
       updatedAtUtcMs: number;
+      critical?: 'high' | 'low';
     }>();
   });
 

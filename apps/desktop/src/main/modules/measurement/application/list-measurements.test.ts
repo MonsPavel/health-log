@@ -202,6 +202,45 @@ describe('ListMeasurementsUseCase — total и фильтры (§7)', () => {
   });
 });
 
+describe('ListMeasurementsUseCase — critical-флаг DTO (TASK-042 §5/§9)', () => {
+  it('sys=190 → critical="high" в DTO ответа list (server-computed, политика TASK-020)', async () => {
+    const repo = new InMemoryBpMeasurementRepository();
+    const { useCase } = makeUseCase(repo);
+    await repo.add(record(BASE_MS, { sys: 190, dia: 125 }));
+
+    const page = await useCase.execute({ profileId: 'profile-1' });
+
+    expect(page.items[0]?.critical).toBe('high');
+  });
+
+  it('границы политики: dia=120 → high; 85/55 → low; пороги 179/119 и 91/61 — без critical (§9: assessCritical)', async () => {
+    const repo = new InMemoryBpMeasurementRepository();
+    const { useCase } = makeUseCase(repo);
+    await repo.add(record(BASE_MS, { sys: 121, dia: 120 })); // high по dia (sys>dia домен, TASK-016)
+    await repo.add(record(BASE_MS - 1 * MINUTE_MS, { sys: 85, dia: 55 })); // low
+    await repo.add(record(BASE_MS - 2 * MINUTE_MS, { sys: 179, dia: 119 })); // норма
+    await repo.add(record(BASE_MS - 3 * MINUTE_MS, { sys: 91, dia: 61 })); // норма
+
+    const page = await useCase.execute({ profileId: 'profile-1' });
+
+    const bySys = new Map(page.items.map((m) => [m.sys, m.critical]));
+    expect(bySys.get(121)).toBe('high');
+    expect(bySys.get(85)).toBe('low');
+    expect(bySys.get(179)).toBeUndefined();
+    expect(bySys.get(91)).toBeUndefined();
+  });
+
+  it('нормальная запись → ключа critical в DTO нет (чистая форма по проводам, как pulse/note)', async () => {
+    const repo = new InMemoryBpMeasurementRepository();
+    const { useCase } = makeUseCase(repo);
+    await repo.add(record(BASE_MS));
+
+    const page = await useCase.execute({ profileId: 'profile-1' });
+
+    expect(page.items[0]).not.toHaveProperty('critical');
+  });
+});
+
 describe('ListMeasurementsUseCase — телеметрия (§18)', () => {
   it('debug-лог длительности с total; значений измерений в мете нет (PHI, TASK-010)', async () => {
     const repo = new InMemoryBpMeasurementRepository();
