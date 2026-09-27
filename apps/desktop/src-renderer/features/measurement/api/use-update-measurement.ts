@@ -42,6 +42,14 @@ export type UpdateAssembleFailure = { readonly ok: false; readonly fieldErrors: 
 /**
  * Сборка + клиентская валидация запроса update (§11/§13): черновик формы
  * валидируется схемой add (§4 — одна точка), к прошедшему запросу добавляется id.
+ *
+ * TASK-043 (находка e2e edge-inputs, сценарий 6): в payload update НЕ входит
+ * profileId — контракт MEASUREMENT_UPDATE_REQUEST_SCHEMA (TASK-028) — strict-объект
+ * {id, …измеримые поля} без profileId, и каркас IPC (register-channel §13 п. 2)
+ * молча отклоняет лишний ключ как VALIDATION/FAILED ещё до хендлера. Спред
+ * `...result.request` целиком протаскивал profileId из add-сборки → любая правка
+ * записи падала APP-VALIDATION-тостом, невидимым в юнитах с моком invoke. Поля
+ * add переносятся выборочно, явно.
  */
 export function assembleUpdateRequest(
   draft: MeasurementDraft,
@@ -52,7 +60,20 @@ export function assembleUpdateRequest(
   if (!result.ok) {
     return result;
   }
-  return { ok: true, request: { id, ...result.request } };
+  const add = result.request;
+  return {
+    ok: true,
+    request: {
+      id,
+      sys: add.sys,
+      dia: add.dia,
+      ...(add.pulse !== undefined ? { pulse: add.pulse } : {}),
+      irregularPulse: add.irregularPulse,
+      arm: add.arm,
+      ...(add.note !== undefined ? { note: add.note } : {}),
+      takenAt: add.takenAt,
+    },
+  };
 }
 
 /** Вызов канала update: разворот конверта; failure → IpcApiError (§11). */

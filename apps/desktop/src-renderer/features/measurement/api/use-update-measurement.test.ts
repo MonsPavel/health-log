@@ -50,6 +50,9 @@ describe('assembleUpdateRequest — сборка payload update (§11: {id, …�
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.request.id).toBe('m-1');
+    // TASK-043 (находка e2e): контракт update — strict {id, …поля} БЕЗ profileId;
+    // лишний ключ каркас IPC отклоняет как VALIDATION/FAILED до хендлера (§13).
+    expect('profileId' in result.request).toBe(false);
     expect(result.request.sys).toBe(127);
     expect(result.request.dia).toBe(82);
     expect(result.request.irregularPulse).toBe(false);
