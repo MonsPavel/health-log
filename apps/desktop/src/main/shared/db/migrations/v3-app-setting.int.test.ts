@@ -96,7 +96,9 @@ describe('миграция v3 — app_setting (TASK-047 §19/§20)', () => {
     const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as {
       value: string;
     };
-    expect(version.value).toBe('3');
+    // TASK-051: реестр MIGRATIONS вырос до v4 — на свежей БД версия = максимум
+    // реестра (конвенция теста v1 §19 п. 6); v3 применена (таблица выше).
+    expect(version.value).toBe(String(MIGRATIONS.at(-1)?.version));
     db.close();
   });
 
@@ -126,7 +128,8 @@ describe('миграция v3 — app_setting (TASK-047 §19/§20)', () => {
     const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as {
       value: string;
     };
-    expect(version.value).toBe('3');
+    // TASK-051: реестр вырос до v4 — повторный прогон остаётся no-op на максимуме.
+    expect(version.value).toBe(String(MIGRATIONS.at(-1)?.version));
     db.close();
   });
 
@@ -160,8 +163,8 @@ describe('миграция v3 — app_setting (TASK-047 §19/§20)', () => {
     db.close();
   });
 
-  it('(5) реестр MIGRATIONS — версии [1, 2, 3]; V3_APP_SETTING.version === 3', () => {
+  it('(5) реестр MIGRATIONS — версии [1, 2, 3, 4] (TASK-051: +v4); V3_APP_SETTING.version === 3', () => {
     expect(V3_APP_SETTING.version).toBe(3);
-    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3]);
+    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4]);
   });
 });
