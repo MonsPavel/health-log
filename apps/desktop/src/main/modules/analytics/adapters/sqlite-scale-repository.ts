@@ -28,7 +28,11 @@ import { AppError } from '@hl/kernel';
 
 import type { Clock } from '@hl/kernel';
 
-import type { ScaleRecord, ScaleRecordInput, ScaleRepository } from '../application/ports/scale-repository.js';
+import type {
+  ScaleRecord,
+  ScaleRecordInput,
+  ScaleRepository,
+} from '../application/ports/scale-repository.js';
 
 /** Ключи i18n-каталога по конвенции арх. 05 §29 (`errors.<КОД_С_ПОДЧЁРКИВАНИЯМИ>`); тексты — TASK-101. */
 export const STORAGE_CONSTRAINT_MESSAGE_KEY = 'errors.STORAGE_CONSTRAINT';
@@ -60,7 +64,8 @@ const INSERT_SQL = `
 `;
 
 /** Активация: момент — из Clock (инъекция времени, §13). */
-const ACTIVATE_SQL = 'UPDATE reference_scale SET activated_at_utc = @activated_at_utc WHERE id = @id';
+const ACTIVATE_SQL =
+  'UPDATE reference_scale SET activated_at_utc = @activated_at_utc WHERE id = @id';
 
 /** Строка БД (snake_case) — сырой вид до маппинга в ScaleRecord. */
 interface ScaleRow {

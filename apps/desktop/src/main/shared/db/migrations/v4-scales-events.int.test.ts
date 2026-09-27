@@ -73,11 +73,8 @@ const tableColumns = (
   }[];
 
 const tableExists = (db: EncryptedDatabase, name: string): boolean =>
-  (
-    db
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
-      .get(name) as { name: string } | undefined
-  ) !== undefined;
+  (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(name) as
+    { name: string } | undefined) !== undefined;
 
 describe('миграция v4 — reference_scale + app_event (TASK-051 §19/§20)', () => {
   it('(1) v4 создаёт обе таблицы и индекс app_event(kind, at_utc); DDL поимённо; schema_version=4 (AC1)', async () => {
@@ -113,9 +110,12 @@ describe('миграция v4 — reference_scale + app_event (TASK-051 §19/§2
     expect(eventColumns.map((c) => c.pk)).toEqual([1, 0, 0, 0]);
 
     const indexes = db
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'app_event'")
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'app_event' " +
+          "AND name NOT LIKE 'sqlite_autoindex%'",
+      )
       .all() as { name: string }[];
-    expect(indexes.length).toBe(1);
+    expect(indexes.map((i) => i.name)).toEqual(['app_event_kind_at_idx']);
     const indexInfo = db.prepare('PRAGMA index_info(app_event_kind_at_idx)').all() as {
       name: string;
     }[];
@@ -136,7 +136,9 @@ describe('миграция v4 — reference_scale + app_event (TASK-051 §19/§2
     ).run();
 
     const row = db
-      .prepare('SELECT code, version, source_label, data_json, activated_at_utc FROM reference_scale WHERE id = ?')
+      .prepare(
+        'SELECT code, version, source_label, data_json, activated_at_utc FROM reference_scale WHERE id = ?',
+      )
       .get('s-1') as {
       code: string;
       version: string;
@@ -197,7 +199,12 @@ describe('миграция v4 — reference_scale + app_event (TASK-051 §19/§2
     const row = db
       .prepare('SELECT id, kind, payload_json, at_utc FROM app_event WHERE id = ?')
       .get('e-1') as { id: string; kind: string; payload_json: string; at_utc: number };
-    expect(row).toEqual({ id: 'e-1', kind: 'measurement_added', payload_json: '{"id":"m-1"}', at_utc: 12345 });
+    expect(row).toEqual({
+      id: 'e-1',
+      kind: 'measurement_added',
+      payload_json: '{"id":"m-1"}',
+      at_utc: 12345,
+    });
 
     const byKind = db
       .prepare('SELECT count(*) AS n FROM app_event WHERE kind = ? AND at_utc >= ?')

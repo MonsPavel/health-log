@@ -23,10 +23,7 @@ import {
   PREFS_SET_REQUEST_SCHEMA,
   PREFS_SET_RESPONSE_SCHEMA,
 } from './prefs/schemas.js';
-import {
-  SCALES_ACTIVE_REQUEST_SCHEMA,
-  SCALES_ACTIVE_RESPONSE_SCHEMA,
-} from './scales.js';
+import { SCALES_ACTIVE_REQUEST_SCHEMA, SCALES_ACTIVE_RESPONSE_SCHEMA } from './scales.js';
 
 /** Пара схем канала: запрос валидируется в main до handler, ответ — контракт хендлера. */
 export interface ChannelSchemas<TRequest = unknown, TResponse = unknown> {

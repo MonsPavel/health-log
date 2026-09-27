@@ -15,7 +15,7 @@
 //  7. активной записи нет (инициализации не было) → STORAGE/CORRUPT + лог (§7);
 //  8. зеркало контракта совместимо с типами пакета: SCALE_DATA_SCHEMA парсит
 //     BP_OFFICE_ESC2018 в ScaleData (golden-сверка формы, §7).
-import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { BP_OFFICE_ESC2018, type ScaleData } from '@hl/scales-data';
 import { SCALE_DATA_SCHEMA, type ActiveScale, type ScaleDataFile } from '@hl/contracts';
@@ -25,7 +25,11 @@ import type { ScaleRecord, ScaleRecordInput, ScaleRepository } from './ports/sca
 import { ScaleService } from './scale-service.js';
 
 /** Записи лога по уровням (§18-проверки). */
-type LogEntry = { level: 'info' | 'warn' | 'error'; message: string; meta?: Record<string, unknown> };
+type LogEntry = {
+  level: 'info' | 'warn' | 'error';
+  message: string;
+  meta?: Record<string, unknown>;
+};
 
 /** Fake-репозиторий: семантика активности как у SQLite-адаптера (max activated_at_utc). */
 class FakeScaleRepository implements ScaleRepository {
@@ -94,7 +98,11 @@ describe('ScaleService.ensureActivated — активация при старт�
     expect(insert?.dataJson).toBe(JSON.stringify(BP_OFFICE_ESC2018));
     expect(repo.activations[0]).toBe(insert?.id);
     expect(logs).toContainEqual(
-      expect.objectContaining({ level: 'info', message: 'scale activated', meta: { code: 'bp_office_esc2018', version: '1.0.0' } }),
+      expect.objectContaining({
+        level: 'info',
+        message: 'scale activated',
+        meta: { code: 'bp_office_esc2018', version: '1.0.0' },
+      }),
     );
   });
 
@@ -122,10 +130,11 @@ describe('ScaleService.ensureActivated — активация при старт�
   });
 
   it('(3) смена версии данных пакета (мок 1.1.0) → новая версия активна, старая в истории с прежним activated_at_utc (§13)', async () => {
-    const { repo, logs, service } = makeService();
+    const { repo, service } = makeService();
     await service.ensureActivated();
-    const oldActivatedAt = [...repo.rows.values()].find((row) => row.version === '1.0.0')
-      ?.activatedAtUtc;
+    const oldActivatedAt = [...repo.rows.values()].find(
+      (row) => row.version === '1.0.0',
+    )?.activatedAtUtc;
     expect(oldActivatedAt).not.toBeNull();
 
     // Тот же репозиторий, данные пакета обновились до 1.1.0 (перезапуск с новой версией).
@@ -200,7 +209,9 @@ describe('ScaleService.getActiveScale — чтение с валидацией �
     }
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).code).toBe('STORAGE/CORRUPT');
-    expect(logs).toContainEqual(expect.objectContaining({ level: 'error', message: expect.stringContaining('scale') }));
+    const errorLogs = logs.filter((entry) => entry.level === 'error');
+    expect(errorLogs.length).toBeGreaterThan(0);
+    expect(errorLogs[0]?.message).toContain('scale');
   });
 
   it('(6) data_json вне схемы (нет specialGroupsNote) → STORAGE/CORRUPT + лог error (§7)', async () => {

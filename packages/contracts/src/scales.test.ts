@@ -27,12 +27,42 @@ import {
 
 /** Категории ESC/ESH 2018 (SRS 04 табл. 4.1) — компактный литерал фикстуры. */
 const ESC2018_CATEGORIES = [
-  { code: 'optimal', label: 'Оптимальное', sysRange: { min: null, max: 119 }, diaRange: { min: null, max: 79 } },
-  { code: 'normal', label: 'Нормальное', sysRange: { min: 120, max: 129 }, diaRange: { min: 80, max: 84 } },
-  { code: 'high_normal', label: 'Высокое нормальное', sysRange: { min: 130, max: 139 }, diaRange: { min: 85, max: 89 } },
-  { code: 'hypertension1', label: 'АГ 1 степени', sysRange: { min: 140, max: 159 }, diaRange: { min: 90, max: 99 } },
-  { code: 'hypertension2', label: 'АГ 2 степени', sysRange: { min: 160, max: 179 }, diaRange: { min: 100, max: 109 } },
-  { code: 'hypertension3', label: 'АГ 3 степени', sysRange: { min: 180, max: null }, diaRange: { min: 110, max: null } },
+  {
+    code: 'optimal',
+    label: 'Оптимальное',
+    sysRange: { min: null, max: 119 },
+    diaRange: { min: null, max: 79 },
+  },
+  {
+    code: 'normal',
+    label: 'Нормальное',
+    sysRange: { min: 120, max: 129 },
+    diaRange: { min: 80, max: 84 },
+  },
+  {
+    code: 'high_normal',
+    label: 'Высокое нормальное',
+    sysRange: { min: 130, max: 139 },
+    diaRange: { min: 85, max: 89 },
+  },
+  {
+    code: 'hypertension1',
+    label: 'АГ 1 степени',
+    sysRange: { min: 140, max: 159 },
+    diaRange: { min: 90, max: 99 },
+  },
+  {
+    code: 'hypertension2',
+    label: 'АГ 2 степени',
+    sysRange: { min: 160, max: 179 },
+    diaRange: { min: 100, max: 109 },
+  },
+  {
+    code: 'hypertension3',
+    label: 'АГ 3 степени',
+    sysRange: { min: 180, max: null },
+    diaRange: { min: 110, max: null },
+  },
 ] as const;
 
 const VALID_ACTIVE_SCALE = {
@@ -93,8 +123,14 @@ describe('SCALES_ACTIVE_RESPONSE_SCHEMA — форма ActiveScale (§7)', () =>
   });
 
   it.each([
-    ['чужой код категории', { ...VALID_ACTIVE_SCALE, categories: [{ ...ESC2018_CATEGORIES[0], code: 'ideal' }] }],
-    ['пустая метка', { ...VALID_ACTIVE_SCALE, categories: [{ ...ESC2018_CATEGORIES[0], label: '' }] }],
+    [
+      'чужой код категории',
+      { ...VALID_ACTIVE_SCALE, categories: [{ ...ESC2018_CATEGORIES[0], code: 'ideal' }] },
+    ],
+    [
+      'пустая метка',
+      { ...VALID_ACTIVE_SCALE, categories: [{ ...ESC2018_CATEGORIES[0], label: '' }] },
+    ],
     [
       'нецелая граница',
       {
@@ -129,7 +165,8 @@ describe('SCALES_ACTIVE_RESPONSE_SCHEMA — форма ActiveScale (§7)', () =>
 describe('SCALE_DATA_SCHEMA — полный файл данных (зеркало пакета TASK-050, §7)', () => {
   it('парсит полный файл: language=ru, 6 категорий, $comment опциональны', () => {
     expect(SCALE_DATA_SCHEMA.parse(VALID_SCALE_DATA)).toEqual(VALID_SCALE_DATA);
-    const { $comment: _comment, ...withoutComment } = VALID_SCALE_DATA;
+    const withoutComment: Record<string, unknown> = { ...VALID_SCALE_DATA };
+    delete withoutComment.$comment;
     expect(SCALE_DATA_SCHEMA.parse(withoutComment)).toEqual(withoutComment);
   });
 

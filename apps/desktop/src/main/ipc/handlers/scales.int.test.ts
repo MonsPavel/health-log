@@ -75,7 +75,12 @@ describe('scales/active через контейнер — полный путь 
           'SELECT code, version, source_label, activated_at_utc FROM reference_scale ' +
             'WHERE activated_at_utc IS NOT NULL',
         )
-        .all() as { code: string; version: string; source_label: string; activated_at_utc: number }[];
+        .all() as {
+        code: string;
+        version: string;
+        source_label: string;
+        activated_at_utc: number;
+      }[];
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({
         code: BP_OFFICE_ESC2018.code,
@@ -120,9 +125,9 @@ describe('scales/active через контейнер — полный путь 
       container.close();
       rebuilt = await makeContainer(dir);
 
-      const rows = rebuilt.db
-        .prepare('SELECT count(*) AS n FROM reference_scale')
-        .get() as { n: number };
+      const rows = rebuilt.db.prepare('SELECT count(*) AS n FROM reference_scale').get() as {
+        n: number;
+      };
       expect(rows.n).toBe(1);
 
       const envelope = await rebuilt.channels.dispatch({
@@ -146,9 +151,7 @@ describe('scales/active через контейнер — полный путь 
     const dir = newUserDataDir();
     const container = await makeContainer(dir);
     try {
-      container.db
-        .prepare("UPDATE reference_scale SET data_json = '{not json'")
-        .run();
+      container.db.prepare("UPDATE reference_scale SET data_json = '{not json'").run();
 
       const envelope = await container.channels.dispatch({ channel: 'scales/active', payload: {} });
       expect(envelope).toMatchObject({ ok: false });

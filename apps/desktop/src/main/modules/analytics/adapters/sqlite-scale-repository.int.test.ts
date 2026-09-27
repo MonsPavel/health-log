@@ -55,7 +55,9 @@ afterAll(() => {
 });
 
 /** БД на актуальной схеме + адаптер с FixedClock (§19: детерминизм времени). */
-const makeRepo = async (name: string): Promise<{ db: EncryptedDatabase; repo: SqliteScaleRepository }> => {
+const makeRepo = async (
+  name: string,
+): Promise<{ db: EncryptedDatabase; repo: SqliteScaleRepository }> => {
   const dir = mkdtempSync(join(tmpdir(), 'hl-scale-repo-int-'));
   dirs.push(dir);
   const db = openEncrypted(join(dir, name), randomBytes(32).toString('hex'));
@@ -70,8 +72,7 @@ const insertVersion = (
   id: string,
   version: string,
   dataJson = '{"code":"bp_office_esc2018"}',
-): Promise<void> =>
-  repo.insert({ id, code: CODE, version, sourceLabel: 'ESC/ESH 2018', dataJson });
+): Promise<void> => repo.insert({ id, code: CODE, version, sourceLabel: 'ESC/ESH 2018', dataJson });
 
 describe('SqliteScaleRepository — reference_scale v4 (TASK-051 §19)', () => {
   it('(1) insert + activate → findActiveByCode возвращает запись с activatedAtUtc из Clock', async () => {
