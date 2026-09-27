@@ -26,4 +26,10 @@ export default defineConfig({
   retries: 0,
   /** §5: единственный проект E2E-слоя. */
   projects: [{ name: 'e2e-electron' }],
+  /**
+   * TASK-048 §6: базлайны visual-снапшотов (visual-scales.spec.ts) — явный каталог
+   * tests/e2e/__screenshots__ (коммитятся в репо, §20 AC2), не дефолтный
+   * <spec>-snapshots.
+   */
+  snapshotPathTemplate: '{testDir}/__screenshots__/{arg}{ext}',
 });
