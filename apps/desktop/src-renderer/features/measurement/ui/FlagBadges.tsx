@@ -29,9 +29,14 @@ import type { MeasurementDto } from '@hl/contracts';
 
 import { CriticalPanel } from '../../../components/critical-panel/CriticalPanel';
 
-/** Props бейджей: DTO записи — флаги читаются с него (critical/irregularPulse). */
+/**
+ * Props бейджей: флаги и значения читаются с записи (critical/irregularPulse/sys/dia).
+ * TASK-059: структурное подмножество (Pick), а не полный MeasurementDto — таблица
+ * динамики строит бейджи из сырой точки тренда (RawPoint несёт только эти поля);
+ * полный DTO (журнал) удовлетворяет Pick без изменений вызовов.
+ */
 export interface FlagBadgesProps {
-  readonly measurement: MeasurementDto;
+  readonly measurement: Pick<MeasurementDto, 'sys' | 'dia' | 'critical' | 'irregularPulse'>;
 }
 
 /** Сокращения критического бейджа — литералы (§22: динамических ключей нет). */
