@@ -62,6 +62,35 @@ describe('TREND_REQUEST_SCHEMA — запрос trend/series (§11: {profileId, 
 });
 
 describe('TREND_RAW_POINT_SCHEMA — сырая точка графика (§5)', () => {
+  // TASK-057 §12 (ДОПОЛНЕНИЕ КОНТРАКТА, аддитивно): переход к правке из тултипа
+  // графика — точка несёт id записи; режим daily правки не имеет (агрегат, §12).
+  it('(057 §12) id записи: строка присутствует в точке с id; без id поле отсутствует (аддитивно)', () => {
+    const withId = {
+      utcMs: 0,
+      tzOffsetMin: 180,
+      sys: 120,
+      dia: 80,
+      part: 'morning',
+      id: '0198abcd-7f12-7abc-9def-0123456789ab',
+    };
+    expect(TREND_RAW_POINT_SCHEMA.safeParse(withId).success).toBe(true);
+    const withoutId = { utcMs: 0, tzOffsetMin: 180, sys: 120, dia: 80, part: 'morning' };
+    expect(TREND_RAW_POINT_SCHEMA.safeParse(withoutId).success).toBe(true);
+  });
+
+  it('(057 §12) strict по-прежнему: id неверного типа отклоняется', () => {
+    expect(
+      TREND_RAW_POINT_SCHEMA.safeParse({
+        utcMs: 0,
+        tzOffsetMin: 0,
+        sys: 120,
+        dia: 80,
+        part: 'other',
+        id: 42,
+      }).success,
+    ).toBe(false);
+  });
+
   it('принимает полную точку: pulse и critical присутствуют (сквозной флаг TASK-020)', () => {
     const point = {
       utcMs: 1_774_891_200_000,

@@ -282,6 +282,19 @@ describe('TrendSeries.getTrendSeries — сырые точки: сортиров
     const response = await series.getTrendSeries('profile-1', 'all');
     expect(response.points?.[0]?.tzOffsetMin).toBe(14 * 60);
   });
+
+  // TASK-057 §12 (ДОПОЛНЕНИЕ КОНТРАКТА): id записи прокидывается в сырую точку —
+  // переход к правке из тултипа графика; точки без id (ручные фикстуры) — поле
+  // отсутствует в JSON (§7).
+  it('(057 §12) id записи прокинут в сырую точку; без id — поле отсутствует', async () => {
+    const response = await makeSeries([
+      { ...point('2026-03-02', '07:00', 120, 80), id: 'rec-1' },
+      point('2026-03-02', '20:00', 130, 85),
+    ]).getTrendSeries('profile-1', 'all');
+    const [withId, withoutId] = response.points ?? [];
+    expect(withId?.id).toBe('rec-1');
+    expect('id' in withoutId).toBe(false);
+  });
 });
 
 describe('TrendSeries.getTrendSeries — пустой период и скоуп (§11/§14)', () => {
