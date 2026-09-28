@@ -142,7 +142,7 @@ describe('DashboardScreen — состояния (§10: loading/empty/данны
 
     expect(await screen.findByTestId('trend-chart')).not.toBeNull();
     expect(screen.getByRole('heading', { name: 'Динамика' })).not.toBeNull();
-    expect(screen.getByText('ESC/ESH 2018')).not.toBeNull();
+    expect(screen.getByTestId('scale-source').textContent).toContain('ESC/ESH 2018');
     expect(screen.getByTestId('trend-legend')).not.toBeNull();
   });
 

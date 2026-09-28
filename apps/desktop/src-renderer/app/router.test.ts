@@ -7,6 +7,8 @@
  * «revert — экран-заглушка журнала восстанавливается»), остальные маршруты —
  * заглушки TASK-013. TASK-033: /journal — экран истории (список по дням), форма
  * измерения открывается кнопкой «Добавить» на той же вкладке.
+ * TASK-057: /dashboard — реальный экран «Динамика» (период-контрол + график);
+ * мост-мок отдаёт пустые данные — экран в каркасе empty (§10 057).
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createElement } from 'react';
@@ -25,9 +27,12 @@ const SECTIONS = [
   { href: '#/settings', label: 'Настройки' },
 ] as const;
 
-/** Маршруты-заглушки (журнал с TASK-031 — форма ввода; настройки с TASK-047 — реальный экран). */
+/** Маршруты-заглушки (журнал с TASK-031 — экран истории; настройки с TASK-047 — реальный экран; динамика с TASK-057 — реальный экран). */
 const WIP_SECTIONS = SECTIONS.filter(
-  (section) => section.href !== '#/journal' && section.href !== '#/settings',
+  (section) =>
+    section.href !== '#/journal' &&
+    section.href !== '#/settings' &&
+    section.href !== '#/dashboard',
 );
 
 function renderRouterAt(hash: string): void {
@@ -116,6 +121,13 @@ describe('AppRouter — маршруты (§5)', () => {
     renderRouterAt('#/nope');
 
     expect(await screen.findByRole('heading', { name: 'Динамика' })).not.toBeNull();
+  });
+
+  it('#/dashboard: реальный экран «Динамика» (TASK-057) — период-контрол вместо заглушки (§24: revert — заглушка)', async () => {
+    renderRouterAt('#/dashboard');
+
+    expect(await screen.findByTestId('dashboard-period')).not.toBeNull();
+    expect(screen.queryByText('Экран появится после настройки')).toBeNull();
   });
 });
 

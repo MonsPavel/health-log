@@ -38,7 +38,7 @@ describe('yDomainOf — правило оси Y (§22: фикс-минимум 6
 
 describe('TrendChart — raw-режим (§20.1/§20.2/§20.3)', () => {
   it('(AC1) 30 дней: обе линии (sys и dia), 4 опорные линии (2 sys + 2 dia), подпись «ESC/ESH 2018» видна', () => {
-    const { container, getByText } = render(
+    const { container } = render(
       createElement(TrendChart, {
         response: { mode: 'raw', points: [...TREND_30_DAYS] },
         scale: SCALE_FIXTURE,
@@ -49,7 +49,7 @@ describe('TrendChart — raw-режим (§20.1/§20.2/§20.3)', () => {
     const lines = container.querySelectorAll('.recharts-line');
     expect(lines.length).toBe(2);
     expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(4);
-    expect(getByText('ESC/ESH 2018')).not.toBeNull();
+    expect(screen.getByTestId('scale-source').textContent).toContain('ESC/ESH 2018');
   });
 
   it('(AC2) точки различимы формой: утро=circle, вечер=rect, другое=polygon (форма+цвет, не только цвет)', () => {

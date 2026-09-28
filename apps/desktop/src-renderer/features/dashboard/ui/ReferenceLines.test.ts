@@ -15,6 +15,7 @@ import { ComposedChart, Line } from 'recharts';
 
 import type { ActiveScale } from '@hl/contracts';
 
+import '../../../i18n';
 import { referenceThresholdsOf, ReferenceLines } from './ReferenceLines';
 
 /** Фикстура шкалы ESC/ESH 2018 (§20.1: категории high_normal 130/85, hypertension1 140/90). */
@@ -88,7 +89,7 @@ describe('referenceThresholdsOf — извлечение порогов из ш�
 
 describe('ReferenceLines — рендер внутри графика (§20.1: 4 опорные линии, 2 sys + 2 dia)', () => {
   it('4 линии .recharts-reference-line + HTML-подпись источника (один раз, §13)', () => {
-    const { container, getByTestId, getByText } = render(
+    const { container, getByTestId } = render(
       createElement(
         ComposedChart,
         { width: 400, height: 200, data: [{ utcMs: 0, sys: 120 }] },
@@ -97,8 +98,8 @@ describe('ReferenceLines — рендер внутри графика (§20.1: 4
       ),
     );
     expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(4);
-    expect(getByText('ESC/ESH 2018')).not.toBeNull();
-    expect(getByTestId('scale-source')).not.toBeNull();
+    // Подпись — интерполированный ключ a11y.sourceLabel с sourceLabel из данных (§17).
+    expect(getByTestId('scale-source').textContent).toContain('ESC/ESH 2018');
   });
 
   it('без шкалы линии и подпись не рендерятся (шкала ещё грузится — график уже виден)', () => {

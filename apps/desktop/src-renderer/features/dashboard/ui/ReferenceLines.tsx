@@ -12,6 +12,7 @@
  * high_normal/hypertension1 могут отсутствовать в будущих версиях шкалы —
  * отсутствующие пороги линий не дают (потребители рисуют то, что отдала шкала).
  */
+import { useTranslation } from 'react-i18next';
 import { ReferenceLine } from 'recharts';
 
 import type { ActiveScale } from '@hl/contracts';
@@ -72,7 +73,10 @@ export interface ReferenceLinesProps {
  * пересекаются стилем с сериями (sys — сплошная, dia — штрих, §5).
  */
 export function ReferenceLines({ scale }: ReferenceLinesProps): JSX.Element | null {
-  if (scale === undefined) {
+  const { t } = useTranslation();
+  // Guard: боевой main валидирует scales/active схемой (§14), но экран остаётся
+  // живым при любом мусоре данных (проверка в глубину — категорий может не быть).
+  if (scale === undefined || !Array.isArray(scale.categories)) {
     return null;
   }
   const { lines, sourceLabel } = referenceThresholdsOf(scale);
@@ -89,7 +93,7 @@ export function ReferenceLines({ scale }: ReferenceLinesProps): JSX.Element | nu
       ))}
       {/* §13: подпись источника — один раз на график; за пределами SVG (см. шапку). */}
       <div data-testid="scale-source" className="text-xs text-neutral-500">
-        {sourceLabel}
+        {t('dashboard.a11y.sourceLabel', { source: sourceLabel })}
       </div>
     </>
   );
