@@ -41,9 +41,10 @@ describe('App — корневой boundary и тосты (§5/§10)', () => {
   it('без краша показывает каркас TASK-013: провайдеры + роутер с разделами', async () => {
     renderApp();
 
-    // Провайдеры темы/i18n/Query + HashRouter: экран-заглушка активного маршрута.
+    // Провайдеры темы/i18n/Query + HashRouter: домашний экран-сводка TASK-061
+    // (мост-мок отвечает пустой БД → приветственное состояние сводки).
     expect(screen.getByRole('navigation', { name: 'Разделы' })).toBeDefined();
-    expect(await screen.findByRole('heading', { name: 'Динамика' })).toBeDefined();
+    expect(await screen.findByRole('heading', { name: 'Сводка' })).toBeDefined();
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });
