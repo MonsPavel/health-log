@@ -24,6 +24,7 @@ import {
   PREFS_SET_RESPONSE_SCHEMA,
 } from './prefs/schemas.js';
 import { SCALES_ACTIVE_REQUEST_SCHEMA, SCALES_ACTIVE_RESPONSE_SCHEMA } from './scales.js';
+import { STATS_REQUEST_SCHEMA, STATS_RESPONSE_SCHEMA } from './stats/schemas.js';
 
 /** Пара схем канала: запрос валидируется в main до handler, ответ — контракт хендлера. */
 export interface ChannelSchemas<TRequest = unknown, TResponse = unknown> {
@@ -106,5 +107,16 @@ export const CHANNEL_SCHEMAS = {
   'scales/active': {
     request: SCALES_ACTIVE_REQUEST_SCHEMA,
     response: SCALES_ACTIVE_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-054 §5/§11: статистика периода поверх read models 052/053 —
+   * {profileId, period} → {stats: PeriodStatisticsDto, scale: {code, version,
+   * sourceLabel}}. Пустой период — полная структура с нулями/undefined, не ошибка
+   * (§11); при insufficientData категория в данных отсутствует (EC-09). Период —
+   * та же схема, что пойдёт в trend/series (§23: переиспользование обязательно).
+   */
+  'stats/period': {
+    request: STATS_REQUEST_SCHEMA,
+    response: STATS_RESPONSE_SCHEMA,
   },
 } satisfies Record<ChannelName, ChannelSchemas>;
