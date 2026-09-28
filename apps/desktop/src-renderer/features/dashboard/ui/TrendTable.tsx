@@ -91,9 +91,7 @@ function RawTable({
 
   const toggle = (key: TrendSortKey): void => {
     setSort((prev) =>
-      prev.key === key
-        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-        : { key, dir: 'asc' },
+      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' },
     );
   };
 
@@ -155,7 +153,11 @@ function RawTable({
             <td className="px-2 py-1">
               {point.arm === undefined
                 ? '—'
-                : t(point.arm === 'left' ? 'measurement.filters.arm.left' : 'measurement.filters.arm.right')}
+                : t(
+                    point.arm === 'left'
+                      ? 'measurement.filters.arm.left'
+                      : 'measurement.filters.arm.right',
+                  )}
             </td>
             {/* Флаги — бейджи TASK-042 (переиспользование, §5): critical/irregular точки. */}
             <td className="px-2 py-1">
@@ -176,7 +178,13 @@ function RawTable({
 }
 
 /** Дневная таблица (§5): день, avg± (min–max), count; сортировок нет — wallDate asc read model'а. */
-function DayTable({ days, periodLabel }: { readonly days: readonly DayPoint[]; readonly periodLabel: string }): JSX.Element {
+function DayTable({
+  days,
+  periodLabel,
+}: {
+  readonly days: readonly DayPoint[];
+  readonly periodLabel: string;
+}): JSX.Element {
   const { t } = useTranslation();
   return (
     <table data-testid="trend-table" className="w-full border-collapse text-sm">

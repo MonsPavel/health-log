@@ -66,8 +66,8 @@ afterEach(() => {
   Object.defineProperty(window, 'hl', { configurable: true, value: undefined, writable: true });
 });
 
-/** Рендер экрана по стартовому адресу; возвращает контейнер после смонтирования данных. */
-async function renderScreen(initialEntry: string): Promise<HTMLElement> {
+/** Рендер экрана по стартовому адресу; данные ждёт вызывающий (waitFor по testid). */
+function renderScreen(initialEntry: string): HTMLElement {
   mockHl();
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
@@ -86,7 +86,7 @@ async function renderScreen(initialEntry: string): Promise<HTMLElement> {
 
 describe('DashboardScreen — axe: без critical-нарушений (§20.6)', () => {
   it('axe.run: violations с impact=critical отсутствуют (экран с графиком daily и шкалой)', async () => {
-    const container = await renderScreen('/dashboard');
+    const container = renderScreen('/dashboard');
 
     // Ждём данных (график смонтирован) — axe по дереву с графиком.
     await waitFor(() =>
@@ -102,7 +102,7 @@ describe('DashboardScreen — axe: без critical-нарушений (§20.6)',
   // TASK-059 §20: таблица-альтернатива — полное скринридер-представление (NFR-6):
   // caption/scope/aria-sort-разметка без critical-нарушений и в axe.
   it('(059 §20) axe.run в режиме ?as=table: violations с impact=critical отсутствуют', async () => {
-    const container = await renderScreen('/dashboard?as=table');
+    const container = renderScreen('/dashboard?as=table');
 
     await waitFor(() =>
       expect(container.querySelector('[data-testid="trend-table"]')).not.toBeNull(),

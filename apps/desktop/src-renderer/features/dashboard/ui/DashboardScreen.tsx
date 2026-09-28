@@ -465,9 +465,7 @@ export function DashboardScreen(): JSX.Element {
             )}
             {/* §2/§5 059: резюме тренда под графиком — из stats (те же числа, что
                 у aria-метки графика; §13 тест-сверка). */}
-            {statsDto !== undefined && (
-              <TrendSummary stats={statsDto} periodLabel={periodLabel} />
-            )}
+            {statsDto !== undefined && <TrendSummary stats={statsDto} periodLabel={periodLabel} />}
           </>
         )
       ) : null}

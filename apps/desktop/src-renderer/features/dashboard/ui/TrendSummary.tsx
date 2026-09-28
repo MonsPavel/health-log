@@ -50,7 +50,9 @@ function ChannelLine({
     return null;
   }
   return (
-    <p data-testid={lineKey === 'dashboard.summary.sys' ? 'trend-summary-sys' : 'trend-summary-dia'}>
+    <p
+      data-testid={lineKey === 'dashboard.summary.sys' ? 'trend-summary-sys' : 'trend-summary-dia'}
+    >
       {t(lineKey, {
         period: periodLabel,
         avg: formatNumberRu(value.avg as number),
@@ -68,7 +70,9 @@ export function TrendSummary({ stats, periodLabel }: TrendSummaryProps): JSX.Ele
     <div data-testid="trend-summary" role="note" className="mt-2 flex flex-col gap-1 text-sm">
       <ChannelLine periodLabel={periodLabel} lineKey="dashboard.summary.sys" value={stats.sys} />
       <ChannelLine periodLabel={periodLabel} lineKey="dashboard.summary.dia" value={stats.dia} />
-      <p data-testid="trend-summary-count">{t('dashboard.summary.count', { count: stats.count })}</p>
+      <p data-testid="trend-summary-count">
+        {t('dashboard.summary.count', { count: stats.count })}
+      </p>
     </div>
   );
 }

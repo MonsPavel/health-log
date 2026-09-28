@@ -63,9 +63,9 @@ const renderTable = (response: TrendResponse, periodLabel = '30 дней'): void
 
 /** Тексты строк таблицы (td) в порядке DOM — сортировка видна по значениям. */
 const rowValues = (): string[][] =>
-  screen.getAllByTestId('trend-table-row').map((row) =>
-    Array.from(row.querySelectorAll('td')).map((cell) => cell.textContent ?? ''),
-  );
+  screen
+    .getAllByTestId('trend-table-row')
+    .map((row) => Array.from(row.querySelectorAll('td')).map((cell) => cell.textContent ?? ''));
 
 describe('TrendTable — raw-режим: колонки §5 и значения', () => {
   it('(AC2) колонки: Дата-время, СДА, ДДА, ЧСС, Рука, Флаги; caption с периодом; th scope="col"', () => {
@@ -169,7 +169,9 @@ describe('TrendTable — raw-режим: колонки §5 и значения'
     expect(screen.getByTestId('trend-sort-dia').closest('th')?.getAttribute('aria-sort')).toBe(
       'ascending',
     );
-    expect(screen.getByTestId('trend-sort-date').closest('th')?.getAttribute('aria-sort')).toBeNull();
+    expect(
+      screen.getByTestId('trend-sort-date').closest('th')?.getAttribute('aria-sort'),
+    ).toBeNull();
   });
 
   it('клик «Дата и время» после сортировки по значению — возврат к дате (asc → desc чередуется)', () => {
@@ -194,9 +196,12 @@ describe('TrendTable — daily-режим: дневная таблица (§5: �
     renderTable({ mode: 'daily', days: [...TREND_DAYS] });
 
     const table = screen.getByTestId('trend-table');
-    expect(
-      Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent),
-    ).toEqual(['День', 'СДА, мм рт. ст.', 'ДДА, мм рт. ст.', 'Измерений']);
+    expect(Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent)).toEqual([
+      'День',
+      'СДА, мм рт. ст.',
+      'ДДА, мм рт. ст.',
+      'Измерений',
+    ]);
     expect(table.querySelectorAll('button')).toHaveLength(0);
 
     const rows = rowValues();
