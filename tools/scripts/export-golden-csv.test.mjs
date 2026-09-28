@@ -45,7 +45,7 @@ describe('export-golden-csv: golden-файл для ручной Excel-пров�
     const text = bytes.toString('utf8');
     const lines = text.split('\r\n');
     expect(lines).toHaveLength(6); // заголовок + 5 записей (записи CRLF-разделителем)
-    expect(lines[0]).toBe('id;profileId;datetime;sys;dia;pulse;irregular;arm;note;source');
+    expect(lines[0]).toBe('\uFEFFid;profileId;datetime;sys;dia;pulse;irregular;arm;note;source');
     // Хронология asc (§13): первая запись — самая старая фикстура (2026-09-20);
     // id — uuid v7 из доменной фабрики (полный боевой путь), хвост строки золотой.
     expect(lines[1]).toMatch(
