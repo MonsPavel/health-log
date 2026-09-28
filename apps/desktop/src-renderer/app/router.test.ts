@@ -9,6 +9,8 @@
  * измерения открывается кнопкой «Добавить» на той же вкладке.
  * TASK-057: /dashboard — реальный экран «Динамика» (период-контрол + график);
  * мост-мок отдаёт пустые данные — экран в каркасе empty (§10 057).
+ * TASK-061: /dashboard — домашний экран-сводка (SummaryScreen); на пустой БД
+ * мост-мока сводка показывает приветственное состояние, график не монтируется.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createElement } from 'react';
@@ -112,19 +114,22 @@ describe('AppRouter — маршруты (§5)', () => {
   it('«/» перенаправляет на /dashboard', async () => {
     renderRouterAt('#/');
 
-    expect(await screen.findByRole('heading', { name: 'Динамика' })).not.toBeNull();
+    expect(await screen.findByRole('heading', { name: 'Сводка' })).not.toBeNull();
   });
 
   it('неизвестный путь перенаправляет на /dashboard', async () => {
     renderRouterAt('#/nope');
 
-    expect(await screen.findByRole('heading', { name: 'Динамика' })).not.toBeNull();
+    expect(await screen.findByRole('heading', { name: 'Сводка' })).not.toBeNull();
   });
 
-  it('#/dashboard: реальный экран «Динамика» (TASK-057) — период-контрол вместо заглушки (§24: revert — заглушка)', async () => {
+  it('#/dashboard: домашний экран-сводка (TASK-061) — приветствие пустого дневника; период-контрол графика в каркасе без записей не монтируется (§24: revert — /dashboard снова экран «Динамика»)', async () => {
     renderRouterAt('#/dashboard');
 
-    expect(await screen.findByTestId('dashboard-period')).not.toBeNull();
+    // Мост-мок отдаёт пустую БД (total 0) — сводка показывает welcome (§5 061);
+    // секция графика (#trends) при этом не монтируется вовсе.
+    expect(await screen.findByTestId('dashboard-welcome')).not.toBeNull();
+    expect(document.getElementById('trends')).toBeNull();
     expect(screen.queryByText('Экран появится после настройки')).toBeNull();
   });
 });

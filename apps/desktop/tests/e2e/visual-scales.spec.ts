@@ -19,7 +19,9 @@
  * нажатия NFR-6, кнопки rem — растут с масштабом).
  *
  * Риски хрупкости (§22): шрифты ОС — базлайны Windows (локальный рендер, §19);
- * анимации отключены опцией screenshot (animate-pulse и пр.).
+ * анимации отключены опцией screenshot (animate-pulse и пр.). TASK-061: /dashboard —
+ * домашняя сводка; на пустой БД — приветственное состояние (маркер dashboard-welcome),
+ * базлайны маршрута перегенерированы.
  */
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -76,10 +78,10 @@ function labelOf(path: string): string {
 function readyLocator(window: Page, path: string): Locator {
   switch (path) {
     case '/dashboard':
-      // TASK-057: /dashboard — реальный экран «Динамика»; на пустой tmp-userData
-      // trend/series отвечает {mode:'raw', points:[]} — детерминированное
-      // пустое состояние (заголовок виден уже в pending, скелетон — немонотонно).
-      return window.getByTestId('empty-chart');
+      // TASK-061: /dashboard — домашний экран-сводка; на пустой tmp-userData
+      // measurements/list {limit:1} отвечает total 0 — детерминированное
+      // приветственное состояние «Начните дневник» (карточек и графика нет).
+      return window.getByTestId('dashboard-welcome');
     case '/journal':
       return window.getByTestId('empty-history');
     case '/ai':
