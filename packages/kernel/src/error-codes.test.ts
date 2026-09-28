@@ -52,4 +52,9 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('STORAGE/MIGRATION_FAILED');
     expect(ERROR_CODES).toContain('STORAGE/DB_NEWER_THAN_APP');
   });
+
+  // TASK-063 §5/§9: use case ExportCsv (reporting) — неуспех сборки выгрузки.
+  it('код EXPORT/FAILED присутствует (TASK-063)', () => {
+    expect(ERROR_CODES).toContain('EXPORT/FAILED');
+  });
 });

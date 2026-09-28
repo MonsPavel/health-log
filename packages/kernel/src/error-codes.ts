@@ -41,6 +41,9 @@ export const ERROR_CODES = [
   // (наружу только код, детали в cause — §14).
   'STORAGE/CONSTRAINT',
   'STORAGE/FAILED',
+  // TASK-063 §5/§9: use case ExportCsv (модуль reporting) — неуспех сборки выгрузки
+  // (сбой чтения журнала при обходе пачками; причина — в cause, наружу только код).
+  'EXPORT/FAILED',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */

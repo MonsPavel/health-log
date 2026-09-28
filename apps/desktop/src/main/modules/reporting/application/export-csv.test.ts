@@ -78,9 +78,9 @@ describe('ExportCsvUseCase — сборка CSV (§5)', () => {
 
     expect(result.ok).toBe(true);
     expect(calls).toEqual([{ offset: 0, limit: EXPORT_BATCH_SIZE }]);
-    unsafeUnwrap(result);
-    expect(result.csv).toBe(toCsv(rowsAsc));
-    expect(result.count).toBe(5);
+    const { csv, count } = unsafeUnwrap(result);
+    expect(csv).toBe(toCsv(rowsAsc));
+    expect(count).toBe(5);
   });
 
   it('2500 записей → три пачки 0/1000/2000 (последняя неполная — стоп); порядок asc; count=2500 (§5/§13)', async () => {
@@ -90,15 +90,15 @@ describe('ExportCsvUseCase — сборка CSV (§5)', () => {
 
     const result = await useCase.execute('profile-1');
 
-    unsafeUnwrap(result);
+    const { csv, count } = unsafeUnwrap(result);
     expect(calls).toEqual([
       { offset: 0, limit: EXPORT_BATCH_SIZE },
       { offset: 1_000, limit: EXPORT_BATCH_SIZE },
       { offset: 2_000, limit: EXPORT_BATCH_SIZE },
     ]);
-    expect(result.count).toBe(2_500);
+    expect(count).toBe(2_500);
     // Хронология asc для врача (§13): первая строка данных — самая старая.
-    const dataLines = result.csv.split('\r\n').slice(1);
+    const dataLines = csv.split('\r\n').slice(1);
     expect(dataLines[0]?.startsWith('id-0;')).toBe(true);
     expect(dataLines.at(-1)?.startsWith('id-2499;')).toBe(true);
   });
@@ -110,12 +110,12 @@ describe('ExportCsvUseCase — сборка CSV (§5)', () => {
 
     const result = await useCase.execute('profile-1');
 
-    unsafeUnwrap(result);
+    const { count } = unsafeUnwrap(result);
     expect(calls).toEqual([
       { offset: 0, limit: EXPORT_BATCH_SIZE },
       { offset: 1_000, limit: EXPORT_BATCH_SIZE },
     ]);
-    expect(result.count).toBe(1_000);
+    expect(count).toBe(1_000);
   });
 });
 
@@ -126,9 +126,9 @@ describe('ExportCsvUseCase — пустой журнал и отказы (§9/§
 
     const result = await useCase.execute('profile-1');
 
-    unsafeUnwrap(result);
-    expect(result.count).toBe(0);
-    expect(result.csv).toBe(toCsv([]));
+    const { csv, count } = unsafeUnwrap(result);
+    expect(count).toBe(0);
+    expect(csv).toBe(toCsv([]));
   });
 
   it('сбой источника → err EXPORT/FAILED с messageKey errors.EXPORT_FAILED (§5); error-лог', async () => {
