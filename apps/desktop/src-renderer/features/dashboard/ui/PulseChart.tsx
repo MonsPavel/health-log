@@ -43,12 +43,7 @@ import {
   YAxis,
 } from 'recharts';
 
-import {
-  PULSE_REF_HIGH,
-  PULSE_REF_LOW,
-  type RawPoint,
-  type TrendResponse,
-} from '@hl/contracts';
+import { PULSE_REF_HIGH, PULSE_REF_LOW, type RawPoint, type TrendResponse } from '@hl/contracts';
 
 import { formatDateTime, type InstantLike } from '../../../lib/i18n-date';
 import { ChartTooltip } from './ChartTooltip';
@@ -290,7 +285,9 @@ export function PulseChart({
   const listedPoints = points.filter((point) => point.pulse !== undefined);
 
   /** Тултип: content-элемент клонируется Recharts (channel pulse — §5 058). */
-  const tooltipContent = <ChartTooltip mode={response.mode} channel="pulse" onEditPoint={onEditPoint} />;
+  const tooltipContent = (
+    <ChartTooltip mode={response.mode} channel="pulse" onEditPoint={onEditPoint} />
+  );
 
   const chartData: readonly Record<string, unknown>[] = isDaily ? days : points;
 

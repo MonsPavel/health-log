@@ -27,12 +27,7 @@ import '../../../i18n';
 afterEach(() => cleanup());
 
 /** Точка ЧСС фикстуры (id обязателен — переход к правке). */
-function pulsePoint(
-  seq: number,
-  pulse: number | undefined,
-  irregular = false,
-  hour = 8,
-): RawPoint {
+function pulsePoint(seq: number, pulse: number | undefined, irregular = false, hour = 8): RawPoint {
   return {
     utcMs: Date.UTC(2026, 8, 1 + seq, hour, 0),
     tzOffsetMin: 180,
@@ -78,9 +73,9 @@ describe('hiddenPulseCountOf — скрытые записи без пульса
   });
 
   it('raw: все с пульсом — скрытых нет', () => {
-    expect(hiddenPulseCountOf({ mode: 'raw', points: [pulsePoint(0, 62), pulsePoint(1, 70)] })).toBe(
-      0,
-    );
+    expect(
+      hiddenPulseCountOf({ mode: 'raw', points: [pulsePoint(0, 62), pulsePoint(1, 70)] }),
+    ).toBe(0);
   });
 
   it('daily: Σcount − ΣpulseCount (день без pulseCount — все его записи скрыты)', () => {
@@ -172,8 +167,13 @@ describe('PulseChart — raw-режим (§20 AC1/AC2/AC3/AC4)', () => {
     expect(onEditPoint).toHaveBeenCalledWith(FIVE_POINTS[0]);
 
     const rows = screen.getAllByTestId('pulse-list-row');
-    fireEvent.click(rows[1]);
-    expect(onEditPoint).toHaveBeenCalledWith(FIVE_POINTS[1]);
+    const secondRow = rows[1];
+    const secondPoint = FIVE_POINTS[1];
+    if (secondRow === undefined || secondPoint === undefined) {
+      throw new Error('мини-таблица обязана содержать строку на каждую точку с пульсом');
+    }
+    fireEvent.click(secondRow);
+    expect(onEditPoint).toHaveBeenCalledWith(secondPoint);
   });
 
   it('(AC3/§16) aria-label irregular-строки полный: пульс, единица, пояс EC-10; обычной — без пояса', () => {
@@ -186,14 +186,15 @@ describe('PulseChart — raw-режим (§20 AC1/AC2/AC3/AC4)', () => {
 
     const rows = screen.getAllByTestId('pulse-list-row');
     const irregularRow = rows[1];
-    if (irregularRow === undefined) {
+    const irregularPoint = FIVE_POINTS[1];
+    if (irregularRow === undefined || irregularPoint === undefined) {
       throw new Error('строка irregular-записи обязана быть в мини-таблице');
     }
     expect(irregularRow.getAttribute('aria-label')).toContain(
       'неровный пульс — значение может быть неточным',
     );
     expect(irregularRow.getAttribute('aria-label')).toContain(
-      formatDateTime(FIVE_POINTS[1], { preset: 'datetime' }),
+      formatDateTime(irregularPoint, { preset: 'datetime' }),
     );
     const regularRow = rows[0];
     if (regularRow === undefined) {

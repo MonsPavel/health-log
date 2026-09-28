@@ -273,9 +273,7 @@ describe('DashboardScreen — вид «Давление/Пульс» (TASK-058 �
 
     await screen.findByTestId('trend-chart');
     expect(screen.queryByTestId('pulse-chart')).toBeNull();
-    expect(
-      screen.getByTestId('dashboard-view-pressure').getAttribute('aria-pressed'),
-    ).toBe('true');
+    expect(screen.getByTestId('dashboard-view-pressure').getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByTestId('dashboard-view-pulse').getAttribute('aria-pressed')).toBe('false');
     cleanup();
 

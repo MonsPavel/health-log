@@ -174,9 +174,7 @@ describe('ChartTooltip — channel=pulse (TASK-058: только ЧСС, еди�
         channel: 'pulse',
       }),
     );
-    expect(
-      screen.getByText('Неровный пульс — значение может быть неточным'),
-    ).not.toBeNull();
+    expect(screen.getByText('Неровный пульс — значение может быть неточным')).not.toBeNull();
     cleanup();
 
     render(
