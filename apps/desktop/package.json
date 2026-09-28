@@ -6,8 +6,8 @@
   "type": "module",
   "main": "dist/main/app/bootstrap.js",
   "scripts": {
-    "dev": "pnpm --filter @hl/kernel --filter @hl/contracts run build && concurrently -k -n vite,electron -c cyan,green \"vite\" \"wait-on tcp:127.0.0.1:5183 && tsc -b tsconfig.main.json && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:5183 electron .\"",
-    "build": "tsc -b tsconfig.main.json && pnpm build:renderer",
+    "dev": "pnpm --filter @hl/kernel --filter @hl/contracts run build && concurrently -k -n vite,electron -c cyan,green \"vite\" \"wait-on tcp:127.0.0.1:5183 && tsc -b tsconfig.main.json && node scripts/copy-report-assets.mjs && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:5183 electron .\"",
+    "build": "tsc -b tsconfig.main.json && node scripts/copy-report-assets.mjs && pnpm build:renderer",
     "build:renderer": "vite build",
     "dist": "electron-builder --win && node scripts/check-size.mjs",
     "test:e2e": "pnpm build && playwright test",
