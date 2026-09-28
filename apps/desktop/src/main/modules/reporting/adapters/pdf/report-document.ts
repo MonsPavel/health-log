@@ -140,7 +140,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 11.5, fontWeight: 700, marginTop: 14, marginBottom: 4 },
   table: { marginTop: 8 },
   tableHeader: {
-    fixed: true,
     flexDirection: 'row',
     backgroundColor: '#E8E8E8',
     borderStyle: 'solid',
@@ -209,8 +208,8 @@ function titleBlock(
   );
 }
 
-/** Заголовочная строка таблицы — fixed: повторяется на каждой странице (AC §20). */
-function tableHeader(strings: ReportStrings): ReactElement {
+/** Заголовочная строка таблицы — проп `fixed`: повтор на каждой странице (AC §20). */
+function tableHeader(strings: ReportStrings, fixed = false): ReactElement {
   const columns: readonly (readonly [string, number])[] = [
     [strings.table.date, COLUMN_WIDTHS_MM.date],
     [strings.table.time, COLUMN_WIDTHS_MM.time],
@@ -222,7 +221,7 @@ function tableHeader(strings: ReportStrings): ReactElement {
   ];
   return createElement(
     View,
-    { style: styles.tableHeader },
+    { ...(fixed ? { fixed: true } : {}), style: styles.tableHeader },
     ...columns.map(([label, widthMm]) =>
       createElement(
         Text,
@@ -274,7 +273,9 @@ function tableBlock(section: TableSection, strings: ReportStrings): ReactElement
     createElement(
       View,
       { key: 'table', style: styles.table },
-      tableHeader(strings),
+      // `fixed` — ПРОП элемента (не стиль): react-pdf повторяет узел на каждой
+      // странице, пока таблица не кончилась (AC §20: разрывы повторяют заголовок).
+      tableHeader(strings, true),
       ...section.pages.map((pageRows, pageIndex) =>
         createElement(
           View,
