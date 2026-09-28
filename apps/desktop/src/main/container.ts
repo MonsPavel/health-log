@@ -7,9 +7,10 @@
  *
  * ПОРЯДОК ИНИЦИАЛИЗАЦИИ (§5): paths → logger (TASK-010) → vault.ensureKey →
  * openEncrypted(dbPath, keyHex) → миграции → репозиторий → события; регистрация
- * существующих IPC-хендлеров — в конце buildContainer (§11). Порядок полей Container —
- * конвенция читаемости §7 (db, clock, vault, measurementRepo, events, logger);
- * каналы каркаса и close добавлены задачей 027 (см. Container).
+ * существующих IPC-хендлеров — в конце buildContainer (§11), следом пул воркеров
+ * CPU-задач (TASK-066, ленивый). Порядок полей Container — конвенция читаемости §7
+ * (db, clock, vault, measurementRepo, events, logger); каналы каркаса и close
+ * добавлены задачей 027, workerPool — 066 (см. Container).
  *
  * ТЕСТИРУЕМОСТЬ (§13/§19/§20 п. 4): контейнер не читает сам app.getPath — пути
  * вводятся параметрами (bootstrap подставляет реальные); время — порт Clock
@@ -34,7 +35,9 @@
  *
  * GRACEFUL SHUTDOWN (§8, включено в объём §5): close() — wal_checkpoint(TRUNCATE)
  * затем close() — чистое отсутствие -wal/-shm после выхода (NFR-2-гигиена);
- * bootstrap вызывает его на app 'will-quit'.
+ * bootstrap вызывает его на app 'will-quit'. TASK-066 §9: после закрытия БД —
+ * terminate пула воркеров (активные задачи обрываются с логом: потерянный PDF при
+ * закрытии приложения допустим; will-quit не висит).
  *
  * БУДУЩАЯ РАБОТА (§23): здесь же включатся use case'ы 029+ (место помечено —
  * секция «прикладные use case'ы» ниже), SettingsStore (047), ScaleService (051),
@@ -92,6 +95,7 @@ import { MigrationRunner } from './shared/db/migration-runner.js';
 import { MIGRATIONS } from './shared/db/migrations/index.js';
 import { openEncrypted, type EncryptedDatabase } from './shared/db/sqlite.js';
 import { createLogger, type HlLogger } from './shared/logger/logger.js';
+import { WorkerPool, type WorkerPoolOptions } from './shared/workerpool/pool.js';
 
 /** Имя файла БД в userData (§8): `<userData>/health-log.db` (+ `-wal`, `-shm`). */
 export const DATABASE_FILENAME = 'health-log.db';
@@ -121,6 +125,12 @@ export interface ContainerDeps {
   readonly clock?: Clock;
   /** Фабрика vault-а; по умолчанию — боевой SafeStorageKeyVault на safeStorage Electron. */
   readonly vault?: VaultFactory;
+  /**
+   * Опции пула воркеров (TASK-066 §5/§6); по умолчанию — боевые: entry worker.js из
+   * dist, реестр без модуля задач (потребитель 067 передаст свой). Тесты подставляют
+   * tasksModule с тестовыми задачами (§19; прецедент переопределяемых фабрик каркаса).
+   */
+  readonly workerPool?: WorkerPoolOptions;
 }
 
 /**
@@ -145,7 +155,13 @@ export interface Container {
    * bootstrap ставит поверх транспортный мост installChannelBridge(container.channels).
    */
   readonly channels: ChannelRegistry;
-  /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close; идемпотентен. */
+  /**
+   * Пул воркеров для CPU-задач (TASK-066 §5/§6: 2 worker_threads, ленивый) — PDF-рендер
+   * (067), тяжёлый экспорт, series не блокируют main (NFR-4). Воркеры БД/ключ не трогают
+   * (§8): данные передаются payload'ом.
+   */
+  readonly workerPool: WorkerPool;
+  /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
 }
 
@@ -369,6 +385,12 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       createTrendSeriesHandler(trendSeries, createLogger('ipc')),
     );
 
+    // 8.5. Пул воркеров CPU-задач (TASK-066 §5/§6): 2 worker_threads, ленивое создание
+    //      при первой задаче (потоки при старте не спавнятся); воркеры без доступа к
+    //      БД/ключу (§8), задачи определяются потребителями через tasksModule (067
+    //      добавит pdf.render). Лог — категория job (§18: job start/end, краш).
+    const workerPool = new WorkerPool({ ...deps.workerPool, logger: createLogger('job') });
+
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
       db: basename(dbPath),
@@ -386,6 +408,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       events,
       logger,
       channels,
+      workerPool,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op
@@ -397,6 +420,11 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         } finally {
           db.close();
         }
+        // §9: пул — ПОСЛЕ закрытия БД (воркеры БД не открывают, §8); задачи обрываются
+        // (потерянный PDF при закрытии приложения допустим, §9), активные и ожидающие
+        // job отклоняются — will-quit не висит (AC4). terminate async — fire-and-forget.
+        logger.info('worker pool shutdown: terminating', { reason: 'will-quit' });
+        void workerPool.terminate();
       },
     };
   } catch (error) {
