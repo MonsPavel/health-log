@@ -84,13 +84,17 @@ describe('WorkerPool — распределение и FIFO (§19: 2 ворке�
     const startedAtMs: Array<{ label: string; atMs: number }> = [];
     const endedAtMs: number[] = [];
     const job = (label: string, ms: number): Promise<unknown> =>
-      pool.run('sleepProgress', { ms }, {
-        onProgress: (progress) => {
-          if (progress === 0) {
-            startedAtMs.push({ label, atMs: performance.now() });
-          }
+      pool.run(
+        'sleepProgress',
+        { ms },
+        {
+          onProgress: (progress) => {
+            if (progress === 0) {
+              startedAtMs.push({ label, atMs: performance.now() });
+            }
+          },
         },
-      });
+      );
 
     const first = job('t1', 150);
     const second = job('t2', 150);
@@ -140,9 +144,7 @@ describe('WorkerPool — устойчивость (§19/§20 AC2)', () => {
     async () => {
       const pool = newPool();
 
-      await expect(pool.run('sleep', { ms: 800 }, { timeoutMs: 100 })).rejects.toThrow(
-        /timed out/,
-      );
+      await expect(pool.run('sleep', { ms: 800 }, { timeoutMs: 100 })).rejects.toThrow(/timed out/);
       await expect(pool.run('greet', { name: 'после таймаута' })).resolves.toEqual({
         greeting: 'hello после таймаута',
       });

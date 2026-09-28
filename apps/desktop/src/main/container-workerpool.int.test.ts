@@ -22,7 +22,7 @@ import { performance } from 'node:perf_hooks';
 import { describe, expect, it } from 'vitest';
 
 import { API_ENVELOPE_VERSION } from '@hl/contracts';
-import { AppError, FixedClock, type Clock, type Result } from '@hl/kernel';
+import { AppError, FixedClock, type Result } from '@hl/kernel';
 
 import { buildContainer, DATABASE_FILENAME } from './container.js';
 import {
@@ -130,13 +130,17 @@ describe('container + WorkerPool (TASK-066 §6/§9/§20)', () => {
       // Активная job (дождёмся фактического старта — progress 0) и следующая в очереди.
       const started = new Promise<void>((resolve) => {
         void container.workerPool
-          .run('sleepProgress', { ms: 5_000 }, {
-            onProgress: (p) => {
-              if (p === 0) {
-                resolve();
-              }
+          .run(
+            'sleepProgress',
+            { ms: 5_000 },
+            {
+              onProgress: (p) => {
+                if (p === 0) {
+                  resolve();
+                }
+              },
             },
-          })
+          )
           .catch(() => undefined);
       });
       const active = container.workerPool

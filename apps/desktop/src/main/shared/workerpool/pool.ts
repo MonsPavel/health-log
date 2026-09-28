@@ -18,6 +18,8 @@
  * («timed out»), воркер terminate (кооперативный abort вечному циклу не поможет)
  * и перезапускается. ОТМЕНА (§5): кооперативная — внешний AbortSignal доставляет
  * abort задаче, run() отклоняется сразу, воркер НЕ крашится и остаётся тёплым.
+ * Потребители сами решают, поддерживать ли отмену: задача PDF (067) в MVP НЕ
+ * отменяется (документировано §5) — механизм сигнала ей просто не передаётся.
  *
  * TERMINATE (§9/AC4): все активные и ожидающие job отклоняются («terminated») —
  * shutdown не висит; повторный вызов и run() после terminate — отказ. PDF, потерянный
@@ -111,10 +113,12 @@ interface PoolWorker {
 }
 
 /** Итог job: success | failure (внутренняя дискриминация). */
-type JobOutcome = { readonly ok: true; readonly value: unknown } | {
-  readonly ok: false;
-  readonly error: TaskError;
-};
+type JobOutcome =
+  | { readonly ok: true; readonly value: unknown }
+  | {
+      readonly ok: false;
+      readonly error: TaskError;
+    };
 
 /**
  * Пул воркеров (§5): run<TaskName>(name, payload, {onProgress?, signal?, timeoutMs?}).
@@ -162,7 +166,7 @@ export class WorkerPool<Tasks extends TaskMap = TaskMap> {
         name,
         payload,
         options,
-        resolve: resolve as (value: unknown) => void,
+        resolve,
         reject,
       });
       this.pump();
@@ -266,11 +270,19 @@ export class WorkerPool<Tasks extends TaskMap = TaskMap> {
     try {
       // structured clone payload (§4/§15: ~десятки мс на 10 МБ — приемлемо); отказ
       // клонирования (функции и пр.) — fail-fast конкретной job (§13).
-      poolWorker.worker.postMessage({ kind: 'run', jobId: job.jobId, name: job.name, payload: job.payload });
+      poolWorker.worker.postMessage({
+        kind: 'run',
+        jobId: job.jobId,
+        name: job.name,
+        payload: job.payload,
+      });
     } catch (error) {
       this.finish(
         active,
-        { ok: false, error: new TaskError('payload is not structured-cloneable', { cause: error }) },
+        {
+          ok: false,
+          error: new TaskError('payload is not structured-cloneable', { cause: error }),
+        },
         poolWorker,
       );
       return;
@@ -287,7 +299,11 @@ export class WorkerPool<Tasks extends TaskMap = TaskMap> {
         // Кооперативный abort вечному циклу не поможет: terminate потока (§22) и
         // перезапуск; job отклоняется, очередь живёт (см. шапку).
         poolWorker.terminating = true;
-        this.finish(active, { ok: false, error: new TaskError(`task timed out after ${timeoutMs}ms`) }, poolWorker);
+        this.finish(
+          active,
+          { ok: false, error: new TaskError(`task timed out after ${timeoutMs}ms`) },
+          poolWorker,
+        );
         void poolWorker.worker.terminate();
         this.respawn();
       }, timeoutMs);
@@ -382,7 +398,11 @@ export class WorkerPool<Tasks extends TaskMap = TaskMap> {
     const job = poolWorker.active;
     poolWorker.active = undefined;
     if (job !== undefined) {
-      this.finish(job, { ok: false, error: new TaskError(`worker crashed: ${describeCrash(crash)}`) }, undefined);
+      this.finish(
+        job,
+        { ok: false, error: new TaskError(`worker crashed: ${describeCrash(crash)}`) },
+        undefined,
+      );
     }
     if (crash.kind === 'error') {
       logDiagnostic(this.logger, crash.error, { context: 'worker crashed' });
@@ -407,7 +427,11 @@ export class WorkerPool<Tasks extends TaskMap = TaskMap> {
      Settle job ровно один раз: снимает таймер/abort-подписку, лог конца (§18),
      резолвит/отклоняет promise; releasingWorker — воркер, освободившийся для очереди.
      */
-  private finish(job: ActiveJob, outcome: JobOutcome, releasingWorker: PoolWorker | undefined): void {
+  private finish(
+    job: ActiveJob,
+    outcome: JobOutcome,
+    releasingWorker: PoolWorker | undefined,
+  ): void {
     if (this.activeJobs.get(job.jobId) !== job) {
       return; // уже завершена (таймаут/краш/отмена) — повторный settle недопустим
     }
@@ -433,6 +457,8 @@ export class WorkerPool<Tasks extends TaskMap = TaskMap> {
 }
 
 /** Человекочитаемое описание краша для сообщения TaskError (§13). */
-function describeCrash(crash: { kind: 'error'; error: Error } | { kind: 'exit'; code: number }): string {
+function describeCrash(
+  crash: { kind: 'error'; error: Error } | { kind: 'exit'; code: number },
+): string {
   return crash.kind === 'error' ? crash.error.message : `exit code ${crash.code}`;
 }

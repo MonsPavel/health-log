@@ -29,7 +29,12 @@
  * глушится намеренно — краш честно виден main-стороне).
  */
 import { parentPort, workerData, type MessagePort } from 'node:worker_threads';
-import type { MainToWorkerMessage, SerializedTaskError, TaskContext, TaskHandler } from './protocol.js';
+import type {
+  MainToWorkerMessage,
+  SerializedTaskError,
+  TaskContext,
+  TaskHandler,
+} from './protocol.js';
 
 /** Контракт модуля задач (единственный экспорт, читает worker.ts). */
 export interface TasksModule {
@@ -73,7 +78,9 @@ function serializeTaskError(value: unknown): SerializedTaskError {
     const message = fields['message'];
     return {
       name: 'Object',
-      message: typeof message === 'string' ? message : String(value),
+      // Строковое представление объекта нечитаемо ([object Object]) — общий текст,
+      // детали уезжают в cause (потребитель читает code/messageKey и пр.).
+      message: typeof message === 'string' ? message : 'non-error thrown in task',
       cause: value,
     };
   }
