@@ -24,9 +24,10 @@ import errors from './ru/errors.json';
 import measurement from '../features/measurement/ru.json';
 import settings from '../features/settings/ru.json';
 import critical from '../components/critical/ru.json';
+import dashboard from '../features/dashboard/ru.json';
 
 const resources = {
-  ru: { translation: { common, errors, measurement, settings, critical } },
+  ru: { translation: { common, errors, measurement, settings, critical, dashboard } },
 } as const;
 
 if (!i18next.isInitialized) {
