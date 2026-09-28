@@ -14,6 +14,16 @@
  * placeholderData: keepPreviousData — смена периода показывает предыдущую серию
  * до прихода новой (§15, прецедент use-measurements).
  *
+ * STALETIME 0 — ОСОЗНАННОЕ ОТСТУПЛЕНИЕ от дефолта клиента (staleTime Infinity,
+ * §12 TASK-013), найдено e2e-ревью TASK-057: график — не место ввода, подписка
+ * на measurement:changed живёт только пока экран смонтирован, поэтому запись,
+ * добавленная в журнале, НЕ инвалидирует серию — а вечно-свежий кэш (например,
+ * пустой на старте приложения: /dashboard — стартовый маршрут) показался бы при
+ * возврате на экран навсегда. §10 «данные свежие после ввода» выполняется
+ * перечитыванием на каждом монтировании: IPC trend/series ≈2 мс (§15), кэш
+ * keepPreviousData сглаживает перерисовку. Инвалидация по событию (ниже, в
+ * экране) остаётся для live-обновления смонтированного графика.
+ *
  * Конверт разворачивается: ok:false → IpcApiError c dto отказа (прецедент
  * use-measurements — отказ чтения данные, не технический краш).
  */
@@ -50,5 +60,6 @@ export function useTrend(profileId: string, period: StatsPeriodParam) {
     queryKey: trendKey(profileId, period),
     queryFn: () => fetchTrendSeries({ profileId, period }),
     placeholderData: keepPreviousData,
+    staleTime: 0,
   });
 }

@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 
 import type { TrendResponse } from '@hl/contracts';
 
+import { createQueryClient } from '../../../lib/query-client';
 import { IpcApiError, PROFILE_ID } from '../../measurement/api/use-add-measurement';
 import { TREND_KEY_ROOT, trendKey, useTrend } from './use-trend';
 
@@ -61,6 +62,31 @@ describe('useTrend — чтение серий (§11/§12)', () => {
     await waitFor(() => expect(hook.result.current.isSuccess).toBe(true));
     expect(invoke).toHaveBeenCalledWith('trend/series', { profileId: PROFILE_ID, period: '30d' });
     expect(hook.result.current.data).toEqual(RAW_RESPONSE);
+  });
+
+  // §10 («данные свежие после ввода») + e2e-находка ревью TASK-057: график — не
+  // место ввода, подписка на measurement:changed живёт только пока экран
+  // смонтирован, а клиент по умолчанию держит кэш вечно свежим (staleTime
+  // Infinity) — вернувшись на «Динамику» после добавления записи в журнале,
+  // экран показал бы пустой график навсегда. Поэтому серия обязана
+  // перечитываться при каждом монтировании (staleTime 0, IPC ≈2 мс — §15).
+  it('повторный монтаж экрана → refetch (запись добавлена на другом экране, §10)', async () => {
+    // ПРОДАВЫЙ клиент (createQueryClient: staleTime Infinity) — регресс ловится
+    // только против конфигурации приложения, не против дефолтов TanStack.
+    const queryClient = createQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const first = renderHook(() => useTrend(PROFILE_ID, '30d'), { wrapper });
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+    expect(invoke).toHaveBeenCalledTimes(1);
+    first.unmount();
+
+    // Возврат на «Динамику»: кэш с пустой серией устарел — перечитать.
+    const second = renderHook(() => useTrend(PROFILE_ID, '30d'), { wrapper });
+    await waitFor(() => expect(invoke).toHaveBeenCalledTimes(2));
+    expect(second.result.current.isSuccess).toBe(true);
+    second.unmount();
   });
 
   it('ключ запроса: [trend, profileId, period] (§12); период custom — границы в ключе', () => {
