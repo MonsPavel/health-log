@@ -10,13 +10,13 @@ import { performance } from 'node:perf_hooks';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { describe, expect, it } from 'vitest';
 
-import { WorkerPool } from '../../../shared/workerpool/pool.js';
+import { WorkerPool } from '../../../../shared/workerpool/pool.js';
 import { GOLDEN_PAYLOAD, GOLDEN_AI_TEXT } from './__fixtures__/golden-payload.ts';
 import type { PdfRenderPayload, PdfRenderResult } from '../../domain/report-spec.ts';
 import { createReportDocument } from './report-document.ts';
 import { PDF_TASKS_MODULE_URL } from './pdf-tasks-url.ts';
 
-const WORKER_ENTRY_URL = new URL('../../../shared/workerpool/worker.ts', import.meta.url);
+const WORKER_ENTRY_URL = new URL('../../../../shared/workerpool/worker.ts', import.meta.url);
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 
 /** Пул с боевой цепочкой задач (исходники .ts — нативный Node type-stripping). */
@@ -110,7 +110,9 @@ describe('pdf.render в воркере пула (TASK-067 §9)', () => {
       });
       const wallMs = performance.now() - startedAtMs;
       expect(result.records).toBe(2000); // §9: последние 2000 из 5000
-      expect(result.pages).toBe(Math.ceil(2000 / 30) + 1); // 67 страниц таблицы + хвост
+      // Страницы = чанки таблицы ceil(2000/30)=67: хвост (средние/регулярность/
+      // график/приписка) помещается на последней странице — чанк неполный (20 строк).
+      expect(result.pages).toBe(Math.ceil(2000 / 30));
       expect(result.durationMs).toBeLessThan(30_000);
       expect(wallMs).toBeLessThan(45_000);
       console.log(
