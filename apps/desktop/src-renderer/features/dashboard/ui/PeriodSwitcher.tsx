@@ -129,7 +129,21 @@ export function useDashboardPeriod(): DashboardPeriod {
 
   const apply = useCallback(
     (next: PeriodState) => {
-      setSearchParams(serializePeriodState(next), { replace: true });
+      // Параметры ВНЕ периода (view= вида графика — TASK-058 §12) сохраняются:
+      // смена периода не сбрасывает вид. Сериализатор lib/period остаётся общим
+      // с журналом (один паттерн period, §4) — мерж чужих параметров здесь.
+      setSearchParams(
+        (prev) => {
+          const params = serializePeriodState(next);
+          for (const [key, value] of prev.entries()) {
+            if (key !== 'period' && key !== 'from' && key !== 'to' && !params.has(key)) {
+              params.set(key, value);
+            }
+          }
+          return params;
+        },
+        { replace: true },
+      );
     },
     [setSearchParams],
   );

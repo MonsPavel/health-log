@@ -208,4 +208,26 @@ describe('useDashboardPeriod — URL источник истины (§12: ?perio
     // при загрузке (применение — только действием пользователя, §12 044).
     expect(garbage.paramProbe.current).toBe('30d');
   });
+
+  // TASK-058 §12: применение периода сохраняет параметры вне периода (?view=) —
+  // смена периода не сбрасывает вид графика «Давление/Пульс».
+  it('(058 §12) смена периода при ?view=pulse сохраняет view в URL', () => {
+    const { probe } = renderConnectedSwitcher('/dashboard?view=pulse');
+
+    fireEvent.click(screen.getByTestId('dashboard-period-7d'));
+    expect(probe.search).toBe('?period=7d&view=pulse');
+  });
+
+  it('(058 §12) custom-диапазон при ?view=pulse сохраняет view (from/to + view в URL)', () => {
+    const { probe } = renderConnectedSwitcher('/dashboard?view=pulse');
+
+    fireEvent.click(screen.getByTestId('dashboard-period-custom'));
+    fireEvent.change(screen.getByTestId<HTMLInputElement>('filter-range-from'), {
+      target: { value: '2026-09-01' },
+    });
+    fireEvent.change(screen.getByTestId<HTMLInputElement>('filter-range-to'), {
+      target: { value: '2026-09-10' },
+    });
+    expect(probe.search).toBe('?period=custom&from=2026-09-01&to=2026-09-10&view=pulse');
+  });
 });

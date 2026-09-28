@@ -8,6 +8,12 @@
  * daily-режим — подпись агрегации (§20.5); empty — каркас TASK-060 «Нет данных
  * за период» + CTA (§10); live-инвалидация measurement:changed (§10: данные
  * свежие после ввода); pending — скелетон-оси (§10).
+ *
+ * TASK-058 §5/§12/§19: переключатель вида «Давление/Пульс» — URL ?view=
+ * (дефолт pressure, мусор → дефолт); переключение меняет график (DOM) без
+ * повторного запроса (кэш trend/series общий, §12); view=pulse переживает
+ * перезагрузку (URL — истина) и смену периода (PeriodSwitcher сохраняет чужие
+ * параметры).
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -21,7 +27,7 @@ import { PROFILE_ID } from '../../measurement/api/use-add-measurement';
 import { useFormStore } from '../../measurement/model/form-store';
 import { ToastProvider } from '../../../app/toast';
 import { DashboardScreen } from './DashboardScreen';
-import { SCALE_FIXTURE, TREND_30_DAYS, fixturePoint } from './__fixtures__/dashboard';
+import { PULSE_DAYS, SCALE_FIXTURE, TREND_30_DAYS, fixturePoint } from './__fixtures__/dashboard';
 
 import '../../../i18n';
 
@@ -258,5 +264,96 @@ describe('DashboardScreen — периоды и переход к правке (
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('trend/series', { profileId: PROFILE_ID, period: '30d' }),
     );
+  });
+});
+
+describe('DashboardScreen — вид «Давление/Пульс» (TASK-058 §5/§12/§19/§20)', () => {
+  it('дефолт: сегмент с aria-pressed, график давления; ?view=pulse → график ЧСС (AC5: перезагрузка)', async () => {
+    renderScreen();
+
+    await screen.findByTestId('trend-chart');
+    expect(screen.queryByTestId('pulse-chart')).toBeNull();
+    expect(
+      screen.getByTestId('dashboard-view-pressure').getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(screen.getByTestId('dashboard-view-pulse').getAttribute('aria-pressed')).toBe('false');
+    cleanup();
+
+    renderScreen('/dashboard?view=pulse');
+    await screen.findByTestId('pulse-chart');
+    expect(screen.queryByTestId('trend-chart')).toBeNull();
+    expect(screen.getByTestId('dashboard-view-pulse').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('(§19) переключение вкладки меняет график (DOM) и пишет ?view=pulse без повторного запроса (кэш общий)', async () => {
+    const { probe } = renderScreen();
+    await screen.findByTestId('trend-chart');
+    invoke.mockClear();
+
+    fireEvent.click(screen.getByTestId('dashboard-view-pulse'));
+
+    expect(await screen.findByTestId('pulse-chart')).not.toBeNull();
+    expect(screen.queryByTestId('trend-chart')).toBeNull();
+    expect(probe.search).toBe('?view=pulse');
+    const trendCalls = invoke.mock.calls.filter(([channel]) => channel === 'trend/series');
+    expect(trendCalls).toHaveLength(0);
+  });
+
+  it('обратно «Давление» → график давления, view из URL убран', async () => {
+    const { probe } = renderScreen('/dashboard?view=pulse');
+    await screen.findByTestId('pulse-chart');
+
+    fireEvent.click(screen.getByTestId('dashboard-view-pressure'));
+
+    expect(await screen.findByTestId('trend-chart')).not.toBeNull();
+    expect(probe.search).toBe('');
+  });
+
+  it('мусор в ?view= → дефолт pressure (§14: без ошибок, URL не переписывается при загрузке)', async () => {
+    const { probe } = renderScreen('/dashboard?view=chart');
+
+    await screen.findByTestId('trend-chart');
+    expect(screen.queryByTestId('pulse-chart')).toBeNull();
+    expect(probe.search).toBe('?view=chart');
+  });
+
+  it('смена периода на виде «Пульс»: view сохранён, серия перечитана с новым периодом (§12)', async () => {
+    const { probe } = renderScreen('/dashboard?view=pulse');
+    await screen.findByTestId('pulse-chart');
+
+    fireEvent.click(screen.getByTestId('dashboard-period-7d'));
+
+    expect(probe.search).toBe('?period=7d&view=pulse');
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('trend/series', { profileId: PROFILE_ID, period: '7d' }),
+    );
+    expect(await screen.findByTestId('pulse-chart')).not.toBeNull();
+  });
+
+  it('daily-пульс: график ЧСС рендерит агрегаты (PULSE_DAYS), empty общий для обоих видов', async () => {
+    mockTrend({ mode: 'daily', days: [...PULSE_DAYS] });
+    renderScreen('/dashboard?view=pulse');
+
+    expect(await screen.findByTestId('pulse-chart')).not.toBeNull();
+    expect(screen.getByTestId('pulse-daily-caption').textContent).toContain('Агрегировано по дням');
+    cleanup();
+
+    mockTrend({ mode: 'raw', points: [] });
+    renderScreen('/dashboard?view=pulse');
+    expect(await screen.findByTestId('empty-chart')).not.toBeNull();
+  });
+
+  it('переход к правке с пульс-графика — тот же openEdit (сквозной, как на давлении, §5)', async () => {
+    const { probe } = renderScreen('/dashboard?view=pulse');
+    const chart = await screen.findByTestId('pulse-chart');
+    const dot = chart.querySelector('[data-testid="pulse-dot"]');
+    if (dot === null) {
+      throw new Error('маркер точки ЧСС обязан быть в DOM (фикстура с пульсом)');
+    }
+    fireEvent.click(dot);
+
+    await waitFor(() => expect(useFormStore.getState().editingId).toBe('rec-0-0'));
+    await waitFor(() => expect(probe.pathname).toBe('/journal'));
+    useFormStore.getState().cancelEdit();
   });
 });
