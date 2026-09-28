@@ -99,6 +99,11 @@ describe('toCsv — золотые строки (§19 golden)', () => {
     expect(toCsv([])).toBe(`${BOM}${HEADER}`);
   });
 
+  it('UTF-8-байты вывода начинаются с EF BB BF — байтовый BOM, который читает Excel (§20.1/§24 приёмка: свойство уже реализовано, тест-фиксация от регрессии)', () => {
+    const bytes = Buffer.from(toCsv([row()]), 'utf8');
+    expect([bytes[0], bytes[1], bytes[2]]).toEqual([0xef, 0xbb, 0xbf]);
+  });
+
   it('строка без спецсимволов — поля без кавычек, разделитель `;` (§13)', () => {
     expect(toCsv([row()])).toBe(
       `${BOM}${HEADER}\r\nm-1;profile-1;2026-09-24T08:12:00+03:00;120;80;72;false;left;после пробежки;manual`,
