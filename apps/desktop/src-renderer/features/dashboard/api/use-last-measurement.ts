@@ -25,9 +25,7 @@ import { call } from '../../../src/lib/ipc';
 import { IpcApiError } from '../../measurement/api/use-add-measurement';
 
 /** Ключ запроса «последняя запись» (§12): корень общий с журналом, литерал 'last'. */
-export function lastMeasurementKey(
-  profileId: string,
-): readonly ['measurements', string, 'last'] {
+export function lastMeasurementKey(profileId: string): readonly ['measurements', string, 'last'] {
   return ['measurements', profileId, 'last'];
 }
 

@@ -68,7 +68,9 @@ function todayAt(wallTime: string): { utcMs: number; tzOffsetMin: number } {
 }
 
 /** Последняя запись (нормальная): 125/82, пульс 72, сегодня 08:12. */
-function lastDto(overrides: Record<string, unknown> = {}): MeasurementListResponse['items'][number] {
+function lastDto(
+  overrides: Record<string, unknown> = {},
+): MeasurementListResponse['items'][number] {
   const takenAt = todayAt('08:12');
   return {
     id: 'm-last',
@@ -85,7 +87,7 @@ function lastDto(overrides: Record<string, unknown> = {}): MeasurementListRespon
     createdAtUtcMs: takenAt.utcMs,
     updatedAtUtcMs: takenAt.utcMs,
     ...overrides,
-  } as MeasurementListResponse['items'][number];
+  };
 }
 
 /** stats 7d с классификацией (§20 AC2: категория+notes из канала; label едет в ответе). */
@@ -185,7 +187,7 @@ function mockHl(overrides: Record<string, (payload: unknown) => unknown> = {}): 
         data:
           request.limit === 1
             ? lastResponse
-            : { items: [DTO_PAGE_FIXTURE], total: 1 } satisfies MeasurementListResponse,
+            : ({ items: [DTO_PAGE_FIXTURE], total: 1 } satisfies MeasurementListResponse),
       });
     }
     if (channel === 'stats/period') {
@@ -270,7 +272,10 @@ describe('SummaryScreen — запросы и каркас (§12/§15/§6)', () 
       'trend/series': () => ({
         v: 1,
         ok: true,
-        data: { mode: 'raw', points: [{ utcMs: Date.now(), tzOffsetMin: 0, sys: 120, dia: 80, part: 'morning' }] },
+        data: {
+          mode: 'raw',
+          points: [{ utcMs: Date.now(), tzOffsetMin: 0, sys: 120, dia: 80, part: 'morning' }],
+        },
       }),
     });
     renderScreen();
@@ -390,6 +395,8 @@ describe('SummaryScreen — мало данных и критическое (§2
 
     await screen.findByTestId('last-measurement-card');
     fireEvent.click(screen.getByTestId('flag-critical'));
-    await waitFor(() => expect(screen.getByTestId('critical-panel').textContent).toContain('190/125'));
+    await waitFor(() =>
+      expect(screen.getByTestId('critical-panel').textContent).toContain('190/125'),
+    );
   });
 });

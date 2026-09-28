@@ -165,7 +165,11 @@ export function SummaryScreen(): JSX.Element {
         <>
           {lastMeasurement !== undefined && (
             <div className="grid gap-4 md:grid-cols-2">
-              <LastMeasurementCard measurement={lastMeasurement} nowMs={Date.now()} onAdd={openAdd} />
+              <LastMeasurementCard
+                measurement={lastMeasurement}
+                nowMs={Date.now()}
+                onAdd={openAdd}
+              />
               {stats7d.data !== undefined && <AverageCard stats={stats7d.data.stats} />}
               {stats30d.data !== undefined && <RegularityCard stats={stats30d.data.stats} />}
             </div>

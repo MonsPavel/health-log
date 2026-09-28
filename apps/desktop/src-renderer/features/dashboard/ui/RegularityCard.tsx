@@ -88,9 +88,14 @@ export function RegularityCard({ stats }: RegularityCardProps): JSX.Element {
         {t('dashboard.regularity.title')}
       </h3>
       <p data-testid="regularity-streak" className="text-xl font-semibold">
-        {streak === 0 ? t('dashboard.regularity.streakZero') : t(streakKeyFor(streak), { count: streak })}
+        {streak === 0
+          ? t('dashboard.regularity.streakZero')
+          : t(streakKeyFor(streak), { count: streak })}
       </p>
-      <p data-testid="regularity-days" className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+      <p
+        data-testid="regularity-days"
+        className="mt-1 text-sm text-neutral-500 dark:text-neutral-400"
+      >
         {t(daysKeyFor(stats.daysWithMeasurements), { count: stats.daysWithMeasurements })}
       </p>
     </section>
