@@ -25,7 +25,11 @@
  * Файл живёт рядом с хендлерами каналов (ipc/handlers — прецедент trends.ts):
  * регистрация выполняется bootstrap-ом ДО installChannelBridge.
  */
-import { BENCH_SEED_RESPONSE_SCHEMA, type BenchSeedRequest, type BenchSeedResponse } from '@hl/contracts';
+import {
+  BENCH_SEED_RESPONSE_SCHEMA,
+  type BenchSeedRequest,
+  type BenchSeedResponse,
+} from '@hl/contracts';
 
 /** Имя env-флага bench-режима (§5/§6: HL_BENCH=1; единственный источник строки). */
 export const HL_BENCH_ENV = 'HL_BENCH';
@@ -160,25 +164,21 @@ export function generateSyntheticMeasurements(
 
     const roll = next();
     const part: SyntheticMeasurementRow['part'] =
-      roll < MORNING_SHARE
-        ? 'morning'
-        : roll < MORNING_SHARE + EVENING_SHARE
-          ? 'evening'
-          : 'other';
+      roll < MORNING_SHARE ? 'morning' : roll < MORNING_SHARE + EVENING_SHARE ? 'evening' : 'other';
     const hours =
       part === 'morning' ? MORNING_HOURS_UTC : part === 'evening' ? EVENING_HOURS_UTC : null;
-    const hourUtc = hours === null ? Math.floor(next() * 24) : hours[Math.floor(next() * hours.length)]!;
+    const hourUtc =
+      hours === null ? Math.floor(next() * 24) : hours[Math.floor(next() * hours.length)]!;
 
     const takenAtBase = dayStartUtc + hourUtc * 3_600_000 + Math.floor(next() * 3_600_000);
     // Все записи строго ДО якоря (−1 мин): окно «истории», не будущего.
     const takenAtUtc = Math.min(takenAtBase, anchorUtcMs - 60_000);
 
     const eveningBoost = part === 'evening' ? 2 : 0;
-    const sys = Math.round(
-      clamp(118 + (bellOf(next) - 0.5) * 34 + eveningBoost, SYS_RANGE),
-    );
+    const sys = Math.round(clamp(118 + (bellOf(next) - 0.5) * 34 + eveningBoost, SYS_RANGE));
     const dia = Math.round(clamp(76 + (bellOf(next) - 0.5) * 24 + eveningBoost / 2, DIA_RANGE));
-    const pulse = next() < 0.05 ? null : Math.round(clamp(66 + (bellOf(next) - 0.5) * 20, PULSE_RANGE));
+    const pulse =
+      next() < 0.05 ? null : Math.round(clamp(66 + (bellOf(next) - 0.5) * 20, PULSE_RANGE));
     const note = next() < 0.03 ? 'Замер после прогулки' : null;
 
     rows.push({

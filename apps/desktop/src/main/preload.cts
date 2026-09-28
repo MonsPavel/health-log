@@ -122,8 +122,7 @@ let benchTrendReceivedMs = 0;
  * bench-режим подменял ЛОКАЛЬНУЮ ссылку (invokeImpl), а не мутировал объекты
  * electron — contextBridge/ipcRenderer для того не предназначены.
  */
-const baseInvoke: InvokeImpl = (request) =>
-  electron.ipcRenderer.invoke(HL_INVOKE_CHANNEL, request);
+const baseInvoke: InvokeImpl = (request) => electron.ipcRenderer.invoke(HL_INVOKE_CHANNEL, request);
 
 let invokeImpl: InvokeImpl = baseInvoke;
 
@@ -204,8 +203,11 @@ function createBenchBridge(): Record<string, unknown> {
             let ms = 0;
             if (benchTrendReceivedMs > 0) {
               performance.mark(BENCH_RENDER_END);
-              ms = performance.measure(BENCH_RENDER_MEASURE, BENCH_RENDER_START, BENCH_RENDER_END)
-                .duration;
+              ms = performance.measure(
+                BENCH_RENDER_MEASURE,
+                BENCH_RENDER_START,
+                BENCH_RENDER_END,
+              ).duration;
             }
             benchStampArmed = false;
             invokeImpl = baseInvoke;

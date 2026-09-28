@@ -30,9 +30,7 @@ export const BENCH_SEED_REQUEST_SCHEMA = z
   .strict();
 
 /** Ответ `__bench/seed`: сколько записей фактически вставлено (одной транзакцией). */
-export const BENCH_SEED_RESPONSE_SCHEMA = z
-  .object({ inserted: z.number().int().min(0) })
-  .strict();
+export const BENCH_SEED_RESPONSE_SCHEMA = z.object({ inserted: z.number().int().min(0) }).strict();
 
 /** Запрос __bench/seed (§9). */
 export type BenchSeedRequest = z.infer<typeof BENCH_SEED_REQUEST_SCHEMA>;

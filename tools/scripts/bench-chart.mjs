@@ -76,10 +76,14 @@ function withTimeout(promise, ms, label) {
 
 /** Ожидание загрузки страницы после reload: preload-мост с bench-хуками доступен. */
 async function waitForBenchBridge(window) {
-  await window.waitForFunction(() => {
-    const host = /** @type {{hl?: {__bench?: unknown}}} */ (globalThis);
-    return host.hl !== undefined && host.hl.__bench !== undefined;
-  }, undefined, { timeout: TIMEOUT_MEASURE_MS });
+  await window.waitForFunction(
+    () => {
+      const host = /** @type {{hl?: {__bench?: unknown}}} */ (globalThis);
+      return host.hl !== undefined && host.hl.__bench !== undefined;
+    },
+    undefined,
+    { timeout: TIMEOUT_MEASURE_MS },
+  );
 }
 
 /**
@@ -106,26 +110,31 @@ async function measureRenderRun(window) {
     }
     lastMissed = measure.missed;
   }
-  throw new Error(`measureRender: ${RENDER_MAX_ATTEMPTS} попыток подряд missed=${String(lastMissed)} — график монтируется из кэша, прогон нечестен`);
+  throw new Error(
+    `measureRender: ${RENDER_MAX_ATTEMPTS} попыток подряд missed=${String(lastMissed)} — график монтируется из кэша, прогон нечестен`,
+  );
 }
 
 /** Замер режима серий (для отчёта §5): untimed вызов trend/series «всё». */
 async function fetchSeriesMode(window) {
-  const raw = await window.evaluate(async ({ profileId }) => {
-    const envelope = await globalThis.hl.invoke('trend/series', {
-      profileId,
-      period: 'all',
-    });
-    const data = /** @type {{mode?: string; points?: unknown[]; days?: unknown[]}} */ (
-      /** @type {unknown} */ (envelope?.data)
-    );
-    return {
-      ok: envelope?.ok === true,
-      mode: data?.mode,
-      points: data?.points?.length,
-      days: data?.days?.length,
-    };
-  }, { profileId: BENCH_PROFILE_ID });
+  const raw = await window.evaluate(
+    async ({ profileId }) => {
+      const envelope = await globalThis.hl.invoke('trend/series', {
+        profileId,
+        period: 'all',
+      });
+      const data = /** @type {{mode?: string; points?: unknown[]; days?: unknown[]}} */ (
+        /** @type {unknown} */ (envelope?.data)
+      );
+      return {
+        ok: envelope?.ok === true,
+        mode: data?.mode,
+        points: data?.points?.length,
+        days: data?.days?.length,
+      };
+    },
+    { profileId: BENCH_PROFILE_ID },
+  );
   if (!raw.ok) {
     throw new Error(`trend/series отклонён: ${JSON.stringify(raw)}`);
   }
@@ -136,7 +145,9 @@ async function fetchSeriesMode(window) {
 export async function benchChartRun(options = {}) {
   const count = options.count ?? 10_000;
   const runs = options.runs ?? 3;
-  const outDir = resolve(options.outDir ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'bench-results'));
+  const outDir = resolve(
+    options.outDir ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'bench-results'),
+  );
   const thresholds = {
     channelMs: options.gateChannelMs ?? BENCH_GATE_CHANNEL_MS,
     renderMs: options.gateRenderMs ?? BENCH_GATE_RENDER_MS,
@@ -153,14 +164,19 @@ export async function benchChartRun(options = {}) {
 
     // (1) Сид синтетики: генерация на main-стороне, ОДНА транзакция (§8/§9).
     const seed = await withTimeout(
-      window.evaluate(async ({ benchCount }) => {
-        return globalThis.hl.invoke('__bench/seed', { count: benchCount });
-      }, { benchCount: count }),
+      window.evaluate(
+        async ({ benchCount }) => {
+          return globalThis.hl.invoke('__bench/seed', { count: benchCount });
+        },
+        { benchCount: count },
+      ),
       TIMEOUT_SEED_MS,
       '__bench/seed',
     );
     if (seed?.ok !== true || seed.data?.inserted !== count) {
-      throw new Error(`__bench/seed: ожидался {ok:true, data:{inserted:${count}}}, получено ${JSON.stringify(seed)}`);
+      throw new Error(
+        `__bench/seed: ожидался {ok:true, data:{inserted:${count}}}, получено ${JSON.stringify(seed)}`,
+      );
     }
 
     // Прогрев (§13: 1 прогон без записи) + фактический режим серий для отчёта.
@@ -254,7 +270,9 @@ if (invokedPath === scriptPath) {
     else if (flag === '--json') cliJson = true;
     else {
       console.error(`неизвестный флаг: ${String(flag)}`);
-      console.error('usage: pnpm bench:chart [--count N] [--runs N] [--out-dir DIR] [--gate-channel-ms N] [--gate-render-ms N] [--json]');
+      console.error(
+        'usage: pnpm bench:chart [--count N] [--runs N] [--out-dir DIR] [--gate-channel-ms N] [--gate-render-ms N] [--json]',
+      );
       exit(2);
     }
   }

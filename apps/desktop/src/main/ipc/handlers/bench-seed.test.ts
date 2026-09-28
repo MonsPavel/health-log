@@ -124,9 +124,11 @@ describe('createBenchSeedHandler — транзакционная вставка
    */
   function fakeDb() {
     const runParams: Record<string, unknown>[] = [];
+    const preparedSql: string[] = [];
     let transactions = 0;
     return {
       runParams,
+      preparedSql,
       transactions: () => transactions,
       transaction(fn: () => unknown): () => unknown {
         return () => {
@@ -135,7 +137,8 @@ describe('createBenchSeedHandler — транзакционная вставка
           return undefined;
         };
       },
-      prepare(_sql: string) {
+      prepare(sql: string) {
+        preparedSql.push(sql);
         return {
           run(params: Record<string, unknown>): unknown {
             runParams.push(params);
@@ -145,6 +148,14 @@ describe('createBenchSeedHandler — транзакционная вставка
       },
     };
   }
+
+  it('готовит INSERT строки bp_measurement v1 (TASK-025 §8: схема без изменений)', () => {
+    const db = fakeDb();
+    createBenchSeedHandler(db, { seed: SEED, anchorUtcMs: ANCHOR_MS })({ count: 1 });
+    expect(db.preparedSql).toHaveLength(1);
+    expect(db.preparedSql[0]).toContain('INSERT INTO bp_measurement');
+    expect(db.preparedSql[0]).toContain('taken_at_utc');
+  });
 
   it('вставляет count строк ОДНОЙ транзакцией, ответ — факт вставки {inserted: count}', () => {
     const db = fakeDb();

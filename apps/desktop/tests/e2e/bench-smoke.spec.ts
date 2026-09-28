@@ -59,7 +59,10 @@ function readReportJson(outDir: string): Record<string, unknown> {
   return JSON.parse(readFileSync(join(outDir, files[0]!), 'utf8')) as Record<string, unknown>;
 }
 
-const test = base.extend<{ tmpUserData: string; launch: (userData: string) => Promise<ElectronApplication> }>({
+const test = base.extend<{
+  tmpUserData: string;
+  launch: (userData: string) => Promise<ElectronApplication>;
+}>({
   tmpUserData: async ({}, use) => {
     const dir = await mkdtemp(join(tmpdir(), 'hl-bench-smoke-'));
     await use(dir);
@@ -142,12 +145,15 @@ test.describe('TASK-062 smoke bench (100 записей)', () => {
     await window.waitForLoadState('domcontentloaded');
 
     const probe = await window.evaluate(async () => {
-      const host = /** @type {{hl?: {__bench?: unknown; invoke?: (c: string, p: unknown) => Promise<unknown>}}} */ (
-        /** @type {unknown} */ (globalThis)
-      );
+      // Страница — не TS-DOM контекст: форма window.hl — локальный структурный тип.
+      const host = globalThis as unknown as {
+        hl?: {
+          __bench?: unknown;
+          invoke?: (channel: string, payload: unknown) => Promise<unknown>;
+        };
+      };
       const raw = (await host.hl?.invoke?.('__bench/seed', { count: 1 })) as
-        | { ok?: boolean; error?: { code?: string } }
-        | undefined;
+        { ok?: boolean; error?: { code?: string } } | undefined;
       return { hasBench: host.hl?.__bench !== undefined, seedEnvelope: raw };
     });
 
