@@ -8,6 +8,12 @@
  * вообще — агрегат, §12). daily: день Intl-датой + среднее/диапазон обоих
  * каналов + число измерений (числа — Intl.NumberFormat ru, §17).
  *
+ * Канал (TASK-058 §5): channel='pulse' — тултип графика ЧСС: только пульс с
+ * единицей «уд/мин», значения давления НЕ показываются (§3: мм рт. ст. и уд/мин
+ * не смешиваются), irregular-запись — пояс EC-10 «неровный пульс — значение
+ * может быть неточным». daily-pulse: среднее пульса дня (pulseAvg отсутствует —
+ * день без пульса не показывается).
+ *
  * Recharts клонирует content-элемент со своими active/label/payload — компонент
  * работает и стоя (тесты, §19), и как content внутри Tooltip.
  */
@@ -32,6 +38,8 @@ export interface ChartTooltipProps {
   readonly payload?: readonly TooltipPayloadEntry[];
   /** Ветвь данных: сырые точки или дневные агрегаты (§5 056). */
   readonly mode: 'raw' | 'daily';
+  /** Канал графика (§5 058): 'bp' — давление (дефолт 057), 'pulse' — ЧСС. */
+  readonly channel?: 'bp' | 'pulse';
   /** Клик по кнопке/точке — переход к правке записи (TASK-038; daily — нет кнопки). */
   readonly onEditPoint?: (point: RawPoint) => void;
 }
@@ -74,6 +82,7 @@ export function ChartTooltip({
   active,
   payload,
   mode,
+  channel = 'bp',
   onEditPoint,
 }: ChartTooltipProps): JSX.Element | null {
   const { t } = useTranslation();
@@ -86,6 +95,29 @@ export function ChartTooltip({
     const day = payload[0]?.payload as DayPoint | undefined;
     if (day === undefined) {
       return null;
+    }
+    // TASK-058 §5: daily-пульс — среднее пульса дня; день без пульса (pulseAvg
+    // отсутствует) не показывается (точки у линии нет — тултип не активен).
+    if (channel === 'pulse') {
+      if (day.pulseAvg === undefined) {
+        return null;
+      }
+      return (
+        <div
+          data-testid="chart-tooltip"
+          className="rounded-md border border-border bg-bg p-2 text-sm shadow-sm"
+        >
+          <p className="font-medium">{formatWallDate(day.wallDate)}</p>
+          <p>
+            {t('dashboard.legend.avg')}:{' '}
+            <span className="font-medium">{formatNumber(day.pulseAvg)}</span>{' '}
+            <span>{t('dashboard.pulse.unit')}</span>
+          </p>
+          <p className="text-neutral-500">
+            {t('dashboard.tooltip.measurements', { count: day.count })}
+          </p>
+        </div>
+      );
     }
     return (
       <div
@@ -119,6 +151,38 @@ export function ChartTooltip({
     return null;
   }
   const instant: InstantLike = { utcMs: point.utcMs, tzOffsetMin: point.tzOffsetMin };
+  // TASK-058 §5: raw-пульс — только ЧСС с единицей + пояс EC-10; давления нет (§3).
+  if (channel === 'pulse') {
+    return (
+      <div
+        data-testid="chart-tooltip"
+        className="rounded-md border border-border bg-bg p-2 text-sm shadow-sm"
+      >
+        <p className="font-medium">{formatDateTime(instant, { preset: 'datetime' })}</p>
+        {point.pulse !== undefined && (
+          <p>
+            {t('dashboard.tooltip.pulse')}:{' '}
+            <span className="font-medium">{formatNumber(point.pulse)}</span>{' '}
+            <span>{t('dashboard.pulse.unit')}</span>
+          </p>
+        )}
+        {point.irregular === true && (
+          <p className="text-neutral-500">{t('dashboard.pulse.irregularTooltip')}</p>
+        )}
+        <p className="text-neutral-500">{t(PART_KEY[point.part])}</p>
+        {point.id !== undefined && onEditPoint !== undefined && (
+          <button
+            type="button"
+            data-testid="chart-tooltip-edit"
+            onClick={() => onEditPoint(point)}
+            className="mt-1 min-h-11 rounded-md border border-border px-3 py-1 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          >
+            {t('dashboard.tooltip.edit')}
+          </button>
+        )}
+      </div>
+    );
+  }
   return (
     <div
       data-testid="chart-tooltip"
