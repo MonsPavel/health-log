@@ -2,11 +2,18 @@
  * TASK-057 §5/§13: опорные линии графика — границы «высокое нормальное»/«АГ 1»
  * ИЗ ДАННЫХ активной шкалы (не хардкод: sys-порог high_normal и hypertension1 —
  * sysRange.min категорий; dia — diaRange.min, §13), стили из токенов темы
- * (пунктир, var(--hl-border) — не compete с сериями), подпись источника
- * (sourceLabel) — ОДИН РАЗ НА ГРАФИК (§13, HTML-caption вне SVG: label
- * ReferenceLine в jsdom не рендерится и для вспомогательных технологий глух —
- * HTML-подпись проверяема тестами и доступна скринридерам; решение в духе
- * ADR-0003 §2 «декоративные узлы — aria-hidden»).
+ * (пунктир, var(--hl-border) — не compete с сериями).
+ *
+ * РАЗДЕЛЕНИЕ (ревью TASK-057): компонент ReferenceLines рендерит ТОЛЬКО
+ * <ReferenceLine> — он ребёнок ComposedChart, а Recharts 3.10 монтирует
+ * произвольных детей ВНУТРЬ <svg>; HTML-элемент внутри svg в Chromium (движок
+ * Electron) не рендерится (getBoundingClientRect 0×0, offsetParent null) и не
+ * попадает в accessibility-дерево — jsdom этого не видит (узел в DOM-дереве
+ * есть), поэтому подпись источника НЕ МОЖЕТ быть ребёнком графика. Она вынесена
+ * в ScaleSourceCaption, который TrendChart ставит ВНЕ svg и ВНЕ aria-hidden-
+ * обёртки графика — рядом с легендой/подписью агрегации; ОДИН РАЗ НА ГРАФИК
+ * (§13). label самого ReferenceLine не используется: в jsdom его текст не
+ * рендерится, тестопригодность теряется.
  *
  * referenceThresholdsOf — чистая функция извлечения (§7): категории
  * high_normal/hypertension1 могут отсутствовать в будущих версиях шкалы —
@@ -65,24 +72,27 @@ export function referenceThresholdsOf(scale: ActiveScale): BpReferences {
   return { lines: [...lines].sort(byChannelValue), sourceLabel: scale.sourceLabel };
 }
 
+/** Шкала валидна для рисования: задана и категории — массив (guard против мусора провода). */
+function isDrawableScale(scale: ActiveScale | undefined): scale is ActiveScale {
+  return scale !== undefined && Array.isArray(scale.categories);
+}
+
 /** Свойства ReferenceLines (§5): активная шкала или undefined (ещё грузится). */
 export interface ReferenceLinesProps {
   readonly scale: ActiveScale | undefined;
 }
 
 /**
- * Опорные линии внутри ComposedChart (§20.1: 2 sys + 2 dia) + caption источника.
- * Пунктир strokeDasharray "2 4" и токен --hl-border — линии-справка не
- * пересекаются стилем с сериями (sys — сплошная, dia — штрих, §5).
+ * Опорные линии ВНУТРИ ComposedChart (§20.1: 2 sys + 2 dia) — только SVG-узлы
+ * Recharts (см. шапку: никаких HTML-детей графика). Пунктир strokeDasharray
+ * "2 4" и токен --hl-border — линии-справка не пересекаются стилем с сериями
+ * (sys — сплошная, dia — штрих, §5).
  */
 export function ReferenceLines({ scale }: ReferenceLinesProps): JSX.Element | null {
-  const { t } = useTranslation();
-  // Guard: боевой main валидирует scales/active схемой (§14), но экран остаётся
-  // живым при любом мусоре данных (проверка в глубину — категорий может не быть).
-  if (scale === undefined || !Array.isArray(scale.categories)) {
+  if (!isDrawableScale(scale)) {
     return null;
   }
-  const { lines, sourceLabel } = referenceThresholdsOf(scale);
+  const { lines } = referenceThresholdsOf(scale);
   return (
     <>
       {lines.map((line) => (
@@ -94,10 +104,29 @@ export function ReferenceLines({ scale }: ReferenceLinesProps): JSX.Element | nu
           ifOverflow="extendDomain"
         />
       ))}
-      {/* §13: подпись источника — один раз на график; за пределами SVG (см. шапку). */}
-      <div data-testid="scale-source" className="text-xs text-neutral-500">
-        {t('dashboard.a11y.sourceLabel', { source: sourceLabel })}
-      </div>
     </>
+  );
+}
+
+/** Свойства ScaleSourceCaption (§13): активная шкала или undefined (ещё грузится). */
+export interface ScaleSourceCaptionProps {
+  readonly scale: ActiveScale | undefined;
+}
+
+/**
+ * Подпись источника справочных значений (§13: один раз на график; §17: текст —
+ * sourceLabel ИЗ ДАННЫХ шкалы). Рендерится TrendChart'ом ВНЕ <svg> и ВНЕ
+ * aria-hidden-обёртки графика — видим и доступен вспомогательным технологиям
+ * (ревью TASK-057: HTML внутри svg в Chromium не рендерится).
+ */
+export function ScaleSourceCaption({ scale }: ScaleSourceCaptionProps): JSX.Element | null {
+  const { t } = useTranslation();
+  if (!isDrawableScale(scale)) {
+    return null;
+  }
+  return (
+    <div data-testid="scale-source" className="mt-1 text-xs text-neutral-500">
+      {t('dashboard.a11y.sourceLabel', { source: scale.sourceLabel })}
+    </div>
   );
 }

@@ -3,10 +3,12 @@
  * (не хардкод: sys-порог high_normal/hypertension1 = sysRange.min категорий активной
  * шкалы; dia — diaRange.min, §13) + подпись источника ОДИН РАЗ НА ГРАФИК (§13).
  *
- * referenceThresholdsOf — чистая функция (извлечение порогов, §7); компонент —
- * 4 <ReferenceLine> внутри графика (2 sys + 2 dia, §20.1) + caption источника
- * вне SVG (решение: label ReferenceLine не рендерится в jsdom и недоступен
- * вспомогательным технологиям — HTML-подпись проверяема и читаема).
+ * referenceThresholdsOf — чистая функция (извлечение порогов, §7). Компонент
+ * ReferenceLines рендерит ТОЛЬКО линии (дети ComposedChart — ревью TASK-057:
+ * Recharts 3.10 монтирует произвольных детей ВНУТРЬ <svg>, а HTML-элемент в svg
+ * в Chromium не рендерится и не попадает в accessibility-дерево) — подпись
+ * источника вынесена в ScaleSourceCaption, который TrendChart ставит ВНЕ
+ * svg/aria-hidden (тест интеграции — TrendChart.test AC1: узел НЕ внутри svg).
  */
 import { cleanup, render } from '@testing-library/react';
 import { createElement } from 'react';
@@ -16,7 +18,7 @@ import { ComposedChart, Line } from 'recharts';
 import type { ActiveScale } from '@hl/contracts';
 
 import '../../../i18n';
-import { referenceThresholdsOf, ReferenceLines } from './ReferenceLines';
+import { referenceThresholdsOf, ReferenceLines, ScaleSourceCaption } from './ReferenceLines';
 
 /** Фикстура шкалы ESC/ESH 2018 (§20.1: категории high_normal 130/85, hypertension1 140/90). */
 export const SCALE_FIXTURE: ActiveScale = {
@@ -88,8 +90,8 @@ describe('referenceThresholdsOf — извлечение порогов из ш�
 });
 
 describe('ReferenceLines — рендер внутри графика (§20.1: 4 опорные линии, 2 sys + 2 dia)', () => {
-  it('4 линии .recharts-reference-line + HTML-подпись источника (один раз, §13)', () => {
-    const { container, getByTestId } = render(
+  it('4 линии .recharts-reference-line; подписи источника внутри графика НЕТ (ревью 057: дети ComposedChart монтируются в svg — caption снаружи)', () => {
+    const { container } = render(
       createElement(
         ComposedChart,
         { width: 400, height: 200, data: [{ utcMs: 0, sys: 120 }] },
@@ -98,12 +100,13 @@ describe('ReferenceLines — рендер внутри графика (§20.1: 4
       ),
     );
     expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(4);
-    // Подпись — интерполированный ключ a11y.sourceLabel с sourceLabel из данных (§17).
-    expect(getByTestId('scale-source').textContent).toContain('ESC/ESH 2018');
+    // Подпись — ответственность ScaleSourceCaption вне графика (TrendChart), не
+    // ребёнок ComposedChart: внутри svg HTML не рендерится в Chromium (ревью 057).
+    expect(container.querySelector('[data-testid="scale-source"]')).toBeNull();
   });
 
-  it('без шкалы линии и подпись не рендерятся (шкала ещё грузится — график уже виден)', () => {
-    const { container, queryByTestId } = render(
+  it('без шкалы линии не рендерятся (шкала ещё грузится — график уже виден)', () => {
+    const { container } = render(
       createElement(
         ComposedChart,
         { width: 400, height: 200, data: [{ utcMs: 0, sys: 120 }] },
@@ -112,6 +115,21 @@ describe('ReferenceLines — рендер внутри графика (§20.1: 4
       ),
     );
     expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(0);
+  });
+});
+
+describe('ScaleSourceCaption — подпись источника вне графика (§13/§17: sourceLabel из данных)', () => {
+  it('текст — интерполированный ключ a11y.sourceLabel с sourceLabel шкалы; узел — HTML вне svg', () => {
+    const { getByTestId } = render(createElement(ScaleSourceCaption, { scale: SCALE_FIXTURE }));
+
+    expect(getByTestId('scale-source').textContent).toContain('ESC/ESH 2018');
+    // Каптион рендерится сам по себе (не в контексте Recharts) — предком svg быть не может.
+    expect(getByTestId('scale-source').closest('svg')).toBeNull();
+  });
+
+  it('без шкалы (ещё грузится) подписи нет', () => {
+    const { queryByTestId } = render(createElement(ScaleSourceCaption, { scale: undefined }));
+
     expect(queryByTestId('scale-source')).toBeNull();
   });
 });

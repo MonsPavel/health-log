@@ -40,7 +40,7 @@ import type { DayPoint, RawPoint, TrendResponse } from '@hl/contracts';
 import { formatDateTime, type InstantLike } from '../../../lib/i18n-date';
 import { tzOffsetMinOf } from '../../../lib/period';
 import { ChartTooltip } from './ChartTooltip';
-import { ReferenceLines } from './ReferenceLines';
+import { ReferenceLines, ScaleSourceCaption } from './ReferenceLines';
 
 /** Цвета серий из токенов темы (§5: цвета из токенов; CSS-переменные — тема без ре-рендера). */
 const SYS_STROKE = 'var(--hl-accent)';
@@ -389,11 +389,16 @@ export function TrendChart({
               </>
             )}
 
-            {/* Опорные линии из шкалы (§13) + подпись источника (HTML-caption). */}
+            {/* Опорные линии из шкалы (§13) — ТОЛЬКО SVG-узлы Recharts (ревью 057:
+                дети ComposedChart монтируются внутрь <svg>, HTML там не рендерится). */}
             <ReferenceLines scale={scale} />
           </ComposedChart>
         </div>
       </figure>
+
+      {/* §13: подпись источника — один раз на график, ВНЕ svg и ВНЕ aria-hidden
+          (ScaleSourceCaption; ревью 057). */}
+      <ScaleSourceCaption scale={scale} />
 
       {/* §20.5: честность агрегации — подпись daily-режима. */}
       {isDaily && (

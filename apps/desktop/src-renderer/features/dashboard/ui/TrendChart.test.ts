@@ -53,7 +53,14 @@ describe('TrendChart — raw-режим (§20.1/§20.2/§20.3)', () => {
     const lines = container.querySelectorAll('.recharts-line');
     expect(lines.length).toBe(2);
     expect(container.querySelectorAll('.recharts-reference-line')).toHaveLength(4);
-    expect(screen.getByTestId('scale-source').textContent).toContain('ESC/ESH 2018');
+    // Ревью TASK-057 (§20.1): Recharts монтирует детей ComposedChart ВНУТРЬ <svg>,
+    // а HTML-элемент в svg в Chromium не рендерится (getBoundingClientRect 0×0,
+    // offsetParent null) и не попадает в accessibility-дерево. Подпись источника
+    // обязана быть ВНЕ svg и вне aria-hidden-поддерева графика.
+    const caption = screen.getByTestId('scale-source');
+    expect(caption.textContent).toContain('ESC/ESH 2018');
+    expect(container.querySelector('svg')?.contains(caption) ?? false).toBe(false);
+    expect(caption.closest('[aria-hidden="true"]')).toBeNull();
   });
 
   it('(AC2) точки различимы формой: утро=circle, вечер=rect, другое=polygon (форма+цвет, не только цвет)', () => {
