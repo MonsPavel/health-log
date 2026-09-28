@@ -76,7 +76,10 @@ function labelOf(path: string): string {
 function readyLocator(window: Page, path: string): Locator {
   switch (path) {
     case '/dashboard':
-      return window.getByRole('heading', { name: 'Динамика' });
+      // TASK-057: /dashboard — реальный экран «Динамика»; на пустой tmp-userData
+      // trend/series отвечает {mode:'raw', points:[]} — детерминированное
+      // пустое состояние (заголовок виден уже в pending, скелетон — немонотонно).
+      return window.getByTestId('empty-chart');
     case '/journal':
       return window.getByTestId('empty-history');
     case '/ai':

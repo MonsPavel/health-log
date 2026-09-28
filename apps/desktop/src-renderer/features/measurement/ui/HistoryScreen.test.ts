@@ -483,6 +483,23 @@ describe('HistoryScreen — правка и удаление (TASK-038 §5/§19/
     expect(screen.queryByTestId('measurement-row')).toBeNull();
   });
 
+  // TASK-057 §12 (сквозной переход к правке с графика динамики): DashboardScreen
+  // делает startEdit(dto) и navigate('/journal') — смонтированный экран обязан
+  // открыть форму edit (editingId ≠ null), а не список.
+  it('внешний startEdit (с графика динамики) до монтирования → вид начинается с формы edit (§12 057)', async () => {
+    const rows = crudFixture();
+    mockCrudRoutes(rows);
+    useFormStore.getState().startEdit(dto('m-morning', wallNoon(TODAY_KEY), { pulse: 70 }));
+    renderHistory();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('form-title').textContent).toBe('Изменение записи'),
+    );
+    expect(screen.getByTestId<HTMLInputElement>('input-sys').value).toBe('125');
+    expect(screen.getByTestId<HTMLInputElement>('input-pulse').value).toBe('70');
+    expect(screen.queryByTestId('measurement-row')).toBeNull();
+  });
+
   it('отмена правки (Esc) → список, запись на месте, фокус вернулся в строку (§20 AC2/AC5)', async () => {
     const user = userEvent.setup();
     const rows = crudFixture();
