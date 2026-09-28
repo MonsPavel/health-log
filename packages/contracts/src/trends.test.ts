@@ -152,6 +152,18 @@ describe('TREND_RAW_POINT_SCHEMA — сырая точка графика (§5)'
     expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, irregular: null }).success).toBe(false);
   });
 
+  // TASK-059 §5 (ДОПОЛНЕНИЕ КОНТРАКТА, аддитивно): таблица-альтернатива графику
+  // строится из ТОГО ЖЕ TrendResponse (§4: «ноль параллельных вычислений») —
+  // колонка «Рука» требует arm в сырой точке; прецедент irregular TASK-058.
+  it('(059 §5) arm: left/right принимается; без руки поле отсутствует; прочие значения отклоняются', () => {
+    const base = { utcMs: 0, tzOffsetMin: 0, sys: 120, dia: 80, part: 'other' };
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, arm: 'left' }).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, arm: 'right' }).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse(base).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, arm: 'both' }).success).toBe(false);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, arm: null }).success).toBe(false);
+  });
+
   it('значения целые: дробные sys/pulse/utcMs отклоняются', () => {
     const base = { utcMs: 0, tzOffsetMin: 0, dia: 80, part: 'other' };
     expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, sys: 120.5 }).success).toBe(false);

@@ -179,6 +179,10 @@ describe('trend/series через контейнер — полный путь (
       expect('pulse' in points[1]).toBe(false);
       expect('irregular' in points[1]).toBe(false);
       expect('irregular' in points[2]).toBe(false);
+      // arm — TASK-059 §5: рука записи сквозно (measurements/add → адаптер порта →
+      // read model) — колонка «Рука» таблицы-альтернативы строится из этого провода.
+      expect(points[0]?.arm).toBe('left');
+      expect(points[1]?.arm).toBe('left');
       // Момент — как хранится (свой offset записи, EC-06).
       expect(points[0]?.tzOffsetMin).toBe(TZ);
       expect(points[0]?.utcMs).toBe(fixtureInstant('2026-03-02', '07:30').utcMs);

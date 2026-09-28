@@ -73,6 +73,11 @@ const TREND_CRITICAL_SCHEMA = z.enum(['high', 'low']);
  * «неровный пульс» (EC-10) — маркер на точке графика ЧСС + пояснение в тултипе
  * («значение может быть неточным»). Опционален: записи без флага поле не несут
  * (§7); семантика флага записи, не значения пульса.
+ *
+ * arm (TASK-059 §5, ДОПОЛНЕНИЕ КОНТРАКТА — аддитивно): рука измерения («left»/
+ * «right», тот же enum, что у записи — ArmSchema) — колонка «Рука» таблицы-
+ * альтернативы графику строится из ТОГО ЖЕ TrendResponse (§4: «ноль параллельных
+ * вычислений»). Опционален: записи без руки поле не несут (§7).
  */
 export const TREND_RAW_POINT_SCHEMA = z
   .object({
@@ -84,6 +89,7 @@ export const TREND_RAW_POINT_SCHEMA = z
     part: TREND_PART_SCHEMA,
     critical: TREND_CRITICAL_SCHEMA.optional(),
     irregular: z.boolean().optional(),
+    arm: z.enum(['left', 'right']).optional(),
     id: z.string().optional(),
   })
   .strict();
