@@ -28,9 +28,9 @@
     "retry": "Повторить"
   },
   "a11y": {
-    "chartLabel": "График динамики давления {{period}}: систолическое в среднем {{sysAvg}} (диапазон {{sysMin}}–{{sysMax}}), диастолическое в среднем {{diaAvg}} (диапазон {{diaMin}}–{{diaMax}}), измерений: {{count}}.",
-    "pointLabel": "{{datetime}}: {{sys}} на {{dia}}, {{part}}",
-    "pointLabelPulse": "{{datetime}}: {{sys}} на {{dia}}, пульс {{pulse}}, {{part}}",
+    "chartLabel": "График динамики давления, период «{{period}}»: систолическое в среднем {{sysAvg}} (диапазон {{sysMin}}–{{sysMax}}), диастолическое в среднем {{diaAvg}} (диапазон {{diaMin}}–{{diaMax}}), измерений: {{count}}.",
+    "pointLabel": "{{datetime}}: {{sys}}/{{dia}}, {{part}}",
+    "pointLabelPulse": "{{datetime}}: {{sys}}/{{dia}}, пульс {{pulse}}, {{part}}",
     "dayLabel": "День {{date}}: среднее {{avg}} ({{min}}–{{max}}), измерений {{count}}",
     "sourceLabel": "Источник справочных значений: {{source}}"
   }
