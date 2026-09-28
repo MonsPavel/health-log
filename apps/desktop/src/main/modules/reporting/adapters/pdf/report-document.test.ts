@@ -121,6 +121,25 @@ describe('golden-рендер фикстуры (§19/AC §20)', () => {
     // Включённый раздел добавляет страницу/контент — документ не меньше.
     expect(countPages(withAi)).toBeGreaterThanOrEqual(countPages(withoutAi));
   }, 30_000);
+
+  it('утро/вечер отсутствуют → «—» в средних (§13), рендер без краша и байты иные', async () => {
+    const withoutParts = await render({
+      ...GOLDEN_PAYLOAD,
+      data: {
+        ...GOLDEN_PAYLOAD.data,
+        averages: { period: GOLDEN_PAYLOAD.data.averages.period },
+      },
+    });
+    const golden = await render(GOLDEN_PAYLOAD);
+    expect(sha256(withoutParts)).not.toBe(sha256(golden));
+    expect(countPages(withoutParts)).toBeGreaterThanOrEqual(1);
+  }, 30_000);
+
+  it('пустой период (0 строк) — валидный рендер без NaN/краша (§9 052: пустой период — корректная структура)', async () => {
+    const empty = await render({ ...GOLDEN_PAYLOAD, data: { ...GOLDEN_PAYLOAD.data, rows: [] } });
+    expect(Buffer.from(empty.subarray(0, 5)).toString('latin1')).toBe('%PDF-');
+    expect(countPages(empty)).toBeGreaterThanOrEqual(1);
+  }, 30_000);
 });
 
 /** Число страниц PDF: /Type /Page без 's' (словари страниц не сжимаются pdfkit). */
