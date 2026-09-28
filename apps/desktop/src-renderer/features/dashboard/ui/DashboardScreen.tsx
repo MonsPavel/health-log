@@ -25,11 +25,24 @@
  * Период (§12): useDashboardPeriod (lib/period — те же URL-семантики, что у
  * журнала TASK-044/046; custom → utcMs-границы periodToStatsParam).
  *
- * Состояния (§10): loading — скелетон-оси; empty — каркас TASK-060 («Нет данных
- * за период» + CTA — «пустое место» для полноценного состояния 060); error —
+ * Состояния (§10): loading — скелетон-оси; empty — обучающая заглушка
+ * EmptyChartState TASK-060 («За выбранный период измерений нет» + CTA «Добавить
+ * измерение» → журнал + «Показать всё время» → период all, §5); error —
  * тост + «Повторить» (прецедент HistoryScreen); данные — график + легенда
  * (+ мини-таблица клавиатуры в raw, §16). daily — подпись «агрегировано по дням»
  * (честность, §10) — внутри графика.
+ *
+ * TASK-060 §5/§13/§16: пустые/мало-данные состояния — ветвление по trend/stats
+ * (§4: данные уже загружены, без дополнительных запросов). Пустой период —
+ * N=0 (raw: points.length; daily: Σdays.count — точки в daily отсутствуют) —
+ * EmptyChartState в ОБОИХ режимах. Мало данных (1≤N<AI_MIN_MEASUREMENTS=7) —
+ * FewDataNote НАД графиком (график рендерится, §5) + в режиме таблицы пометки
+ * нет (§5: полоса над графиком). ПОРОГ — из kernel-константы (единый источник
+ * с ИИ-честностью TASK-006): рендерер kernel не импортирует (арх. 03 §4) —
+ * флаг приходит готовым из stats/period (tooFewMeasurements = N<7 считает main,
+ * period-statistics.ts); число в пометке — count ТОГО ЖЕ stats-ответа, что и
+ * флаг (никогда не расходятся; §13: одни read models). Отказ stats — пометка
+ * просто не показывается, график из trend остаётся (§10, прецедент резюме 059).
  *
  * Переход к правке (§12): точка (тултип/клик/строка мини-таблицы) → полный DTO
  * через measurements/list с границами utc записи (from=to=utcMs — список вернёт
@@ -58,6 +71,8 @@ import { useFormStore } from '../../measurement/model/form-store';
 import { useActiveScale } from '../api/use-active-scale';
 import { STATS_KEY_ROOT, useStats } from '../api/use-stats';
 import { TREND_KEY_ROOT, useTrend } from '../api/use-trend';
+import { EmptyChartState } from './EmptyChartState';
+import { FewDataNote } from './FewDataNote';
 import { PulseChart } from './PulseChart';
 import { useDashboardPeriod } from './PeriodSwitcher';
 import { PeriodSwitcher } from './PeriodSwitcher';
@@ -82,26 +97,16 @@ function DashboardSkeleton(): JSX.Element {
   );
 }
 
-/** Каркас пустого состояния (§10: TASK-060 доработает детали — место оставлено). */
-function EmptyChart({ onOpenJournal }: { readonly onOpenJournal: () => void }): JSX.Element {
-  const { t } = useTranslation();
-
-  return (
-    <div
-      data-testid="empty-chart"
-      className="flex flex-col items-center gap-3 px-6 py-16 text-center"
-    >
-      <p className="text-base font-medium">{t('dashboard.empty.title')}</p>
-      <button
-        type="button"
-        data-testid="empty-chart-cta"
-        onClick={onOpenJournal}
-        className="rounded-md border border-border px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-      >
-        {t('dashboard.empty.cta')}
-      </button>
-    </div>
-  );
+/**
+ * Число измерений в периоде из ответа trend/series (§13): raw — points.length,
+ * daily — Σdays.count (точек в daily нет, но пустота определяется в обоих
+ * режимах — тест-прецедент TrendTable: points.length===0 && days.length===0).
+ */
+function measurementCountOf(response: TrendResponse): number {
+  if (response.mode === 'daily') {
+    return (response.days ?? []).reduce((sum, day) => sum + day.count, 0);
+  }
+  return response.points?.length ?? 0;
 }
 
 /** Вид графика «Динамика» (§5 058): давление или пульс. */
@@ -358,8 +363,19 @@ export function DashboardScreen(): JSX.Element {
   );
 
   const pending = trend.isPending || scale.isPending;
-  const isEmpty =
-    !trend.isError && trend.data?.mode === 'raw' && (trend.data.points?.length ?? 0) === 0;
+  // TASK-060 §13: пустой период — N=0 в обоих режимах (raw: точки; daily: Σcount).
+  const isEmpty = !trend.isError && trend.data !== undefined && measurementCountOf(trend.data) === 0;
+  // §5/§13: пометка «мало данных» (1≤N<AI_MIN_MEASUREMENTS) — ГОТОВЫЙ флаг порога
+  // kernel из stats (N<7 считает main: единый источник с ИИ-честностью, TASK-006;
+  // рендерер kernel не импортирует — арх. 03 §4). Число в пометке — count ТОГО ЖЕ
+  // stats-ответа, что и флаг (не расходятся). Пустота приоритетнее пометки; отказ
+  // stats — без пометки, график из trend остаётся (§10).
+  const fewDataCount =
+    !isEmpty &&
+    !stats.isError &&
+    stats.data?.stats.insufficientData.tooFewMeasurements === true
+      ? stats.data.stats.count
+      : undefined;
 
   /** Подпись периода для aria-резюме графика (те же подписи, что у сегмента). */
   const periodLabel = t(
@@ -435,10 +451,15 @@ export function DashboardScreen(): JSX.Element {
           </button>
         </section>
       ) : isEmpty ? (
-        <EmptyChart
-          onOpenJournal={() => {
+        // TASK-060 §5/§20 AC1: обучающая заглушка пустого периода; «Показать всё
+        // время» — пока период ещё не all (на all пусто = записей нет вовсе,
+        // действие-нооп не предлагается — честность §13).
+        <EmptyChartState
+          showAllTime={period.state.period !== 'all'}
+          onAdd={() => {
             void navigate('/journal');
           }}
+          onShowAll={() => period.setPeriod('all')}
         />
       ) : trend.data !== undefined ? (
         // §5 059: один ответ trend/series — график и таблица; таблица монтируется
@@ -448,6 +469,9 @@ export function DashboardScreen(): JSX.Element {
           <TrendTable response={trend.data} periodLabel={periodLabel} />
         ) : (
           <>
+            {/* TASK-060 §5/§13: мало данных (1≤N<7, флаг stats=kernel) — полоса
+                НАД графиком; сам график рендерится (не «пустое полотно», AC-3.6). */}
+            {fewDataCount !== undefined && <FewDataNote count={fewDataCount} />}
             {view === 'pulse' ? (
               <PulseChart
                 response={trend.data}

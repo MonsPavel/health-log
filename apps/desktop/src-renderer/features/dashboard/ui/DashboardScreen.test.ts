@@ -167,15 +167,12 @@ function mockTrend(response: TrendResponse): void {
 }
 
 /**
- * Stats-ответ с подменой (TASK-060 §19): порог «мало данных» приходит готовым
- * флагом stats.insufficientData.tooFewMeasurements (kernel-константа считается
- * в main — period-statistics.ts; рендерер kernel не импортирует, арх. 03 §4).
+ * Stats фикстуры «мало данных» (TASK-060 §19): порог «мало данных» приходит
+ * готовым флагом stats.insufficientData.tooFewMeasurements (kernel-константа
+ * AI_MIN_MEASUREMENTS=7 считается в main — period-statistics.ts; рендерер kernel
+ * не импортирует, арх. 03 §4). Подменяется ВМЕСТЕ с трендом (mockHl — полный
+ * мост: второй вызов затёр бы первый override).
  */
-function mockStats(response: StatsResponse): void {
-  mockHl({ 'stats/period': () => ({ v: 1, ok: true, data: response }) });
-}
-
-/** Stats фикстуры «мало данных» (N в периоде, N < AI_MIN_MEASUREMENTS=7 в main). */
 function fewStats(count: number): StatsResponse {
   return {
     stats: {
@@ -189,6 +186,14 @@ function fewStats(count: number): StatsResponse {
     },
     scale: { code: 'esc-esh-2018', version: '1.0.0', sourceLabel: 'ESC/ESH 2018' },
   };
+}
+
+/** Тренд+stats одним мостом (TASK-060: оба канала согласованы — N точек и флаг). */
+function mockTrendWithStats(response: TrendResponse, stats: StatsResponse): void {
+  mockHl({
+    'trend/series': () => ({ v: 1, ok: true, data: response }),
+    'stats/period': () => ({ v: 1, ok: true, data: stats }),
+  });
 }
 
 beforeEach(() => {
@@ -279,11 +284,10 @@ describe('DashboardScreen — состояния (§10: loading/empty/данны
 
 describe('DashboardScreen — мало данных (TASK-060 §13/§19/§20)', () => {
   it('(AC2) 3 точки → пометка «Мало данных — 3 …» над графиком (role=note), график присутствует', async () => {
-    mockTrend({
-      mode: 'raw',
-      points: [fixturePoint(0, 0), fixturePoint(1, 0), fixturePoint(2, 0)],
-    });
-    mockStats(fewStats(3));
+    mockTrendWithStats(
+      { mode: 'raw', points: [fixturePoint(0, 0), fixturePoint(1, 0), fixturePoint(2, 0)] },
+      fewStats(3),
+    );
     renderScreen();
 
     const note = await screen.findByTestId('few-data-note');
@@ -302,8 +306,7 @@ describe('DashboardScreen — мало данных (TASK-060 §13/§19/§20)', 
   });
 
   it('(§13) порог — готовый флаг stats (kernel в main): tooFewMeasurements=true при пустом тренде — заглушка без пометки', async () => {
-    mockTrend({ mode: 'raw', points: [] });
-    mockStats(fewStats(0));
+    mockTrendWithStats({ mode: 'raw', points: [] }, fewStats(0));
     renderScreen();
 
     expect(await screen.findByTestId('empty-chart')).not.toBeNull();
