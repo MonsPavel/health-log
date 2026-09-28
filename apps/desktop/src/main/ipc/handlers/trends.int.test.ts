@@ -180,16 +180,17 @@ describe('trend/series через контейнер — полный путь (
     const dir = newUserDataDir();
     const container = await makeContainer(dir);
     try {
-      // Слоты дня: утро 07:00 (120/80), день 12:30 (126/84), вечер 20:00 (132/88):
-      // sysAvg 126, diaAvg 84, morningSysAvg 120, eveningSysAvg 132, count 3.
+      // Слоты дня (минуты суток): утро 07:00=420 (120/80), день 12:30=750 (126/84),
+      // вечер 20:00=1200 (132/88): sysAvg 126, diaAvg 84, morningSysAvg 120,
+      // eveningSysAvg 132, count 3.
       const insert = insertStatement(container);
       const seed = container.db.transaction(() => {
         for (let day = 0; day < 167; day += 1) {
           const base = dayStartUtcMs('2025-01-01') + day * 86_400_000;
           const slots: ReadonlyArray<[number, number, number]> = [
-            [7, 120, 80],
-            [12.5 * 60, 126, 84],
-            [20, 132, 88],
+            [420, 120, 80],
+            [750, 126, 84],
+            [1200, 132, 88],
           ];
           for (const [wallMinutes, sys, dia] of slots) {
             const utcMs = base + wallMinutes * 60_000;

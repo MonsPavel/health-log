@@ -61,11 +61,13 @@ import { createSearchNotesHandler } from './ipc/handlers/search.js';
 import { createGetPrefsHandler, createSetPrefsHandler } from './ipc/handlers/prefs.js';
 import { createGetActiveScaleHandler } from './ipc/handlers/scales.js';
 import { createGetPeriodStatisticsHandler } from './ipc/handlers/stats.js';
+import { createTrendSeriesHandler } from './ipc/handlers/trends.js';
 import { createChannelRegistry, type ChannelRegistry } from './ipc/register-channel.js';
 import { MeasurementPointsAdapter } from './modules/analytics/adapters/measurement-points-adapter.js';
 import { SqliteScaleRepository } from './modules/analytics/adapters/sqlite-scale-repository.js';
 import { GetPeriodStatistics } from './modules/analytics/application/get-period-statistics.js';
 import { ScaleService } from './modules/analytics/application/scale-service.js';
+import { TrendSeries } from './modules/analytics/application/trend-series.js';
 import { SqliteBpMeasurementRepository } from './modules/measurement/adapters/sqlite-measurement-repository.js';
 import { NotesSearchAdapter } from './modules/measurement/adapters/notes-search.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
@@ -288,6 +290,9 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       scales: scaleService,
       clock,
     });
+    //      TASK-056: TrendSeries — read model серий точек графика (тот же порт точек,
+    //      без нового SQL; режим raw/daily по порогу 500 решает read model, §2).
+    const trendSeries = new TrendSeries({ points: measurementPoints, clock });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -355,6 +360,13 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       'stats/period',
       CHANNEL_SCHEMAS['stats/period'],
       createGetPeriodStatisticsHandler(getPeriodStatistics, createLogger('ipc')),
+    );
+    // TASK-056 §5/§11: trend/series — read model trendSeries; лог длительности §18
+    // (`trend/series period=… mode=… points=N durationMs=…`) — категория ipc.
+    channels.register(
+      'trend/series',
+      CHANNEL_SCHEMAS['trend/series'],
+      createTrendSeriesHandler(trendSeries, createLogger('ipc')),
     );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
