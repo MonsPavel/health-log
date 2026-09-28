@@ -12,7 +12,7 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { _electron, type ElectronApplication } from '@playwright/test';
+import { _electron, type ElectronApplication, type Page } from '@playwright/test';
 
 /** Корень пакета @hl/desktop (tests/e2e/helpers/* → три уровня вверх → apps/desktop). */
 const APP_ROOT = join(fileURLToPath(new URL('../../..', import.meta.url)));
@@ -24,6 +24,29 @@ const MAIN_ENTRY = join(APP_ROOT, 'dist', 'main', 'app', 'bootstrap.js');
 export interface LaunchAppOptions {
   /** Каталог tmp-userData (fixture mkdtemp) для изоляции данных прогона. */
   readonly userData: string;
+  /**
+   * TASK-062 §6/§10: bench-режим — запуск с env HL_BENCH=1: main регистрирует
+   * test-only канал `__bench/seed` (гард benchChannelsEnabled §14), preload
+   * экспонирует performance-хуки `window.hl.__bench`. Без флага — обычный e2e
+   * запуск, bench-поверхность отсутствует (проверяется негатив-тестом §20 AC4).
+   */
+  readonly bench?: boolean;
+}
+
+/** TASK-062 §10: зеркало результата measureChannel preload.cts (§5 шаг 3). */
+export interface BenchChannelMeasure {
+  /** Длительность round-trip канала из рендерера, мс (performance.now). */
+  readonly ms: number;
+  /** Факт ok-конверта (отказ канала делает прогон невалидным). */
+  readonly ok: boolean;
+}
+
+/** TASK-062 §10: зеркало результата measureRender preload.cts (§5 шаг 4). */
+export interface BenchRenderMeasure {
+  /** «данные получены → paint завершён» (performance.measure), мс. */
+  readonly ms: number;
+  /** true — график уже был в DOM (кэш): прогон нечестен, повторить на свежей странице. */
+  readonly missed: boolean;
 }
 
 /**
@@ -41,15 +64,63 @@ export function mainProcessLogsDir(): string {
  * Запускает приложение с изолированным userData. env копируется из process.env
  * (_electron.launch заменяет окружение целиком), HL_TEST_USER_DATA добавляется,
  * ELECTRON_RENDERER_URL удаляется — окно грузит собранный dist-renderer (§13
- * create-window: без него открылись бы dev-сервер и DevTools).
+ * create-window: без него открылись бы dev-сервер и DevTools). bench:true —
+ * добавляется HL_BENCH=1 (§6 TASK-062; поверхность — см. LaunchAppOptions).
  */
 export async function launchApp(options: LaunchAppOptions): Promise<ElectronApplication> {
   const env: NodeJS.ProcessEnv = { ...process.env };
   env['HL_TEST_USER_DATA'] = options.userData;
+  if (options.bench === true) {
+    env['HL_BENCH'] = '1';
+  }
   delete env['ELECTRON_RENDERER_URL'];
 
   return _electron.launch({ args: [MAIN_ENTRY], cwd: APP_ROOT, env });
 }
+
+/**
+ * TASK-062 §6/§10: замер A — время ответа канала из РЕНДЕРЕРА (§5 шаг 3, РЕШЕНИЕ:
+ * performance.now() вокруг invoke). Сам замер выполняет window.hl.__bench
+ * (isolated-мир preload, §10); хелпер — типизированная обёртка evaluate.
+ */
+export async function benchMeasureChannel(
+  page: Page,
+  channel: string,
+  payload: unknown,
+): Promise<BenchChannelMeasure> {
+  return page.evaluate(
+    async ({ benchChannel, benchPayload }) => {
+      const bridge = (globalThis as BenchHost).hl?.__bench;
+      if (bridge === undefined) {
+        throw new Error('window.hl.__bench недоступен — приложение запущено без HL_BENCH=1?');
+      }
+      return bridge.measureChannel(benchChannel, benchPayload);
+    },
+    { benchChannel: channel, benchPayload: payload },
+  );
+}
+
+/**
+ * TASK-062 §6/§10: замер B — «данные получены → paint завершён» вокруг монтирования
+ * РЕАЛЬНОГО графика приложения (§5 шаг 4). hash — маршрут перехода (HashRouter),
+ * вызывающий гарантирует, что график ещё не смонтирован (missed-детекция в хуке).
+ */
+export async function benchMeasureRender(page: Page, hash: string): Promise<BenchRenderMeasure> {
+  return page.evaluate((benchHash) => {
+    const bridge = (globalThis as BenchHost).hl?.__bench;
+    if (bridge === undefined) {
+      throw new Error('window.hl.__bench недоступен — приложение запущено без HL_BENCH=1?');
+    }
+    return bridge.measureRender(benchHash);
+  }, hash);
+}
+
+/** Локальная форма window.hl.__bench внутри evaluate (страница — не TS-DOM контекст). */
+interface BenchBridgeShape {
+  measureChannel(channel: string, payload: unknown): Promise<BenchChannelMeasure>;
+  measureRender(hash: string): Promise<BenchRenderMeasure>;
+}
+type BenchHost = { hl?: { __bench?: BenchBridgeShape } } & Record<string, unknown>;
 
 /**
  * Graceful закрытие (§22): подписка на exit ДО app.quit() — событие не пропустить;
