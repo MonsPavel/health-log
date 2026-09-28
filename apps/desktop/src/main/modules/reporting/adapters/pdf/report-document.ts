@@ -74,12 +74,26 @@ export function ensureReportFonts(): void {
   const fontsDir = new URL('./fonts/', import.meta.url);
   Font.register({
     family: REPORT_FONT_FAMILY,
-    fonts: [
-      { src: fileUrlToPath(new URL('Roboto-Regular.ttf', fontsDir)) },
-      { src: fileUrlToPath(new URL('Roboto-Bold.ttf', fontsDir)), fontWeight: 700 },
-    ],
+    fonts: reportFontSources(fontsDir),
   });
   fontsRegistered = true;
+}
+
+/** Дескриптор шрифта для Font.register (чистый — юнит §19). */
+export interface ReportFontSource {
+  readonly src: string;
+  readonly fontWeight?: 700;
+}
+
+/**
+ * src-дескрипторы шрифтов отчёта от URL каталога fonts/ (юнит §19: платформенная
+ * раскладка — src обязан быть обычным путём ФС, не 'file:'-URL).
+ */
+export function reportFontSources(fontsDirUrl: URL): ReportFontSource[] {
+  return [
+    { src: fileUrlToPath(new URL('Roboto-Regular.ttf', fontsDirUrl)) },
+    { src: fileUrlToPath(new URL('Roboto-Bold.ttf', fontsDirUrl)), fontWeight: 700 },
+  ];
 }
 
 /** file:// URL → путь файловой системы (Font.register читает fs на Windows). */

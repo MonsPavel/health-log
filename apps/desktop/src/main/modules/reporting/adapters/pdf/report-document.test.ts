@@ -7,13 +7,57 @@ import { createHash } from 'node:crypto';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { describe, expect, it } from 'vitest';
 
+import { existsSync } from 'node:fs';
+
 import { GOLDEN_AI_TEXT, GOLDEN_PAYLOAD } from './__fixtures__/golden-payload.ts';
-import { buildTableSection, createReportDocument, resolveAiText } from './report-document.ts';
+import {
+  buildTableSection,
+  createReportDocument,
+  reportFontSources,
+  resolveAiText,
+} from './report-document.ts';
 
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 
 const render = async (payload: typeof GOLDEN_PAYLOAD): Promise<Uint8Array> =>
   new Uint8Array(await renderToBuffer(createReportDocument(payload)));
+
+describe('reportFontSources — src шрифтов без схемы file: (ревью PR: POSIX-CI)', () => {
+  /**
+   * Ревью: is-url классифицирует 'file:///...' как URL → @react-pdf/font грузит
+   * шрифт через fetch() (на Node-fetch схема file: отклоняется; в vitest ещё и
+   * guard «network is disabled») → на ubuntu-latest падают ВСЕ рендер-тесты.
+   * src обязан быть обычным путём ФС (ветка fontkit.open) на любой платформе.
+   */
+  const assertPlainPaths = (sources: { src: string }[]): void => {
+    for (const source of sources) {
+      expect(source.src.startsWith('file:')).toBe(false);
+    }
+  };
+
+  it('реальный каталог fonts/ модуля → существующие файлы, обычные пути', () => {
+    const sources = reportFontSources(new URL('./fonts/', import.meta.url));
+    expect(sources).toHaveLength(2);
+    assertPlainPaths(sources);
+    for (const source of sources) {
+      expect(existsSync(source.src)).toBe(true);
+    }
+  });
+
+  it('POSIX-раскладка CI (file:///home/...) → обычный путь, не URL (регресс ревью)', () => {
+    const posixFontsDir = new URL(
+      'file:///home/runner/work/health-log/apps/desktop/src/main/modules/reporting/adapters/pdf/fonts/',
+    );
+    assertPlainPaths(reportFontSources(posixFontsDir));
+  });
+
+  it('Windows-раскладка (file:///D:/...) → обычный путь, не URL', () => {
+    const windowsFontsDir = new URL(
+      'file:///D:/repositories/health-log/apps/desktop/src/main/modules/reporting/adapters/pdf/fonts/',
+    );
+    assertPlainPaths(reportFontSources(windowsFontsDir));
+  });
+});
 
 describe('resolveAiText — ИИ-раздел только по явному включению (§13)', () => {
   it('includeAiSection=false + переданный aiText → текст ИГНОРИРУЕТСЯ (§13/AC3)', () => {
