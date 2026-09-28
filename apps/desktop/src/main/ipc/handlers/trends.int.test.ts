@@ -93,7 +93,7 @@ const addPoints = async (
         sys: point.sys,
         dia: point.dia,
         ...(point.pulse !== undefined ? { pulse: point.pulse } : {}),
-        irregularPulse: false,
+        irregularPulse: point.irregular === true,
         arm: 'left',
         takenAt: { utcMs: point.takenAt.utcMs, tzOffsetMin: point.takenAt.tzOffsetMin },
       },
@@ -123,7 +123,7 @@ const dayStartUtcMs = (dayIso: string): number =>
   Instant.fromIso(`${dayIso}T00:00:00.000+03:00`).utcMs;
 
 describe('trend/series через контейнер — полный путь (TASK-056 §20)', () => {
-  it('(1) малые данные → raw: part по правилу дня, critical сквозной (190/125 → high), сортировка asc (AC3, §20)', async () => {
+  it('(1) малые данные → raw: part по правилу дня, critical сквозной (190/125 → high), irregular сквозной (EC-10, 058 §9), сортировка asc (AC3, §20)', async () => {
     const dir = newUserDataDir();
     const container = await makeContainer(dir);
     try {
@@ -149,6 +149,8 @@ describe('trend/series через контейнер — полный путь (
           pulse: 90,
           takenAt: fixtureInstant('2026-03-02', '07:30'),
           critical: 'high',
+          // TASK-058 §9: флаг «неровный пульс» записи — до сырой точки канала.
+          irregular: true,
         },
       ]);
 
@@ -164,10 +166,19 @@ describe('trend/series через контейнер — полный путь (
       const points = parsed.points as RawPoint[];
       expect(points.map((p) => p.sys)).toEqual([190, 122, 124]);
       expect(points.map((p) => p.part)).toEqual(['morning', 'other', 'evening']);
-      // critical — политика TASK-020, поставленная адаптером порта, прокинута read model'ом.
-      expect(points[0]).toMatchObject({ critical: 'high', pulse: 90, sys: 190, dia: 125 });
+      // critical — политика TASK-020, поставленная адаптером порта, прокинута read model'ом;
+      // irregular — флаг записи (EC-10), прокинут сквозно адаптером порта (058 §9).
+      expect(points[0]).toMatchObject({
+        critical: 'high',
+        pulse: 90,
+        sys: 190,
+        dia: 125,
+        irregular: true,
+      });
       expect('critical' in points[1]).toBe(false);
       expect('pulse' in points[1]).toBe(false);
+      expect('irregular' in points[1]).toBe(false);
+      expect('irregular' in points[2]).toBe(false);
       // Момент — как хранится (свой offset записи, EC-06).
       expect(points[0]?.tzOffsetMin).toBe(TZ);
       expect(points[0]?.utcMs).toBe(fixtureInstant('2026-03-02', '07:30').utcMs);

@@ -33,6 +33,9 @@ function aggregateToPoint(m: BpMeasurement): MeasurementPoint {
     pulse: m.pulse,
     takenAt: m.takenAt,
     critical: assessCritical(m.bp.sys, m.bp.dia),
+    // TASK-058 §9 (EC-10): флаг записи «неровный пульс» — как есть, без
+    // переосмысления; false/отсутствие → поле не ставится (§7 flat-маппинг).
+    ...(m.irregularPulse ? { irregular: true } : {}),
   };
 }
 

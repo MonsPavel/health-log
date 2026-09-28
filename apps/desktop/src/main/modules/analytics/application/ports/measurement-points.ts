@@ -39,6 +39,13 @@ export interface MeasurementPoint {
   readonly takenAt: Instant;
   /** Флаг критичности пары (sys, dia) по политике TASK-020 (ставит адаптер порта). */
   readonly critical: 'high' | 'low' | undefined;
+  /**
+   * Флаг записи «неровный пульс» (EC-10, TASK-058 §9): true — запись помечена
+   * тонометром/вводом; undefined — флага нет (поле отсутствует в проводе, §7).
+   * Прокидывается адаптером из агрегата (irregularPulse) как есть — пороги/семантика
+   * не дублируются.
+   */
+  readonly irregular?: boolean;
 }
 
 /**

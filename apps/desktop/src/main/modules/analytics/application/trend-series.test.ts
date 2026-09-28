@@ -85,6 +85,8 @@ describe('TrendSeries.getTrendSeries — порог raw/daily (§13: ровно 
     expect('points' in response).toBe(false);
     expect(response.days?.length).toBe(501);
     const first = response.days?.[0];
+    // TASK-058 §5: pulse-агрегаты дня — avg пульса (округлён 1 знак) и число
+    // записей с пульсом (все слоты генератора с пульсом 60).
     expect(first).toEqual({
       wallDate: '2025-01-01',
       sysAvg: 120,
@@ -94,6 +96,8 @@ describe('TrendSeries.getTrendSeries — порог raw/daily (§13: ровно 
       diaMin: 80,
       diaMax: 80,
       morningSysAvg: 120,
+      pulseAvg: 60,
+      pulseCount: 1,
       count: 1,
     });
   });
@@ -121,6 +125,7 @@ describe('buildDayPoints — агрегация настенного дня (§4
   it('(AC2) 3 точки в дне: avg (округлён до 1 знака) / min / max + morning/evening раздельно', () => {
     // 07:00 120/80, 08:00 122/82, 20:00 130/85: sys 124 [120..130],
     // dia 247/3 = 82.333… → 82.3; morningSysAvg 121, eveningSysAvg 130.
+    // TASK-058 §5: pulse 60/64/70 → pulseAvg 194/3 = 64.666… → 64.7, pulseCount 3.
     const days = buildDayPoints([
       point('2026-03-02', '07:00', 120, 80, 60),
       point('2026-03-02', '08:00', 122, 82, 64),
@@ -137,6 +142,8 @@ describe('buildDayPoints — агрегация настенного дня (§4
         diaMax: 85,
         morningSysAvg: 121,
         eveningSysAvg: 130,
+        pulseAvg: 64.7,
+        pulseCount: 3,
         count: 3,
       },
     ]);
@@ -172,6 +179,23 @@ describe('buildDayPoints — агрегация настенного дня (§4
     ]);
     expect('morningSysAvg' in days[1]).toBe(false);
     expect('eveningSysAvg' in days[1]).toBe(false);
+  });
+
+  // TASK-058 §5/§13: день без измеренного пульса — pulse-агрегатов нет (§7: поля
+  // отсутствуют, не null); «не измерен» не тянет ни avg, ни count (§13 052).
+  it('(058 §5) день без пульса — pulseAvg/pulseCount отсутствуют; смешанный день — count только по записям с пульсом', () => {
+    const days = buildDayPoints([
+      point('2026-03-05', '08:00', 121, 81, undefined),
+      point('2026-03-05', '20:00', 126, 86, undefined),
+      point('2026-03-06', '08:00', 122, 82, 58),
+      point('2026-03-06', '12:00', 124, 84, undefined),
+      point('2026-03-06', '20:00', 128, 88, 68),
+    ]);
+    expect('pulseAvg' in days[0]).toBe(false);
+    expect('pulseCount' in days[0]).toBe(false);
+    expect(days[1]?.pulseAvg).toBe(63);
+    expect(days[1]?.pulseCount).toBe(2);
+    expect(days[1]?.count).toBe(3);
   });
 
   it('дни сортированы wallDate asc даже когда utc-порядок входа даёт другой настенный порядок (EC-06: свой offset записи)', () => {
@@ -294,6 +318,18 @@ describe('TrendSeries.getTrendSeries — сырые точки: сортиров
     const [withId, withoutId] = response.points ?? [];
     expect(withId?.id).toBe('rec-1');
     expect('id' in withoutId).toBe(false);
+  });
+
+  // TASK-058 §7/§9 (EC-10): флаг записи «неровный пульс» прокидывается в сырую
+  // точку графика ЧСС; записи без флага — поле отсутствует в JSON (§7).
+  it('(058 §9) irregular прокинут в сырую точку; без флага — поле отсутствует', async () => {
+    const response = await makeSeries([
+      { ...point('2026-03-02', '07:00', 120, 80, 75), irregular: true },
+      point('2026-03-02', '20:00', 130, 85, 82),
+    ]).getTrendSeries('profile-1', 'all');
+    const [irregular, plain] = response.points ?? [];
+    expect(irregular).toMatchObject({ pulse: 75, irregular: true });
+    expect('irregular' in plain).toBe(false);
   });
 });
 
