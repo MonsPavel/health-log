@@ -2,6 +2,7 @@ import { join } from 'node:path';
 
 import { app, dialog } from 'electron';
 
+import { CHANNEL_SCHEMAS } from '@hl/contracts';
 import { SystemClock } from '@hl/kernel';
 
 import { createWindow, focusExistingWindow } from './create-window.js';
@@ -9,6 +10,7 @@ import { installGlobalErrorHandlers } from './global-errors.js';
 import { createSecondInstanceHandler, ensureSingleInstance } from './single-instance.js';
 import { resolveUserDataPath } from './user-data-override.js';
 import { buildContainer, type Container } from '../container.js';
+import { benchChannelsEnabled, createBenchSeedHandler } from '../ipc/handlers/bench-seed.js';
 import { installChannelBridge } from '../ipc/register-channel.js';
 import { createLogger, initFileLogging } from '../shared/logger/logger.js';
 
@@ -101,6 +103,17 @@ if (gotSingleInstanceLock) {
     });
     // TASK-008 §5: мост `hl:invoke` ставится один раз до создания окна; каналы
     // зарегистрированы в реестре контейнера (TASK-027 §11).
+    // TASK-062 §11/§14: TEST-ONLY bench-канал `__bench/seed` — только при env
+    // HL_BENCH=1 и только в не-packaged запуске (двойной гард; регистрация ДО
+    // моста — к моменту первого вызова рендерера канал уже в реестре). Без
+    // флага регистрация пропускается: канал неотличим от неизвестного.
+    if (benchChannelsEnabled(process.env, app.isPackaged)) {
+      container.channels.register(
+        '__bench/seed',
+        CHANNEL_SCHEMAS['__bench/seed'],
+        createBenchSeedHandler(container.db),
+      );
+    }
     installChannelBridge(container.channels);
     createWindow();
   });

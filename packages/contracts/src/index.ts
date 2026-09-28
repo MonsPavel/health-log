@@ -33,6 +33,7 @@ export {
   type HlLogLevel,
 } from './events.js';
 export { CHANNEL_SCHEMAS, type ChannelSchemas } from './schemas.js';
+export * from './bench.js';
 export * from './measurement/index.js';
 export * from './notes/index.js';
 export * from './prefs/index.js';
