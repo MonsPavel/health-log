@@ -1,0 +1,245 @@
+// TASK-056 §19: контракт-тесты zod-схем канала `trend/series` — zod на границе
+// доверия (арх. 08 §4), strict-объекты (§14). Матрица:
+//  - порог RAW_POINTS_LIMIT = 500 — константа контракта (§2/§5: «порог и форма —
+//    в контракте»; правка дешёвая — константа одна, §22);
+//  - период — ТА ЖЕ схема, что у stats/period (переиспользование ОБЯЗАТЕЛЬНО,
+//    §23 TASK-054: копии периода для trend не создавать);
+//  - request {profileId, period} — strict, profileId непустой (§14);
+//  - RawPoint {utcMs, tzOffsetMin, sys, dia, pulse?, part, critical?} — плоская
+//    форма Instant + флаги; undefined-части отсутствуют в JSON (§7);
+//  - DayPoint {wallDate, avg/min/max sys+dia, morningSysAvg?, eveningSysAvg?, count}
+//    (§5/§13: день с одной записью — avg=min=max);
+//  - response {mode, points?|days?} — пустой период {mode:'raw', points:[]} (§11).
+import { describe, expect, it } from 'vitest';
+
+import { CHANNEL_SCHEMAS } from './schemas.js';
+import { STATS_PERIOD_PARAM_SCHEMA } from './stats/schemas.js';
+import {
+  TREND_DAY_POINT_SCHEMA,
+  TREND_RAW_POINT_SCHEMA,
+  TREND_REQUEST_SCHEMA,
+  TREND_RESPONSE_SCHEMA,
+  RAW_POINTS_LIMIT,
+  type DayPoint,
+  type RawPoint,
+  type TrendResponse,
+} from './trends.js';
+
+describe('RAW_POINTS_LIMIT — порог raw/daily в контракте (§2/§5/§13)', () => {
+  it('равен 500: ровно 500 → raw, 501 → daily (§13)', () => {
+    expect(RAW_POINTS_LIMIT).toBe(500);
+  });
+});
+
+describe('TREND_REQUEST_SCHEMA — запрос trend/series (§11: {profileId, period})', () => {
+  it('принимает {profileId, period: пресет} и {profileId, period: custom}', () => {
+    expect(TREND_REQUEST_SCHEMA.safeParse({ profileId: 'profile-1', period: 'all' }).success).toBe(
+      true,
+    );
+    expect(
+      TREND_REQUEST_SCHEMA.safeParse({
+        profileId: 'profile-1',
+        period: { fromUtcMs: 0, toUtcMs: 1 },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('отклоняет пустой profileId, запрос без периода и без профиля (§14)', () => {
+    expect(TREND_REQUEST_SCHEMA.safeParse({ profileId: '', period: 'all' }).success).toBe(false);
+    expect(TREND_REQUEST_SCHEMA.safeParse({ profileId: 'p' }).success).toBe(false);
+    expect(TREND_REQUEST_SCHEMA.safeParse({ period: 'all' }).success).toBe(false);
+  });
+
+  it('strict: отклоняет неизвестные поля (§14)', () => {
+    expect(
+      TREND_REQUEST_SCHEMA.safeParse({ profileId: 'p', period: 'all', arm: 'left' }).success,
+    ).toBe(false);
+  });
+
+  it('период — ТА ЖЕ схема, что у stats/period (§23 054: переиспользование, копии не создавать)', () => {
+    expect(TREND_REQUEST_SCHEMA.shape.period).toBe(STATS_PERIOD_PARAM_SCHEMA);
+  });
+});
+
+describe('TREND_RAW_POINT_SCHEMA — сырая точка графика (§5)', () => {
+  it('принимает полную точку: pulse и critical присутствуют (сквозной флаг TASK-020)', () => {
+    const point = {
+      utcMs: 1_774_891_200_000,
+      tzOffsetMin: 180,
+      sys: 190,
+      dia: 125,
+      pulse: 70,
+      part: 'evening',
+      critical: 'high',
+    };
+    expect(TREND_RAW_POINT_SCHEMA.safeParse(point).success).toBe(true);
+  });
+
+  it('принимает точку без pulse и critical — undefined-части отсутствуют в JSON, не null (§7)', () => {
+    const point = { utcMs: 0, tzOffsetMin: -300, sys: 120, dia: 80, part: 'morning' };
+    expect(TREND_RAW_POINT_SCHEMA.safeParse(point).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...point, pulse: null }).success).toBe(false);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...point, critical: null }).success).toBe(false);
+  });
+
+  it('part ограничен правилом дня TASK-052: morning/evening/other', () => {
+    const base = { utcMs: 0, tzOffsetMin: 0, sys: 120, dia: 80 };
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, part: 'morning' }).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, part: 'evening' }).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, part: 'other' }).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, part: 'noon' }).success).toBe(false);
+  });
+
+  it('critical ограничен политикой TASK-020: high/low (§7)', () => {
+    const base = { utcMs: 0, tzOffsetMin: 0, sys: 120, dia: 80, part: 'other' };
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, critical: 'high' }).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, critical: 'low' }).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, critical: 'medium' }).success).toBe(false);
+  });
+
+  it('значения целые: дробные sys/pulse/utcMs отклоняются', () => {
+    const base = { utcMs: 0, tzOffsetMin: 0, dia: 80, part: 'other' };
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, sys: 120.5 }).success).toBe(false);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, sys: 120, pulse: 60.5 }).success).toBe(
+      false,
+    );
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, sys: 120, utcMs: 0.5 }).success).toBe(false);
+  });
+
+  it('strict: неизвестные поля отклоняются (§14)', () => {
+    expect(
+      TREND_RAW_POINT_SCHEMA.safeParse({
+        utcMs: 0,
+        tzOffsetMin: 0,
+        sys: 120,
+        dia: 80,
+        part: 'other',
+        note: 'x',
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('TREND_DAY_POINT_SCHEMA — агрегат настенного дня (§5/§13)', () => {
+  it('принимает полный агрегат: avg/min/max обоих каналов + morning/evening средние + count', () => {
+    const day = {
+      wallDate: '2026-03-02',
+      sysAvg: 124,
+      sysMin: 120,
+      sysMax: 130,
+      diaAvg: 82.3,
+      diaMin: 80,
+      diaMax: 85,
+      morningSysAvg: 121,
+      eveningSysAvg: 130,
+      count: 3,
+    };
+    expect(TREND_DAY_POINT_SCHEMA.safeParse(day).success).toBe(true);
+  });
+
+  it('принимает день без morning/evening средних (нет утренних/вечерних — поля отсутствуют, §13)', () => {
+    const day = {
+      wallDate: '2026-03-03',
+      sysAvg: 125,
+      sysMin: 125,
+      sysMax: 125,
+      diaAvg: 82,
+      diaMin: 82,
+      diaMax: 82,
+      count: 1,
+    };
+    expect(TREND_DAY_POINT_SCHEMA.safeParse(day).success).toBe(true);
+  });
+
+  it('wallDate — ISO-строка YYYY-MM-DD (§17: локализует UI), count ≥ 1 (день существует — есть точки)', () => {
+    const base = {
+      sysAvg: 120,
+      sysMin: 120,
+      sysMax: 120,
+      diaAvg: 80,
+      diaMin: 80,
+      diaMax: 80,
+      count: 1,
+    };
+    expect(TREND_DAY_POINT_SCHEMA.safeParse({ wallDate: '2026-03-02', ...base }).success).toBe(
+      true,
+    );
+    expect(TREND_DAY_POINT_SCHEMA.safeParse({ wallDate: '2026-3-2', ...base }).success).toBe(false);
+    expect(
+      TREND_DAY_POINT_SCHEMA.safeParse({ wallDate: '2026-03-02T00:00', ...base }).success,
+    ).toBe(false);
+    expect(
+      TREND_DAY_POINT_SCHEMA.safeParse({ wallDate: '2026-03-02', ...base, count: 0 }).success,
+    ).toBe(false);
+  });
+
+  it('strict: неизвестные поля отклоняются (§14)', () => {
+    expect(
+      TREND_DAY_POINT_SCHEMA.safeParse({
+        wallDate: '2026-03-02',
+        sysAvg: 120,
+        sysMin: 120,
+        sysMax: 120,
+        diaAvg: 80,
+        diaMin: 80,
+        diaMax: 80,
+        count: 1,
+        pulseAvg: 60,
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('TREND_RESPONSE_SCHEMA — ответ trend/series (§5: {mode, points?|days?})', () => {
+  const RAW_POINT: RawPoint = {
+    utcMs: 0,
+    tzOffsetMin: 180,
+    sys: 120,
+    dia: 80,
+    part: 'morning',
+  };
+  const DAY_POINT: DayPoint = {
+    wallDate: '2026-03-02',
+    sysAvg: 120,
+    sysMin: 120,
+    sysMax: 120,
+    diaAvg: 80,
+    diaMin: 80,
+    diaMax: 80,
+    count: 1,
+  };
+
+  it('принимает raw-режим с точками; пустой период — {mode:"raw", points:[]} (§11)', () => {
+    expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'raw', points: [] }).success).toBe(true);
+    expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'raw', points: [RAW_POINT] }).success).toBe(
+      true,
+    );
+  });
+
+  it('принимает daily-режим с днями (§5: порог превышен → агрегация)', () => {
+    expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'daily', days: [DAY_POINT] }).success).toBe(
+      true,
+    );
+  });
+
+  it('mode ограничен raw/daily; strict: неизвестные поля отклоняются (§14)', () => {
+    expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'hourly', points: [] }).success).toBe(false);
+    // Форма §5 плоская (points?/days? опциональны): взаимоисключительность веток —
+    // поведение read model (§2), схема карает только НЕИЗВЕСТНЫЕ поля (§14).
+    expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'raw', points: [], cached: true }).success).toBe(
+      false,
+    );
+  });
+
+  it('типы выводятся из схем (§23): TrendResponse = z.infer', () => {
+    const parsed: TrendResponse = TREND_RESPONSE_SCHEMA.parse({ mode: 'raw', points: [] });
+    expect(parsed.mode).toBe('raw');
+  });
+});
+
+describe('реестр каналов — trend/series подключён (§5)', () => {
+  it('CHANNEL_SCHEMAS["trend/series"] несёт пары схем тренда (контракт + хендлер, §5)', () => {
+    expect(CHANNEL_SCHEMAS['trend/series']?.request).toBe(TREND_REQUEST_SCHEMA);
+    expect(CHANNEL_SCHEMAS['trend/series']?.response).toBe(TREND_RESPONSE_SCHEMA);
+  });
+});

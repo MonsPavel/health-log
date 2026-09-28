@@ -38,3 +38,4 @@ export * from './notes/index.js';
 export * from './prefs/index.js';
 export * from './scales.js';
 export * from './stats/index.js';
+export * from './trends.js';

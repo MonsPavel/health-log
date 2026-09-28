@@ -25,6 +25,7 @@ import {
 } from './prefs/schemas.js';
 import { SCALES_ACTIVE_REQUEST_SCHEMA, SCALES_ACTIVE_RESPONSE_SCHEMA } from './scales.js';
 import { STATS_REQUEST_SCHEMA, STATS_RESPONSE_SCHEMA } from './stats/schemas.js';
+import { TREND_REQUEST_SCHEMA, TREND_RESPONSE_SCHEMA } from './trends.js';
 
 /** Пара схем канала: запрос валидируется в main до handler, ответ — контракт хендлера. */
 export interface ChannelSchemas<TRequest = unknown, TResponse = unknown> {
@@ -118,5 +119,16 @@ export const CHANNEL_SCHEMAS = {
   'stats/period': {
     request: STATS_REQUEST_SCHEMA,
     response: STATS_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-056 §5/§11: серии точек для графика динамики — {profileId, period} →
+   * {mode, points?|days?}: raw до порога RAW_POINTS_LIMIT (500) включительно, daily —
+   * агрегация «день = среднее + диапазон» при превышении (порог и форма — в контракте,
+   * §2). Пустой период — {mode:'raw', points:[]}, не ошибка (§11). Период — та же
+   * схема, что у stats/period (§23 054: переиспользование обязательно).
+   */
+  'trend/series': {
+    request: TREND_REQUEST_SCHEMA,
+    response: TREND_RESPONSE_SCHEMA,
   },
 } satisfies Record<ChannelName, ChannelSchemas>;
