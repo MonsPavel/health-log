@@ -14,6 +14,11 @@
 // Инфраструктура — прецедент sqlite-measurement-repository.int.test.ts (TASK-026):
 // шаблон v1 (openEncrypted фиксированным hex-ключом → MigrationRunner с MIGRATIONS)
 // создаётся один раз и клонируется копированием файла; tmp ОС, очистка в afterAll.
+//
+// РАСПОЛОЖЕНИЕ — src/main, не modules/reporting: тест сводит ДВА модуля (measurement
+// + reporting) и потому импортирует их внутренности напрямую — как container.int.test.ts
+// и тесты хендлеров (depcruise module-public-api: файлам внутри modules/ чужой модуль
+// доступен только через index.ts, составу src/main — напрямую).
 import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -21,13 +26,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { FixedClock, Instant, unsafeUnwrap } from '@hl/kernel';
 
-import { SqliteBpMeasurementRepository } from '../../measurement/adapters/sqlite-measurement-repository.js';
-import { BpMeasurement } from '../../measurement/domain/bp-measurement.js';
-import { MigrationRunner } from '../../../shared/db/migration-runner.js';
-import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
-import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite.js';
-import { MeasurementExportAdapter } from '../adapters/measurement-export-adapter.js';
-import { ExportCsvUseCase } from './export-csv.js';
+import { SqliteBpMeasurementRepository } from './modules/measurement/adapters/sqlite-measurement-repository.js';
+import { BpMeasurement } from './modules/measurement/domain/bp-measurement.js';
+import { MeasurementExportAdapter } from './modules/reporting/adapters/measurement-export-adapter.js';
+import { ExportCsvUseCase } from './modules/reporting/application/export-csv.js';
+import { MigrationRunner } from './shared/db/migration-runner.js';
+import { MIGRATIONS } from './shared/db/migrations/index.js';
+import { openEncrypted, type EncryptedDatabase } from './shared/db/sqlite.js';
 
 /** Фиксированный тестовый ключ (прецедент TASK-026 §19): 32 байта hex. */
 const TEST_KEY_HEX = 'ab'.repeat(32);
