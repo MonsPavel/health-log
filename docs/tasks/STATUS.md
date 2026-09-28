@@ -71,7 +71,7 @@
 | TASK-063 | blocked | task/TASK-063 | заблокирована конвейером, не смержена; наработки сохранены в ветке |
 | TASK-064 | todo | | |
 | TASK-065 | todo | | |
-| TASK-066 | todo | | |
+| TASK-066 | done | | смержена |
 | TASK-067 | todo | | |
 | TASK-068 | todo | | |
 | TASK-069 | todo | | |
