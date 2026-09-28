@@ -14,6 +14,14 @@
  * повторного запроса (кэш trend/series общий, §12); view=pulse переживает
  * перезагрузку (URL — истина) и смену периода (PeriodSwitcher сохраняет чужие
  * параметры).
+ *
+ * TASK-060 §5/§13/§19/§20: пустые/мало-данные состояния — пустой период (в обоих
+ * режимах raw/daily) → EmptyChartState («За выбранный период измерений нет»,
+ * CTA «Добавить измерение» → журнал, «Показать всё время» → период all; на all
+ * действие-нооп скрыто); 1≤N<7 → FewDataNote «Мало данных — N …» НАД графиком
+ * (порог kernel — готовый флаг stats.insufficientData.tooFewMeasurements: рендерер
+ * kernel не импортирует, арх. 03 §4); ≥7 — график без пометки; смена периода
+ * с данными на пустой — заглушка без ошибок консоли (§20 AC4).
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -86,12 +94,12 @@ let invoke: Mock<(channel: string, payload: unknown) => Promise<unknown>>;
 /** Мок подписки на события (measurement:changed-тест читает обработчики). */
 let on: Mock<(name: string, handler: (payload: unknown) => void) => () => void>;
 
-/** Мост window.hl: диспетчер по каналу (trend/scale/list). */
-function mockHl(overrides: Record<string, () => unknown> = {}): void {
-  invoke = vi.fn((channel: string) => {
+/** Мост window.hl: диспетчер по каналу (trend/scale/list); override получает payload. */
+function mockHl(overrides: Record<string, (payload: unknown) => unknown> = {}): void {
+  invoke = vi.fn((channel: string, payload: unknown) => {
     const override = overrides[channel];
     if (override !== undefined) {
-      return Promise.resolve(override());
+      return Promise.resolve(override(payload));
     }
     if (channel === 'trend/series') {
       return Promise.resolve({ v: 1, ok: true, data: RAW_RESPONSE });
@@ -158,6 +166,31 @@ function mockTrend(response: TrendResponse): void {
   mockHl({ 'trend/series': () => ({ v: 1, ok: true, data: response }) });
 }
 
+/**
+ * Stats-ответ с подменой (TASK-060 §19): порог «мало данных» приходит готовым
+ * флагом stats.insufficientData.tooFewMeasurements (kernel-константа считается
+ * в main — period-statistics.ts; рендерер kernel не импортирует, арх. 03 §4).
+ */
+function mockStats(response: StatsResponse): void {
+  mockHl({ 'stats/period': () => ({ v: 1, ok: true, data: response }) });
+}
+
+/** Stats фикстуры «мало данных» (N в периоде, N < AI_MIN_MEASUREMENTS=7 в main). */
+function fewStats(count: number): StatsResponse {
+  return {
+    stats: {
+      count,
+      sys: { avg: 122, min: 118, max: 128 },
+      dia: { avg: 80, min: 76, max: 82 },
+      critical: { high: false, low: false },
+      daysWithMeasurements: count,
+      longestStreakDays: count,
+      insufficientData: { tooFewMeasurements: true, tooFewDays: true },
+    },
+    scale: { code: 'esc-esh-2018', version: '1.0.0', sourceLabel: 'ESC/ESH 2018' },
+  };
+}
+
 beforeEach(() => {
   mockHl();
   useFormStore.getState().resetAll();
@@ -188,14 +221,37 @@ describe('DashboardScreen — состояния (§10: loading/empty/данны
     expect(screen.getByTestId('trend-legend')).not.toBeNull();
   });
 
-  it('empty (§10): «Нет данных за период» + CTA каркаса TASK-060 → журнал', async () => {
+  it('(060 §20 AC1) empty: заглушка «За выбранный период измерений нет», CTA «Добавить измерение» → журнал', async () => {
     mockTrend({ mode: 'raw', points: [] });
     renderScreen();
 
     const empty = await screen.findByTestId('empty-chart');
-    expect(empty.textContent).toContain('Нет данных за период');
-    fireEvent.click(screen.getByRole('button', { name: 'Открыть журнал' }));
+    expect(empty.textContent).toContain('За выбранный период измерений нет');
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить измерение' }));
     await waitFor(() => expect(screen.getByText('ЖУРНАЛ-ПРОБА')).not.toBeNull());
+  });
+
+  it('(060 §5) «Показать всё время» → период all (URL ?period=all, каналы перечитаны); пусто и на all — действие скрыто', async () => {
+    mockTrend({ mode: 'raw', points: [] });
+    const { probe } = renderScreen();
+
+    await screen.findByTestId('empty-chart');
+    fireEvent.click(screen.getByRole('button', { name: 'Показать всё время' }));
+    expect(probe.search).toBe('?period=all');
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('trend/series', { profileId: PROFILE_ID, period: 'all' }),
+    );
+    // Пусто и на «всё время» — записей нет вовсе: действие-нооп скрыто, CTA остаётся.
+    expect(await screen.findByTestId('empty-chart')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Показать всё время' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Добавить измерение' })).not.toBeNull();
+  });
+
+  it('(060 §13) daily без дней — та же заглушка (пустота определяется в обоих режимах)', async () => {
+    mockTrend({ mode: 'daily', days: [] });
+    renderScreen();
+
+    expect(await screen.findByTestId('empty-chart')).not.toBeNull();
   });
 
   it('daily-режим: подпись «Агрегировано по дням» (§20.5 честность агрегации)', async () => {
@@ -218,6 +274,68 @@ describe('DashboardScreen — состояния (§10: loading/empty/данны
 
     const caption = await screen.findByTestId('trend-daily-caption');
     expect(caption.textContent).toContain('Агрегировано по дням');
+  });
+});
+
+describe('DashboardScreen — мало данных (TASK-060 §13/§19/§20)', () => {
+  it('(AC2) 3 точки → пометка «Мало данных — 3 …» над графиком (role=note), график присутствует', async () => {
+    mockTrend({
+      mode: 'raw',
+      points: [fixturePoint(0, 0), fixturePoint(1, 0), fixturePoint(2, 0)],
+    });
+    mockStats(fewStats(3));
+    renderScreen();
+
+    const note = await screen.findByTestId('few-data-note');
+    expect(note.getAttribute('role')).toBe('note');
+    expect(note.textContent).toContain('Мало данных — 3 измерения за период');
+    expect(await screen.findByTestId('trend-chart')).not.toBeNull();
+    // Пометка НАД графиком (§5: полоса над графиком).
+    expect(note.nextElementSibling?.contains(screen.getByTestId('trend-chart')) ?? false).toBe(true);
+  });
+
+  it('(AC3) 7+ точек, порог kernel пройден (tooFewMeasurements=false) — график без пометки', async () => {
+    renderScreen();
+
+    expect(await screen.findByTestId('trend-chart')).not.toBeNull();
+    expect(screen.queryByTestId('few-data-note')).toBeNull();
+  });
+
+  it('(§13) порог — готовый флаг stats (kernel в main): tooFewMeasurements=true при пустом тренде — заглушка без пометки', async () => {
+    mockTrend({ mode: 'raw', points: [] });
+    mockStats(fewStats(0));
+    renderScreen();
+
+    expect(await screen.findByTestId('empty-chart')).not.toBeNull();
+    expect(screen.queryByTestId('few-data-note')).toBeNull();
+  });
+
+  it('(AC4) смена периода с данными на пустой — заглушка появляется, ошибок консоли нет', async () => {
+    const consoleError = vi.spyOn(console, 'error');
+    // 30d — данные; 7d — пусто (mockHl различает периоды по payload, TASK-060).
+    mockHl({
+      'trend/series': (payload) => ({
+        v: 1,
+        ok: true,
+        data: (payload as { period?: string }).period === '7d'
+          ? { mode: 'raw', points: [] }
+          : { mode: 'raw', points: [...TREND_30_DAYS] },
+      }),
+      'stats/period': (payload) => ({
+        v: 1,
+        ok: true,
+        data: (payload as { period?: string }).period === '7d' ? fewStats(0) : STATS_RESPONSE,
+      }),
+    });
+    const { probe } = renderScreen();
+
+    await screen.findByTestId('trend-chart');
+    fireEvent.click(screen.getByTestId('dashboard-period-7d'));
+    expect(probe.search).toBe('?period=7d');
+
+    expect(await screen.findByTestId('empty-chart')).not.toBeNull();
+    expect(screen.queryByTestId('trend-chart')).toBeNull();
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });
 

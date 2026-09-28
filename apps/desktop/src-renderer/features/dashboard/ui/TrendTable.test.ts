@@ -211,19 +211,23 @@ describe('TrendTable — daily-режим: дневная таблица (§5: �
     expect(rows[2]).toEqual(['03.03.2026', '121 (121–121)', '80 (80–80)', '1']);
   });
 
-  it('пустые days → пустое состояние «Нет данных за период» (TASK-060-текст), таблицы нет', () => {
+  it('пустые days → пустое состояние «За выбранный период измерений нет» (общий ключ TASK-060), таблицы нет', () => {
     renderTable({ mode: 'daily', days: [] });
 
-    expect(screen.getByTestId('trend-table-empty').textContent).toContain('Нет данных за период');
+    expect(screen.getByTestId('trend-table-empty').textContent).toContain(
+      'За выбранный период измерений нет',
+    );
     expect(screen.queryByTestId('trend-table')).toBeNull();
   });
 });
 
 describe('TrendTable — пустой raw-период (§13)', () => {
-  it('пустые points → пустое состояние «Нет данных за период», таблицы нет', () => {
+  it('пустые points → пустое состояние «За выбранный период измерений нет», таблицы нет', () => {
     renderTable({ mode: 'raw', points: [] });
 
-    expect(screen.getByTestId('trend-table-empty').textContent).toContain('Нет данных за период');
+    expect(screen.getByTestId('trend-table-empty').textContent).toContain(
+      'За выбранный период измерений нет',
+    );
     expect(screen.queryByTestId('trend-table')).toBeNull();
   });
 });
