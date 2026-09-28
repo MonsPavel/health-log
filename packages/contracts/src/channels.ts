@@ -23,8 +23,15 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * активная шкала `scales/active` — TASK-051 §5/§11 (схемы — scales.ts);
  * статистика периода `stats/period` — TASK-054 §5/§11 (схемы — stats/schemas.ts);
  * серии графика `trend/series` — TASK-056 §5/§11 (схемы — trends.ts).
+ *
+ * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
+ * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
+ * служебного канала); регистрация — только при env HL_BENCH=1 в не-packaged
+ * запуске (гард benchChannelsEnabled, main §14). В контракте — только ФОРМА:
+ * без флага канал не зарегистрирован и неотличим от неизвестного (APP/INTERNAL).
  */
 export type ChannelName =
+  | '__bench/seed'
   | 'app/ping'
   | 'app/log-client-error'
   | 'measurements/add'

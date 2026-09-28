@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 
+import { BENCH_SEED_REQUEST_SCHEMA, BENCH_SEED_RESPONSE_SCHEMA } from './bench.js';
 import type { ChannelName } from './channels.js';
 import {
   MEASUREMENT_ADD_REQUEST_SCHEMA,
@@ -38,6 +39,15 @@ export interface ChannelSchemas<TRequest = unknown, TResponse = unknown> {
  * здесь + строка в union ChannelName; компилятор не даст забыть ни одну из сторон.
  */
 export const CHANNEL_SCHEMAS = {
+  /**
+   * TASK-062 §9/§11: TEST-ONLY сидинг синтетики bench — {count} → {inserted}
+   * (одна транзакция на main). Регистрируется только при env HL_BENCH=1 и не в
+   * packaged (двойной гард main §14); без флага — «неизвестный канал» каркаса.
+   */
+  '__bench/seed': {
+    request: BENCH_SEED_REQUEST_SCHEMA,
+    response: BENCH_SEED_RESPONSE_SCHEMA,
+  },
   'app/ping': {
     request: z.object({}).strict(),
     response: z.object({ pong: z.literal(true), ts: z.number() }).strict(),
