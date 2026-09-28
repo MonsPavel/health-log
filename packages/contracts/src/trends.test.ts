@@ -5,10 +5,15 @@
 //  - период — ТА ЖЕ схема, что у stats/period (переиспользование ОБЯЗАТЕЛЬНО,
 //    §23 TASK-054: копии периода для trend не создавать);
 //  - request {profileId, period} — strict, profileId непустой (§14);
-//  - RawPoint {utcMs, tzOffsetMin, sys, dia, pulse?, part, critical?} — плоская
-//    форма Instant + флаги; undefined-части отсутствуют в JSON (§7);
-//  - DayPoint {wallDate, avg/min/max sys+dia, morningSysAvg?, eveningSysAvg?, count}
-//    (§5/§13: день с одной записью — avg=min=max);
+//  - RawPoint {utcMs, tzOffsetMin, sys, dia, pulse?, part, critical?, irregular?} —
+//    плоская форма Instant + флаги; undefined-части отсутствуют в JSON (§7);
+//    irregular — TASK-058 §7 (EC-10, аддитивно);
+//  - DayPoint {wallDate, avg/min/max sys+dia, morningSysAvg?, eveningSysAvg?,
+//    pulseAvg?, pulseCount?, count} (§5/§13: день с одной записью — avg=min=max;
+//    pulseAvg/pulseCount — TASK-058 §5: среднее пульса дня только при наличии
+//    записей с пульсом);
+//  - константы PULSE_REF_LOW/HIGH = 60/100 — опорный коридор пульса, справка,
+//    не классификация (TASK-058 §5: константы в @hl/contracts рядом с trend-типами);
 //  - response {mode, points?|days?} — пустой период {mode:'raw', points:[]} (§11).
 import { describe, expect, it } from 'vitest';
 
@@ -19,6 +24,8 @@ import {
   TREND_RAW_POINT_SCHEMA,
   TREND_REQUEST_SCHEMA,
   TREND_RESPONSE_SCHEMA,
+  PULSE_REF_HIGH,
+  PULSE_REF_LOW,
   RAW_POINTS_LIMIT,
   type DayPoint,
   type RawPoint,
@@ -28,6 +35,14 @@ import {
 describe('RAW_POINTS_LIMIT — порог raw/daily в контракте (§2/§5/§13)', () => {
   it('равен 500: ровно 500 → raw, 501 → daily (§13)', () => {
     expect(RAW_POINTS_LIMIT).toBe(500);
+  });
+});
+
+describe('PULSE_REF_LOW/HIGH — опорный коридор пульса (TASK-058 §5: справка, не классификация)', () => {
+  it('значения 60 и 100 уд/мин; коридор корректен (low < high)', () => {
+    expect(PULSE_REF_LOW).toBe(60);
+    expect(PULSE_REF_HIGH).toBe(100);
+    expect(PULSE_REF_LOW).toBeLessThan(PULSE_REF_HIGH);
   });
 });
 
@@ -126,6 +141,17 @@ describe('TREND_RAW_POINT_SCHEMA — сырая точка графика (§5)'
     expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, critical: 'medium' }).success).toBe(false);
   });
 
+  // TASK-058 §7 (ДОПОЛНЕНИЕ КОНТРАКТА, аддитивно): EC-10 — запись с флагом
+  // «неровный пульс» маркируется на графике; нет флага — поле отсутствует в JSON.
+  it('(058 §7) irregular: true принимается; без флага поле отсутствует; не-boolean и null отклоняются', () => {
+    const base = { utcMs: 0, tzOffsetMin: 0, sys: 120, dia: 80, pulse: 75, part: 'other' };
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, irregular: true }).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse(base).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, irregular: false }).success).toBe(true);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, irregular: 'yes' }).success).toBe(false);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, irregular: null }).success).toBe(false);
+  });
+
   it('значения целые: дробные sys/pulse/utcMs отклоняются', () => {
     const base = { utcMs: 0, tzOffsetMin: 0, dia: 80, part: 'other' };
     expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, sys: 120.5 }).success).toBe(false);
@@ -202,6 +228,27 @@ describe('TREND_DAY_POINT_SCHEMA — агрегат настенного дня 
     ).toBe(false);
   });
 
+  // TASK-058 §5: среднее пульса дня + число записей с пульсом — ветка daily
+  // графика ЧСС («avg+коридор»); нет записей с пульсом — поля отсутствуют (§7).
+  it('(058 §5) pulseAvg/pulseCount принимаются; без пульса в дне — поля отсутствуют; pulseCount ≥ 1', () => {
+    const base = {
+      wallDate: '2026-03-02',
+      sysAvg: 120,
+      sysMin: 120,
+      sysMax: 120,
+      diaAvg: 80,
+      diaMin: 80,
+      diaMax: 80,
+      count: 2,
+    };
+    expect(
+      TREND_DAY_POINT_SCHEMA.safeParse({ ...base, pulseAvg: 64.7, pulseCount: 1 }).success,
+    ).toBe(true);
+    expect(TREND_DAY_POINT_SCHEMA.safeParse(base).success).toBe(true);
+    expect(TREND_DAY_POINT_SCHEMA.safeParse({ ...base, pulseCount: 0 }).success).toBe(false);
+    expect(TREND_DAY_POINT_SCHEMA.safeParse({ ...base, pulseAvg: '60' }).success).toBe(false);
+  });
+
   it('strict: неизвестные поля отклоняются (§14)', () => {
     expect(
       TREND_DAY_POINT_SCHEMA.safeParse({
@@ -213,7 +260,7 @@ describe('TREND_DAY_POINT_SCHEMA — агрегат настенного дня 
         diaMin: 80,
         diaMax: 80,
         count: 1,
-        pulseAvg: 60,
+        median: 60,
       }).success,
     ).toBe(false);
   });

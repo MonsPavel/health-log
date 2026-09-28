@@ -142,3 +142,101 @@ describe('ChartTooltip — daily-режим (§5: коридор avg/min/max; §
     expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull();
   });
 });
+
+// TASK-058 §5/§13/§16: канал pulse — тултип графика ЧСС: единица «уд/мин», пояс
+// EC-10 для irregular-записей; mm рт. ст. НЕ показываются (§3: единицы не смешивать).
+describe('ChartTooltip — channel=pulse (TASK-058: только ЧСС, единица, EC-10)', () => {
+  it('дата-время, пульс с единицей «уд/мин»; sys/dia НЕ показываются (§3: единицы не смешивать)', () => {
+    render(
+      createElement(ChartTooltip, {
+        active: true,
+        payload: [{ dataKey: 'pulse', value: MORNING_POINT.pulse, payload: MORNING_POINT }],
+        mode: 'raw',
+        channel: 'pulse',
+      }),
+    );
+
+    expect(screen.getByText(formatDateTime(MORNING_POINT, { preset: 'datetime' }))).not.toBeNull();
+    expect(screen.getByText('70')).not.toBeNull();
+    expect(screen.getByText('уд/мин')).not.toBeNull();
+    expect(screen.queryByText('125')).toBeNull();
+    expect(screen.queryByText('82')).toBeNull();
+    expect(screen.getByText('утро')).not.toBeNull();
+  });
+
+  it('irregular-запись — пояс «Неровный пульс — значение может быть неточным» (EC-10); обычная — без пояса', () => {
+    const irregular: RawPoint = { ...MORNING_POINT, irregular: true };
+    render(
+      createElement(ChartTooltip, {
+        active: true,
+        payload: [{ dataKey: 'pulse', value: irregular.pulse, payload: irregular }],
+        mode: 'raw',
+        channel: 'pulse',
+      }),
+    );
+    expect(screen.getByText('Неровный пульс — значение может быть неточным')).not.toBeNull();
+    cleanup();
+
+    render(
+      createElement(ChartTooltip, {
+        active: true,
+        payload: [{ dataKey: 'pulse', value: MORNING_POINT.pulse, payload: MORNING_POINT }],
+        mode: 'raw',
+        channel: 'pulse',
+      }),
+    );
+    expect(screen.queryByText(/значение может быть неточным/)).toBeNull();
+  });
+
+  it('кнопка «Изменить» → onEditPoint с точкой (§5 058: переход к правке — как на давлении)', () => {
+    const onEditPoint = vi.fn();
+    render(
+      createElement(ChartTooltip, {
+        active: true,
+        payload: [{ dataKey: 'pulse', value: MORNING_POINT.pulse, payload: MORNING_POINT }],
+        mode: 'raw',
+        channel: 'pulse',
+        onEditPoint,
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+    expect(onEditPoint).toHaveBeenCalledTimes(1);
+    expect(onEditPoint).toHaveBeenCalledWith(MORNING_POINT);
+  });
+
+  it('daily: среднее пульса дня с единицей, число измерений; правки нет; день без пульса — ничего', () => {
+    const pulseDay: DayPoint = { ...DAY_FIXTURE, pulseAvg: 62.5, pulseCount: 2 };
+    render(
+      createElement(ChartTooltip, {
+        active: true,
+        label: pulseDay.wallDate,
+        payload: [{ dataKey: 'pulseAvg', value: pulseDay.pulseAvg, payload: pulseDay }],
+        mode: 'daily',
+        channel: 'pulse',
+      }),
+    );
+
+    expect(screen.getByText('02.03.2026')).not.toBeNull();
+    expect(screen.getByTestId('chart-tooltip').textContent).toContain('Среднее за день');
+    expect(screen.getByText('62,5')).not.toBeNull();
+    expect(screen.getByText('уд/мин')).not.toBeNull();
+    expect(screen.getByText('Измерений: 3')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Изменить' })).toBeNull();
+    // Единицы давления не смешиваются с уд/мин (§3).
+    expect(screen.queryByText('124')).toBeNull();
+    cleanup();
+
+    const noPulseDay: DayPoint = { ...DAY_FIXTURE };
+    render(
+      createElement(ChartTooltip, {
+        active: true,
+        label: noPulseDay.wallDate,
+        payload: [{ dataKey: 'pulseAvg', value: undefined, payload: noPulseDay }],
+        mode: 'daily',
+        channel: 'pulse',
+      }),
+    );
+    expect(screen.queryByText('02.03.2026')).toBeNull();
+  });
+});

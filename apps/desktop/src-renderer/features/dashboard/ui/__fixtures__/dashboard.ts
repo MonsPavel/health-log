@@ -132,3 +132,45 @@ export const TREND_DAYS: readonly DayPoint[] = [
     count: 1,
   },
 ];
+
+/**
+ * Дневные агрегаты ПУЛЬСА (TASK-058 §5): три дня — в первом пульс есть не у всех
+ * записей (pulseCount 2 из 3), во втором у всех, в третьем пульса нет вовсе
+ * (pulseAvg/pulseCount отсутствуют — §7 056). Скрытых записей: 6 − 3 = 3.
+ */
+export const PULSE_DAYS: readonly DayPoint[] = [
+  {
+    wallDate: '2026-03-01',
+    sysAvg: 122,
+    sysMin: 118,
+    sysMax: 128,
+    diaAvg: 79,
+    diaMin: 76,
+    diaMax: 82,
+    pulseAvg: 61.5,
+    pulseCount: 2,
+    count: 3,
+  },
+  {
+    wallDate: '2026-03-02',
+    sysAvg: 124.5,
+    sysMin: 120,
+    sysMax: 130,
+    diaAvg: 81,
+    diaMin: 78,
+    diaMax: 85,
+    pulseAvg: 66,
+    pulseCount: 1,
+    count: 1,
+  },
+  {
+    wallDate: '2026-03-03',
+    sysAvg: 121,
+    sysMin: 121,
+    sysMax: 121,
+    diaAvg: 80,
+    diaMin: 80,
+    diaMax: 80,
+    count: 2,
+  },
+];

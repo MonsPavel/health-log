@@ -141,15 +141,16 @@ function PartDot(props: {
   }
 }
 
-/** Тик оси X raw-режима: настенная дата момента в зоне устройства (§17 Intl). */
-function rawTickOf(utcMs: number): string {
+/** Тик оси X raw-режима: настенная дата момента в зоне устройства (§17 Intl).
+ *  Экспорт: PulseChart (TASK-058) использует те же оси времени — одна копия. */
+export function rawTickOf(utcMs: number): string {
   const ms = Number(utcMs);
   const instant: InstantLike = { utcMs: ms, tzOffsetMin: tzOffsetMinOf(ms) };
   return formatDateTime(instant, { preset: 'date' });
 }
 
-/** Тик оси X daily-режима: настенная дата 'YYYY-MM-DD' → короткая Intl-дата. */
-function dayTickOf(wallDate: string): string {
+/** Тик оси X daily-режима: настенная дата 'YYYY-MM-DD' → короткая Intl-дата (одна копия с PulseChart). */
+export function dayTickOf(wallDate: string): string {
   const [y, mo, d] = String(wallDate).split('-').map(Number) as [number, number, number];
   return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit' }).format(
     Date.UTC(y, mo - 1, d),

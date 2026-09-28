@@ -68,6 +68,7 @@ function compareByUtcThenId(a: MeasurementPoint, b: MeasurementPoint): number {
  * прокинут. pulse/critical «нет» → поле отсутствует в JSON (§7, flat-маппинг).
  * id записи — TASK-057 §12 (переход к правке из тултипа): прокидывается, когда
  * порт его доставил (боевой адаптер — всегда; ручные фикстуры — поле отсутствует).
+ * irregular — TASK-058 §7/§9 (EC-10): флаг записи «неровный пульс» — как есть.
  */
 function toRawPoint(point: MeasurementPoint): RawPoint {
   return {
@@ -78,6 +79,7 @@ function toRawPoint(point: MeasurementPoint): RawPoint {
     ...(point.pulse !== undefined ? { pulse: point.pulse } : {}),
     part: dayPartOf(point.takenAt),
     ...(point.critical !== undefined ? { critical: point.critical } : {}),
+    ...(point.irregular === true ? { irregular: true } : {}),
     ...(point.id !== undefined ? { id: point.id } : {}),
   };
 }
@@ -92,6 +94,9 @@ function wallDateOf(instant: Instant): string {
  * avg/min/max определены (инвариант конструирования — юнит-тесты фиксируют);
  * avg округлён правилом отображения 052 (1 знак), min/max целые. morningSysAvg/
  * eveningSysAvg — только при наличии утренних/вечерних записей в дне (§13).
+ * pulseAvg/pulseCount — TASK-058 §5/§13: среднее пульса дня (правило 052) и число
+ * записей с измеренным пульсом — только при наличии таких записей («не измерен»
+ * не тянет ни avg, ни count — согласовано со статистикой 052, §13 058).
  */
 function dayPointOf(wallDate: string, dayPoints: readonly MeasurementPoint[]): DayPoint {
   const sys = summarize(dayPoints.map((point) => point.sys));
@@ -102,6 +107,10 @@ function dayPointOf(wallDate: string, dayPoints: readonly MeasurementPoint[]): D
   const eveningSys = summarize(
     dayPoints.filter((point) => dayPartOf(point.takenAt) === 'evening').map((point) => point.sys),
   );
+  const pulseValues = dayPoints.flatMap((point) =>
+    point.pulse === undefined ? [] : [point.pulse],
+  );
+  const pulse = summarize(pulseValues);
   return {
     wallDate,
     sysAvg: sys.avg as number,
@@ -112,6 +121,8 @@ function dayPointOf(wallDate: string, dayPoints: readonly MeasurementPoint[]): D
     diaMax: dia.max as number,
     ...(morningSys.avg !== undefined ? { morningSysAvg: morningSys.avg } : {}),
     ...(eveningSys.avg !== undefined ? { eveningSysAvg: eveningSys.avg } : {}),
+    ...(pulse.avg !== undefined ? { pulseAvg: pulse.avg } : {}),
+    ...(pulseValues.length > 0 ? { pulseCount: pulseValues.length } : {}),
     count: dayPoints.length,
   };
 }

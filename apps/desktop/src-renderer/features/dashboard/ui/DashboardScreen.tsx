@@ -5,6 +5,12 @@
  * переключатели периода 7д/30д/90д/всё/произвольный (URL `?period=` — истина,
  * §12), тултип с точными значениями и переходом к правке записи.
  *
+ * TASK-058 §2/§5/§12: переключатель вида «Давление/Пульс» — URL `?view=` —
+ * истина (дефолт pressure, мусор → дефолт); график ЧСС (PulseChart) рендерится
+ * из ТОГО ЖЕ ответа trend/series (§15: второй запрос не нужен — кэш общий,
+ * переключение мгновенно); шкала графику ЧСС не нужна (опорный коридор —
+ * константы контракта). Переход к правке — тот же openEdit (§5).
+ *
  * Данные (§11): useTrend (trend/series — режим raw/daily решает read model 056)
  * и useActiveScale (scales/active — опорные линии ИЗ ДАННЫХ шкалы, не хардкод).
  * Период (§12): useDashboardPeriod (lib/period — те же URL-семантики, что у
@@ -14,7 +20,7 @@
  * за период» + CTA — «пустое место» для полноценного состояния 060); error —
  * тост + «Повторить» (прецедент HistoryScreen); данные — график + легенда
  * (+ мини-таблица клавиатуры в raw, §16). daily — подпись «агрегировано по дням»
- * (честность, §10) — внутри TrendChart.
+ * (честность, §10) — внутри графика.
  *
  * Переход к правке (§12): точка (тултип/клик/строка мини-таблицы) → полный DTO
  * через measurements/list с границами utc записи (from=to=utcMs — список вернёт
@@ -29,7 +35,7 @@
 import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { APP_INTERNAL_ERROR } from '@hl/contracts';
 import type { RawPoint } from '@hl/contracts';
@@ -42,6 +48,7 @@ import { HISTORY_PAGE_LIMIT } from '../../measurement/api/use-measurements';
 import { useFormStore } from '../../measurement/model/form-store';
 import { useActiveScale } from '../api/use-active-scale';
 import { TREND_KEY_ROOT, useTrend } from '../api/use-trend';
+import { PulseChart } from './PulseChart';
 import { useDashboardPeriod } from './PeriodSwitcher';
 import { PeriodSwitcher } from './PeriodSwitcher';
 import { TrendChart } from './TrendChart';
@@ -85,6 +92,86 @@ function EmptyChart({ onOpenJournal }: { readonly onOpenJournal: () => void }): 
   );
 }
 
+/** Вид графика «Динамика» (§5 058): давление или пульс. */
+export type DashboardView = 'pressure' | 'pulse';
+
+/**
+ * Хук вида (§12 058): URL `?view=` — истина; мусор/отсутствие → дефолт pressure
+ * (§14: без ошибок, как parsePeriodState). Применение переписывает URL (replace —
+ * вид не засоряет историю навигации), остальные параметры (период) сохраняются.
+ */
+function useDashboardView(): readonly [DashboardView, (view: DashboardView) => void] {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view: DashboardView = searchParams.get('view') === 'pulse' ? 'pulse' : 'pressure';
+  const setView = useCallback(
+    (next: DashboardView) => {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          if (next === 'pulse') {
+            params.set('view', 'pulse');
+          } else {
+            params.delete('view');
+          }
+          return params;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  return [view, setView] as const;
+}
+
+/**
+ * Сегмент-переключатель вида (§5/§10 058): кнопки с aria-pressed (§10: «role=
+ * tablist ИЛИ кнопки aria-pressed» — выбран вариант кнопок: без wiring tabpanel,
+ * состояние читаем скринридером). Стили активной/неактивной кнопки различимы и
+ * вне цвета (aria-pressed — программно).
+ */
+function ViewSwitcher({
+  view,
+  onView,
+}: {
+  readonly view: DashboardView;
+  readonly onView: (view: DashboardView) => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const buttonClass = (active: boolean): string =>
+    `min-h-11 rounded-md border px-4 text-base ${
+      active
+        ? 'border-accent bg-accent/10 font-medium'
+        : 'border-border hover:bg-neutral-100 dark:hover:bg-neutral-800'
+    }`;
+  return (
+    <div
+      data-testid="dashboard-view"
+      role="group"
+      aria-label={t('dashboard.view.label')}
+      className="mb-4 flex flex-wrap gap-2"
+    >
+      <button
+        type="button"
+        data-testid="dashboard-view-pressure"
+        aria-pressed={view === 'pressure'}
+        onClick={() => onView('pressure')}
+        className={buttonClass(view === 'pressure')}
+      >
+        {t('dashboard.view.pressure')}
+      </button>
+      <button
+        type="button"
+        data-testid="dashboard-view-pulse"
+        aria-pressed={view === 'pulse'}
+        onClick={() => onView('pulse')}
+        className={buttonClass(view === 'pulse')}
+      >
+        {t('dashboard.view.pulse')}
+      </button>
+    </div>
+  );
+}
+
 /** Экран «Динамика» (§2): период-контрол + график тренда. */
 export function DashboardScreen(): JSX.Element {
   const { t } = useTranslation();
@@ -92,6 +179,7 @@ export function DashboardScreen(): JSX.Element {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const period = useDashboardPeriod();
+  const [view, setView] = useDashboardView();
   const trend = useTrend(PROFILE_ID, period.param);
   const scale = useActiveScale();
 
@@ -183,6 +271,9 @@ export function DashboardScreen(): JSX.Element {
         <h2 className="text-lg font-semibold">{t('common.nav.dashboard')}</h2>
       </header>
 
+      {/* §12 058: URL `?view=` — истина; вид «Давление/Пульс» — один фокус на экран. */}
+      <ViewSwitcher view={view} onView={setView} />
+
       {/* §12: URL `?period=` — истина; сегмент и поля custom переиспользуют 044/046. */}
       <PeriodSwitcher state={period.state} onPeriod={period.setPeriod} onRange={period.setRange} />
 
@@ -207,12 +298,22 @@ export function DashboardScreen(): JSX.Element {
           }}
         />
       ) : trend.data !== undefined ? (
-        <TrendChart
-          response={trend.data}
-          scale={scale.data}
-          periodLabel={periodLabel}
-          onEditPoint={(point) => void openEdit(point)}
-        />
+        // §5 058: один ответ trend/series — оба вида; шкала нужна только давлению
+        // (коридор пульса — константы контракта, §5).
+        view === 'pulse' ? (
+          <PulseChart
+            response={trend.data}
+            periodLabel={periodLabel}
+            onEditPoint={(point) => void openEdit(point)}
+          />
+        ) : (
+          <TrendChart
+            response={trend.data}
+            scale={scale.data}
+            periodLabel={periodLabel}
+            onEditPoint={(point) => void openEdit(point)}
+          />
+        )
       ) : null}
     </section>
   );
