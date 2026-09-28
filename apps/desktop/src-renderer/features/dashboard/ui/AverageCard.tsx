@@ -2,10 +2,9 @@
  * TASK-061 §2/§5/§13/§16/§17: карточка «Среднее за 7 дней» домашней сводки —
  * СДА/ДДА/ЧСС + count ИЗ ГОТОВОГО stats-ответа (stats/period 7d, §4: принцип
  * задачи — без новых вычислений; дробные — formatNumberRu, та же копия, что у
- * резюме тренда 059). Категория+notes — из classification того же ответа;
- * подпись категории — ИЗ ДАННЫХ активной шкалы (scales/active, R-1: формули-
- * ровки не хардкодятся — код категории → label шкалы). Шкала недоступна —
- * категории с кодом без подписи нет (честно; заметки-тексты не зависят).
+ * резюме тренда 059). Категория+notes — из classification ТОГО ЖЕ ответа:
+ * категория несёт подпись ИЗ ДАННЫХ шкалы (SCALE_CATEGORY-объект с label —
+ * R-1: формулировки не хардкодятся, классификация без второй загрузки — §4 054).
  *
  * МАЛО ДАННЫХ (§13/EC-09): флаг stats.insufficientData → пометка «мало данных»
  * TASK-060-стиля (переиспользуется FewDataNote с count ТОГО ЖЕ ответа — единые
@@ -19,33 +18,25 @@
  */
 import { useTranslation } from 'react-i18next';
 
-import type { ActiveScale, PeriodStatisticsDto } from '@hl/contracts';
+import type { PeriodStatisticsDto } from '@hl/contracts';
 
 import { formatNumberRu } from './TrendSummary';
 import { FewDataNote } from './FewDataNote';
 
-/** Свойства карточки (§5): stats 7d + активная шкала (подпись категории). */
+/** Свойства карточки (§5): stats 7d — средние, count и classification в одном ответе. */
 export interface AverageCardProps {
   readonly stats: PeriodStatisticsDto;
-  /** Активная шкала; недоступна — категории без подписи нет (§13 честность). */
-  readonly scale?: ActiveScale;
-}
-
-/** Подпись категории по коду ИЗ ДАННЫХ шкалы (R-1); нет — undefined (честно). */
-function categoryLabelOf(code: string, scale: ActiveScale | undefined): string | undefined {
-  return scale?.categories.find((category) => category.code === code)?.label;
 }
 
 /** Карточка «Среднее за 7 дней» (§5): средние, count, категория+notes, «мало данных». */
-export function AverageCard({ stats, scale }: AverageCardProps): JSX.Element {
+export function AverageCard({ stats }: AverageCardProps): JSX.Element {
   const { t } = useTranslation();
 
   const insufficient =
     stats.insufficientData.tooFewMeasurements || stats.insufficientData.tooFewDays;
-  const category =
-    stats.classification?.category !== undefined
-      ? categoryLabelOf(stats.classification.category, scale)
-      : undefined;
+  // Подпись категории — из classification (label едет в stats-ответе из данных
+  // шкалы, §4 054); нет категории (insufficientData) — строки нет (EC-09).
+  const category = stats.classification?.category;
   // Note insufficientData классификатора не дублирует пометку FewDataNote (§13).
   const notes = (stats.classification?.notes ?? []).filter(
     (note) => note.kind !== 'insufficientData',
@@ -79,11 +70,14 @@ export function AverageCard({ stats, scale }: AverageCardProps): JSX.Element {
       </div>
       {category !== undefined && (
         <p data-testid="average-category" className="mt-2 text-base font-medium">
-          {t('dashboard.average.category', { label: category })}
+          {t('dashboard.average.category', { label: category.label })}
         </p>
       )}
       {notes.length > 0 && (
-        <div data-testid="average-notes" className="mt-1 flex flex-col gap-1 text-xs text-neutral-500 dark:text-neutral-400">
+        <div
+          data-testid="average-notes"
+          className="mt-1 flex flex-col gap-1 text-xs text-neutral-500 dark:text-neutral-400"
+        >
           {notes.map((note) => (
             <p key={note.kind}>{note.text}</p>
           ))}

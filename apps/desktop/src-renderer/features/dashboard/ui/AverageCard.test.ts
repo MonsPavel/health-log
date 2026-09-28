@@ -18,12 +18,22 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { PeriodStatisticsDto } from '@hl/contracts';
 
-import { SCALE_FIXTURE } from './__fixtures__/dashboard';
 import { AverageCard } from './AverageCard';
 
 import '../../../i18n';
 
 afterEach(() => cleanup());
+
+/**
+ * Категория классификации — полный SCALE_CATEGORY-объект (§7 054): подпись едет
+ * В stats-ответе из данных шкалы (R-1, классификация без второй загрузки).
+ */
+const CATEGORY_NORMAL = {
+  code: 'normal' as const,
+  label: 'Нормальное',
+  sysRange: { min: 120, max: 129 },
+  diaRange: { min: 80, max: 84 },
+};
 
 /** stats 7d с классификацией (достаточно данных — §20 AC2). */
 const STATS_7D: PeriodStatisticsDto = {
@@ -36,7 +46,7 @@ const STATS_7D: PeriodStatisticsDto = {
   longestStreakDays: 6,
   insufficientData: { tooFewMeasurements: false, tooFewDays: false },
   classification: {
-    category: 'normal',
+    category: CATEGORY_NORMAL,
     notes: [
       { kind: 'homeBP', text: 'Классификация для домашних измерений давления' },
       { kind: 'specialGroups', text: 'При диабете пороги другие — см. заметки врача' },
@@ -65,7 +75,7 @@ const STATS_7D_FEW: PeriodStatisticsDto = {
 
 describe('AverageCard — средние 7 дней из stats-канала (§5/§20 AC2)', () => {
   it('СДА/ДДА/ЧСС и count — числа фикстуры stats (ru-формат дробных)', () => {
-    render(createElement(AverageCard, { stats: STATS_7D, scale: SCALE_FIXTURE }));
+    render(createElement(AverageCard, { stats: STATS_7D }));
 
     expect(screen.getByTestId('average-sys').textContent).toBe('СДА 124,3');
     expect(screen.getByTestId('average-dia').textContent).toBe('ДДА 79,5');
@@ -73,8 +83,8 @@ describe('AverageCard — средние 7 дней из stats-канала (§5
     expect(screen.getByTestId('average-count').textContent).toBe('Измерений: 12');
   });
 
-  it('категория — подпись ИЗ ДАННЫХ шкалы (code→label); notes — тексты classification', () => {
-    render(createElement(AverageCard, { stats: STATS_7D, scale: SCALE_FIXTURE }));
+  it('категория — подпись ИЗ classification (label едет в stats-ответе, R-1); notes — тексты classification', () => {
+    render(createElement(AverageCard, { stats: STATS_7D }));
 
     expect(screen.getByTestId('average-category').textContent).toBe('Категория: Нормальное');
     const notes = screen.getByTestId('average-notes');
@@ -83,19 +93,14 @@ describe('AverageCard — средние 7 дней из stats-канала (§5
   });
 
   it('пульса в периоде нет (pulse отсутствует) — строка ЧСС не рендерится (честно)', () => {
-    render(
-      createElement(AverageCard, {
-        stats: { ...STATS_7D, pulse: undefined },
-        scale: SCALE_FIXTURE,
-      }),
-    );
+    render(createElement(AverageCard, { stats: { ...STATS_7D, pulse: undefined } }));
 
     expect(screen.queryByTestId('average-pulse')).toBeNull();
     expect(screen.getByTestId('average-sys')).not.toBeNull();
   });
 
   it('секция с h3 «Среднее за 7 дней» (§16 иерархия заголовков)', () => {
-    render(createElement(AverageCard, { stats: STATS_7D, scale: SCALE_FIXTURE }));
+    render(createElement(AverageCard, { stats: STATS_7D }));
 
     expect(screen.getByTestId('average-card').querySelector('h3')?.textContent).toBe(
       'Среднее за 7 дней',
@@ -105,7 +110,7 @@ describe('AverageCard — средние 7 дней из stats-канала (§5
 
 describe('AverageCard — мало данных (§13/§20 AC3)', () => {
   it('(AC3) insufficientData → пометка «Мало данных — 3 …» (FewDataNote), категория отсутствует', () => {
-    render(createElement(AverageCard, { stats: STATS_7D_FEW, scale: SCALE_FIXTURE }));
+    render(createElement(AverageCard, { stats: STATS_7D_FEW }));
 
     const note = screen.getByTestId('few-data-note');
     expect(note.textContent).toContain('Мало данных — 3 измерения за период');
@@ -116,7 +121,7 @@ describe('AverageCard — мало данных (§13/§20 AC3)', () => {
   });
 
   it('note классификации kind=insufficientData не дублирует пометку («мало данных» в карточке одно)', () => {
-    render(createElement(AverageCard, { stats: STATS_7D_FEW, scale: SCALE_FIXTURE }));
+    render(createElement(AverageCard, { stats: STATS_7D_FEW }));
 
     expect(screen.queryByTestId('average-notes')).toBeNull();
     expect(screen.getByTestId('average-card').textContent).not.toContain(
@@ -124,11 +129,17 @@ describe('AverageCard — мало данных (§13/§20 AC3)', () => {
     );
   });
 
-  it('шкала недоступна (scale=undefined) — категории с кодом без подписи нет (честно, R-1)', () => {
-    render(createElement(AverageCard, { stats: STATS_7D }));
+  it('без classification вовсе — ни категории, ни notes (честно; поля optional контракта)', () => {
+    render(
+      createElement(AverageCard, {
+        stats: { ...STATS_7D, classification: undefined },
+      }),
+    );
 
     expect(screen.queryByTestId('average-category')).toBeNull();
-    // Заметки — тексты classification, от шкалы не зависят.
-    expect(screen.getByTestId('average-notes')).not.toBeNull();
+    expect(screen.queryByTestId('average-notes')).toBeNull();
+    // Средние и count от классификации не зависят.
+    expect(screen.getByTestId('average-sys')).not.toBeNull();
+    expect(screen.getByTestId('average-count')).not.toBeNull();
   });
 });

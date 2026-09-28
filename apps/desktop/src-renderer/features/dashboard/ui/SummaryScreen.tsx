@@ -37,7 +37,6 @@ import type { AppErrorDto } from '@hl/contracts';
 import { useToast } from '../../../app/toast';
 import { useHlEvent } from '../../../lib/events';
 import { IpcApiError, PROFILE_ID } from '../../measurement/api/use-add-measurement';
-import { useActiveScale } from '../api/use-active-scale';
 import { useLastMeasurement } from '../api/use-last-measurement';
 import { STATS_KEY_ROOT, useStats } from '../api/use-stats';
 import { AverageCard } from './AverageCard';
@@ -110,11 +109,11 @@ export function SummaryScreen(): JSX.Element {
   const queryClient = useQueryClient();
 
   // §12: три запроса параллельно (§15) — последний, средние 7д, регулярность 30д.
+  // Подпись категории едет В stats-ответе (SCALE_CATEGORY.label из данных шкалы,
+  // §4 054) — четвёртый запрос сводке не нужен.
   const last = useLastMeasurement(PROFILE_ID);
   const stats7d = useStats(PROFILE_ID, '7d');
   const stats30d = useStats(PROFILE_ID, '30d');
-  // Подпись категории — из данных шкалы (R-1); канал общий с графиком (кэш).
-  const scale = useActiveScale();
 
   // Live-обновление (§12): частичные ключи матчат 'last' и все периоды stats.
   useHlEvent('measurement:changed', (payload) => {
@@ -167,9 +166,7 @@ export function SummaryScreen(): JSX.Element {
           {lastMeasurement !== undefined && (
             <div className="grid gap-4 md:grid-cols-2">
               <LastMeasurementCard measurement={lastMeasurement} nowMs={Date.now()} onAdd={openAdd} />
-              {stats7d.data !== undefined && (
-                <AverageCard stats={stats7d.data.stats} scale={scale.data} />
-              )}
+              {stats7d.data !== undefined && <AverageCard stats={stats7d.data.stats} />}
               {stats30d.data !== undefined && <RegularityCard stats={stats30d.data.stats} />}
             </div>
           )}

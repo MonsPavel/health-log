@@ -88,7 +88,7 @@ function lastDto(overrides: Record<string, unknown> = {}): MeasurementListRespon
   } as MeasurementListResponse['items'][number];
 }
 
-/** stats 7d с классификацией (§20 AC2: категория+notes из канала). */
+/** stats 7d с классификацией (§20 AC2: категория+notes из канала; label едет в ответе). */
 const STATS_7D: StatsResponse = {
   stats: {
     count: 12,
@@ -100,7 +100,12 @@ const STATS_7D: StatsResponse = {
     longestStreakDays: 6,
     insufficientData: { tooFewMeasurements: false, tooFewDays: false },
     classification: {
-      category: 'normal',
+      category: {
+        code: 'normal',
+        label: 'Нормальное',
+        sysRange: { min: 120, max: 129 },
+        diaRange: { min: 80, max: 84 },
+      },
       notes: [{ kind: 'homeBP', text: 'Классификация для домашних измерений давления' }],
     },
   },
