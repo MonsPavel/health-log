@@ -9,16 +9,20 @@
 //  - пустой profileId → программная ошибка TypeError (dev-контракт порта repo
 //    TASK-021, принудительный скоуп арх. 08 §3);
 //  - лог §18: info `exportCsv` {count, durationMs} — без значений измерений (PHI).
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import { unsafeUnwrap, type Result, type AppError } from '@hl/kernel';
 
 import { toCsv, type ExportRow } from '../domain/csv.js';
-import { EXPORT_BATCH_SIZE, ExportCsvUseCase, type ExportCsvSource } from './export-csv.js';
+import {
+  EXPORT_BATCH_SIZE,
+  ExportCsvUseCase,
+  type ExportCsvLogger,
+  type ExportCsvSource,
+} from './export-csv.js';
 
 /** База моментов фикстур: 2026-09-24T05:12:00Z (= 08:12:00+03:00, пример §5), шаг 1 минута. */
 const BASE_MS = 1_790_226_720_000;
-const TZ = 180;
 
 /** Строка экспорта без спецсимволов — фабрика фикстур (asc-порядок по datetime). */
 const row = (i: number): ExportRow => ({
@@ -47,21 +51,28 @@ const errOf = (result: Result<{ csv: string; count: number }, AppError>): AppErr
  * limit) в порядке takenAt desc (вход — asc-массив, источник сам разворачивает);
  * лог вызовов — для assert'ов пагинации.
  */
-const makeDescSource = (rowsAsc: ExportRow[]): { source: ExportCsvSource; calls: { offset: number; limit: number }[] } => {
+const makeDescSource = (
+  rowsAsc: ExportRow[],
+): { source: ExportCsvSource; calls: { offset: number; limit: number }[] } => {
   const desc = [...rowsAsc].reverse();
   const calls: { offset: number; limit: number }[] = [];
   return {
     calls,
     source: {
-      listBatch: vi.fn(async (_profileId: string, offset: number, limit: number) => {
+      listBatch: vi.fn((_profileId: string, offset: number, limit: number) => {
         calls.push({ offset, limit });
-        return desc.slice(offset, offset + limit);
+        return Promise.resolve(desc.slice(offset, offset + limit));
       }),
     },
   };
 };
 
-const makeLogger = () => ({ debug: vi.fn(), info: vi.fn(), error: vi.fn() });
+/** Подставочные зависимости: логгер — типизированные vi.fn-шпионы (§19, прецедент TASK-030). */
+const makeLogger = (): {
+  debug: Mock<ExportCsvLogger['debug']>;
+  info: Mock<ExportCsvLogger['info']>;
+  error: Mock<ExportCsvLogger['error']>;
+} => ({ debug: vi.fn(), info: vi.fn(), error: vi.fn() });
 
 const makeUseCase = (source: ExportCsvSource, logger = makeLogger()) => ({
   useCase: new ExportCsvUseCase({ source, logger }),
@@ -133,9 +144,7 @@ describe('ExportCsvUseCase — пустой журнал и отказы (§9/§
 
   it('сбой источника → err EXPORT/FAILED с messageKey errors.EXPORT_FAILED (§5); error-лог', async () => {
     const failingSource: ExportCsvSource = {
-      listBatch: vi.fn(async () => {
-        throw new Error('db gone');
-      }),
+      listBatch: vi.fn(() => Promise.reject(new Error('db gone'))),
     };
     const { useCase, logger } = makeUseCase(failingSource);
 
@@ -167,11 +176,12 @@ describe('ExportCsvUseCase — телеметрия (§18)', () => {
 
     await useCase.execute('profile-1');
 
-    expect(logger.info).toHaveBeenCalledWith(
-      'exportCsv',
-      expect.objectContaining({ count: 3, durationMs: expect.any(Number) }),
-    );
-    const meta = vi.mocked(logger.info).mock.calls[0]?.[1] ?? {};
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    const [message, meta] = vi.mocked(logger.info).mock.calls[0] ?? [];
+    expect(message).toBe('exportCsv');
+    // count в meta (§18); durationMs — число; значений измерений в логе нет (PHI).
+    expect(meta?.['count']).toBe(3);
+    expect(typeof meta?.['durationMs']).toBe('number');
     expect(JSON.stringify(meta)).not.toContain('id-0');
   });
 });

@@ -124,9 +124,9 @@ describe('toCsv — золотые строки (§19 golden)', () => {
   });
 
   it('опциональные поля без значения → пустые ячейки; irregular — литералы true/false (§5)', () => {
-    expect(toCsv([row({ pulse: undefined, arm: undefined, note: undefined, irregular: true })])).toBe(
-      `${BOM}${HEADER}\r\nm-1;profile-1;2026-09-24T08:12:00+03:00;120;80;;true;;;manual`,
-    );
+    expect(
+      toCsv([row({ pulse: undefined, arm: undefined, note: undefined, irregular: true })]),
+    ).toBe(`${BOM}${HEADER}\r\nm-1;profile-1;2026-09-24T08:12:00+03:00;120;80;;true;;;manual`);
   });
 
   it('два порядка строк сохраняются как пришли (порядок asc — забота use case, §13)', () => {
