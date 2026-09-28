@@ -38,7 +38,8 @@ export function createTrendSeriesHandler(
     logger?.info('trend/series', {
       period: periodLabel(payload.period),
       mode: response.mode,
-      points: response.mode === 'raw' ? (response.points?.length ?? 0) : (response.days?.length ?? 0),
+      points:
+        response.mode === 'raw' ? (response.points?.length ?? 0) : (response.days?.length ?? 0),
       durationMs: Math.round(performance.now() - startedAtMs),
     });
     return response;

@@ -129,9 +129,27 @@ describe('trend/series через контейнер — полный путь (
     try {
       // Точки вставляются в обратном порядке — сортировку asc видна по значениям.
       await addPoints(container, [
-        { sys: 124, dia: 84, pulse: 72, takenAt: fixtureInstant('2026-03-02', '20:00'), critical: undefined },
-        { sys: 122, dia: 82, pulse: undefined, takenAt: fixtureInstant('2026-03-02', '12:30'), critical: undefined },
-        { sys: 190, dia: 125, pulse: 90, takenAt: fixtureInstant('2026-03-02', '07:30'), critical: 'high' },
+        {
+          sys: 124,
+          dia: 84,
+          pulse: 72,
+          takenAt: fixtureInstant('2026-03-02', '20:00'),
+          critical: undefined,
+        },
+        {
+          sys: 122,
+          dia: 82,
+          pulse: undefined,
+          takenAt: fixtureInstant('2026-03-02', '12:30'),
+          critical: undefined,
+        },
+        {
+          sys: 190,
+          dia: 125,
+          pulse: 90,
+          takenAt: fixtureInstant('2026-03-02', '07:30'),
+          critical: 'high',
+        },
       ]);
 
       const envelope = await trendRequest(container, { profileId: 'profile-1', period: 'all' });
@@ -311,7 +329,9 @@ describe('trend/series через контейнер — полный путь (
       const startedAtMs = performance.now();
       const envelope = await trendRequest(container, { profileId: 'profile-1', period: 'all' });
       const durationMs = Math.round(performance.now() - startedAtMs);
-      console.info(`[trend.int] trend/series period=all mode=daily days=1000 durationMs=${durationMs}`);
+      console.info(
+        `[trend.int] trend/series period=all mode=daily days=1000 durationMs=${durationMs}`,
+      );
 
       expect(envelope).toMatchObject({ ok: true });
       if (!envelope.ok) {

@@ -57,17 +57,6 @@ class FakePointsPort implements MeasurementPointsPort {
   }
 }
 
-/** Точка с id (боевую точку с id готовит адаптер порта; здесь — для tie-break §9). */
-function pointWithId(
-  id: string,
-  dayIso: string,
-  wallTime: string,
-  sys: number,
-  dia: number,
-): MeasurementPoint {
-  return { id, ...point(dayIso, wallTime, sys, dia) };
-}
-
 /** Серия с fake-портом и фиксированным часами. */
 const makeSeries = (points: readonly MeasurementPoint[]): TrendSeries =>
   new TrendSeries({ points: new FakePointsPort(points), clock: new FixedClock(NOW_MS, TZ) });

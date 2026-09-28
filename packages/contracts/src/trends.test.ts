@@ -100,9 +100,9 @@ describe('TREND_RAW_POINT_SCHEMA — сырая точка графика (§5)'
   it('значения целые: дробные sys/pulse/utcMs отклоняются', () => {
     const base = { utcMs: 0, tzOffsetMin: 0, dia: 80, part: 'other' };
     expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, sys: 120.5 }).success).toBe(false);
-    expect(
-      TREND_RAW_POINT_SCHEMA.safeParse({ ...base, sys: 120, pulse: 60.5 }).success,
-    ).toBe(false);
+    expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, sys: 120, pulse: 60.5 }).success).toBe(
+      false,
+    );
     expect(TREND_RAW_POINT_SCHEMA.safeParse({ ...base, sys: 120, utcMs: 0.5 }).success).toBe(false);
   });
 
@@ -165,12 +165,12 @@ describe('TREND_DAY_POINT_SCHEMA — агрегат настенного дня 
       true,
     );
     expect(TREND_DAY_POINT_SCHEMA.safeParse({ wallDate: '2026-3-2', ...base }).success).toBe(false);
-    expect(TREND_DAY_POINT_SCHEMA.safeParse({ wallDate: '2026-03-02T00:00', ...base }).success).toBe(
-      false,
-    );
-    expect(TREND_DAY_POINT_SCHEMA.safeParse({ wallDate: '2026-03-02', ...base, count: 0 }).success).toBe(
-      false,
-    );
+    expect(
+      TREND_DAY_POINT_SCHEMA.safeParse({ wallDate: '2026-03-02T00:00', ...base }).success,
+    ).toBe(false);
+    expect(
+      TREND_DAY_POINT_SCHEMA.safeParse({ wallDate: '2026-03-02', ...base, count: 0 }).success,
+    ).toBe(false);
   });
 
   it('strict: неизвестные поля отклоняются (§14)', () => {
@@ -211,7 +211,9 @@ describe('TREND_RESPONSE_SCHEMA — ответ trend/series (§5: {mode, points?
 
   it('принимает raw-режим с точками; пустой период — {mode:"raw", points:[]} (§11)', () => {
     expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'raw', points: [] }).success).toBe(true);
-    expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'raw', points: [RAW_POINT] }).success).toBe(true);
+    expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'raw', points: [RAW_POINT] }).success).toBe(
+      true,
+    );
   });
 
   it('принимает daily-режим с днями (§5: порог превышен → агрегация)', () => {
@@ -224,9 +226,9 @@ describe('TREND_RESPONSE_SCHEMA — ответ trend/series (§5: {mode, points?
     expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'hourly', points: [] }).success).toBe(false);
     // Форма §5 плоская (points?/days? опциональны): взаимоисключительность веток —
     // поведение read model (§2), схема карает только НЕИЗВЕСТНЫЕ поля (§14).
-    expect(
-      TREND_RESPONSE_SCHEMA.safeParse({ mode: 'raw', points: [], cached: true }).success,
-    ).toBe(false);
+    expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'raw', points: [], cached: true }).success).toBe(
+      false,
+    );
   });
 
   it('типы выводятся из схем (§23): TrendResponse = z.infer', () => {
