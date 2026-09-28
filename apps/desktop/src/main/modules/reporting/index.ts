@@ -8,9 +8,7 @@
  * живёт в воркере пула и из main-графа не импортируется (§7) — наружу уходят
  * только wire-типы payload'а (structured clone) и URL модуля задач.
  */
-export {
-  PDF_TASKS_MODULE_URL,
-} from './adapters/pdf/pdf-tasks-url.js';
+export { PDF_TASKS_MODULE_URL } from './adapters/pdf/pdf-tasks-url.js';
 export { PDF_RENDER_TASK } from './adapters/pdf/pdf-task.js';
 export type {
   PdfRenderPayload,
@@ -25,7 +23,7 @@ export type {
   ReportRegularity,
   ReportRow,
   ReportSpec,
-} from './domain/report-spec.js';
+} from './application/report-spec.js';
 export {
   TABLE_ROW_LIMIT,
   TABLE_ROWS_PER_PAGE,
@@ -37,4 +35,4 @@ export {
   formatWallTime,
   limitLastRows,
   paginateRows,
-} from './domain/report-format.js';
+} from './application/report-format.js';

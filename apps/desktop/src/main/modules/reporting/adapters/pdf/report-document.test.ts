@@ -65,7 +65,12 @@ describe('buildTableSection — сборка таблицы: лимит 2000 (§
   });
 
   it('пустой период — таблицы нет (валидная структура без NaN)', () => {
-    expect(buildTableSection([])).toEqual({ pages: [], total: 0, omitted: 0, limitNote: undefined });
+    expect(buildTableSection([])).toEqual({
+      pages: [],
+      total: 0,
+      omitted: 0,
+      limitNote: undefined,
+    });
   });
 });
 
@@ -77,7 +82,7 @@ describe('golden-рендер фикстуры (§19/AC §20)', () => {
   }, 30_000);
 
   it('детерминизм не зависит от порядка ключей/копии payload (structured clone мэйн→воркер)', async () => {
-    const cloned = structuredClone(GOLDEN_PAYLOAD) as typeof GOLDEN_PAYLOAD;
+    const cloned = structuredClone(GOLDEN_PAYLOAD);
     const direct = await render(GOLDEN_PAYLOAD);
     const clonedBytes = await render(cloned);
     expect(sha256(clonedBytes)).toBe(sha256(direct));

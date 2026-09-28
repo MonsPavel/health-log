@@ -7,7 +7,7 @@
  * Фикстуру импортируют ТОЛЬКО тесты (vitest-контекст): в воркер она уходит
  * structured clone'ом payload'а — нативный Node этот файл не грузит.
  */
-import type { PdfRenderPayload, ReportRow } from '../../../domain/report-spec.ts';
+import type { PdfRenderPayload, ReportRow } from '../../../application/report-spec.ts';
 
 const TZ_OFFSET_MIN = 180;
 const ROWS_COUNT = 40;
@@ -24,7 +24,9 @@ function buildRows(): ReportRow[] {
       sys: 118 + ((i * 7) % 42),
       dia: 72 + ((i * 5) % 18),
       ...(i % 5 === 3 ? { pulse: undefined } : { pulse: 58 + ((i * 3) % 22) }),
-      ...(i % 7 === 6 ? { arm: undefined } : { arm: isMorning ? ('left' as const) : ('right' as const) }),
+      ...(i % 7 === 6
+        ? { arm: undefined }
+        : { arm: isMorning ? ('left' as const) : ('right' as const) }),
       ...(i === 5
         ? { note: 'После пробежки; самочувствие хорошее' }
         : i === 13

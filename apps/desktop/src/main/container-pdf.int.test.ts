@@ -18,7 +18,7 @@ import { AppError, FixedClock, type Result } from '@hl/kernel';
 
 import { buildContainer } from './container.js';
 import { GOLDEN_PAYLOAD } from './modules/reporting/adapters/pdf/__fixtures__/golden-payload.ts';
-import type { PdfRenderResult } from './modules/reporting/domain/report-spec.js';
+import type { PdfRenderResult } from './modules/reporting/application/report-spec.js';
 import {
   VAULT_KEY_MISSING_MESSAGE_KEY,
   type EnsuredKey,
@@ -55,7 +55,7 @@ class MockVault implements KeyVault {
 
 describe('container + pdf.render по умолчанию (TASK-067 §9/§20)', () => {
   it(
-    'контейнер без override задач: workerPool.run(\'pdf.render\') рендерит %PDF',
+    "контейнер без override задач: workerPool.run('pdf.render') рендерит %PDF",
     { timeout: 30_000 },
     async () => {
       const dir = newUserDataDir();
@@ -66,7 +66,10 @@ describe('container + pdf.render по умолчанию (TASK-067 §9/§20)', (
         workerPool: { entryUrl: WORKER_ENTRY_URL }, // tasksModule — боевой дефолт
       });
       try {
-        const result = (await container.workerPool.run('pdf.render', GOLDEN_PAYLOAD)) as PdfRenderResult;
+        const result = (await container.workerPool.run(
+          'pdf.render',
+          GOLDEN_PAYLOAD,
+        )) as PdfRenderResult;
         expect(Buffer.from(result.pdf.subarray(0, 5)).toString('latin1')).toBe('%PDF-');
         expect(result.pages).toBeGreaterThanOrEqual(2);
         expect(result.records).toBe(40);

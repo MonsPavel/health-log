@@ -1,6 +1,7 @@
 /**
- * TASK-067 §13/§19: чистые форматтеры отчёта (арх. 02 §5: правила отображения —
- * домен, шаблон их только применяет; §7: никакой бизнес-логики в шаблоне).
+ * TASK-067 §13/§19: чистые форматтеры отчёта — application-слой reporting
+ * (матрица арх. 03 §4: адаптер шаблона импортирует СВОЁ application; арх. 02 §5:
+ * правила отображения — не в шаблоне; §7: никакой бизнес-логики в шаблоне).
  *
  * НАСТЕННОЕ ВРЕМЯ (§13, EC-06): дата/время точки — по ЕЁ собственному offset
  * (utcMs + tzOffsetMin), отформатированные Intl ru в UTC — машинная таймзона
@@ -16,7 +17,7 @@
  * Файл в цепочке воркера (report-document.ts ← pdf-task.ts): внутри цепочки
  * импорты с '.ts'-спесификаторами (нативный Node type-stripping в тестах; tsc
  * переписывает в '.js' на emit — rewriteRelativeImportExtensions, TASK-067).
- * Сам файл без импортов — Intl и Date глобальны (domain-purity соблюдён).
+ * Сам файл без импортов — Intl и Date глобальны.
  */
 
 /** Лимит строк таблицы отчёта (§9): последние 2000, приписка «показаны последние 2000 из N». */
@@ -115,11 +116,18 @@ export interface LimitedRows<T> {
  * отчёт печатает ХВОСТ периода (свежие записи важнее), порядок asc сохраняется.
  * Вход ожидается отсортированным asc (pdf-task сортирует до вызова, §5).
  */
-export function limitLastRows<T>(rows: readonly T[], limit: number = TABLE_ROW_LIMIT): LimitedRows<T> {
+export function limitLastRows<T>(
+  rows: readonly T[],
+  limit: number = TABLE_ROW_LIMIT,
+): LimitedRows<T> {
   if (rows.length <= limit) {
     return { rows: [...rows], total: rows.length, omitted: 0 };
   }
-  return { rows: [...rows.slice(rows.length - limit)], total: rows.length, omitted: rows.length - limit };
+  return {
+    rows: [...rows.slice(rows.length - limit)],
+    total: rows.length,
+    omitted: rows.length - limit,
+  };
 }
 
 /**

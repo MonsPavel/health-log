@@ -18,13 +18,13 @@ import { performance } from 'node:perf_hooks';
 
 import { renderToBuffer } from '@react-pdf/renderer';
 
-import { limitLastRows } from '../../domain/report-format.ts';
+import { limitLastRows } from '../../application/report-format.ts';
 import type {
   PdfRenderPayload,
   PdfRenderResult,
   ReportRow,
-} from '../../domain/report-spec.ts';
-import type { TaskContext, TaskHandler } from '../../../../shared/workerpool/protocol.js';
+} from '../../application/report-spec.ts';
+import type { TaskHandler } from '../../../../shared/workerpool/protocol.js';
 import { createReportDocument, ensureReportFonts } from './report-document.ts';
 
 /** Имя задачи пула (§5). */
@@ -105,12 +105,10 @@ export function countPdfPages(pdf: Uint8Array): number {
 /**
  * Обработчик `pdf.render` (§5): сортировка asc → рендер → байты + метрики.
  * Отмена (кооперативная, TASK-066) задачей не поддерживается — сигнал ей не
- * передаётся (документировано §5 TASK-066; рендер конечен).
+ * передаётся (документировано §5 TASK-066; рендер конечен), поэтому TaskContext
+ * не принимается: функция с меньшей арностью совместима с TaskHandler.
  */
-export const renderPdfTask = async (
-  payload: unknown,
-  _context: TaskContext,
-): Promise<PdfRenderResult> => {
+export const renderPdfTask = async (payload: unknown): Promise<PdfRenderResult> => {
   const startedAtMs = performance.now();
   const report = parsePayload(payload);
   ensureReportFonts();

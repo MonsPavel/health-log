@@ -12,7 +12,7 @@
  *
  * §7: никакой бизнес-логики — только применение готовых чисел payload'а
  * (read models 052/056 собирают их на main-стороне, TASK-068). Форматирование —
- * доменные форматтеры (§13), тексты — RU-каталог (§17).
+ * форматтеры application-слоя reporting (§13), тексты — RU-каталог (§17).
  *
  * ДЕТЕРМИНИЗМ (§19/§22, проверено ранним чеком): react-pdf вкладывает в
  * метаданные CreationDate (дефолт new Date()), и от него же зависит трейлерный
@@ -32,6 +32,7 @@ import {
   Svg,
   Text,
   View,
+  type DocumentProps,
 } from '@react-pdf/renderer';
 import { createElement, type ReactElement } from 'react';
 
@@ -45,7 +46,7 @@ import {
   formatWallTime,
   limitLastRows,
   paginateRows,
-} from '../../domain/report-format.ts';
+} from '../../application/report-format.ts';
 import type {
   PdfRenderPayload,
   ReportAiText,
@@ -53,7 +54,7 @@ import type {
   ReportPartAverages,
   ReportRow,
   ReportSpec,
-} from '../../domain/report-spec.ts';
+} from '../../application/report-spec.ts';
 import { REPORT_RU, type ReportStrings } from './report-strings.ts';
 
 /** Семейство шрифтов отчёта: Roboto с кириллицей (§4, OFL — каталог fonts/). */
@@ -258,11 +259,7 @@ function tableRow(row: ReportRow, index: number, strings: ReportStrings): ReactE
     View,
     { style: [styles.row, ...(index % 2 === 1 ? [styles.rowZebra] : [])] },
     ...cells.map((value, i) =>
-      createElement(
-        Text,
-        { key: i, style: [styles.cell, { width: `${widthsMm[i]}mm` }] },
-        value,
-      ),
+      createElement(Text, { key: i, style: [styles.cell, { width: `${widthsMm[i]}mm` }] }, value),
     ),
   );
 }
@@ -329,11 +326,7 @@ function averagesBlock(data: ReportData, strings: ReportStrings): ReactElement {
     createElement(
       View,
       { style: styles.infoTable },
-      infoRow(
-        strings.averages.morning,
-        partAveragesLabel(averages.morning, strings),
-        'morning',
-      ),
+      infoRow(strings.averages.morning, partAveragesLabel(averages.morning, strings), 'morning'),
       infoRow(strings.averages.evening, partAveragesLabel(averages.evening, strings), 'evening'),
       infoRow(strings.averages.period, partAveragesLabel(averages.period, strings), 'period'),
       infoRow(
@@ -374,7 +367,14 @@ function regularityBlock(data: ReportData, strings: ReportStrings): ReactElement
 }
 
 /** Геометрия графика: система координат viewBox 510×170 pt (180×60 мм). */
-const CHART = { width: 510, height: 170, padLeft: 6, padRight: 6, padTop: 10, padBottom: 10 } as const;
+const CHART = {
+  width: 510,
+  height: 170,
+  padLeft: 6,
+  padRight: 6,
+  padTop: 10,
+  padBottom: 10,
+} as const;
 
 /**
  * Упрощённый график sys (§4): линия по точкам таблицы (те же точки — §4), X —
@@ -409,11 +409,41 @@ function chartBlock(data: ReportData, strings: ReportStrings): ReactElement | nu
       Svg,
       { width: '180mm', height: '60mm', viewBox: `0 0 ${width} ${height}`, style: styles.chartSvg },
       // Оси.
-      createElement(Line, { x1: padLeft, y1: padTop, x2: padLeft, y2: height - padBottom, stroke: '#555555', strokeWidth: 0.75 }),
-      createElement(Line, { x1: padLeft, y1: height - padBottom, x2: width - padRight, y2: height - padBottom, stroke: '#555555', strokeWidth: 0.75 }),
+      createElement(Line, {
+        x1: padLeft,
+        y1: padTop,
+        x2: padLeft,
+        y2: height - padBottom,
+        stroke: '#555555',
+        strokeWidth: 0.75,
+      }),
+      createElement(Line, {
+        x1: padLeft,
+        y1: height - padBottom,
+        x2: width - padRight,
+        y2: height - padBottom,
+        stroke: '#555555',
+        strokeWidth: 0.75,
+      }),
       // Опорные 140/90 — пунктир (§4).
-      createElement(Line, { x1: padLeft, y1: reference140, x2: width - padRight, y2: reference140, stroke: '#888888', strokeWidth: 0.75, strokeDasharray: '4 3' }),
-      createElement(Line, { x1: padLeft, y1: reference90, x2: width - padRight, y2: reference90, stroke: '#888888', strokeWidth: 0.75, strokeDasharray: '4 3' }),
+      createElement(Line, {
+        x1: padLeft,
+        y1: reference140,
+        x2: width - padRight,
+        y2: reference140,
+        stroke: '#888888',
+        strokeWidth: 0.75,
+        strokeDasharray: '4 3',
+      }),
+      createElement(Line, {
+        x1: padLeft,
+        y1: reference90,
+        x2: width - padRight,
+        y2: reference90,
+        stroke: '#888888',
+        strokeWidth: 0.75,
+        strokeDasharray: '4 3',
+      }),
       // Линия систолического АД.
       createElement(Polyline, { points, stroke: '#111111', strokeWidth: 1.25, fill: 'none' }),
     ),
@@ -432,11 +462,7 @@ function aiSectionBlock(ai: ReportAiText, data: ReportData, strings: ReportStrin
     View,
     { style: styles.aiFrame },
     createElement(Text, { style: styles.aiTitle }, strings.ai.title),
-    createElement(
-      Text,
-      { style: styles.aiMeta },
-      `${strings.ai.disclaimer}`,
-    ),
+    createElement(Text, { style: styles.aiMeta }, `${strings.ai.disclaimer}`),
     createElement(
       Text,
       { style: styles.aiMeta },
@@ -454,7 +480,7 @@ function aiSectionBlock(ai: ReportAiText, data: ReportData, strings: ReportStrin
  * Корень документа отчёта (§5): A4, поля 15мм; метаданные с ФИКСИРОВАННОЙ
  * creationDate из payload'а — детерминизм байтов (§19/AC2).
  */
-export function createReportDocument(payload: PdfRenderPayload): ReactElement {
+export function createReportDocument(payload: PdfRenderPayload): ReactElement<DocumentProps> {
   ensureReportFonts();
   const { spec, data } = payload;
   const strings = REPORT_RU;

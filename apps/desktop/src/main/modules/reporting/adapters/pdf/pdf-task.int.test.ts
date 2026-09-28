@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import { WorkerPool } from '../../../../shared/workerpool/pool.js';
 import { GOLDEN_PAYLOAD, GOLDEN_AI_TEXT } from './__fixtures__/golden-payload.ts';
-import type { PdfRenderPayload, PdfRenderResult } from '../../domain/report-spec.ts';
+import type { PdfRenderPayload, PdfRenderResult } from '../../application/report-spec.ts';
 import { createReportDocument } from './report-document.ts';
 import { PDF_TASKS_MODULE_URL } from './pdf-tasks-url.ts';
 
@@ -67,16 +67,21 @@ describe('pdf.render в воркере пула (TASK-067 §9)', () => {
     },
   );
 
-  it('повреждённый payload → отказ ТОЛЬКО этой job, воркер жив (§13/§14)', { timeout: 30_000 }, async () => {
-    await expect(runRender({ foo: 'bar' } as unknown as PdfRenderPayload)).rejects.toThrow(
-      /pdf\.render/,
-    );
-    await expect(runRender({ ...GOLDEN_PAYLOAD, data: undefined } as unknown as PdfRenderPayload))
-      .rejects.toThrow(/pdf\.render/);
-    // Пул пережил отказ: следующая job выполняется штатно.
-    const next = await runRender(GOLDEN_PAYLOAD);
-    expect(Buffer.from(next.pdf.subarray(0, 5)).toString('latin1')).toBe('%PDF-');
-  });
+  it(
+    'повреждённый payload → отказ ТОЛЬКО этой job, воркер жив (§13/§14)',
+    { timeout: 30_000 },
+    async () => {
+      await expect(runRender({ foo: 'bar' } as unknown as PdfRenderPayload)).rejects.toThrow(
+        /pdf\.render/,
+      );
+      await expect(
+        runRender({ ...GOLDEN_PAYLOAD, data: undefined } as unknown as PdfRenderPayload),
+      ).rejects.toThrow(/pdf\.render/);
+      // Пул пережил отказ: следующая job выполняется штатно.
+      const next = await runRender(GOLDEN_PAYLOAD);
+      expect(Buffer.from(next.pdf.subarray(0, 5)).toString('latin1')).toBe('%PDF-');
+    },
+  );
 
   it(
     '§15/AC6: 5000 записей на входе → рендер ≤ 30 с локально, таблица ограничена 2000 (§9)',
