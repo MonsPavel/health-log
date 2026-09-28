@@ -186,21 +186,21 @@ describe('buildDayPoints — агрегация настенного дня (§4
   });
 
   it('дни сортированы wallDate asc даже когда utc-порядок входа даёт другой настенный порядок (EC-06: свой offset записи)', () => {
-    // A: 2026-03-10T14:00 +14:00 → utc 00:00Z, настенный день 2026-03-11;
-    // B: 2026-03-10T15:00 −12:00 → utc 2026-03-11T03:00Z, настенный день 2026-03-10.
+    // A: настенное 2026-03-11T02:00 (+14:00) → utc 2026-03-10T12:00Z, день 2026-03-11;
+    // B: настенное 2026-03-10T23:00 (−12:00) → utc 2026-03-11T11:00Z, день 2026-03-10.
     // Вход по utc asc [A, B] даёт дни [03-11, 03-10] — выход обязан пересортировать.
     const a: MeasurementPoint = {
       sys: 120,
       dia: 80,
       pulse: undefined,
-      takenAt: Instant.fromIso('2026-03-10T14:00:00.000+14:00'),
+      takenAt: Instant.fromIso('2026-03-11T02:00:00.000+14:00'),
       critical: undefined,
     };
     const b: MeasurementPoint = {
       sys: 130,
       dia: 85,
       pulse: undefined,
-      takenAt: Instant.fromIso('2026-03-10T15:00:00.000-12:00'),
+      takenAt: Instant.fromIso('2026-03-10T23:00:00.000-12:00'),
       critical: undefined,
     };
     const days = buildDayPoints([a, b]);

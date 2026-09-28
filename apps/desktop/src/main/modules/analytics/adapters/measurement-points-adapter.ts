@@ -24,9 +24,10 @@ import type {
   MeasurementPointsQuery,
 } from '../application/ports/measurement-points.js';
 
-/** Точка аналитики из агрегата журнала (§4): плоские числа + Instant + флаг политики. */
+/** Точка аналитики из агрегата журнала (§4): id + плоские числа + Instant + флаг политики. */
 function aggregateToPoint(m: BpMeasurement): MeasurementPoint {
   return {
+    id: m.id,
     sys: m.bp.sys,
     dia: m.bp.dia,
     pulse: m.pulse,

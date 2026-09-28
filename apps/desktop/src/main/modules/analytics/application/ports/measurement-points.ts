@@ -22,6 +22,13 @@ import type { Instant } from '@hl/kernel';
  * → undefined (FR-1.1), takenAt — как хранится (со своим offset — EC-06).
  */
 export interface MeasurementPoint {
+  /**
+   * Идентификатор записи (uuid v7). Опционален: боевой адаптер порта (TASK-054)
+   * доставляет id агрегата — он нужен read model trend/series для tie-break
+   * сортировки при равных utc (TASK-056 §9); точки, собранные вручную в тестах,
+   * id могут не иметь.
+   */
+  readonly id?: string;
   /** Систолическое АД, мм рт. ст. (валидность гарантирует источник — TASK-016). */
   readonly sys: number;
   /** Диастолическое АД, мм рт. ст. */
