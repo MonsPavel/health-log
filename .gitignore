@@ -20,3 +20,6 @@ apps/desktop/release/
 # Секреты (в т.ч. ключи подписи обновлений — TASK-104)
 *.pem
 *.pfx
+
+# TASK-062 §18: локальные bench-отчёты (артефакт ручной, в репо не входит)
+tools/bench-results/
