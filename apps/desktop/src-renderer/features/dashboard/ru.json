@@ -12,7 +12,8 @@
     "hiddenCount_few": "{{count}} измерения без пульса не показаны",
     "hiddenCount_many": "{{count}} измерений без пульса не показаны",
     "hiddenCount_other": "{{count}} измерения без пульса не показаны",
-    "chartLabel": "График пульса, период «{{period}}»: в среднем {{avg}} уд/мин (диапазон {{min}}–{{max}}), показано измерений: {{count}}.",
+    "chartLabel": "График пульса, период «{{period}}»: в среднем {{avg}} уд/мин (диапазон {{min}}–{{max}}), точек: {{count}}.",
+    "chartLabelEmpty": "График пульса, период «{{period}}»: измерений с пульсом нет.",
     "pointLabel": "{{datetime}}: пульс {{pulse}} уд/мин, {{part}}",
     "pointLabelIrregular": "{{datetime}}: пульс {{pulse}} уд/мин, неровный пульс — значение может быть неточным, {{part}}"
   },
