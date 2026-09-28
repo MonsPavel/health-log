@@ -22,7 +22,11 @@ afterEach(() => cleanup());
 describe('EmptyChartState — обучающая заглушка пустого периода (§5/§19/§20 AC1)', () => {
   it('(§5) иконка (aria-hidden) + заголовок «За выбранный период измерений нет» + подсказка + оба действия', () => {
     render(
-      createElement(EmptyChartState, { onAdd: () => undefined, onShowAll: () => undefined, showAllTime: true }),
+      createElement(EmptyChartState, {
+        onAdd: () => undefined,
+        onShowAll: () => undefined,
+        showAllTime: true,
+      }),
     );
 
     const empty = screen.getByTestId('empty-chart');
@@ -39,7 +43,9 @@ describe('EmptyChartState — обучающая заглушка пустого
 
   it('(§20 AC1) CTA «Добавить измерение» → колбэк добавления (журнал/форма)', () => {
     const onAdd = vi.fn();
-    render(createElement(EmptyChartState, { onAdd, onShowAll: () => undefined, showAllTime: true }));
+    render(
+      createElement(EmptyChartState, { onAdd, onShowAll: () => undefined, showAllTime: true }),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Добавить измерение' }));
     expect(onAdd).toHaveBeenCalledTimes(1);
@@ -47,7 +53,9 @@ describe('EmptyChartState — обучающая заглушка пустого
 
   it('(§5) «Показать всё время» → колбэк смены периода на all', () => {
     const onShowAll = vi.fn();
-    render(createElement(EmptyChartState, { onAdd: () => undefined, onShowAll, showAllTime: true }));
+    render(
+      createElement(EmptyChartState, { onAdd: () => undefined, onShowAll, showAllTime: true }),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Показать всё время' }));
     expect(onShowAll).toHaveBeenCalledTimes(1);
@@ -55,7 +63,11 @@ describe('EmptyChartState — обучающая заглушка пустого
 
   it('(§13 честность) showAllTime=false (период уже all): «Показать всё время» и подсказка скрыты, CTA остаётся', () => {
     render(
-      createElement(EmptyChartState, { onAdd: () => undefined, onShowAll: () => undefined, showAllTime: false }),
+      createElement(EmptyChartState, {
+        onAdd: () => undefined,
+        onShowAll: () => undefined,
+        showAllTime: false,
+      }),
     );
 
     expect(screen.queryByRole('button', { name: 'Показать всё время' })).toBeNull();

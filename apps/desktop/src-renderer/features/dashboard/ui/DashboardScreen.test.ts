@@ -295,7 +295,9 @@ describe('DashboardScreen — мало данных (TASK-060 §13/§19/§20)', 
     expect(note.textContent).toContain('Мало данных — 3 измерения за период');
     expect(await screen.findByTestId('trend-chart')).not.toBeNull();
     // Пометка НАД графиком (§5: полоса над графиком).
-    expect(note.nextElementSibling?.contains(screen.getByTestId('trend-chart')) ?? false).toBe(true);
+    expect(note.nextElementSibling?.contains(screen.getByTestId('trend-chart')) ?? false).toBe(
+      true,
+    );
   });
 
   it('(AC3) 7+ точек, порог kernel пройден (tooFewMeasurements=false) — график без пометки', async () => {
@@ -320,9 +322,10 @@ describe('DashboardScreen — мало данных (TASK-060 §13/§19/§20)', 
       'trend/series': (payload) => ({
         v: 1,
         ok: true,
-        data: (payload as { period?: string }).period === '7d'
-          ? { mode: 'raw', points: [] }
-          : { mode: 'raw', points: [...TREND_30_DAYS] },
+        data:
+          (payload as { period?: string }).period === '7d'
+            ? { mode: 'raw', points: [] }
+            : { mode: 'raw', points: [...TREND_30_DAYS] },
       }),
       'stats/period': (payload) => ({
         v: 1,

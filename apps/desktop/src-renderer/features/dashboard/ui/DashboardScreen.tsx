@@ -60,7 +60,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { APP_INTERNAL_ERROR } from '@hl/contracts';
-import type { RawPoint } from '@hl/contracts';
+import type { RawPoint, TrendResponse } from '@hl/contracts';
 
 import { useToast } from '../../../app/toast';
 import { useHlEvent } from '../../../lib/events';
@@ -364,16 +364,15 @@ export function DashboardScreen(): JSX.Element {
 
   const pending = trend.isPending || scale.isPending;
   // TASK-060 §13: пустой период — N=0 в обоих режимах (raw: точки; daily: Σcount).
-  const isEmpty = !trend.isError && trend.data !== undefined && measurementCountOf(trend.data) === 0;
+  const isEmpty =
+    !trend.isError && trend.data !== undefined && measurementCountOf(trend.data) === 0;
   // §5/§13: пометка «мало данных» (1≤N<AI_MIN_MEASUREMENTS) — ГОТОВЫЙ флаг порога
   // kernel из stats (N<7 считает main: единый источник с ИИ-честностью, TASK-006;
   // рендерер kernel не импортирует — арх. 03 §4). Число в пометке — count ТОГО ЖЕ
   // stats-ответа, что и флаг (не расходятся). Пустота приоритетнее пометки; отказ
   // stats — без пометки, график из trend остаётся (§10).
   const fewDataCount =
-    !isEmpty &&
-    !stats.isError &&
-    stats.data?.stats.insufficientData.tooFewMeasurements === true
+    !isEmpty && !stats.isError && stats.data?.stats.insufficientData.tooFewMeasurements === true
       ? stats.data.stats.count
       : undefined;
 
