@@ -17,8 +17,9 @@
  * ДОСТУПНОСТЬ (§16): caption с периодом (§17 params), th scope="col"; сортируемые
  * заголовки — кнопки в th с aria-sort (ascending/descending, активный столбец);
  * значения с единицами — единицы в заголовках («СДА, мм рт. ст.»), скринридер
- * читает заголовок+ячейку полностью; пустые состояния — «Нет данных за период»
- * (TASK-060-текст, тот же ключ, что у графика). Печать/пагинация — вне §5.
+ * читает заголовок+ячейку полностью; пустые состояния — «За выбранный период
+ * измерений нет» (TASK-060, тот же ключ dashboard.empty.title, что у заглушки
+ * графика). Печать/пагинация — вне §5.
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -231,7 +232,7 @@ export function TrendTable({ response, periodLabel }: TrendTableProps): JSX.Elem
   const days = isDaily ? (response.days ?? []) : [];
   const points = isDaily ? [] : (response.points ?? []);
 
-  // Пустые состояния (§13): «Нет данных за период» — текст TASK-060 (общий ключ).
+  // Пустые состояния (§13): «За выбранный период измерений нет» — TASK-060 (общий ключ).
   if (points.length === 0 && days.length === 0) {
     return (
       <div data-testid="trend-table-empty" className="px-6 py-16 text-center text-base font-medium">
