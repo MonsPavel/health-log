@@ -221,7 +221,13 @@ export function HistoryScreen(): JSX.Element {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
-  const [view, setView] = useState<View>('list');
+  // TASK-057 §12 (сквозной переход к правке с графика динамики): режим edit
+  // управляется store-полем editingId (не URL, TASK-038) — если правка уже
+  // открыта (DashboardScreen: startEdit + navigate('/journal')), вид начинается
+  // с формы; сохранение/отмена снимают editingId (MeasurementForm) → список.
+  const [view, setView] = useState<View>(() =>
+    useFormStore.getState().editingId !== null ? 'form' : 'list',
+  );
   /** TASK-038 §5: запись в диалоге удаления (null — диалог закрыт). */
   const [deleteTarget, setDeleteTarget] = useState<MeasurementDto | null>(null);
   /** TASK-038: id правимой записи — для фокус-возврата при отмене формы. */

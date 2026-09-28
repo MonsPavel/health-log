@@ -1,8 +1,10 @@
 /**
  * TASK-013 §4/§5/§15: HashRouter (совместим с file://-подобной загрузкой prod,
- * арх. 06 §4) с пятью маршрутами-заглушками. React.lazy на каждый маршрут —
+ * арх. 06 §4) с маршрутами экранов. React.lazy на каждый маршрут —
  * код-сплит с первого дня (§15): каждый экран — отдельный чанк; Suspense-fallback —
  * common.loading. «/» и неизвестный путь — на /dashboard (нет экрана 404 в MVP).
+ * TASK-057 §6: /dashboard — реальный экран «Динамика» (заглушка DashboardPage
+ * заменена на DashboardScreen; откат — revert ветки, заглушка восстанавливается).
  *
  * Layout вне Routes (§15): смена маршрута перерисовывает только subtree Routes.
  */
@@ -13,8 +15,8 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './layout';
 
 /** Именованные экспорты страниц адаптируются под React.lazy (default-обёртка). */
-const DashboardPage = lazy(() =>
-  import('../features/dashboard/ui/DashboardPage').then((m) => ({ default: m.DashboardPage })),
+const DashboardScreen = lazy(() =>
+  import('../features/dashboard/ui/DashboardScreen').then((m) => ({ default: m.DashboardScreen })),
 );
 const JournalPage = lazy(() =>
   import('../features/journal/ui/JournalPage').then((m) => ({ default: m.JournalPage })),
@@ -42,7 +44,7 @@ function RouteTree(): JSX.Element {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/dashboard" element={<DashboardScreen />} />
       <Route path="/journal" element={<JournalPage />} />
       <Route path="/ai" element={<AiPage />} />
       <Route path="/reports" element={<ReportsPage />} />

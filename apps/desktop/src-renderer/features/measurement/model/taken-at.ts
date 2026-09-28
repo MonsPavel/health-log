@@ -39,12 +39,12 @@ export interface LocalWallParts {
 /** Миллисекунд в минуте (целочисленная арифметика — §15, прецедент kernel). */
 export const MS_PER_MINUTE = 60_000;
 
-/** Смещение зоны устройства в минутах для момента nowMs (UTC+3 → 180). */
-export function tzOffsetMinOf(nowMs: number): number {
-  // getTimezoneOffset() отдаёт минуты ДОБАВЛЯЕМЫЕ к локальному времени для
-  // получения UTC (UTC+3 → -180) — Instant хранит обратный знак (§13).
-  return -new Date(nowMs).getTimezoneOffset();
-}
+/**
+ * Смещение зоны устройства в минутах для момента nowMs (UTC+3 → 180) —
+ * TASK-057 §4/§6: каноническое определение перенесено в общий lib/period.ts,
+ * здесь реэкспорт для совместимости импортов формы (WhenField, use-add-measurement).
+ */
+export { tzOffsetMinOf } from '../../../lib/period';
 
 /**
  * Локальная стена → Instant; неполный ввод (время не выбрано) → null —

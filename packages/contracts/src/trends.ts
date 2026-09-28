@@ -50,6 +50,12 @@ const TREND_CRITICAL_SCHEMA = z.enum(['high', 'low']);
  * Сырая точка графика (§5): момент — пара (utcMs, tzOffsetMin) как хранится (EC-06),
  * значения как измерены, part — частью суток, critical — флагом политики. pulse и
  * critical опциональны: «не измерен»/«не критично» — поле отсутствует в JSON (§7).
+ *
+ * id записи (TASK-057 §12, ДОПОЛНЕНИЕ КОНТРАКТА — аддитивно): переход к правке из
+ * тултипа графика открывает запись (TASK-038 edit-режим) — точка несёт её id
+ * (uuid v7 агрегата, доставляет адаптер порта TASK-054). Опционально: daily-режим
+ * правки не имеет (агрегат, §12), а точки без id (ручные фикстуры тестов) остаются
+ * валидными — в продакшене id есть всегда.
  */
 export const TREND_RAW_POINT_SCHEMA = z
   .object({
@@ -60,6 +66,7 @@ export const TREND_RAW_POINT_SCHEMA = z
     pulse: z.number().int().optional(),
     part: TREND_PART_SCHEMA,
     critical: TREND_CRITICAL_SCHEMA.optional(),
+    id: z.string().optional(),
   })
   .strict();
 

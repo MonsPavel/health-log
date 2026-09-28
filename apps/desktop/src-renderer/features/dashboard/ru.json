@@ -1,0 +1,36 @@
+{
+  "legend": {
+    "sys": "Систолическое (СДА)",
+    "dia": "Диастолическое (ДДА)",
+    "morning": "Утро",
+    "evening": "Вечер",
+    "other": "Другое",
+    "avg": "Среднее за день",
+    "range": "Диапазон дня"
+  },
+  "tooltip": {
+    "sys": "Систолическое",
+    "dia": "Диастолическое",
+    "pulse": "Пульс",
+    "range": "диапазон",
+    "measurements": "Измерений: {{count}}",
+    "edit": "Изменить",
+    "partMorning": "утро",
+    "partEvening": "вечер",
+    "partOther": "другое время",
+    "aggregated": "Агрегировано по дням"
+  },
+  "empty": {
+    "title": "Нет данных за период",
+    "cta": "Открыть журнал"
+  },
+  "error": {
+    "retry": "Повторить"
+  },
+  "a11y": {
+    "chartLabel": "График динамики давления, период «{{period}}»: систолическое в среднем {{sysAvg}} (диапазон {{sysMin}}–{{sysMax}}), диастолическое в среднем {{diaAvg}} (диапазон {{diaMin}}–{{diaMax}}), измерений: {{count}}.",
+    "pointLabel": "{{datetime}}: {{sys}}/{{dia}}, {{part}}",
+    "pointLabelPulse": "{{datetime}}: {{sys}}/{{dia}}, пульс {{pulse}}, {{part}}",
+    "sourceLabel": "Источник справочных значений: {{source}}"
+  }
+}

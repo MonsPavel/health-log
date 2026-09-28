@@ -66,6 +66,8 @@ function compareByUtcThenId(a: MeasurementPoint, b: MeasurementPoint): number {
  * Сырая точка провода (§5): плоская проекция точки порта — момент парой
  * (utcMs, tzOffsetMin) как хранится (EC-06), part правилом дня TASK-052, critical
  * прокинут. pulse/critical «нет» → поле отсутствует в JSON (§7, flat-маппинг).
+ * id записи — TASK-057 §12 (переход к правке из тултипа): прокидывается, когда
+ * порт его доставил (боевой адаптер — всегда; ручные фикстуры — поле отсутствует).
  */
 function toRawPoint(point: MeasurementPoint): RawPoint {
   return {
@@ -76,6 +78,7 @@ function toRawPoint(point: MeasurementPoint): RawPoint {
     ...(point.pulse !== undefined ? { pulse: point.pulse } : {}),
     part: dayPartOf(point.takenAt),
     ...(point.critical !== undefined ? { critical: point.critical } : {}),
+    ...(point.id !== undefined ? { id: point.id } : {}),
   };
 }
 
