@@ -80,6 +80,7 @@ function toRawPoint(point: MeasurementPoint): RawPoint {
     part: dayPartOf(point.takenAt),
     ...(point.critical !== undefined ? { critical: point.critical } : {}),
     ...(point.irregular === true ? { irregular: true } : {}),
+    ...(point.arm !== undefined ? { arm: point.arm } : {}),
     ...(point.id !== undefined ? { id: point.id } : {}),
   };
 }

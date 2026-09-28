@@ -331,6 +331,20 @@ describe('TrendSeries.getTrendSeries — сырые точки: сортиров
     expect(irregular).toMatchObject({ pulse: 75, irregular: true });
     expect('irregular' in plain).toBe(false);
   });
+
+  // TASK-059 §5 (прецедент irregular TASK-058): рука измерения прокидывается в
+  // сырую точку — колонка «Рука» таблицы-альтернативы строится из ТОГО ЖЕ
+  // TrendResponse (§4: «ноль параллельных вычислений»); нет руки — поля нет (§7).
+  it('(059 §5) arm прокинут в сырую точку; без руки — поле отсутствует', async () => {
+    const response = await makeSeries([
+      { ...point('2026-03-02', '07:00', 120, 80), arm: 'left' },
+      point('2026-03-02', '20:00', 130, 85),
+    ]).getTrendSeries('profile-1', 'all');
+    const [withArm, withoutArm] = response.points ?? [];
+    expect(withArm?.arm).toBe('left');
+    expect(withoutArm).toBeDefined();
+    expect('arm' in (withoutArm ?? {})).toBe(false);
+  });
 });
 
 describe('TrendSeries.getTrendSeries — пустой период и скоуп (§11/§14)', () => {

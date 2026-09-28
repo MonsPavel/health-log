@@ -21,7 +21,7 @@ import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
-import type { MeasurementListResponse, TrendResponse } from '@hl/contracts';
+import type { MeasurementListResponse, StatsResponse, TrendResponse } from '@hl/contracts';
 
 import { PROFILE_ID } from '../../measurement/api/use-add-measurement';
 import { useFormStore } from '../../measurement/model/form-store';
@@ -50,6 +50,24 @@ const DTO_FIXTURE = {
 
 const RAW_RESPONSE: TrendResponse = { mode: 'raw', points: [...TREND_30_DAYS] };
 
+/**
+ * Фикстура stats/period (TASK-059 §19): резюме и aria-метка графика потребляют
+ * ИМЕННО эти числа (тест-сверка §13: «резюме-числа == числа графика — одни read
+ * models» — оба DOM-узла строятся из одного mock-ответа stats).
+ */
+const STATS_RESPONSE: StatsResponse = {
+  stats: {
+    count: 90,
+    sys: { avg: 128, min: 112, max: 145 },
+    dia: { avg: 82, min: 76, max: 90 },
+    critical: { high: false, low: false },
+    daysWithMeasurements: 30,
+    longestStreakDays: 30,
+    insufficientData: { tooFewMeasurements: false, tooFewDays: false },
+  },
+  scale: { code: 'esc-esh-2018', version: '1.0.0', sourceLabel: 'ESC/ESH 2018' },
+};
+
 /** Проба адреса: MemoryRouter не пишет window.location — читаем useLocation внутри. */
 function LocationProbeTarget({
   probe,
@@ -77,6 +95,9 @@ function mockHl(overrides: Record<string, () => unknown> = {}): void {
     }
     if (channel === 'trend/series') {
       return Promise.resolve({ v: 1, ok: true, data: RAW_RESPONSE });
+    }
+    if (channel === 'stats/period') {
+      return Promise.resolve({ v: 1, ok: true, data: STATS_RESPONSE });
     }
     if (channel === 'scales/active') {
       return Promise.resolve({ v: 1, ok: true, data: SCALE_FIXTURE });
@@ -353,5 +374,120 @@ describe('DashboardScreen — вид «Давление/Пульс» (TASK-058 �
     await waitFor(() => expect(useFormStore.getState().editingId).toBe('rec-0-0'));
     await waitFor(() => expect(probe.pathname).toBe('/journal'));
     useFormStore.getState().cancelEdit();
+  });
+});
+
+describe('DashboardScreen — «График/Таблица» и резюме (TASK-059 §5/§12/§19/§20)', () => {
+  it('дефолт chart: сегмент «Представление» (aria-pressed), график; stats/period запрошен с тем же периодом', async () => {
+    renderScreen();
+
+    expect(await screen.findByTestId('trend-chart')).not.toBeNull();
+    expect(screen.getByTestId('dashboard-as-chart').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('dashboard-as-table').getAttribute('aria-pressed')).toBe('false');
+    expect(invoke).toHaveBeenCalledWith('stats/period', { profileId: PROFILE_ID, period: '30d' });
+  });
+
+  it('(AC3) резюме под графиком — числа фикстуры stats: «Среднее СДА за 30 дней: 128 (диапазон 112–145)»', async () => {
+    renderScreen();
+
+    const summary = await screen.findByTestId('trend-summary');
+    expect(summary.getAttribute('role')).toBe('note');
+    expect(summary.textContent).toContain('Среднее СДА за 30 дней: 128 (диапазон 112–145)');
+    expect(summary.textContent).toContain('Среднее ДДА за 30 дней: 82 (диапазон 76–90)');
+    expect(summary.textContent).toContain('Измерений: 90');
+  });
+
+  it('(§13 тест-сверка) aria-метка графика = числа резюме: оба узла — из одного stats-ответа', async () => {
+    renderScreen();
+
+    const figure = await screen.findByTestId('trend-chart');
+    const label = figure.getAttribute('aria-label') ?? '';
+    expect(label).toContain('в среднем 128 (диапазон 112–145)');
+    expect(label).toContain('измерений: 90');
+    const summary = await screen.findByTestId('trend-summary');
+    expect(summary.textContent).toContain('128 (диапазон 112–145)');
+    expect(summary.textContent).toContain('Измерений: 90');
+  });
+
+  it('(AC1) клик «Таблица» → таблица тех же данных вместо графика, URL ?as=table, без повторного запроса (кэш общий)', async () => {
+    const { probe } = renderScreen();
+    await screen.findByTestId('trend-chart');
+    invoke.mockClear();
+
+    fireEvent.click(screen.getByTestId('dashboard-as-table'));
+
+    expect(await screen.findByTestId('trend-table')).not.toBeNull();
+    expect(screen.queryByTestId('trend-chart')).toBeNull();
+    expect(probe.search).toBe('?as=table');
+    expect(invoke.mock.calls.filter(([channel]) => channel === 'trend/series')).toHaveLength(0);
+  });
+
+  it('(AC1) загрузка с ?as=table — таблица сразу (URL переживает перезагрузку); сегмент «Давление/Пульс» скрыт (на таблицу не влияет); обратно «График» возвращает вид', async () => {
+    renderScreen('/dashboard?as=table');
+
+    expect(await screen.findByTestId('trend-table')).not.toBeNull();
+    expect(screen.queryByTestId('dashboard-view')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('dashboard-as-chart'));
+    expect(await screen.findByTestId('trend-chart')).not.toBeNull();
+    expect(screen.queryByTestId('dashboard-view')).not.toBeNull();
+  });
+
+  it('мусор в ?as= → дефолт chart (§14: без ошибок, URL не переписывается при загрузке)', async () => {
+    const { probe } = renderScreen('/dashboard?as=pivot');
+
+    expect(await screen.findByTestId('trend-chart')).not.toBeNull();
+    expect(screen.queryByTestId('trend-table')).toBeNull();
+    expect(screen.getByTestId('dashboard-as-chart').getAttribute('aria-pressed')).toBe('true');
+    expect(probe.search).toBe('?as=pivot');
+  });
+
+  it('таблица на фикстуре тренда: строка на каждую точку, значения те же (§13: одни данные); резюме — под графиком, в таблице его нет', async () => {
+    renderScreen('/dashboard?as=table');
+
+    const rows = await screen.findAllByTestId('trend-table-row');
+    expect(rows.length).toBe(TREND_30_DAYS.length);
+    const first = TREND_30_DAYS[0];
+    if (first === undefined) {
+      throw new Error('фикстура 30 дней должна содержать точки');
+    }
+    expect(rows[0]?.textContent).toContain(String(first.sys));
+    expect(rows[0]?.textContent).toContain(String(first.dia));
+    expect(screen.queryByTestId('trend-summary')).toBeNull();
+  });
+
+  it('смена периода в режиме таблицы: as сохранён, тренд и stats перечитаны с новым периодом (§12)', async () => {
+    const { probe } = renderScreen('/dashboard?as=table');
+    await screen.findByTestId('trend-table');
+
+    fireEvent.click(screen.getByTestId('dashboard-period-7d'));
+
+    expect(probe.search).toBe('?period=7d&as=table');
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('trend/series', { profileId: PROFILE_ID, period: '7d' }),
+    );
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('stats/period', { profileId: PROFILE_ID, period: '7d' }),
+    );
+  });
+
+  it('measurement:changed → инвалидация серий И статистики (§10: резюме тоже свежие после ввода)', async () => {
+    renderScreen();
+    await screen.findByTestId('trend-chart');
+    invoke.mockClear();
+
+    const changedHandler = on.mock.calls.find(([name]) => name === 'measurement:changed')?.[1] as
+      ((payload: { profileId: string }) => void) | undefined;
+    if (changedHandler === undefined) {
+      throw new Error('экран обязан подписаться на measurement:changed (§10)');
+    }
+    changedHandler({ profileId: PROFILE_ID });
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('trend/series', { profileId: PROFILE_ID, period: '30d' }),
+    );
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('stats/period', { profileId: PROFILE_ID, period: '30d' }),
+    );
   });
 });

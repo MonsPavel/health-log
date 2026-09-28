@@ -64,7 +64,7 @@
 | TASK-056 | done | | смержена |
 | TASK-057 | done | | смержена |
 | TASK-058 | done | | смержена |
-| TASK-059 | todo | | |
+| TASK-059 | done | | смержена |
 | TASK-060 | todo | | |
 | TASK-061 | todo | | |
 | TASK-062 | todo | | |

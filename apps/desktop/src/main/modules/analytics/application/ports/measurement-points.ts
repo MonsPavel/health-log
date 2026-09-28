@@ -46,6 +46,12 @@ export interface MeasurementPoint {
    * не дублируются.
    */
   readonly irregular?: boolean;
+  /**
+   * Рука измерения (TASK-059 §5): «left»/«right» — как в агрегате; undefined —
+   * у агрегата руки нет (прокидывается адаптером как есть; колонка «Рука»
+   * таблицы-альтернативы строится из того же провода, §4 059).
+   */
+  readonly arm?: 'left' | 'right';
 }
 
 /**

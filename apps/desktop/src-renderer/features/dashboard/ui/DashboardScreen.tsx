@@ -11,6 +11,15 @@
  * переключение мгновенно); шкала графику ЧСС не нужна (опорный коридор —
  * константы контракта). Переход к правке — тот же openEdit (§5).
  *
+ * TASK-059 §2/§5/§12/§13/§16: переключатель «График/Таблица» — URL `?as=chart|
+ * table` — истина (дефолт chart, мусор → дефолт); таблица (TrendTable) строится
+ * из ТОГО ЖЕ TrendResponse (ленивый монтаж — §15), резюме тренда (TrendSummary)
+ * и aria-метка графика — из ЕДИНОГО stats/period-ответа (useStats; §13: «резюме-
+ * числа == числа таблицы == числа графика — одни read models», тест-сверка на
+ * фикстуре). В режиме таблицы сегмент «Давление/Пульс» скрыт (на таблицу не
+ * влияет; возврат к графику восстанавливает вид из URL). Live-инвалидация
+ * measurement:changed накрывает и ['stats'] — резюме тоже свежие (§10).
+ *
  * Данные (§11): useTrend (trend/series — режим raw/daily решает read model 056)
  * и useActiveScale (scales/active — опорные линии ИЗ ДАННЫХ шкалы, не хардкод).
  * Период (§12): useDashboardPeriod (lib/period — те же URL-семантики, что у
@@ -47,11 +56,14 @@ import { IpcApiError, PROFILE_ID } from '../../measurement/api/use-add-measureme
 import { HISTORY_PAGE_LIMIT } from '../../measurement/api/use-measurements';
 import { useFormStore } from '../../measurement/model/form-store';
 import { useActiveScale } from '../api/use-active-scale';
+import { STATS_KEY_ROOT, useStats } from '../api/use-stats';
 import { TREND_KEY_ROOT, useTrend } from '../api/use-trend';
 import { PulseChart } from './PulseChart';
 import { useDashboardPeriod } from './PeriodSwitcher';
 import { PeriodSwitcher } from './PeriodSwitcher';
 import { TrendChart } from './TrendChart';
+import { formatNumberRu, TrendSummary } from './TrendSummary';
+import { TrendTable } from './TrendTable';
 
 /** Скелетон-оси первой загрузки (§10, role=status; прецедент HistorySkeleton). */
 function DashboardSkeleton(): JSX.Element {
@@ -94,6 +106,38 @@ function EmptyChart({ onOpenJournal }: { readonly onOpenJournal: () => void }): 
 
 /** Вид графика «Динамика» (§5 058): давление или пульс. */
 export type DashboardView = 'pressure' | 'pulse';
+
+/** Представление данных (§5 059): график или таблица тех же данных. */
+export type DashboardAs = 'chart' | 'table';
+
+/**
+ * Хук представления (§12 059): URL `?as=` — истина; мусор/отсутствие → дефолт
+ * chart (§14: без ошибок, как useDashboardView). Применение переписывает URL
+ * (replace), остальные параметры (период, вид) сохраняются; дефолт удаляет
+ * параметр (адрес чистый — прецедент view=).
+ */
+function useDashboardAs(): readonly [DashboardAs, (as: DashboardAs) => void] {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const as: DashboardAs = searchParams.get('as') === 'table' ? 'table' : 'chart';
+  const setAs = useCallback(
+    (next: DashboardAs) => {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          if (next === 'table') {
+            params.set('as', 'table');
+          } else {
+            params.delete('as');
+          }
+          return params;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  return [as, setAs] as const;
+}
 
 /**
  * Хук вида (§12 058): URL `?view=` — истина; мусор/отсутствие → дефолт pressure
@@ -172,6 +216,54 @@ function ViewSwitcher({
   );
 }
 
+/**
+ * Сегмент «График/Таблица» (§5 059): кнопки с aria-pressed (§16 059: «aria-pressed/
+ * tablist» — выбран вариант кнопок, прецедент ViewSwitcher 058). Шаро-пригодно:
+ * состояние в URL (§4 059 «?view=…&as=table»).
+ */
+function AsSwitcher({
+  as,
+  onAs,
+}: {
+  readonly as: DashboardAs;
+  readonly onAs: (as: DashboardAs) => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const buttonClass = (active: boolean): string =>
+    `min-h-11 rounded-md border px-4 text-base ${
+      active
+        ? 'border-accent bg-accent/10 font-medium'
+        : 'border-border hover:bg-neutral-100 dark:hover:bg-neutral-800'
+    }`;
+  return (
+    <div
+      data-testid="dashboard-as"
+      role="group"
+      aria-label={t('dashboard.view.as.label')}
+      className="mb-4 flex flex-wrap gap-2"
+    >
+      <button
+        type="button"
+        data-testid="dashboard-as-chart"
+        aria-pressed={as === 'chart'}
+        onClick={() => onAs('chart')}
+        className={buttonClass(as === 'chart')}
+      >
+        {t('dashboard.view.as.chart')}
+      </button>
+      <button
+        type="button"
+        data-testid="dashboard-as-table"
+        aria-pressed={as === 'table'}
+        onClick={() => onAs('table')}
+        className={buttonClass(as === 'table')}
+      >
+        {t('dashboard.view.as.table')}
+      </button>
+    </div>
+  );
+}
+
 /** Экран «Динамика» (§2): период-контрол + график тренда. */
 export function DashboardScreen(): JSX.Element {
   const { t } = useTranslation();
@@ -180,14 +272,21 @@ export function DashboardScreen(): JSX.Element {
   const queryClient = useQueryClient();
   const period = useDashboardPeriod();
   const [view, setView] = useDashboardView();
+  const [as, setAs] = useDashboardAs();
   const trend = useTrend(PROFILE_ID, period.param);
   const scale = useActiveScale();
+  // TASK-059 §5: stats того же периода — единый источник чисел резюме и aria-
+  // метки графика (§13: одни read models; переиспользование, не пересчёт).
+  const stats = useStats(PROFILE_ID, period.param);
 
-  // Live-обновление (§10/§12): событие точечно инвалидирует серии профиля
-  // (частичный ключ — все периоды; прецедент ['measurements'] списка).
+  // Live-обновление (§10/§12): событие точечно инвалидирует серии И статистику
+  // профиля (частичный ключ — все периоды; прецедент ['measurements'] списка).
   useHlEvent('measurement:changed', (payload) => {
     void queryClient.invalidateQueries({
       queryKey: [...TREND_KEY_ROOT, payload.profileId],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: [...STATS_KEY_ROOT, payload.profileId],
     });
   });
 
@@ -209,6 +308,16 @@ export function DashboardScreen(): JSX.Element {
       showToast(APP_INTERNAL_ERROR);
     }
   }, [scale.isError, scale.error, showToast]);
+
+  // Ошибка stats (§10): резюме/метка — часть экрана; отказ — тост, график и
+  // таблица из trend/series остаются (те же данные, §13).
+  useEffect(() => {
+    if (stats.isError && stats.error instanceof IpcApiError) {
+      showToast(stats.error.dto);
+    } else if (stats.isError) {
+      showToast(APP_INTERNAL_ERROR);
+    }
+  }, [stats.isError, stats.error, showToast]);
 
   /**
    * §12: переход к правке — полный DTO записи (startEdit TASK-038 требует
@@ -265,14 +374,48 @@ export function DashboardScreen(): JSX.Element {
             : 'measurement.filters.period.30d',
   );
 
+  /**
+   * §5/§13 059: aria-метка графика ИЗ stats-резюме («те же числа» — резюме и
+   * метка строятся из одного stats/period-ответа; тест-сверка DOM-чисел).
+   * Канал без полных агрегатов (пустой период) — undefined: график считает метку
+   * по загруженным точкам (локальный fallback, прецедент 057).
+   */
+  let statsAriaLabel: string | undefined;
+  const statsDto = stats.data?.stats;
+  if (
+    statsDto !== undefined &&
+    statsDto.sys.avg !== undefined &&
+    statsDto.sys.min !== undefined &&
+    statsDto.sys.max !== undefined &&
+    statsDto.dia.avg !== undefined &&
+    statsDto.dia.min !== undefined &&
+    statsDto.dia.max !== undefined
+  ) {
+    statsAriaLabel = t('dashboard.a11y.chartLabel', {
+      period: periodLabel,
+      sysAvg: formatNumberRu(statsDto.sys.avg),
+      sysMin: formatNumberRu(statsDto.sys.min),
+      sysMax: formatNumberRu(statsDto.sys.max),
+      diaAvg: formatNumberRu(statsDto.dia.avg),
+      diaMin: formatNumberRu(statsDto.dia.min),
+      diaMax: formatNumberRu(statsDto.dia.max),
+      count: statsDto.count,
+    });
+  }
+
   return (
     <section className="p-4">
       <header className="mb-4">
         <h2 className="text-lg font-semibold">{t('common.nav.dashboard')}</h2>
       </header>
 
-      {/* §12 058: URL `?view=` — истина; вид «Давление/Пульс» — один фокус на экран. */}
-      <ViewSwitcher view={view} onView={setView} />
+      {/* §12 059: URL `?as=` — истина; представление «График/Таблица» — один фокус. */}
+      <AsSwitcher as={as} onAs={setAs} />
+
+      {/* §12 058: вид «Давление/Пульс» — только у графика: таблица строится из тех
+          же данных и от вида не зависит, сегмент без эффекта скрыт; возврат к
+          графику восстанавливает вид из URL (?view=). */}
+      {as === 'chart' && <ViewSwitcher view={view} onView={setView} />}
 
       {/* §12: URL `?period=` — истина; сегмент и поля custom переиспользуют 044/046. */}
       <PeriodSwitcher state={period.state} onPeriod={period.setPeriod} onRange={period.setRange} />
@@ -298,21 +441,32 @@ export function DashboardScreen(): JSX.Element {
           }}
         />
       ) : trend.data !== undefined ? (
-        // §5 058: один ответ trend/series — оба вида; шкала нужна только давлению
-        // (коридор пульса — константы контракта, §5).
-        view === 'pulse' ? (
-          <PulseChart
-            response={trend.data}
-            periodLabel={periodLabel}
-            onEditPoint={(point) => void openEdit(point)}
-          />
+        // §5 059: один ответ trend/series — график и таблица; таблица монтируется
+        // лениво (§15: только в режиме table). Шкала нужна только давлению
+        // (коридор пульса — константы контракта, §5 058).
+        as === 'table' ? (
+          <TrendTable response={trend.data} periodLabel={periodLabel} />
         ) : (
-          <TrendChart
-            response={trend.data}
-            scale={scale.data}
-            periodLabel={periodLabel}
-            onEditPoint={(point) => void openEdit(point)}
-          />
+          <>
+            {view === 'pulse' ? (
+              <PulseChart
+                response={trend.data}
+                periodLabel={periodLabel}
+                onEditPoint={(point) => void openEdit(point)}
+              />
+            ) : (
+              <TrendChart
+                response={trend.data}
+                scale={scale.data}
+                periodLabel={periodLabel}
+                ariaLabel={statsAriaLabel}
+                onEditPoint={(point) => void openEdit(point)}
+              />
+            )}
+            {/* §2/§5 059: резюме тренда под графиком — из stats (те же числа, что
+                у aria-метки графика; §13 тест-сверка). */}
+            {statsDto !== undefined && <TrendSummary stats={statsDto} periodLabel={periodLabel} />}
+          </>
         )
       ) : null}
     </section>

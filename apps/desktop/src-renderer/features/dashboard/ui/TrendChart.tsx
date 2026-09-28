@@ -79,6 +79,13 @@ export interface TrendChartProps {
   readonly scale?: import('@hl/contracts').ActiveScale;
   /** Подпись периода для aria-резюме («30 дней» из каталога — формирует экран). */
   readonly periodLabel: string;
+  /**
+   * Готовая aria-метка ИЗ stats-резюме (TASK-059 §5: «aria-label = краткое резюме,
+   * те же числа» — резюме и метка строятся из одного stats/period-ответа).
+   * undefined — stats ещё грузится: метка считается по загруженным точкам
+   * (локальный расчёт ниже, прецедент 057) и заменяется при приходе stats.
+   */
+  readonly ariaLabel?: string;
   /** Клик по точке/кнопке тултипа/строке списка → переход к правке записи (§12). */
   readonly onEditPoint?: (point: RawPoint) => void;
   readonly width?: number;
@@ -232,6 +239,7 @@ export function TrendChart({
   response,
   scale,
   periodLabel,
+  ariaLabel,
   onEditPoint,
   width = DEFAULT_WIDTH,
   height = DEFAULT_HEIGHT,
@@ -295,9 +303,15 @@ export function TrendChart({
 
   return (
     <section>
-      {/* §16: резюме для вспомогательных технологий; SVG внутри aria-hidden
+      {/* §16: резюме для вспомогательных технологий (ariaLabel — из stats, TASK-059;
+          fallback — локальный расчёт, пока stats грузится); SVG внутри aria-hidden
           (ADR-0003 §2/§7: маркеры скрыты от скринридера — группа aria-hidden). */}
-      <figure role="img" aria-label={chartLabel} data-testid="trend-chart" className="m-0">
+      <figure
+        role="img"
+        aria-label={ariaLabel ?? chartLabel}
+        data-testid="trend-chart"
+        className="m-0"
+      >
         <div aria-hidden="true" className="overflow-x-auto">
           <ComposedChart
             width={width}

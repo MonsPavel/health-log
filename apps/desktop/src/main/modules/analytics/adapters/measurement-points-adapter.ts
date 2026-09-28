@@ -36,6 +36,9 @@ function aggregateToPoint(m: BpMeasurement): MeasurementPoint {
     // TASK-058 §9 (EC-10): флаг записи «неровный пульс» — как есть, без
     // переосмысления; false/отсутствие → поле не ставится (§7 flat-маппинг).
     ...(m.irregularPulse ? { irregular: true } : {}),
+    // TASK-059 §5: рука измерения — как в агрегате (колонка «Рука» таблицы
+    // TASK-059 строится из того же провода); отсутствует → поле не ставится (§7).
+    ...(m.arm !== undefined ? { arm: m.arm } : {}),
   };
 }
 
