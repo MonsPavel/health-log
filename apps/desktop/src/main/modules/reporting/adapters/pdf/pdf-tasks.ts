@@ -10,7 +10,7 @@
  *    — с '.ts'-спесификаторами (tsc переписывает в '.js' на emit —
  *    rewriteRelativeImportExtensions).
  */
-import type { TaskHandler } from '../../../shared/workerpool/protocol.js';
+import type { TaskHandler } from '../../../../shared/workerpool/protocol.js';
 
 import { registerPdfTask } from './pdf-task.ts';
 

@@ -7,7 +7,7 @@
  * Фикстуру импортируют ТОЛЬКО тесты (vitest-контекст): в воркер она уходит
  * structured clone'ом payload'а — нативный Node этот файл не грузит.
  */
-import type { PdfRenderPayload, ReportRow } from '../report-spec.ts';
+import type { PdfRenderPayload, ReportRow } from '../../../domain/report-spec.ts';
 
 const TZ_OFFSET_MIN = 180;
 const ROWS_COUNT = 40;

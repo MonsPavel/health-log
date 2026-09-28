@@ -24,7 +24,7 @@ import type {
   PdfRenderResult,
   ReportRow,
 } from '../../domain/report-spec.ts';
-import type { TaskContext, TaskHandler } from '../../../shared/workerpool/protocol.js';
+import type { TaskContext, TaskHandler } from '../../../../shared/workerpool/protocol.js';
 import { createReportDocument, ensureReportFonts } from './report-document.ts';
 
 /** Имя задачи пула (§5). */
