@@ -29,6 +29,18 @@ import { STATS_PERIOD_PARAM_SCHEMA } from './stats/schemas.js';
 /** Порог raw-режима (§5/§13): ≤500 точек в периоде → raw, больше → daily. */
 export const RAW_POINTS_LIMIT = 500;
 
+/**
+ * Опорный коридор пульса, уд/мин (TASK-058 §5): СПРАВКА, НЕ КЛАССИФИКАЦИЯ —
+ * на графике ЧСС рисуются линии/полоса 60–100, никакой клинической разметки
+ * (tachycardia-метки — не делаем, §5: «не включено»). Константы живут рядом с
+ * trend-типами (РЕШЕНИЕ §5): read model не нуждается, потребители — рендерер
+ * (PulseChart) и будущие задачи (TASK-059) — импортируют одну копию.
+ */
+export const PULSE_REF_LOW = 60;
+
+/** Верхняя граница опорного коридора пульса, уд/мин (см. PULSE_REF_LOW). */
+export const PULSE_REF_HIGH = 100;
+
 /** §14: профиль-владелец — та же гигиена длины, что у measurement/stats (≤64). */
 const PROFILE_ID_MAX_LENGTH = 64;
 
@@ -56,6 +68,11 @@ const TREND_CRITICAL_SCHEMA = z.enum(['high', 'low']);
  * (uuid v7 агрегата, доставляет адаптер порта TASK-054). Опционально: daily-режим
  * правки не имеет (агрегат, §12), а точки без id (ручные фикстуры тестов) остаются
  * валидными — в продакшене id есть всегда.
+ *
+ * irregular (TASK-058 §7, ДОПОЛНЕНИЕ КОНТРАКТА — аддитивно): флаг записи
+ * «неровный пульс» (EC-10) — маркер на точке графика ЧСС + пояснение в тултипе
+ * («значение может быть неточным»). Опционален: записи без флага поле не несут
+ * (§7); семантика флага записи, не значения пульса.
  */
 export const TREND_RAW_POINT_SCHEMA = z
   .object({
@@ -66,6 +83,7 @@ export const TREND_RAW_POINT_SCHEMA = z
     pulse: z.number().int().optional(),
     part: TREND_PART_SCHEMA,
     critical: TREND_CRITICAL_SCHEMA.optional(),
+    irregular: z.boolean().optional(),
     id: z.string().optional(),
   })
   .strict();
@@ -75,6 +93,12 @@ export const TREND_RAW_POINT_SCHEMA = z
  * 052) + min/max (целые) по обоим каналам; morningSysAvg/eveningSysAvg — средние
  * sys утра/вечера раздельно, только при наличии таких записей в дне (§13); count —
  * записей в дне (≥1: день существует, пока в нём есть точки).
+ *
+ * pulseAvg/pulseCount (TASK-058 §5, аддитивно): ветка daily графика ЧСС —
+ * «avg + опорный коридор»: среднее пульса дня (округлён 1 знак — правило 052) и
+ * число записей дня с измеренным пульсом (честная разность count − ΣpulseCount —
+ * подпись скрытых точек, §13 058). Только при наличии записей с пульсом в дне —
+ * иначе поля отсутствуют (§7; прецедент morningSysAvg).
  */
 export const TREND_DAY_POINT_SCHEMA = z
   .object({
@@ -87,6 +111,8 @@ export const TREND_DAY_POINT_SCHEMA = z
     diaMax: z.number().int(),
     morningSysAvg: z.number().optional(),
     eveningSysAvg: z.number().optional(),
+    pulseAvg: z.number().optional(),
+    pulseCount: z.number().int().min(1).optional(),
     count: z.number().int().min(1),
   })
   .strict();
