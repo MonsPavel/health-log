@@ -33,16 +33,7 @@
  * контейнер с overflow-x-auto для узких окон.
  */
 import { useTranslation } from 'react-i18next';
-import {
-  Area,
-  CartesianGrid,
-  ComposedChart,
-  Line,
-  Tooltip,
-  XAxis,
-  YAxis,
-  type TooltipProps,
-} from 'recharts';
+import { Area, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from 'recharts';
 
 import type { DayPoint, RawPoint, TrendResponse } from '@hl/contracts';
 
@@ -130,7 +121,15 @@ function PartDot(props: {
       return <circle cx={cx} cy={cy} r={MARKER_SIZE} {...shapeProps} />;
     case 'evening':
       // Вечер — квадрат (§13).
-      return <rect x={cx - MARKER_SIZE} y={cy - MARKER_SIZE} width={MARKER_SIZE * 2} height={MARKER_SIZE * 2} {...shapeProps} />;
+      return (
+        <rect
+          x={cx - MARKER_SIZE}
+          y={cy - MARKER_SIZE}
+          width={MARKER_SIZE * 2}
+          height={MARKER_SIZE * 2}
+          {...shapeProps}
+        />
+      );
     default:
       // Другое время — треугольник (§13).
       return (
@@ -176,7 +175,11 @@ function Legend({ mode }: { readonly mode: 'raw' | 'daily' }): JSX.Element {
       {mode === 'raw' ? (
         <>
           <li className="flex items-center gap-1">
-            <span aria-hidden="true" className="inline-block w-6 border-t-2" style={{ borderColor: SYS_STROKE }} />
+            <span
+              aria-hidden="true"
+              className="inline-block w-6 border-t-2"
+              style={{ borderColor: SYS_STROKE }}
+            />
             {t('dashboard.legend.sys')}
           </li>
           <li className="flex items-center gap-1">
@@ -203,11 +206,19 @@ function Legend({ mode }: { readonly mode: 'raw' | 'daily' }): JSX.Element {
       ) : (
         <>
           <li className="flex items-center gap-1">
-            <span aria-hidden="true" className="inline-block w-6 border-t-2" style={{ borderColor: SYS_STROKE }} />
+            <span
+              aria-hidden="true"
+              className="inline-block w-6 border-t-2"
+              style={{ borderColor: SYS_STROKE }}
+            />
             {t('dashboard.legend.avg')}
           </li>
           <li className="flex items-center gap-1">
-            <span aria-hidden="true" className="inline-block h-3 w-6 border" style={{ borderColor: 'var(--hl-border)' }} />
+            <span
+              aria-hidden="true"
+              className="inline-block h-3 w-6 border"
+              style={{ borderColor: 'var(--hl-border)' }}
+            />
             {t('dashboard.legend.range')}
           </li>
         </>
@@ -257,20 +268,29 @@ export function TrendChart({
   /** Строка мини-таблицы (§16): aria-метка = видимый текст, значения полные. */
   const pointLabelOf = (point: RawPoint): string => {
     const instant: InstantLike = { utcMs: point.utcMs, tzOffsetMin: point.tzOffsetMin };
-    const key: PointLabelKey = point.pulse === undefined ? 'dashboard.a11y.pointLabel' : 'dashboard.a11y.pointLabelPulse';
+    const key: PointLabelKey =
+      point.pulse === undefined ? 'dashboard.a11y.pointLabel' : 'dashboard.a11y.pointLabelPulse';
     return t(key, {
       datetime: formatDateTime(instant, { preset: 'datetime' }),
       sys: point.sys,
       dia: point.dia,
       ...(point.pulse !== undefined ? { pulse: point.pulse } : {}),
-      part: t(point.part === 'morning' ? 'dashboard.tooltip.partMorning' : point.part === 'evening' ? 'dashboard.tooltip.partEvening' : 'dashboard.tooltip.partOther'),
+      part: t(
+        point.part === 'morning'
+          ? 'dashboard.tooltip.partMorning'
+          : point.part === 'evening'
+            ? 'dashboard.tooltip.partEvening'
+            : 'dashboard.tooltip.partOther',
+      ),
     });
   };
 
-  /** Тултип: content клонируется Recharts (active/label/payload приходят от графика). */
-  const tooltipContent = (
-    <ChartTooltip mode={response.mode} onEditPoint={onEditPoint} />
-  ) as unknown as TooltipProps<number, string>['content'];
+  /** Тултип: content-элемент клонируется Recharts (active/label/payload приходят от графика). */
+  const tooltipContent = <ChartTooltip mode={response.mode} onEditPoint={onEditPoint} />;
+
+  // Обе ветки — плоские строки-объекты; единая форма строк графика без приведения
+  // на месте пропа (generic ComposedChart выводится от ширины Record-строки).
+  const chartData: readonly Record<string, unknown>[] = isDaily ? days : points;
 
   return (
     <section>
@@ -281,7 +301,7 @@ export function TrendChart({
           <ComposedChart
             width={width}
             height={height}
-            data={isDaily ? (days as unknown as DayPoint[]) : (points as unknown as RawPoint[])}
+            data={chartData}
             margin={{ top: 12, right: 16, bottom: 4, left: 0 }}
           >
             <CartesianGrid stroke="var(--hl-border)" strokeDasharray="1 4" strokeOpacity={0.6} />
@@ -302,7 +322,13 @@ export function TrendChart({
               tick={{ fill: 'var(--hl-text)', fontSize: 11 }}
               tickLine={false}
               width={40}
-              label={{ value: 'мм рт. ст.', angle: -90, position: 'insideLeft', fill: 'var(--hl-text)', fontSize: 11 }}
+              label={{
+                value: 'мм рт. ст.',
+                angle: -90,
+                position: 'insideLeft',
+                fill: 'var(--hl-text)',
+                fontSize: 11,
+              }}
             />
             <Tooltip content={tooltipContent} isAnimationActive={false} />
 
@@ -327,13 +353,39 @@ export function TrendChart({
                   isAnimationActive={false}
                   dot={false}
                 />
-                <Line dataKey="sysAvg" stroke={SYS_STROKE} strokeWidth={2} dot={false} isAnimationActive={false} />
-                <Line dataKey="diaAvg" stroke={DIA_STROKE} strokeWidth={2} strokeDasharray="6 3" dot={false} isAnimationActive={false} />
+                <Line
+                  dataKey="sysAvg"
+                  stroke={SYS_STROKE}
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+                <Line
+                  dataKey="diaAvg"
+                  stroke={DIA_STROKE}
+                  strokeWidth={2}
+                  strokeDasharray="6 3"
+                  dot={false}
+                  isAnimationActive={false}
+                />
               </>
             ) : (
               <>
-                <Line dataKey="sys" stroke={SYS_STROKE} strokeWidth={2} isAnimationActive={false} dot={<PartDot channel="sys" onEditPoint={onEditPoint} />} />
-                <Line dataKey="dia" stroke={DIA_STROKE} strokeWidth={2} strokeDasharray="6 3" isAnimationActive={false} dot={<PartDot channel="dia" onEditPoint={onEditPoint} />} />
+                <Line
+                  dataKey="sys"
+                  stroke={SYS_STROKE}
+                  strokeWidth={2}
+                  isAnimationActive={false}
+                  dot={<PartDot channel="sys" onEditPoint={onEditPoint} />}
+                />
+                <Line
+                  dataKey="dia"
+                  stroke={DIA_STROKE}
+                  strokeWidth={2}
+                  strokeDasharray="6 3"
+                  isAnimationActive={false}
+                  dot={<PartDot channel="dia" onEditPoint={onEditPoint} />}
+                />
               </>
             )}
 

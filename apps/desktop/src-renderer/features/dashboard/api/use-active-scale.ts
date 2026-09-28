@@ -13,7 +13,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 
-import type { ActiveScale, ScalesActiveRequest } from '@hl/contracts';
+import type { ActiveScale } from '@hl/contracts';
 
 import { call } from '../../../src/lib/ipc';
 import { IpcApiError } from '../../measurement/api/use-add-measurement';
@@ -22,7 +22,7 @@ import { IpcApiError } from '../../measurement/api/use-add-measurement';
 export const ACTIVE_SCALE_KEY = ['scales', 'active'] as const;
 
 /** Вызов канала scales/active: разворот конверта; failure → IpcApiError (§11). */
-async function fetchActiveScale(_request: ScalesActiveRequest): Promise<ActiveScale> {
+async function fetchActiveScale(): Promise<ActiveScale> {
   const result = await call('scales/active', {});
   if (!result.ok) {
     throw new IpcApiError(result.error);
@@ -34,7 +34,7 @@ async function fetchActiveScale(_request: ScalesActiveRequest): Promise<ActiveSc
 export function useActiveScale() {
   return useQuery({
     queryKey: ACTIVE_SCALE_KEY,
-    queryFn: () => fetchActiveScale({}),
+    queryFn: fetchActiveScale,
     staleTime: Number.POSITIVE_INFINITY,
   });
 }

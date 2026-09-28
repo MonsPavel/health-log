@@ -58,8 +58,20 @@ const DAY_0_UTC_MS = Date.UTC(2026, 8, 1, 0, 0);
 /** Точка фикстуры дня slotIndex (утро/вечер/other по расписанию ниже). */
 export function fixturePoint(dayIndex: number, slot: 0 | 1 | 2): RawPoint {
   const slots = [
-    { wallHour: 7, part: 'morning', sys: 120 + (dayIndex % 5), dia: 78 + (dayIndex % 4), pulse: 62 + (dayIndex % 3) },
-    { wallHour: 20, part: 'evening', sys: 128 + (dayIndex % 6), dia: 84 + (dayIndex % 5), pulse: 70 + (dayIndex % 4) },
+    {
+      wallHour: 7,
+      part: 'morning',
+      sys: 120 + (dayIndex % 5),
+      dia: 78 + (dayIndex % 4),
+      pulse: 62 + (dayIndex % 3),
+    },
+    {
+      wallHour: 20,
+      part: 'evening',
+      sys: 128 + (dayIndex % 6),
+      dia: 84 + (dayIndex % 5),
+      pulse: 70 + (dayIndex % 4),
+    },
     { wallHour: 13, part: 'other', sys: 124, dia: 82, pulse: undefined },
   ] as const;
   const slotDef = slots[slot];

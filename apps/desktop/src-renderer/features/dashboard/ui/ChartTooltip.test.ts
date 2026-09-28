@@ -63,9 +63,7 @@ describe('ChartTooltip — raw-режим (§5: дата-время, значе�
       }),
     );
 
-    expect(
-      screen.getByText(formatDateTime(MORNING_POINT, { preset: 'datetime' })),
-    ).not.toBeNull();
+    expect(screen.getByText(formatDateTime(MORNING_POINT, { preset: 'datetime' }))).not.toBeNull();
     expect(screen.getByText('125')).not.toBeNull();
     expect(screen.getByText('82')).not.toBeNull();
     expect(screen.getByText('70')).not.toBeNull();
@@ -112,7 +110,11 @@ describe('ChartTooltip — raw-режим (§5: дата-время, значе�
 
   it('неактивный тултип (active=false) — ничего не рендерит (прецедент Recharts content)', () => {
     const { container } = render(
-      createElement(ChartTooltip, { active: false, payload: rawPayload(MORNING_POINT), mode: 'raw' }),
+      createElement(ChartTooltip, {
+        active: false,
+        payload: rawPayload(MORNING_POINT),
+        mode: 'raw',
+      }),
     );
     expect(container.textContent).toBe('');
   });

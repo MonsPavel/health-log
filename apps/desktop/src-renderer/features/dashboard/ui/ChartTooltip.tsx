@@ -38,7 +38,12 @@ export interface ChartTooltipProps {
 
 /** Ключи подписей части суток — литералы в карте (§22, §13: 'other' — «другое время»). */
 const PART_KEY: Readonly<
-  Record<RawPoint['part'], 'dashboard.tooltip.partMorning' | 'dashboard.tooltip.partEvening' | 'dashboard.tooltip.partOther'>
+  Record<
+    RawPoint['part'],
+    | 'dashboard.tooltip.partMorning'
+    | 'dashboard.tooltip.partEvening'
+    | 'dashboard.tooltip.partOther'
+  >
 > = {
   morning: 'dashboard.tooltip.partMorning',
   evening: 'dashboard.tooltip.partEvening',
@@ -53,9 +58,11 @@ function formatNumber(value: number): string {
 /** Настенная дата 'YYYY-MM-DD' → Intl-дата (тилтип daily; wallDate валиден контрактом). */
 function formatWallDate(wallDate: string): string {
   const [y, mo, d] = wallDate.split('-').map(Number) as [number, number, number];
-  return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(
-    Date.UTC(y, mo - 1, d),
-  );
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(Date.UTC(y, mo - 1, d));
 }
 
 /** Диапазон дня «min–max» (§5: коридор min-max честно показывает разброс). */
@@ -89,12 +96,14 @@ export function ChartTooltip({
         <p>
           {t('dashboard.tooltip.sys')}:{' '}
           <span className="font-medium">{formatNumber(day.sysAvg)}</span>,{' '}
-          {t('dashboard.tooltip.range')}: <span className="font-medium">{formatRange(day.sysMin, day.sysMax)}</span>
+          {t('dashboard.tooltip.range')}:{' '}
+          <span className="font-medium">{formatRange(day.sysMin, day.sysMax)}</span>
         </p>
         <p>
           {t('dashboard.tooltip.dia')}:{' '}
           <span className="font-medium">{formatNumber(day.diaAvg)}</span>,{' '}
-          {t('dashboard.tooltip.range')}: <span className="font-medium">{formatRange(day.diaMin, day.diaMax)}</span>
+          {t('dashboard.tooltip.range')}:{' '}
+          <span className="font-medium">{formatRange(day.diaMin, day.diaMax)}</span>
         </p>
         <p className="text-neutral-500">
           {t('dashboard.tooltip.measurements', { count: day.count })}
@@ -105,8 +114,7 @@ export function ChartTooltip({
 
   // Raw: обе серии кладут одну и ту же строку данных — берём первую с payload.
   const point = payload.find((entry) => entry.payload !== undefined)?.payload as
-    | RawPoint
-    | undefined;
+    RawPoint | undefined;
   if (point === undefined) {
     return null;
   }

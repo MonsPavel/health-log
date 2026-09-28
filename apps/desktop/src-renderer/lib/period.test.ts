@@ -11,7 +11,14 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { DAY_MS, MS_PER_MINUTE, parsePeriodState, periodToStatsParam, serializePeriodState, tzOffsetMinOf } from './period';
+import {
+  DAY_MS,
+  MS_PER_MINUTE,
+  parsePeriodState,
+  periodToStatsParam,
+  serializePeriodState,
+  tzOffsetMinOf,
+} from './period';
 
 /** Фиксированное «сейчас» — не Date.now (чистая функция, детерминизм §19). */
 const NOW_MS = Date.UTC(2026, 8, 27, 15, 0);
@@ -26,8 +33,7 @@ const wallMidnightUtcMs = (iso: string): number => {
 };
 
 /** 23:59:59.999 настенного дня в зоне устройства (включительный конец). */
-const wallDayEndUtcMs = (iso: string): number =>
-  wallMidnightUtcMs(iso) + DAY_MS - 1;
+const wallDayEndUtcMs = (iso: string): number => wallMidnightUtcMs(iso) + DAY_MS - 1;
 
 describe('parsePeriodState — URL → состояние периода (§14: мусор → дефолт)', () => {
   const paramsOf = (query: string): URLSearchParams => new URLSearchParams(query);
@@ -80,7 +86,9 @@ describe('serializePeriodState — состояние → URL (§12: перио�
 
   it('custom: даты — параметрами from/to как есть (валидность гарантирует парсер/UI)', () => {
     const state = { period: 'custom' as const, from: '2026-09-01', to: '2026-09-10' };
-    expect(serializePeriodState(state).toString()).toBe('period=custom&from=2026-09-01&to=2026-09-10');
+    expect(serializePeriodState(state).toString()).toBe(
+      'period=custom&from=2026-09-01&to=2026-09-10',
+    );
     // Поля вне custom в адрес не попадают.
     expect(serializePeriodState({ period: '7d', from: '2026-09-01' }).toString()).toBe('period=7d');
   });
@@ -109,10 +117,7 @@ describe('periodToStatsParam — состояние → период канал�
 
   it('custom с обеими датами: полночь from / 23:59:59.999 to в зоне устройства (включительно, §13 046)', () => {
     expect(
-      periodToStatsParam(
-        { period: 'custom', from: '2026-09-01', to: '2026-09-10' },
-        NOW_MS,
-      ),
+      periodToStatsParam({ period: 'custom', from: '2026-09-01', to: '2026-09-10' }, NOW_MS),
     ).toEqual({
       fromUtcMs: wallMidnightUtcMs('2026-09-01'),
       toUtcMs: wallDayEndUtcMs('2026-09-10'),
@@ -140,10 +145,7 @@ describe('periodToStatsParam — состояние → период канал�
     ).toEqual({ fromUtcMs: NOW_MS - 30 * DAY_MS, toUtcMs: NOW_MS });
     // to в будущем (EC-20) parseRange отсекает → тот же дефолт.
     expect(
-      periodToStatsParam(
-        { period: 'custom', from: '2026-09-01', to: '2027-01-01' },
-        NOW_MS,
-      ),
+      periodToStatsParam({ period: 'custom', from: '2026-09-01', to: '2027-01-01' }, NOW_MS),
     ).toEqual({ fromUtcMs: NOW_MS - 30 * DAY_MS, toUtcMs: NOW_MS });
   });
 });

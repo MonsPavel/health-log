@@ -30,9 +30,7 @@ const SECTIONS = [
 /** Маршруты-заглушки (журнал с TASK-031 — экран истории; настройки с TASK-047 — реальный экран; динамика с TASK-057 — реальный экран). */
 const WIP_SECTIONS = SECTIONS.filter(
   (section) =>
-    section.href !== '#/journal' &&
-    section.href !== '#/settings' &&
-    section.href !== '#/dashboard',
+    section.href !== '#/journal' && section.href !== '#/settings' && section.href !== '#/dashboard',
 );
 
 function renderRouterAt(hash: string): void {

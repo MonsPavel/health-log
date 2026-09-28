@@ -106,7 +106,7 @@ describe('PeriodSwitcher — сегмент периода (§5: 7д/30д/90д/�
 
     expect(screen.getByRole('group', { name: 'Период' })).not.toBeNull();
     expect(screen.getByTestId('dashboard-period-7d')).not.toBeNull();
-    expect(screen.getByTestId('dashboard-period-30d').checked).toBe(true);
+    expect(screen.getByTestId<HTMLInputElement>('dashboard-period-30d').checked).toBe(true);
     expect(screen.getByTestId('dashboard-period-90d')).not.toBeNull();
     expect(screen.getByTestId('dashboard-period-all')).not.toBeNull();
     expect(screen.getByTestId('dashboard-period-custom')).not.toBeNull();
@@ -193,10 +193,10 @@ describe('useDashboardPeriod — URL источник истины (§12: ?perio
   });
 
   it('загрузка с custom-URL восстанавливает поля и границы (AC5 046: перезагрузка), мусор → дефолт 30d', () => {
-    const custom = renderConnectedSwitcher('/dashboard?period=custom&from=2026-09-01&to=2026-09-10');
-    expect(
-      (screen.getByTestId('filter-range-from') as HTMLInputElement).value,
-    ).toBe('2026-09-01');
+    const custom = renderConnectedSwitcher(
+      '/dashboard?period=custom&from=2026-09-01&to=2026-09-10',
+    );
+    expect(screen.getByTestId<HTMLInputElement>('filter-range-from').value).toBe('2026-09-01');
     expect(custom.paramProbe.current).toEqual({
       fromUtcMs: wallStart('2026-09-01'),
       toUtcMs: wallEnd('2026-09-10'),

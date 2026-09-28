@@ -10,7 +10,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import type { TrendResponse } from '@hl/contracts';
 
@@ -27,7 +27,8 @@ const RAW_RESPONSE: TrendResponse = {
 
 const OK_ENVELOPE = (response: TrendResponse) => ({ v: 1, ok: true, data: response });
 
-let invoke: ReturnType<typeof vi.fn>;
+/** Мост-мок: сигнатура с Promise-ответом — mockImplementation(mock-а) допускает async. */
+let invoke: Mock<(channel: string, payload: unknown) => Promise<unknown>>;
 
 function renderTrend(period: Parameters<typeof useTrend>[1]) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -37,7 +38,11 @@ function renderTrend(period: Parameters<typeof useTrend>[1]) {
 }
 
 beforeEach(() => {
-  invoke = vi.fn().mockResolvedValue(OK_ENVELOPE(RAW_RESPONSE));
+  invoke = vi.fn((channel: string, payload: unknown) => {
+    void channel;
+    void payload;
+    return Promise.resolve(OK_ENVELOPE(RAW_RESPONSE));
+  });
   Object.defineProperty(window, 'hl', {
     configurable: true,
     writable: true,
@@ -81,9 +86,10 @@ describe('useTrend — чтение серий (§11/§12)', () => {
 
   it('keepPreviousData: смена периода держит предыдущие данные до прихода новых (§15)', async () => {
     const dailyResponse: TrendResponse = { mode: 'daily', days: [] };
-    invoke.mockImplementation((_channel: string, payload: { period: string }) =>
-      Promise.resolve(OK_ENVELOPE(payload.period === '30d' ? RAW_RESPONSE : dailyResponse)),
-    );
+    invoke.mockImplementation((_channel: string, payload: unknown) => {
+      const period = (payload as { period: string }).period;
+      return Promise.resolve(OK_ENVELOPE(period === '30d' ? RAW_RESPONSE : dailyResponse));
+    });
 
     let period: Parameters<typeof useTrend>[1] = '30d';
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

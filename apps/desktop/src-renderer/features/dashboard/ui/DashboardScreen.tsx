@@ -38,9 +38,10 @@ import { useToast } from '../../../app/toast';
 import { useHlEvent } from '../../../lib/events';
 import { call } from '../../../src/lib/ipc';
 import { IpcApiError, PROFILE_ID } from '../../measurement/api/use-add-measurement';
+import { HISTORY_PAGE_LIMIT } from '../../measurement/api/use-measurements';
 import { useFormStore } from '../../measurement/model/form-store';
 import { useActiveScale } from '../api/use-active-scale';
-import { TREND_KEY_ROOT, trendKey, useTrend } from '../api/use-trend';
+import { TREND_KEY_ROOT, useTrend } from '../api/use-trend';
 import { useDashboardPeriod } from './PeriodSwitcher';
 import { PeriodSwitcher } from './PeriodSwitcher';
 import { TrendChart } from './TrendChart';
@@ -67,7 +68,10 @@ function EmptyChart({ onOpenJournal }: { readonly onOpenJournal: () => void }): 
   const { t } = useTranslation();
 
   return (
-    <div data-testid="empty-chart" className="flex flex-col items-center gap-3 px-6 py-16 text-center">
+    <div
+      data-testid="empty-chart"
+      className="flex flex-col items-center gap-3 px-6 py-16 text-center"
+    >
       <p className="text-base font-medium">{t('dashboard.empty.title')}</p>
       <button
         type="button"
@@ -132,6 +136,10 @@ export function DashboardScreen(): JSX.Element {
       try {
         const result = await call('measurements/list', {
           profileId: PROFILE_ID,
+          // Страница по умолчанию: записей в момент utc обычно 1–2 (дубликаты
+          // отсеиваются политикой 032); offset 0 — выборка с начала.
+          limit: HISTORY_PAGE_LIMIT,
+          offset: 0,
           fromUtcMs: point.utcMs,
           toUtcMs: point.utcMs,
         });
@@ -144,7 +152,7 @@ export function DashboardScreen(): JSX.Element {
           return;
         }
         useFormStore.getState().startEdit(dto);
-        navigate('/journal');
+        void navigate('/journal');
       } catch {
         showToast(APP_INTERNAL_ERROR);
       }
@@ -153,7 +161,8 @@ export function DashboardScreen(): JSX.Element {
   );
 
   const pending = trend.isPending || scale.isPending;
-  const isEmpty = !trend.isError && (trend.data?.mode === 'raw' && (trend.data.points?.length ?? 0) === 0);
+  const isEmpty =
+    !trend.isError && trend.data?.mode === 'raw' && (trend.data.points?.length ?? 0) === 0;
 
   /** Подпись периода для aria-резюме графика (те же подписи, что у сегмента). */
   const periodLabel = t(
@@ -192,7 +201,11 @@ export function DashboardScreen(): JSX.Element {
           </button>
         </section>
       ) : isEmpty ? (
-        <EmptyChart onOpenJournal={() => navigate('/journal')} />
+        <EmptyChart
+          onOpenJournal={() => {
+            void navigate('/journal');
+          }}
+        />
       ) : trend.data !== undefined ? (
         <TrendChart
           response={trend.data}

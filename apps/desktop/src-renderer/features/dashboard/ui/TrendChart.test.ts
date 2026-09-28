@@ -18,8 +18,12 @@ import { createElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { formatDateTime } from '../../../lib/i18n-date';
-import { ChartTooltip } from './ChartTooltip';
-import { TREND_DAYS, TREND_30_DAYS, TREND_SINGLE_POINT, SCALE_FIXTURE } from './__fixtures__/dashboard';
+import {
+  TREND_DAYS,
+  TREND_30_DAYS,
+  TREND_SINGLE_POINT,
+  SCALE_FIXTURE,
+} from './__fixtures__/dashboard';
 import { yDomainOf, TrendChart } from './TrendChart';
 
 import '../../../i18n';
@@ -68,12 +72,12 @@ describe('TrendChart — raw-режим (§20.1/§20.2/§20.3)', () => {
     expect(container.querySelector('rect[data-testid="trend-dot"]')).not.toBeNull();
     expect(container.querySelector('polygon[data-testid="trend-dot"]')).not.toBeNull();
     // Атрибут части суток на элементе формы — различим и программно.
-    expect(container.querySelector('circle[data-testid="trend-dot"]')?.getAttribute('data-part')).toBe(
-      'morning',
-    );
-    expect(container.querySelector('rect[data-testid="trend-dot"]')?.getAttribute('data-part')).toBe(
-      'evening',
-    );
+    expect(
+      container.querySelector('circle[data-testid="trend-dot"]')?.getAttribute('data-part'),
+    ).toBe('morning');
+    expect(
+      container.querySelector('rect[data-testid="trend-dot"]')?.getAttribute('data-part'),
+    ).toBe('evening');
   });
 
   it('(AC3) клик по точке → колбэк onEditPoint с этой точкой (переход к правке, сквозной с экраном)', () => {
@@ -88,10 +92,13 @@ describe('TrendChart — raw-режим (§20.1/§20.2/§20.3)', () => {
     );
 
     const firstDot = container.querySelector('[data-testid="trend-dot"]');
-    expect(firstDot).not.toBeNull();
+    const firstPoint = TREND_30_DAYS[0];
+    if (firstDot === null || firstPoint === undefined) {
+      throw new Error('маркер точки обязан быть в DOM (raw-режим с точками)');
+    }
     fireEvent.click(firstDot);
     expect(onEditPoint).toHaveBeenCalledTimes(1);
-    expect(onEditPoint).toHaveBeenCalledWith(TREND_30_DAYS[0]);
+    expect(onEditPoint).toHaveBeenCalledWith(firstPoint);
   });
 
   it('легенда текстовая различима без цвета: названия серий и части суток с глифами (§16)', () => {
@@ -128,9 +135,14 @@ describe('TrendChart — raw-режим (§20.1/§20.2/§20.3)', () => {
 
   it('клавиатурная доступность (§16): мини-таблица строк-кнопок под графиком, клик → правка', () => {
     const onEditPoint = vi.fn();
+    const first = TREND_30_DAYS[0];
+    const second = TREND_30_DAYS[1];
+    if (first === undefined || second === undefined) {
+      throw new Error('фикстура 30 дней должна содержать минимум 2 точки');
+    }
     render(
       createElement(TrendChart, {
-        response: { mode: 'raw', points: [TREND_30_DAYS[0], TREND_30_DAYS[1]] },
+        response: { mode: 'raw', points: [first, second] },
         scale: SCALE_FIXTURE,
         periodLabel: '30 дней',
         onEditPoint,
@@ -139,12 +151,17 @@ describe('TrendChart — raw-режим (§20.1/§20.2/§20.3)', () => {
 
     const rows = screen.getAllByTestId('trend-list-row');
     expect(rows.length).toBe(2);
+    const firstRow = rows[0];
+    const secondRow = rows[1];
+    if (firstRow === undefined || secondRow === undefined) {
+      throw new Error('мини-таблица обязана содержать строку на каждую точку');
+    }
     // aria-label строки содержит настенные дата-время и значения (§16/§17).
-    expect(rows[0]?.getAttribute('aria-label')).toContain(
-      formatDateTime(TREND_30_DAYS[0], { preset: 'datetime' }),
+    expect(firstRow.getAttribute('aria-label')).toContain(
+      formatDateTime(first, { preset: 'datetime' }),
     );
-    fireEvent.click(rows[1]);
-    expect(onEditPoint).toHaveBeenCalledWith(TREND_30_DAYS[1]);
+    fireEvent.click(secondRow);
+    expect(onEditPoint).toHaveBeenCalledWith(second);
   });
 
   it('§13 пограничный: одна точка — маркер без линии (маркеры обеих серий рендерятся)', () => {
@@ -173,9 +190,7 @@ describe('TrendChart — daily-режим (§20.5: коридор+avg, подп�
     // Коридор: 2 range-Area (sys/dia); среднее: 2 Line (sysAvg/diaAvg).
     expect(container.querySelectorAll('.recharts-area')).toHaveLength(2);
     expect(container.querySelectorAll('.recharts-line')).toHaveLength(2);
-    expect(screen.getByTestId('trend-daily-caption').textContent).toContain(
-      'Агрегировано по дням',
-    );
+    expect(screen.getByTestId('trend-daily-caption').textContent).toContain('Агрегировано по дням');
     const legend = screen.getByTestId('trend-legend');
     expect(legend.textContent).toContain('Среднее за день');
     expect(legend.textContent).toContain('Диапазон дня');

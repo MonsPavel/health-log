@@ -12,7 +12,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import type { MeasurementListResponse, TrendResponse } from '@hl/contracts';
@@ -45,14 +45,22 @@ const DTO_FIXTURE = {
 const RAW_RESPONSE: TrendResponse = { mode: 'raw', points: [...TREND_30_DAYS] };
 
 /** Проба адреса: MemoryRouter не пишет window.location — читаем useLocation внутри. */
-function LocationProbeTarget({ probe }: { readonly probe: { pathname: string; search: string } }): null {
+function LocationProbeTarget({
+  probe,
+}: {
+  readonly probe: { pathname: string; search: string };
+}): null {
   const { pathname, search } = useLocation();
   probe.pathname = pathname;
   probe.search = search;
   return null;
 }
 
-let invoke: ReturnType<typeof vi.fn>;
+/** Мост-мок: сигнатура с Promise-ответом — прецедент HistoryScreen.search.test. */
+let invoke: Mock<(channel: string, payload: unknown) => Promise<unknown>>;
+
+/** Мок подписки на события (measurement:changed-тест читает обработчики). */
+let on: Mock<(name: string, handler: (payload: unknown) => void) => () => void>;
 
 /** Мост window.hl: диспетчер по каналу (trend/scale/list). */
 function mockHl(overrides: Record<string, () => unknown> = {}): void {
@@ -76,15 +84,18 @@ function mockHl(overrides: Record<string, () => unknown> = {}): void {
     }
     return Promise.resolve({ v: 1, ok: true, data: {} });
   });
+  on = vi.fn(() => () => undefined);
   Object.defineProperty(window, 'hl', {
     configurable: true,
     writable: true,
-    value: { invoke, on: vi.fn(() => () => undefined) },
+    value: { invoke, on },
   });
 }
 
 /** Подключённый экран: настоящий MemoryRouter (useSearchParams/useNavigate) + провайдеры. */
-function renderScreen(initialEntry = '/dashboard'): { probe: { pathname: string; search: string } } {
+function renderScreen(initialEntry = '/dashboard'): {
+  probe: { pathname: string; search: string };
+} {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const probe = { pathname: '', search: '' };
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
@@ -97,11 +108,15 @@ function renderScreen(initialEntry = '/dashboard'): { probe: { pathname: string;
         createElement(
           MemoryRouter,
           { initialEntries: [initialEntry] },
+          // Подключённый экран через Route: useSearchParams/useNavigate настоящие.
           createElement(
             Routes,
             null,
-            createElement(Route, { path: '/dashboard', element: createElement(DashboardScreen) }),
-            createElement(Route, { path: '/journal', element: createElement('div', {}, 'ЖУРНАЛ-ПРОБА') }),
+            createElement(Route, { path: '/dashboard', element: children }),
+            createElement(Route, {
+              path: '/journal',
+              element: createElement('div', {}, 'ЖУРНАЛ-ПРОБА'),
+            }),
           ),
           createElement(LocationProbeTarget, { probe }),
         ),
@@ -203,13 +218,17 @@ describe('DashboardScreen — периоды и переход к правке (
 
     const chart = await screen.findByTestId('trend-chart');
     const dot = chart.querySelector('circle[data-testid="trend-dot"]');
-    expect(dot).not.toBeNull();
+    if (dot === null) {
+      throw new Error('маркер утренней точки обязан быть в DOM (raw-режим с точками)');
+    }
     fireEvent.click(dot);
 
-    // Полный DTO из measurements/list (fromUtcMs=toUtcMs=utcMs точки, §12).
+    // Полный DTO из measurements/list (from=to=utcMs точки; страница-дефолт, §12).
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('measurements/list', {
         profileId: PROFILE_ID,
+        limit: 200,
+        offset: 0,
         fromUtcMs: fixturePoint(0, 0).utcMs,
         toUtcMs: fixturePoint(0, 0).utcMs,
       }),
@@ -229,11 +248,11 @@ describe('DashboardScreen — периоды и переход к правке (
     await screen.findByTestId('trend-chart');
     invoke.mockClear();
 
-    const onMock = window.hl.on as ReturnType<typeof vi.fn>;
-    const changedHandler = onMock.mock.calls.find(([name]) => name === 'measurement:changed')?.[1] as
-      | ((payload: { profileId: string }) => void)
-      | undefined;
-    expect(changedHandler).toBeDefined();
+    const changedHandler = on.mock.calls.find(([name]) => name === 'measurement:changed')?.[1] as
+      ((payload: { profileId: string }) => void) | undefined;
+    if (changedHandler === undefined) {
+      throw new Error('экран обязан подписаться на measurement:changed (§10)');
+    }
     changedHandler({ profileId: PROFILE_ID });
 
     await waitFor(() =>

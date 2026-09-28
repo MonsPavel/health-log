@@ -35,7 +35,6 @@ import {
   periodToBounds,
   serializePeriodState,
   type ParamsReader,
-  type Period,
   type PeriodState,
 } from '../../../lib/period';
 

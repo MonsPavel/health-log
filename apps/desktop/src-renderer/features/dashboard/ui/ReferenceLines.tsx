@@ -33,7 +33,10 @@ export interface BpReferences {
 }
 
 /** Нижняя граница диапазона; null (открытая сторона) — линии не даёт. */
-function rangeMinOf(category: ActiveScale['categories'][number], channel: 'sys' | 'dia'): number | null {
+function rangeMinOf(
+  category: ActiveScale['categories'][number],
+  channel: 'sys' | 'dia',
+): number | null {
   const range = channel === 'sys' ? category.sysRange : category.diaRange;
   return range.min;
 }
