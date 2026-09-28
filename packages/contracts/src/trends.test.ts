@@ -222,9 +222,11 @@ describe('TREND_RESPONSE_SCHEMA — ответ trend/series (§5: {mode, points?
 
   it('mode ограничен raw/daily; strict: неизвестные поля отклоняются (§14)', () => {
     expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'hourly', points: [] }).success).toBe(false);
-    expect(TREND_RESPONSE_SCHEMA.safeParse({ mode: 'raw', points: [], days: [] }).success).toBe(
-      false,
-    );
+    // Форма §5 плоская (points?/days? опциональны): взаимоисключительность веток —
+    // поведение read model (§2), схема карает только НЕИЗВЕСТНЫЕ поля (§14).
+    expect(
+      TREND_RESPONSE_SCHEMA.safeParse({ mode: 'raw', points: [], cached: true }).success,
+    ).toBe(false);
   });
 
   it('типы выводятся из схем (§23): TrendResponse = z.infer', () => {
