@@ -311,11 +311,11 @@ describe('data/wipe — хендлер: двухфазный (TASK-073 §19/§11
   it('частичный сбой: WIPE/FAILED с params.remainingCount → DTO (§11: что осталось)', async () => {
     const registry = createChannelRegistry(undefined, { isDev: false });
     const wipe = stubWipe(
+      { ok: false, error: AppError.of('WIPE/FAILED', 'errors.WIPE_FAILED') },
       {
         ok: false,
         error: AppError.of('WIPE/FAILED', 'errors.WIPE_FAILED', { remainingCount: 2 }),
       },
-      { ok: false, error: AppError.of('WIPE/FAILED', 'errors.WIPE_FAILED') },
     );
     registry.register(
       'data/wipe',
