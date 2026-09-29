@@ -279,13 +279,15 @@ describe('ExportJsonUseCase: roundtrip-слепок на tmp-БД (TASK-064 §19
     // Активная шкала — только код/версия (§7).
     expect(snapshot.scales).toEqual([{ code: 'bp_office_esc2018', version: '1.0.0' }]);
 
-    // prefs (§5): сохранённый частичный документ + zod-дефолты PREFS_SCHEMA.
+    // prefs (§5): сохранённый частичный документ + zod-дефолты PREFS_SCHEMA
+    // (TASK-074: jobState — новое поле документа, дефолт из схемы).
     expect(snapshot.prefs).toEqual({
       theme: 'dark',
       textScale: '112.5',
       dateFormat: 'auto',
       advancedMode: false,
       netConsents: { updatesCheck: false },
+      jobState: { jobs: {}, shown: {} },
     });
 
     // Скоуп профиля (§14, паритет CSV): чужая запись не просочилась.

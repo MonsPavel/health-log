@@ -46,9 +46,20 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
     expect(HL_EVENT_PAYLOAD_KEYS['prefs:changed']).toEqual(['patchKeys']);
   });
 
+  it('содержит job:backup-reminder с ПУСТЫМ payload — сигнал баннера о копии (TASK-074 §5/§11)', () => {
+    expectTypeOf<HlEventMap['job:backup-reminder']>().toEqualTypeOf<Record<string, never>>();
+    expect(HL_EVENT_PAYLOAD_KEYS['job:backup-reminder']).toEqual([]);
+  });
+
   it('runtime-реестр HL_EVENT_PAYLOAD_KEYS покрывает карту без лишних имён', () => {
     expect(Object.keys(HL_EVENT_PAYLOAD_KEYS).sort()).toEqual(
-      ['app:log', 'data:versionBumped', 'measurement:changed', 'prefs:changed'].sort(),
+      [
+        'app:log',
+        'data:versionBumped',
+        'job:backup-reminder',
+        'measurement:changed',
+        'prefs:changed',
+      ].sort(),
     );
   });
 });

@@ -400,3 +400,50 @@ describe('SummaryScreen — мало данных и критическое (§2
     );
   });
 });
+
+describe('SummaryScreen — подсказка о копии (TASK-074 §5/§10/§12/§19)', () => {
+  /** Обработчик события job:backup-reminder из мока моста (§11: доставка баннера). */
+  function reminderHandler(): (payload: Record<string, never>) => void {
+    const handler = on.mock.calls.find(([name]) => name === 'job:backup-reminder')?.[1];
+    if (handler === undefined) {
+      throw new Error('сводка обязана подписаться на job:backup-reminder (TASK-074 §11)');
+    }
+    return handler;
+  }
+
+  it('баннера нет по умолчанию; событие job:backup-reminder → баннер на дашборде', async () => {
+    renderScreen();
+    await screen.findByTestId('last-measurement-card');
+    expect(screen.queryByTestId('backup-reminder-banner')).toBeNull();
+
+    reminderHandler()({});
+
+    expect(await screen.findByTestId('backup-reminder-banner')).not.toBeNull();
+  });
+
+  it('«Позже» скрывает баннер (локальный state от события, §12)', async () => {
+    renderScreen();
+    await screen.findByTestId('last-measurement-card');
+    reminderHandler()({});
+    await screen.findByTestId('backup-reminder-banner');
+
+    fireEvent.click(screen.getByTestId('backup-reminder-later'));
+
+    expect(screen.queryByTestId('backup-reminder-banner')).toBeNull();
+  });
+
+  it('«Создать копию» скрывает баннер и открывает диалог 073; отмена закрывает', async () => {
+    renderScreen();
+    await screen.findByTestId('last-measurement-card');
+    reminderHandler()({});
+    await screen.findByTestId('backup-reminder-banner');
+
+    fireEvent.click(screen.getByTestId('backup-reminder-create'));
+
+    expect(await screen.findByTestId('data-backup-dialog')).not.toBeNull();
+    expect(screen.queryByTestId('backup-reminder-banner')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('data-backup-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('data-backup-dialog')).toBeNull());
+  });
+});

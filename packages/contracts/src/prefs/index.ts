@@ -6,6 +6,8 @@
  */
 export {
   DATE_FORMAT_SCHEMA,
+  JOB_LAST_BACKUP_SCHEMA,
+  JOB_STATE_SCHEMA,
   NET_CONSENTS_SCHEMA,
   PREFS_GET_REQUEST_SCHEMA,
   PREFS_GET_RESPONSE_SCHEMA,
@@ -17,6 +19,8 @@ export {
   THEME_SCHEMA,
 } from './schemas.js';
 export type {
+  JobLastBackup,
+  JobState,
   NetConsents,
   Prefs,
   PrefsGetRequest,

@@ -78,6 +78,7 @@ describe('PreferencesService — getPrefs (§5/§8/§19)', () => {
       dateFormat: 'auto',
       advancedMode: false,
       netConsents: { updatesCheck: false },
+      jobState: { jobs: {}, shown: {} },
     });
     expect(store.setCalls).toHaveLength(0);
   });
@@ -99,6 +100,8 @@ describe('PreferencesService — getPrefs (§5/§8/§19)', () => {
       dateFormat: 'mdy',
       advancedMode: true,
       netConsents: { updatesCheck: true },
+      // Усечённый документ (до расширения TASK-074) — jobState из zod-дефолта (§22).
+      jobState: { jobs: {}, shown: {} },
     });
   });
 
@@ -133,7 +136,37 @@ describe('PreferencesService — setPrefs (§7/§9/§11/§20)', () => {
       dateFormat: 'dmy',
       advancedMode: true,
       netConsents: { updatesCheck: true },
+      jobState: { jobs: {}, shown: {} },
     });
+  });
+
+  it('jobState (TASK-074) — объектом целиком: scheduler-запись сохраняется при чужих patch', async () => {
+    const store = new FakeStore();
+    const { service, events } = makeService(store);
+
+    // 1. Запись планировщика: jobState заменяется целиком, patchKeys содержит имя.
+    await service.setPrefs({
+      jobState: {
+        lastBackup: { path: String.raw`D:\copy.hlbackup`, at: 1_700_000_000_000 },
+        jobs: { 'backup.reminder': 1_700_000_000_000 },
+        shown: { 'backup-reminder': 1_700_000_000_000 },
+      },
+    });
+    expect(JSON.parse(store.rows.get(PREFS_STORAGE_KEY) as string)).toMatchObject({
+      jobState: {
+        lastBackup: { path: String.raw`D:\copy.hlbackup`, at: 1_700_000_000_000 },
+        jobs: { 'backup.reminder': 1_700_000_000_000 },
+        shown: { 'backup-reminder': 1_700_000_000_000 },
+      },
+    });
+
+    // 2. Чужой patch (theme) не затирает jobState (merge §9).
+    await service.setPrefs({ theme: 'dark' });
+    expect(JSON.parse(store.rows.get(PREFS_STORAGE_KEY) as string)).toMatchObject({
+      theme: 'dark',
+      jobState: { lastBackup: { path: String.raw`D:\copy.hlbackup` } },
+    });
+    expect(events.emit).toHaveBeenLastCalledWith('prefs:changed', { patchKeys: ['theme'] });
   });
 
   it('AC5: неизвестные ключи patch отброшены, валидные применены (strict-merge, §7)', async () => {
