@@ -29,7 +29,7 @@ const TZ = 180;
 const PROFILE = 'profile-1';
 
 /** Момент в UTC+0 на 2026-01-02T03:04 — для теста паддинга имени (§13). */
-const UTC_PAD_MS = 1_767_236_640_000;
+const UTC_PAD_MS = 1_767_323_040_000;
 
 /** Строка экспорта — фабрика фикстур (одна запись,asc-порядок тривиален). */
 const row = (i: number): ExportRow => ({
@@ -45,10 +45,10 @@ const row = (i: number): ExportRow => ({
   source: 'manual',
 });
 
-/** Подставочный источник: одна пачка с заданными строками (пагинация останавливается сама). */
+/** Подставочный источник: одна пачка в контракте репозитория — takenAt desc (063 развернёт). */
 const makeSource = (rows: ExportRow[]): ExportCsvSource => ({
   listBatch: vi.fn((_profileId: string, offset: number, limit: number) =>
-    Promise.resolve(offset === 0 ? rows.slice(0, limit) : []),
+    Promise.resolve(offset === 0 ? [...rows].reverse().slice(0, limit) : []),
   ),
 });
 
@@ -71,7 +71,7 @@ const makeSaver = (options?: { result?: ExportFileResult; failWith?: Error }): {
     (_defaultName: string, _csv: string) =>
       options?.failWith !== undefined
         ? Promise.reject(options.failWith)
-        : Promise.resolve(options?.result ?? { path: 'C:/Users/me/out.csv' }),
+        : Promise.resolve(options?.result ?? { path: 'C:/Users/me/health-log-export-20260925-1600.csv' }),
   );
   return {
     saver: { saveCsv, saveJson: vi.fn(), savePdf: vi.fn() },
@@ -126,7 +126,9 @@ describe('ExportCsvFileUseCase — оркестрация экспорта CSV (
     const result = await useCase.execute(PROFILE);
 
     expect(result.ok).toBe(true);
-    expect(unsafeUnwrap(result)).toEqual({ path: 'C:/Users/me/out.csv' });
+    expect(unsafeUnwrap(result)).toEqual({
+      path: 'C:/Users/me/health-log-export-20260925-1600.csv',
+    });
     expect(saveCsv).toHaveBeenCalledTimes(1);
     expect(saveCsv).toHaveBeenCalledWith('health-log-export-20260925-1600.csv', expected.csv);
     // §18: info `export csv` {basename, count, durationMs} — путь только basename.
@@ -216,7 +218,7 @@ describe('ExportCsvFileUseCase — оркестрация экспорта CSV (
     });
     await expect(useCase2.execute(PROFILE)).resolves.toMatchObject({
       ok: true,
-      value: { path: 'C:/Users/me/out.csv' },
+      value: { path: 'C:/Users/me/health-log-export-20260925-1600.csv' },
     });
     expect(logger.error).toHaveBeenCalledTimes(1);
     expect(logger.error.mock.calls[0]?.[1]).toMatchObject({ code: 'EXPORT/FAILED' });
@@ -250,10 +252,12 @@ describe('ExportCsvFileUseCase — оркестрация экспорта CSV (
       saveJson: vi.fn(),
       savePdf: vi.fn(),
     };
+    // Очередь ОБЩАЯ (§9: инстанс один в контейнере — обе операции конкурируют на ней).
+    const queue = makeFakeQueue();
     const deps = (source: ExportCsvSource, saver: ExportFileSaver) => ({
       generate: new ExportCsvUseCase({ source, logger: makeLogger() }),
       saver,
-      queue: makeFakeQueue(),
+      queue,
       clock: new FixedClock(NOW_MS, TZ),
       logger: makeLogger(),
     });

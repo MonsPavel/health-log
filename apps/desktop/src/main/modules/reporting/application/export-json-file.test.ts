@@ -39,7 +39,7 @@ const makeSaver = (options?: { result?: ExportFileResult; failWith?: Error }): {
     (_defaultName: string, _json: string) =>
       options?.failWith !== undefined
         ? Promise.reject(options.failWith)
-        : Promise.resolve(options?.result ?? { path: 'C:/Users/me/out.json' }),
+        : Promise.resolve(options?.result ?? { path: 'C:/Users/me/health-log-export-20260925-1600.json' }),
   );
   return {
     saver: { saveCsv: vi.fn(), saveJson, savePdf: vi.fn() },
@@ -98,7 +98,9 @@ describe('ExportJsonFileUseCase — оркестрация экспорта JSON
 
     const result = await useCase.execute(PROFILE);
 
-    expect(unsafeUnwrap(result)).toEqual({ path: 'C:/Users/me/out.json' });
+    expect(unsafeUnwrap(result)).toEqual({
+      path: 'C:/Users/me/health-log-export-20260925-1600.json',
+    });
     expect(saveJson).toHaveBeenCalledTimes(1);
     expect(saveJson).toHaveBeenCalledWith('health-log-export-20260925-1600.json', expected.json);
     const [message, meta] = logger.info.mock.calls[0] ?? ['', {}];
