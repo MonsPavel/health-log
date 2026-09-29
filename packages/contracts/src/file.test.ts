@@ -11,7 +11,7 @@
 //  - реестр: CHANNEL_SCHEMAS['file/open-dialog'] — та же пара схем (§23).
 import { describe, expect, it } from 'vitest';
 
-import { CHANNEL_SCHEMAS } from './channels.js';
+import { CHANNEL_SCHEMAS } from './schemas.js';
 import {
   FILE_OPEN_DIALOG_REQUEST_SCHEMA,
   FILE_OPEN_DIALOG_RESPONSE_SCHEMA,

@@ -35,7 +35,10 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * PDF-отчёт `report/pdf` — TASK-068 §5/§11 (запрос {profileId, period,
  * includeAiSection, aiText?} — период в готовых utcMs-границах, aiText — параметр
  * вызывающего; ответ — та же union {path}|{canceled:true}); открыть папку с файлом
- * `app/reveal-path` {path} → null (shell.showItemInFolder, §11).
+ * `app/reveal-path` {path} → null (shell.showItemInFolder, §11);
+ * выбор файла копии `file/open-dialog` — TASK-073 §6/§9/§11 (схемы — file.ts:
+ * запрос {filters} — путь выбирает open-диалог main, §14; ответ — та же union
+ * {path} | {canceled: true}, §7/§23).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -51,6 +54,7 @@ export type ChannelName =
   | 'backup/create'
   | 'backup/restore'
   | 'data/wipe'
+  | 'file/open-dialog'
   | 'measurements/add'
   | 'measurements/list'
   | 'measurements/update'

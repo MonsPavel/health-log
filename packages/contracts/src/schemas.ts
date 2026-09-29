@@ -16,6 +16,10 @@ import {
   DATA_WIPE_RESPONSE_SCHEMA,
 } from './data-care/schemas.js';
 import {
+  FILE_OPEN_DIALOG_REQUEST_SCHEMA,
+  FILE_OPEN_DIALOG_RESPONSE_SCHEMA,
+} from './file.js';
+import {
   MEASUREMENT_ADD_REQUEST_SCHEMA,
   MEASUREMENT_ADD_RESPONSE_SCHEMA,
   MEASUREMENT_DELETE_REQUEST_SCHEMA,
@@ -123,6 +127,16 @@ export const CHANNEL_SCHEMAS = {
   'data/wipe': {
     request: DATA_WIPE_REQUEST_SCHEMA,
     response: DATA_WIPE_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-073 §6/§9/§11: выбор файла копии для восстановления — {filters} →
+   * {path} | {canceled: true} (отмена — не ошибка, §7). Путь файла выбирает
+   * open-диалог ОС в main (§14: renderer путь не присылает — паритет save-диалога
+   * экспорта 065); форма ответа — переиспользование union экспорта (§23).
+   */
+  'file/open-dialog': {
+    request: FILE_OPEN_DIALOG_REQUEST_SCHEMA,
+    response: FILE_OPEN_DIALOG_RESPONSE_SCHEMA,
   },
   /**
    * TASK-028 §5/§11: журнал измерений — CRUD и список (арх. 05 §3, FR-1/FR-2).
