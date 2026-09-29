@@ -23,8 +23,16 @@
  *  10. §14: пароль копии не попадает в лог (redact-страховка, ключи манифеста — нет).
  */
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { mkdirSync, writeFile } from 'node:fs/promises';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { Writable } from 'node:stream';
@@ -258,11 +266,12 @@ describe('CreateBackupUseCase — mode auto (hook-путь, §5/§7/§9)', () =>
         result.value.manifest.dbSha256,
       );
 
-      // Без имени — метка времени от Clock (детерминизм тестов).
+      // Без имени — метка времени от Clock (детерминизм тестов; 1758816000000 →
+      // 2025-09-25T16:00:00Z).
       const stamped = await useCase.execute({ mode: 'auto' });
       expect(stamped.ok).toBe(true);
       if (stamped.ok) {
-        expect(stamped.value.file).toBe('health-log-backup-20260921T160000.hlbackup');
+        expect(stamped.value.file).toBe('health-log-backup-20250925T160000.hlbackup');
         expect(existsSync(join(backupsDir, stamped.value.file))).toBe(true);
       }
     } finally {
@@ -372,8 +381,10 @@ describe('CreateBackupUseCase — отмена и пароль-политика 
       expect(result.error).toBeInstanceOf(AppError);
       expect(result.error.code).toBe('BACKUP/CANCELED');
       expect(result.error.messageKey).toBe('errors.BACKUP_CANCELED');
-      // tmp-каталогов копий не осталось; целевой каталог даже не создавался.
-      expect(existsSync(dir)).toBe(false);
+      // tmp-каталогов копий не осталось; целевой каталог пуст (mkdtemp-каталог
+      // создаёт сам тест — use case в ask-режиме ничего не пишет, §13).
+      expect(existsSync(dir)).toBe(true);
+      expect(readdirSync(dir)).toEqual([]);
       expect(tmpDirNames('hl-backup-snap-')).toEqual([]);
     } finally {
       db.close();
@@ -393,7 +404,9 @@ describe('CreateBackupUseCase — отмена и пароль-политика 
           expect(result.error.code).toBe('VALIDATION/FAILED');
         }
       }
-      expect(existsSync(backupsDir)).toBe(false);
+      // Целевой каталог пуст: до диалога/снапшота дело не доходит (§13).
+      expect(existsSync(backupsDir)).toBe(true);
+      expect(readdirSync(backupsDir)).toEqual([]);
     } finally {
       db.close();
     }
