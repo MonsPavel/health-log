@@ -31,7 +31,11 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * TASK-072 §6/§11 (схемы — data-care/schemas.ts; регистрация хендлера — TASK-073);
  * экспорт CSV/JSON `report/export-csv|export-json` — TASK-065 §5/§11 (схемы —
  * report/schemas.ts: запрос {profileId}, путь выбирает main-диалог — §14; ответ
- * {path} | {canceled: true} — отмена не ошибка, §7).
+ * {path} | {canceled: true} — отмена не ошибка, §7);
+ * PDF-отчёт `report/pdf` — TASK-068 §5/§11 (запрос {profileId, period,
+ * includeAiSection, aiText?} — период в готовых utcMs-границах, aiText — параметр
+ * вызывающего; ответ — та же union {path}|{canceled:true}); открыть папку с файлом
+ * `app/reveal-path` {path} → null (shell.showItemInFolder, §11).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -43,6 +47,7 @@ export type ChannelName =
   | '__bench/seed'
   | 'app/ping'
   | 'app/log-client-error'
+  | 'app/reveal-path'
   | 'backup/create'
   | 'backup/restore'
   | 'data/wipe'
@@ -55,6 +60,7 @@ export type ChannelName =
   | 'prefs/set'
   | 'report/export-csv'
   | 'report/export-json'
+  | 'report/pdf'
   | 'scales/active'
   | 'stats/period'
   | 'trend/series';
