@@ -3,6 +3,20 @@
 Движок воркера `llm-worker` — node-llama-cpp (prebuilt llama.cpp) поверх
 MessagePort-протокола TASK-076. Код: `apps/desktop/src/main/llm-worker/{main,engine,llama-engine}.ts`.
 
+## Проверено на этой машине (§22 риск ABI)
+
+- Prebuilt-бинд `llama-addon.node` (node-llama-cpp 3.22.1, win-x64, CPU)
+  загружается и в node 24 (`getLlama({build:'never'})` → `buildType: prebuilt`),
+  и в рантайме **Electron 44.4.5** (пробный скрипт `pnpm exec electron` с
+  `getLlama` в main-процессе; см. коммиты TASK-077): пересборка не требуется.
+- Нюанс: `getLlama` в **главном** процессе Electron нельзя вызывать до
+  `app ready` (его тест бинда спавнит utilityProcess). В нашей архитектуре это
+  неактуально: `getLlama` зовётся внутри процесса llm-worker (UtilityProcess),
+  где тест бинда падает обратно на `node:child_process` (ограниченный
+  `electron`-модуль), а вызов и так происходит по запросу `load`, не на старте.
+
+## Где взять GGUF (ручная загрузка разработчиком)
+
 ## Где взять GGUF (ручная загрузка разработчиком)
 
 Модель **не в репо и не в CI** (решение §5 TASK-077): разработчик скачивает GGUF
