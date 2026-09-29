@@ -9,7 +9,12 @@ import { createWindow, focusExistingWindow } from './create-window.js';
 import { installGlobalErrorHandlers } from './global-errors.js';
 import { createSecondInstanceHandler, ensureSingleInstance } from './single-instance.js';
 import { resolveUserDataPath } from './user-data-override.js';
-import { buildContainer, type Container } from '../container.js';
+import {
+  buildContainer,
+  RESTORE_SAFETY_FLAG_FILENAME,
+  type Container,
+} from '../container.js';
+import { cleanupRestoreSafetyCopy } from '../modules/data-care/application/restore-backup.js';
 import { benchChannelsEnabled, createBenchSeedHandler } from '../ipc/handlers/bench-seed.js';
 import { installChannelBridge } from '../ipc/register-channel.js';
 import { createLogger, initFileLogging } from '../shared/logger/logger.js';
@@ -97,12 +102,18 @@ if (gotSingleInstanceLock) {
     // app.getPath('userData') как раньше (только при заданной переменной — иначе игнор).
     // Init-ошибка (VAULT/*, STORAGE/*) пробрасывается выше → глобальный хендлер
     // TASK-011 (диалог + код, §9 TASK-027).
+    const userDataPath = resolveUserDataPath(app.getPath('userData'), process.env);
     container = await buildContainer({
-      userDataPath: resolveUserDataPath(app.getPath('userData'), process.env),
+      userDataPath,
       clock: new SystemClock(),
       // TASK-070 §2: версия приложения в манифесте копии (титул отчёта — 067).
       appVersion: app.getVersion(),
+      // TASK-073: каталог логов для wipe (TASK-072 §5) — путь ОС (Windows: userData/logs).
+      logsDir: app.getPath('logs'),
     });
+    // TASK-073 §14 (подключение точки 071 §14): страховка восстановления удалена
+    // при УСПЕШНОМ старте (best-effort, boolean — сбой не валит старт).
+    cleanupRestoreSafetyCopy(join(userDataPath, RESTORE_SAFETY_FLAG_FILENAME));
     // TASK-008 §5: мост `hl:invoke` ставится один раз до создания окна; каналы
     // зарегистрированы в реестре контейнера (TASK-027 §11).
     // TASK-062 §11/§14: TEST-ONLY bench-канал `__bench/seed` — только при env

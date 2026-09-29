@@ -57,11 +57,21 @@ import { EventBus } from './events/event-bus.js';
 import { ElectronFileSaver } from './platform/file-saver.js';
 import { BackupContainerCodec } from './modules/data-care/adapters/backup-container.js';
 import { DialogFileSaver } from './modules/data-care/adapters/dialog-file-saver.js';
+import { OpenFileDialog } from './modules/data-care/adapters/open-file-dialog.js';
+import { createDeferredRelaunch } from './modules/data-care/adapters/deferred-relaunch.js';
 import {
   CreateBackupUseCase,
   createPreMigrationBackupHook,
 } from './modules/data-care/application/create-backup.js';
 import { FileOpQueue } from './modules/data-care/application/file-op-queue.js';
+import { RestoreBackupUseCase } from './modules/data-care/application/restore-backup.js';
+import { WipeAllDataUseCase } from './modules/data-care/application/wipe-all.js';
+import {
+  createBackupCreateHandler,
+  createRestoreBackupHandler,
+  createWipeAllDataHandler,
+} from './ipc/handlers/data-care.js';
+import { createOpenDialogHandler } from './ipc/handlers/file-dialog.js';
 import {
   createAddMeasurementHandler,
   createListMeasurementHandler,
@@ -124,6 +134,12 @@ export const DATABASE_FILENAME = 'health-log.db';
 /** Каталог копий в userData (TASK-070 §7 — фикс): `<userData>/backups/`. */
 export const BACKUPS_DIRNAME = 'backups';
 
+/**
+ * Имя флаг-файла страховки восстановления (TASK-071 §14; подключение очистки при
+ * старте — TASK-073): `<userData>/restore-safety.json`.
+ */
+export const RESTORE_SAFETY_FLAG_FILENAME = 'restore-safety.json';
+
 /** Версия приложения по умолчанию (манифест копии, TASK-070 §2; bootstrap передаёт app.getVersion()). */
 const DEFAULT_APP_VERSION = '0.0.0';
 
@@ -164,6 +180,12 @@ export interface ContainerDeps {
    * передаёт app.getVersion(); по умолчанию — '0.0.0' (тесты/node-сборка).
    */
   readonly appVersion?: string;
+  /**
+   * Каталог логов (TASK-072 §5: wipe удаляет логи; TASK-073 — проводка).
+   * Bootstrap передаёт app.getPath('logs'); по умолчанию `<userData>/logs`
+   * (Windows-дефолт getPath('logs'), §5 TASK-010).
+   */
+  readonly logsDir?: string;
 }
 
 /**
@@ -195,10 +217,20 @@ export interface Container {
    */
   readonly workerPool: WorkerPool;
   /**
-   * Use case создания копии (TASK-070 §5): канал `backup/create` зарегистрирует
-   * TASK-073 (с диалогами UI); сейчас используется hook'ом миграций (beforeMigration).
+   * Use case создания копии (TASK-070 §5): канал `backup/create` зарегистрирован
+   * TASK-073; также используется hook'ом миграций (beforeMigration).
    */
   readonly createBackup: CreateBackupUseCase;
+  /**
+   * Use case восстановления из копии (TASK-071 §5; канал `backup/restore` —
+   * TASK-073): двухфазный plan→execute, execute закрывает БД и планирует перезапуск.
+   */
+  readonly restoreBackup: RestoreBackupUseCase;
+  /**
+   * Use case полного удаления данных (TASK-072 §5; канал `data/wipe` — TASK-073):
+   * двухфазный plan→execute, execute закрывает БД, удаляет файлы и планирует перезапуск.
+   */
+  readonly wipeAllData: WipeAllDataUseCase;
   /**
    * Очередь файловых операций данных (TASK-070 §9): копии и будущие экспорты
    * (TASK-063) выполняются строго по одной.
@@ -257,6 +289,8 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
   const dbPath = join(deps.userDataPath, DATABASE_FILENAME);
   const vaultFilePath = join(deps.userDataPath, VAULT_KEY_FILENAME);
   const backupsDir = join(deps.userDataPath, BACKUPS_DIRNAME);
+  // TASK-073: каталог логов для wipe (TASK-072 §5); дефолт — Windows-дефолт getPath('logs').
+  const logsDir = deps.logsDir ?? join(deps.userDataPath, 'logs');
   const appVersion = deps.appVersion ?? DEFAULT_APP_VERSION;
 
   // 2. Logger (TASK-010): контейнер — категория app; vault/репозиторий — db; события — events.
@@ -290,17 +324,60 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //      ключом БД (§8: kdf db-key) — keyHex живёт в замыкании, полем графа не
     //      становится и наружу не уходит (§14). Диалог сохранения — ленивый electron
     //      (боевой путь ask-режима; хендлер канала — TASK-073).
+    //      TASK-073: RestoreBackup/WipeAllData (071/072) на том же кодеке, очереди
+    //      и ленивом relaunch; closeCurrentDb — общий (checkpoint+close, §8 071/072),
+    //      флаг закрывает и container.close() (соединение уже закрыто — повторный
+    //      close недопустим, will-quit после отложенного relaunch возможен).
     const fileOpQueue = new FileOpQueue();
+    const backupCrypto = new BackupContainerCodec();
+    const relaunch = createDeferredRelaunch();
+    let dbClosedByDataCare = false;
+    const closeCurrentDb = (): void => {
+      if (dbClosedByDataCare) {
+        return;
+      }
+      dbClosedByDataCare = true;
+      db.pragma('wal_checkpoint(TRUNCATE)');
+      db.close();
+    };
     const createBackup = new CreateBackupUseCase({
       db,
       clock,
       logger: dbLogger,
-      crypto: new BackupContainerCodec(),
+      crypto: backupCrypto,
       fileSaver: new DialogFileSaver(),
       queue: fileOpQueue,
       backupsDir,
       appVersion,
       dbKeyHex: () => keyHex,
+    });
+    const restoreBackup = new RestoreBackupUseCase({
+      currentDb: db,
+      closeCurrentDb,
+      dbPath,
+      // §8 071: открытие копии после подмены — единственной точкой открытия (TASK-022);
+      // keyHex в замыкании (§14, прецедент dbKeyHex выше).
+      verifyDatabaseOpens: (path: string) => {
+        openEncrypted(path, keyHex).close();
+      },
+      crypto: backupCrypto,
+      logger: dbLogger,
+      queue: fileOpQueue,
+      relaunch,
+      safetyFlagPath: join(deps.userDataPath, RESTORE_SAFETY_FLAG_FILENAME),
+      clock,
+      appVersion,
+    });
+    const wipeAllData = new WipeAllDataUseCase({
+      db,
+      closeCurrentDb,
+      dbPath,
+      vaultKeyPath: vaultFilePath,
+      logsDir,
+      backupsDir,
+      logger: dbLogger,
+      queue: fileOpQueue,
+      relaunch,
     });
 
     // 5. Миграции (старт БД §9 TASK-024: openEncrypted → migrate(); failure → STORAGE/*).
@@ -500,6 +577,30 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       CHANNEL_SCHEMAS['report/export-json'],
       createExportJsonHandler(exportJsonFile),
     );
+    // TASK-073 §5/§11: Data Care — копия (070, mode ask/auto), двухфазное
+    // восстановление (071: plan → execute с confirmed), двухфазное удаление
+    // (072: plan → execute по phase) и файловый пикер восстановления (путь
+    // выбирает main-диалог — renderer путь не присылает, §14).
+    channels.register(
+      'backup/create',
+      CHANNEL_SCHEMAS['backup/create'],
+      createBackupCreateHandler(createBackup),
+    );
+    channels.register(
+      'backup/restore',
+      CHANNEL_SCHEMAS['backup/restore'],
+      createRestoreBackupHandler(restoreBackup),
+    );
+    channels.register(
+      'data/wipe',
+      CHANNEL_SCHEMAS['data/wipe'],
+      createWipeAllDataHandler(wipeAllData),
+    );
+    channels.register(
+      'file/open-dialog',
+      CHANNEL_SCHEMAS['file/open-dialog'],
+      createOpenDialogHandler(new OpenFileDialog()),
+    );
 
     // 8.5. Пул воркеров CPU-задач (TASK-066 §5/§6): 2 worker_threads, ленивое создание
     //      при первой задаче (потоки при старте не спавнятся); воркеры без доступа к
@@ -532,17 +633,24 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       channels,
       workerPool,
       createBackup,
+      restoreBackup,
+      wipeAllData,
       fileOpQueue,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op
         }
         closed = true;
-        try {
-          // §8: чекпоинт перед закрытием — чистое отсутствие -wal/-shm после выхода.
-          db.pragma('wal_checkpoint(TRUNCATE)');
-        } finally {
-          db.close();
+        // TASK-073: restore/wipe execute закрыли БД сами (closeCurrentDb) —
+        // повторный checkpoint/close недопустим (соединение закрыто); пул
+        // терминируется как обычно (will-quit после отложенного relaunch).
+        if (!dbClosedByDataCare) {
+          try {
+            // §8: чекпоинт перед закрытием — чистое отсутствие -wal/-shm после выхода.
+            db.pragma('wal_checkpoint(TRUNCATE)');
+          } finally {
+            db.close();
+          }
         }
         // §9: пул — ПОСЛЕ закрытия БД (воркеры БД не открывают, §8); задачи обрываются
         // (потерянный PDF при закрытии приложения допустим, §9), активные и ожидающие
