@@ -77,15 +77,15 @@ describe('PREFS_SCHEMA — jobState (TASK-074 §5: состояние задач
   });
 
   it('мусор отклоняется (strict): чужое поле, неверная форма lastBackup, не-число в jobs', () => {
-    expect(
-      PREFS_SCHEMA.safeParse({ ...VALID_PREFS, jobState: { stranger: 1 } }).success,
-    ).toBe(false);
+    expect(PREFS_SCHEMA.safeParse({ ...VALID_PREFS, jobState: { stranger: 1 } }).success).toBe(
+      false,
+    );
     expect(
       PREFS_SCHEMA.safeParse({ ...VALID_PREFS, jobState: { lastBackup: { path: 1 } } }).success,
     ).toBe(false);
-    expect(
-      PREFS_SCHEMA.safeParse({ ...VALID_PREFS, jobState: { jobs: { j: 'x' } } }).success,
-    ).toBe(false);
+    expect(PREFS_SCHEMA.safeParse({ ...VALID_PREFS, jobState: { jobs: { j: 'x' } } }).success).toBe(
+      false,
+    );
   });
 });
 

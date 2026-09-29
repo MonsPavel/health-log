@@ -120,6 +120,19 @@ if (gotSingleInstanceLock) {
     }
     installChannelBridge(container.channels);
     createWindow();
+    // TASK-074 §9: tick планировщика при старте — ПОСЛЕ контейнера (запись
+    // jobState в prefs не соревнуется с prefs-вызовами сборки/первыми каналами
+    // рендерера). Падения задач изолированы в scheduler'е; сбой store — лог:
+    // подсказка о копии некритична для старта. Fire-and-forget: показ едет
+    // событием job:backup-reminder, ответа ждать нечего.
+    container.scheduler
+      .tick({
+        utcMs: container.clock.nowMs(),
+        tzOffsetMin: container.clock.tzOffsetMin(),
+      })
+      .catch((cause: unknown) => {
+        createLogger('app').warn('scheduler: tick при старте не удался', { cause });
+      });
   });
 }
 

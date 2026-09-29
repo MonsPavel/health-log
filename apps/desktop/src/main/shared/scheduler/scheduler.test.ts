@@ -17,7 +17,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { PREFS_SCHEMA, type Prefs, type PrefsPatch } from '@hl/contracts';
-import { FixedClock, type Instant } from '@hl/kernel';
+import type { Instant } from '@hl/kernel';
 
 import {
   JobScheduler,
@@ -43,13 +43,13 @@ function createStore(initial: Prefs = PREFS_SCHEMA.parse({})): {
   return {
     patches,
     store: {
-      async getPrefs(): Promise<Prefs> {
-        return current;
+      getPrefs(): Promise<Prefs> {
+        return Promise.resolve(current);
       },
-      async setPrefs(patch: PrefsPatch): Promise<Prefs> {
+      setPrefs(patch: PrefsPatch): Promise<Prefs> {
         patches.push(patch);
         current = patch.jobState === undefined ? current : { ...current, jobState: patch.jobState };
-        return current;
+        return Promise.resolve(current);
       },
     },
   };
@@ -188,13 +188,9 @@ describe('JobScheduler — изоляция ошибок задач (§9/§20 AC
 
   it('упавшая задача повторяется на следующем tick (lastRun не писан)', async () => {
     const { store } = createStore();
-    const failing = spyJob(
-      'job.fail',
-      { intervalMs: 10 },
-      () => {
-        throw new Error('boom');
-      },
-    );
+    const failing = spyJob('job.fail', { intervalMs: 10 }, () => {
+      throw new Error('boom');
+    });
     const scheduler = makeScheduler(store, createSink());
     scheduler.register(failing);
 

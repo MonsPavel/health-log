@@ -69,10 +69,6 @@ export function createBackupReminderJob(deps: BackupReminderJobDeps): JobDefinit
  * пишет метаданные {path, at} поверх текущего состояния, jobs/shown сохраняет —
  * дедупликация показа и lastRun задач не сбиваются записью копии. Иммутабельно.
  */
-export function jobStateWithBackup(
-  jobState: JobState,
-  path: string,
-  atUtcMs: number,
-): JobState {
+export function jobStateWithBackup(jobState: JobState, path: string, atUtcMs: number): JobState {
   return { ...jobState, lastBackup: { path, at: atUtcMs } };
 }

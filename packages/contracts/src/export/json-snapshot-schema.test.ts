@@ -56,6 +56,7 @@ const validSnapshot = {
     dateFormat: 'dmy',
     advancedMode: false,
     netConsents: { updatesCheck: false },
+    jobState: { jobs: {}, shown: {} },
   },
   scales: [{ code: 'bp-office-esc2018', version: '1.0.0' }],
 };

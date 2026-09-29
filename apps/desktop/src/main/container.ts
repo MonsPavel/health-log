@@ -270,6 +270,13 @@ export interface Container {
    * (TASK-063) выполняются строго по одной.
    */
   readonly fileOpQueue: FileOpQueue;
+  /**
+   * Планировщик каркасных задач (TASK-074 §5): реестр + первая задача
+   * backup.reminder зарегистрированы при сборке; tick при старте вызывает
+   * bootstrap (§9 — «после контейнера»: запись jobState не соревнуется
+   * с prefs-вызовами сборки).
+   */
+  readonly scheduler: JobScheduler;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
 }
@@ -559,7 +566,8 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //      персистентно в prefs.jobState, §12); sink — доставка решения о показе:
     //      событие job:backup-reminder renderer-у (§11) + лог §18 shown/snoozed.
     //      Повторный tick при каждом старте безопасен: частоту ограничивает
-    //      дедупликация scheduler'а (1/7д, jobState.shown — §13).
+    //      дедупликация scheduler'а (1/7д, jobState.shown — §13). Сам tick при
+    //      старте вызывает bootstrap ПОСЛЕ сборки (§9 — «после контейнера»).
     const scheduler = new JobScheduler({
       store: preferencesService,
       sink: {
@@ -740,17 +748,6 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       }),
     );
 
-    // 8.5. Tick планировщика (TASK-074 §5/§9 — «подключение scheduler к контейнеру,
-    //      tick при старте»): один проход по задачам с истёкшим интервалом. Падения
-    //      задач изолированы в scheduler'е (лог, остальные работают); сбой store —
-    //      лог, старт приложения не валится (подсказка некритична). Fire-and-forget:
-    //      показ едет событием, ответа ждать нечего.
-    void scheduler
-      .tick({ utcMs: clock.nowMs(), tzOffsetMin: clock.tzOffsetMin() })
-      .catch((cause: unknown) => {
-        logger.warn('scheduler: tick при старте не удался', { cause });
-      });
-
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
       db: basename(dbPath),
@@ -772,6 +769,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       workerPool,
       createBackup,
       fileOpQueue,
+      scheduler,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op

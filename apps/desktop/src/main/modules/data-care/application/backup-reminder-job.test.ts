@@ -18,6 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { PREFS_SCHEMA, type Prefs } from '@hl/contracts';
 import { FixedClock, type Instant } from '@hl/kernel';
 
+import type { JobShowAction } from '../../../shared/scheduler/scheduler.js';
 import {
   BACKUP_REMINDER_JOB_NAME,
   createBackupReminderJob,
@@ -36,14 +37,15 @@ function prefsWith(jobState: Prefs['jobState']): Prefs {
   return { ...PREFS_SCHEMA.parse({}), jobState };
 }
 
-/** Задача с подставным счётчиком записей; возвращает действие run(). */
+/** Задача с подставным счётчиком записей; результат run() — нормализованный Promise. */
 function runJob(options: {
   prefs: Prefs;
   now: Instant;
   count: number;
-}): Awaited<ReturnType<ReturnType<typeof createBackupReminderJob>['run']>> {
-  const job = createBackupReminderJob({ countMeasurements: async () => options.count });
-  return job.run({ prefs: options.prefs, now: options.now });
+}): Promise<JobShowAction | null> {
+  const job = createBackupReminderJob({ countMeasurements: () => Promise.resolve(options.count) });
+  // run() допускает синхронный ответ (union) — Promise.resolve нормализует (§19).
+  return Promise.resolve(job.run({ prefs: options.prefs, now: options.now }));
 }
 
 describe('backup.reminder — таблица §13', () => {
@@ -98,23 +100,24 @@ describe('backup.reminder — после создания копии банне�
     const base = PREFS_SCHEMA.parse({}).jobState;
     const prefs = prefsWith(jobStateWithBackup(base, 'fresh.hlbackup', T0));
 
-    const job = createBackupReminderJob({ countMeasurements: async () => 20 });
+    const job = createBackupReminderJob({ countMeasurements: () => Promise.resolve(20) });
 
     for (let day = 1; day < 14; day += 1) {
-      const action = await job.run({ prefs, now: nowAt(new FixedClock(T0 + day * DAY_MS, 180)) });
+      const action = await Promise.resolve(
+        job.run({ prefs, now: nowAt(new FixedClock(T0 + day * DAY_MS, 180)) }),
+      );
       expect(action).toBeNull();
     }
-    const onExpiry = await job.run({
-      prefs,
-      now: nowAt(new FixedClock(T0 + 14 * DAY_MS, 180)),
-    });
+    const onExpiry = await Promise.resolve(
+      job.run({ prefs, now: nowAt(new FixedClock(T0 + 14 * DAY_MS, 180)) }),
+    );
     expect(onExpiry).toEqual({ show: { kind: 'backup-reminder' } });
   });
 });
 
 describe('backup.reminder — определение и метаданные (§5)', () => {
   it('имя backup.reminder, runOnStart (проверка при каждом старте, §4)', () => {
-    const job = createBackupReminderJob({ countMeasurements: async () => 0 });
+    const job = createBackupReminderJob({ countMeasurements: () => Promise.resolve(0) });
     expect(job.name).toBe(BACKUP_REMINDER_JOB_NAME);
     expect(BACKUP_REMINDER_JOB_NAME).toBe('backup.reminder');
     expect(job.runOnStart).toBe(true);
