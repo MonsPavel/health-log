@@ -7,10 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { type ChannelName } from '../channels.js';
 import { CHANNEL_SCHEMAS } from '../schemas.js';
-import {
-  REPORT_EXPORT_REQUEST_SCHEMA,
-  REPORT_EXPORT_RESPONSE_SCHEMA,
-} from './schemas.js';
+import { REPORT_EXPORT_REQUEST_SCHEMA, REPORT_EXPORT_RESPONSE_SCHEMA } from './schemas.js';
 
 describe('REPORT_EXPORT_REQUEST_SCHEMA — запрос экспорта (§11/§14)', () => {
   it('принимает {profileId} — единственное поле (путь выбирает main-диалог, §14)', () => {
@@ -46,9 +43,9 @@ describe('REPORT_EXPORT_REQUEST_SCHEMA — запрос экспорта (§11/�
 
 describe('REPORT_EXPORT_RESPONSE_SCHEMA — ответ экспорта (§5/§7)', () => {
   it('принимает {path} — полный путь выбранного файла (тост: basename + title, §10)', () => {
-    expect(REPORT_EXPORT_RESPONSE_SCHEMA.parse({ path: 'C:/Users/me/health-log-export.csv' })).toEqual(
-      { path: 'C:/Users/me/health-log-export.csv' },
-    );
+    expect(
+      REPORT_EXPORT_RESPONSE_SCHEMA.parse({ path: 'C:/Users/me/health-log-export.csv' }),
+    ).toEqual({ path: 'C:/Users/me/health-log-export.csv' });
   });
 
   it('принимает {canceled: true} — отмена диалога не ошибка (§7)', () => {
@@ -56,9 +53,9 @@ describe('REPORT_EXPORT_RESPONSE_SCHEMA — ответ экспорта (§5/§7
   });
 
   it('strict: смешанные/лишние формы отвергаются (§14 IPC-гигиена)', () => {
-    expect(REPORT_EXPORT_RESPONSE_SCHEMA.safeParse({ path: 'C:/x.csv', canceled: true }).success).toBe(
-      false,
-    );
+    expect(
+      REPORT_EXPORT_RESPONSE_SCHEMA.safeParse({ path: 'C:/x.csv', canceled: true }).success,
+    ).toBe(false);
     expect(REPORT_EXPORT_RESPONSE_SCHEMA.safeParse({ path: '' }).success).toBe(false);
     expect(REPORT_EXPORT_RESPONSE_SCHEMA.safeParse({ canceled: false }).success).toBe(false);
     expect(REPORT_EXPORT_RESPONSE_SCHEMA.safeParse({}).success).toBe(false);
