@@ -32,6 +32,17 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('MEASUREMENT/NOTE_TOO_LONG');
   });
 
+  // TASK-076 §9/§13/§14/§5: llm-worker (UtilityProcess) — вторая генерация при активной
+  // (BUSY, §9), краш/зависание воркера во время генерации (§13), заглушка движка до
+  // TASK-077 (§5 «engine: not-configured»), отсутствие файла модели (§14 — валидация
+  // пути на main-стороне до передачи воркеру).
+  it('коды AI/BUSY, AI/WORKER_CRASHED, AI/ENGINE_NOT_CONFIGURED и AI/MODEL_NOT_FOUND присутствуют (TASK-076)', () => {
+    expect(ERROR_CODES).toContain('AI/BUSY');
+    expect(ERROR_CODES).toContain('AI/WORKER_CRASHED');
+    expect(ERROR_CODES).toContain('AI/ENGINE_NOT_CONFIGURED');
+    expect(ERROR_CODES).toContain('AI/MODEL_NOT_FOUND');
+  });
+
   // TASK-022 §7/§13: коды SQLCipher-стека — открытие зашифрованной БД.
   it('коды STORAGE/BAD_KEY, STORAGE/LOCKED и STORAGE/CORRUPT присутствуют (TASK-022)', () => {
     expect(ERROR_CODES).toContain('STORAGE/BAD_KEY');
