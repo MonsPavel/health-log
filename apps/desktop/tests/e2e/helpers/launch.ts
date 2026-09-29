@@ -31,6 +31,14 @@ export interface LaunchAppOptions {
    * запуск, bench-поверхность отсутствует (проверяется негатив-тестом §20 AC4).
    */
   readonly bench?: boolean;
+  /**
+   * TASK-078 §5/§20 (AC3): fake-LLM режим — запуск с env HL_FAKE_LLM=1:
+   * bootstrap передаёт в контейнер useFakeLlm (гард fakeLlmEnabled — только
+   * не-packaged, §14), движок — FakeLlmEngine: детерминированные ответы с
+   * префиксом [FAKE] без модели и процессов (e2e-сценарии ИИ-экранов 088/090,
+   * §3: без 2–3 ГБ модели в CI).
+   */
+  readonly fakeLlm?: boolean;
 }
 
 /** TASK-062 §10: зеркало результата measureChannel preload.cts (§5 шаг 3). */
@@ -65,13 +73,17 @@ export function mainProcessLogsDir(): string {
  * (_electron.launch заменяет окружение целиком), HL_TEST_USER_DATA добавляется,
  * ELECTRON_RENDERER_URL удаляется — окно грузит собранный dist-renderer (§13
  * create-window: без него открылись бы dev-сервер и DevTools). bench:true —
- * добавляется HL_BENCH=1 (§6 TASK-062; поверхность — см. LaunchAppOptions).
+ * добавляется HL_BENCH=1 (§6 TASK-062), fakeLlm:true — HL_FAKE_LLM=1 (§5
+ * TASK-078; поверхности — см. LaunchAppOptions).
  */
 export async function launchApp(options: LaunchAppOptions): Promise<ElectronApplication> {
   const env: NodeJS.ProcessEnv = { ...process.env };
   env['HL_TEST_USER_DATA'] = options.userData;
   if (options.bench === true) {
     env['HL_BENCH'] = '1';
+  }
+  if (options.fakeLlm === true) {
+    env['HL_FAKE_LLM'] = '1';
   }
   delete env['ELECTRON_RENDERER_URL'];
 

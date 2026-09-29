@@ -133,6 +133,11 @@ import {
   createDefaultLlmWorkerSpawn,
   LlmProcessClient,
 } from './modules/ai-insight/adapters/llm-process-client.js';
+// TASK-078 §5: выбор движка за портом LlmEngine — ProcessLlmEngine (клиент 076)
+// или FakeLlmEngine (dev/e2e без модели, env HL_FAKE_LLM=1).
+import { FakeLlmEngine } from './modules/ai-insight/adapters/fake-llm-engine.js';
+import { ProcessLlmEngine } from './modules/ai-insight/adapters/process-llm-engine.js';
+import type { LlmEngine } from './modules/ai-insight/application/ports/llm-engine.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
 import { DeleteMeasurementUseCase } from './modules/measurement/application/delete-measurement.js';
 import { ListMeasurementsUseCase } from './modules/measurement/application/list-measurements.js';
@@ -161,6 +166,23 @@ import { electronRevealPath } from './platform/reveal-path.js';
 
 /** Имя файла БД в userData (§8): `<userData>/health-log.db` (+ `-wal`, `-shm`). */
 export const DATABASE_FILENAME = 'health-log.db';
+
+/**
+ * TASK-078 §5/§14: имя env-флага dev-режима fake-LLM (§5: HL_FAKE_LLM=1;
+ * единственный источник строки) и гард его применения: флаг действует ТОЛЬКО
+ * в не-packaged запуске (§14 — тот же паттерн, что HL_BENCH: benchChannelsEnabled,
+ * TASK-062; тест-эмуляция packaged — container-llm-engine.int.test.ts). Bootstrap
+ * передаёт результат параметром useFakeLlm — контейнер сам process.env не читает
+ * (§19: тесты без env-мутаций).
+ */
+export const HL_FAKE_LLM_ENV = 'HL_FAKE_LLM';
+
+export function fakeLlmEnabled(
+  env: Readonly<Record<string, string | undefined>>,
+  isPackaged: boolean,
+): boolean {
+  return env[HL_FAKE_LLM_ENV] === '1' && !isPackaged;
+}
 
 /**
  * Профиль дневника (seed миграции v1; bench-seed.ts — тот же идентификатор):
@@ -241,6 +263,14 @@ export interface ContainerDeps {
    * getPath('logs') — userData/logs).
    */
   readonly logsDirPath?: string;
+  /**
+   * TASK-078 §5/§19: dev/e2e-режим fake-LLM — использовать FakeLlmEngine вместо
+   * боевого ProcessLlmEngine (генерация детерминированная, без модели/процесса).
+   * Bootstrap передаёт fakeLlmEnabled(process.env, app.isPackaged) (env
+   * HL_FAKE_LLM=1, только не-packaged — §14); по умолчанию false. Параметром, а
+   * не чтением env здесь — тесты без process.env-мутаций (§19).
+   */
+  readonly useFakeLlm?: boolean;
 }
 
 /**
@@ -302,6 +332,13 @@ export interface Container {
    * (TASK-077/087+); реальный движок подключит 077.
    */
   readonly llm: LlmProcessClient;
+  /**
+   * Движок LLM за application-портом (TASK-078 §5) — единственная точка
+   * генерации для use case'ов ai-insight (087+): ProcessLlmEngine (обёртка
+   * клиента `llm` выше) или FakeLlmEngine (dev/e2e, useFakeLlm). В fake-режиме
+   * клиент не спавнится (ленивый) и потребителями не используется.
+   */
+  readonly llmEngine: LlmEngine;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
 }
@@ -644,6 +681,27 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       notify: broadcastToWindows,
       logger: createLogger('ai'),
     });
+    //      TASK-078 §5: движок LLM за портом LlmEngine — единственная точка
+    //      генерации для use case'ов (087+). Dev/e2e (useFakeLlm — bootstrap
+    //      передаёт гард fakeLlmEnabled(env, isPackaged) по env HL_FAKE_LLM=1,
+    //      только не-packaged, §14) — FakeLlmEngine: детерминированные ответы с
+    //      префиксом [FAKE], без модели и процессов. Боевой путь — ProcessLlmEngine
+    //      над клиентом выше. В fake-режиме клиент НЕ спавнится (ленивый) и
+    //      потребителями не используется; dispose в close() — безопасный no-op.
+    const useFakeLlm = deps.useFakeLlm ?? false;
+    const llmEngine: LlmEngine = useFakeLlm
+      ? new FakeLlmEngine()
+      : new ProcessLlmEngine({ client: llm });
+    //      Телеметрия выбора движка (§18); предупреждение при fake — риск §22
+    //      («fake-ответы уйдут в продакшн-скриншоты»; строка «FAKE» в «О приложении»
+    //      появится с самим экраном — интерфейс рендерера вне §6 этой задачи).
+    if (useFakeLlm) {
+      logger.warn('fake LLM активен: генерация — детерминированная заглушка, не выводы модели', {
+        engine: 'fake',
+      });
+    } else {
+      logger.info('llm engine: process llm-worker', { engine: 'process' });
+    }
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -825,6 +883,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       scheduler,
       egress,
       llm,
+      llmEngine,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op

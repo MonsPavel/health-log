@@ -9,7 +9,7 @@ import { createWindow, focusExistingWindow } from './create-window.js';
 import { installGlobalErrorHandlers } from './global-errors.js';
 import { createSecondInstanceHandler, ensureSingleInstance } from './single-instance.js';
 import { resolveUserDataPath } from './user-data-override.js';
-import { buildContainer, type Container } from '../container.js';
+import { buildContainer, fakeLlmEnabled, type Container } from '../container.js';
 import { benchChannelsEnabled, createBenchSeedHandler } from '../ipc/handlers/bench-seed.js';
 import { installChannelBridge } from '../ipc/register-channel.js';
 import { createLogger, initFileLogging } from '../shared/logger/logger.js';
@@ -104,6 +104,11 @@ if (gotSingleInstanceLock) {
       appVersion: app.getVersion(),
       // TASK-073 §5 (план wipe 072): категория logs — фактический каталог логов main.
       logsDirPath: app.getPath('logs'),
+      // TASK-078 §5/§14: dev-режим fake-LLM — env HL_FAKE_LLM=1 и только в
+      // не-packaged запуске (гард fakeLlmEnabled — паттерн benchChannelsEnabled
+      // TASK-062). Контейнер сам env не читает — параметром (§19, тесты без
+      // env-мутаций); выбор движка и его лог — в buildContainer (§18).
+      useFakeLlm: fakeLlmEnabled(process.env, app.isPackaged),
     });
     // TASK-008 §5: мост `hl:invoke` ставится один раз до создания окна; каналы
     // зарегистрированы в реестре контейнера (TASK-027 §11).

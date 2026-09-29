@@ -71,8 +71,14 @@ import {
 } from '@hl/contracts';
 import { AppError } from '@hl/kernel';
 
-/** Ключ i18n для AI/BUSY (конвенция арх. 05 §29; тексты — TASK-101). */
-export const AI_BUSY_MESSAGE_KEY = 'errors.AI_BUSY';
+import { AI_BUSY_MESSAGE_KEY } from '../application/ports/llm-engine.js';
+
+/**
+ * Ключ i18n для AI/BUSY (конвенция арх. 05 §29; тексты — TASK-101). TASK-078:
+ * единственный источник строки — порт LlmEngine (application/ports/llm-engine) —
+ * здесь реэкспорт для совместимости (прецедент: контракт ошибок живёт в порту).
+ */
+export { AI_BUSY_MESSAGE_KEY } from '../application/ports/llm-engine.js';
 /** Ключ i18n для AI/WORKER_CRASHED. */
 export const AI_WORKER_CRASHED_MESSAGE_KEY = 'errors.AI_WORKER_CRASHED';
 /** Ключ i18n для AI/ENGINE_NOT_CONFIGURED. */
