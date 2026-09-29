@@ -230,6 +230,15 @@ describe('buildContainer — полный цикл §19 (последовате�
     // Идемпотентность: повторный close (повторный will-quit/зависание) — no-op.
     expect(() => container2!.close()).not.toThrow();
   });
+
+  it('5. close после закрытия БД data-care-операцией (TASK-073): no-op без исключения (§8)', async () => {
+    // closeCurrentDb restore 071/wipe 072 закрывает соединение под контейнером;
+    // последующий will-quit → close() не должен ронять приложение (чекпоинт/повторный
+    // close на закрытом соединении гасятся — will-quit идемпотентен и в этом кейсе).
+    const container3 = await buildContainer(makeDeps(dir, clock));
+    container3.db.close();
+    expect(() => container3.close()).not.toThrow();
+  });
 });
 
 describe('buildContainer — отказ vault: контейнер не создаётся (§13/§9)', () => {

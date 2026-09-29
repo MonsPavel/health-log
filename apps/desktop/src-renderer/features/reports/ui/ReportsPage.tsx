@@ -1,12 +1,13 @@
 /**
  * TASK-013 §5: маршрут /reports. TASK-065 §5 (РЕШЕНИЕ): экран «Отчёты» — дом
  * экспорта+PDF+копий; здесь живут кнопки экспорта CSV/JSON (ExportButtons:
- * save-диалог main → файл на диске пользователя, US-27) и сборка PDF-отчёта
- * (ReportScreen — TASK-068 UC-05). Data Care UI (TASK-073) появится здесь же —
- * до тех пор внизу остаётся пометка о будущем содержимом (common.wip).
+ * save-диалог main → файл на диске пользователя, US-27), сборка PDF-отчёта
+ * (ReportScreen — TASK-068 UC-05) и секция «Данные» (DataSection — TASK-073:
+ * копия/восстановление/полное удаление, §2 — секция на «Отчётах»).
  */
 import { useTranslation } from 'react-i18next';
 
+import { DataSection } from './data/DataSection';
 import { ExportButtons } from './ExportButtons';
 import { ReportScreen } from './ReportBuilder';
 
@@ -20,7 +21,7 @@ export function ReportsPage(): JSX.Element {
       </h1>
       <ExportButtons />
       <ReportScreen />
-      <p className="text-sm text-accent">{t('common.wip')}</p>
+      <DataSection />
     </section>
   );
 }

@@ -55,12 +55,18 @@ import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 import { createLogClientErrorHandler } from './app/global-errors.js';
 import { EventBus } from './events/event-bus.js';
 import { ElectronFileSaver } from './platform/file-saver.js';
+import { electronFileOpenDialog } from './platform/file-open.js';
 import { BackupContainerCodec } from './modules/data-care/adapters/backup-container.js';
 import { DialogFileSaver } from './modules/data-care/adapters/dialog-file-saver.js';
 import {
   CreateBackupUseCase,
   createPreMigrationBackupHook,
 } from './modules/data-care/application/create-backup.js';
+import {
+  RestoreBackupUseCase,
+  cleanupRestoreSafetyCopy,
+} from './modules/data-care/application/restore-backup.js';
+import { WipeAllDataUseCase } from './modules/data-care/application/wipe-all.js';
 import { FileOpQueue } from './modules/data-care/application/file-op-queue.js';
 import {
   createAddMeasurementHandler,
@@ -68,6 +74,12 @@ import {
   createUpdateMeasurementHandler,
 } from './ipc/handlers/measurements.js';
 import { createDeleteMeasurementHandler } from './ipc/handlers/measurements-delete.js';
+import {
+  createBackupCreateHandler,
+  createBackupRestoreHandler,
+  createDataWipeHandler,
+} from './ipc/handlers/data-care.js';
+import { createFileOpenDialogHandler } from './ipc/handlers/file-open-dialog.js';
 import { createPingHandler } from './ipc/handlers/ping.js';
 import { createExportCsvHandler, createExportJsonHandler } from './ipc/handlers/report.js';
 import { createBuildPdfReportHandler } from './ipc/handlers/report-pdf.js';
@@ -134,6 +146,30 @@ export const DATABASE_FILENAME = 'health-log.db';
 /** Каталог копий в userData (TASK-070 §7 — фикс): `<userData>/backups/`. */
 export const BACKUPS_DIRNAME = 'backups';
 
+/**
+ * Файл-флаг страховки восстановления (TASK-071 §14) в userData: путь вводится в
+ * use case RestoreBackup (сборка), удаление при успешном старте —
+ * cleanupRestoreSafetyCopy ниже (подключение 073).
+ */
+export const RESTORE_SAFETY_FLAG_FILENAME = 'restore-safety.flag';
+
+/**
+ * Отложенный перезапуск приложения (TASK-071/072 §9): app.relaunch() + app.exit(0)
+ * через 500 мс — ответ канала успевает уйти рендереру до выхода (деталь §9,
+ * зафиксированная в restore-backup.ts). Electron импортируется лениво: сборка
+ * контейнера идёт и в node-окружении vitest (§19) — функция вызывается только из
+ * use case'ов восстановления/удаления.
+ */
+function scheduleAppRelaunch(): void {
+  setTimeout(() => {
+    void import('electron').then((electron) => {
+      const app = (electron as { app?: { relaunch(): void; exit(code?: number): void } }).app;
+      app?.relaunch();
+      app?.exit(0);
+    });
+  }, 500);
+}
+
 /** Версия приложения по умолчанию (манифест копии, TASK-070 §2; bootstrap передаёт app.getVersion()). */
 const DEFAULT_APP_VERSION = '0.0.0';
 
@@ -174,6 +210,12 @@ export interface ContainerDeps {
    * передаёт app.getVersion(); по умолчанию — '0.0.0' (тесты/node-сборка).
    */
   readonly appVersion?: string;
+  /**
+   * Каталог логов (TASK-072 §5: категория logs плана полного удаления). Bootstrap
+   * передаёт app.getPath('logs'); по умолчанию — `<userData>/logs` (Windows-дефолт
+   * getPath('logs') — userData/logs).
+   */
+  readonly logsDirPath?: string;
 }
 
 /**
@@ -312,6 +354,41 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       appVersion,
       dbKeyHex: () => keyHex,
     });
+    //      TASK-073 §5/§11: use case'ы восстановления и полного удаления — та же
+    //      инфраструктура (очередь fileOpQueue, криптоконтейнер, dbLogger); точки
+    //      контейнера: закрытие БД (checkpoint+close), повторное открытие подменённой
+    //      БД тем же ключом (verifyDatabaseOpens — §8 071), отложенный relaunch (§9).
+    //      Каталоги/файлы wipe — фактические пути main (§14: renderer пути не шлёт).
+    const closeCurrentDb = (): void => {
+      db.pragma('wal_checkpoint(TRUNCATE)');
+      db.close();
+    };
+    const restoreBackup = new RestoreBackupUseCase({
+      currentDb: db,
+      closeCurrentDb,
+      dbPath,
+      verifyDatabaseOpens: (path) => {
+        openEncrypted(path, keyHex).close();
+      },
+      crypto: new BackupContainerCodec(),
+      logger: dbLogger,
+      queue: fileOpQueue,
+      relaunch: scheduleAppRelaunch,
+      safetyFlagPath: join(deps.userDataPath, RESTORE_SAFETY_FLAG_FILENAME),
+      clock,
+      appVersion,
+    });
+    const wipeAllData = new WipeAllDataUseCase({
+      db,
+      closeCurrentDb,
+      dbPath,
+      vaultKeyPath: vaultFilePath,
+      logsDir: deps.logsDirPath ?? join(deps.userDataPath, 'logs'),
+      backupsDir,
+      logger: dbLogger,
+      queue: fileOpQueue,
+      relaunch: scheduleAppRelaunch,
+    });
 
     // 5. Миграции (старт БД §9 TASK-024: openEncrypted → migrate(); failure → STORAGE/*).
     //    TASK-070 §5: hook снапшота — createBackup(mode auto) перед каждой
@@ -324,6 +401,13 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     // После успешного migrate схема на максимальной версии реестра (иначе — throw выше).
     const schemaVersion = MIGRATIONS.at(-1)?.version ?? schemaVersionBefore;
     const migrationsApplied = schemaVersion - schemaVersionBefore;
+
+    // 5.5. Data Care (TASK-073, подключение §14 071): страховка прошлого
+    //      восстановления удаляется при УСПЕШНОМ старте (БД открыта и промигрирована
+    //      — она больше не нужна); сбой чистки старт не валит (best-effort boolean).
+    if (cleanupRestoreSafetyCopy(join(deps.userDataPath, RESTORE_SAFETY_FLAG_FILENAME))) {
+      dbLogger.debug('restoreBackup: страховка прошлого восстановления удалена при старте');
+    }
 
     // 6. Репозиторий (TASK-026; боевой логгер createLogger('db') — TASK-026 §18).
     // БУДУЩАЯ РАБОТА (§23): сюда же встают use case'ы 029+ и прочие модули.
@@ -553,6 +637,30 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       CHANNEL_SCHEMAS['report/pdf'],
       createBuildPdfReportHandler(buildPdfReport),
     );
+    // TASK-073 §5/§11: Data Care — копия (070), восстановление план+execute (071),
+    // полное удаление план+execute (072) и выбор файла копии (open-диалог main,
+    // §14: путь возникает только в main). Рестарт после execute — отложенный
+    // relaunch (scheduleAppRelaunch выше, §9).
+    channels.register(
+      'backup/create',
+      CHANNEL_SCHEMAS['backup/create'],
+      createBackupCreateHandler(createBackup),
+    );
+    channels.register(
+      'backup/restore',
+      CHANNEL_SCHEMAS['backup/restore'],
+      createBackupRestoreHandler(restoreBackup),
+    );
+    channels.register(
+      'data/wipe',
+      CHANNEL_SCHEMAS['data/wipe'],
+      createDataWipeHandler(wipeAllData),
+    );
+    channels.register(
+      'file/open-dialog',
+      CHANNEL_SCHEMAS['file/open-dialog'],
+      createFileOpenDialogHandler(electronFileOpenDialog),
+    );
     channels.register(
       'app/reveal-path',
       CHANNEL_SCHEMAS['app/reveal-path'],
@@ -592,9 +700,17 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         closed = true;
         try {
           // §8: чекпоинт перед закрытием — чистое отсутствие -wal/-shm после выхода.
+          // TASK-073: БД может быть УЖЕ закрыта data-care-операцией (closeCurrentDb
+          // restore 071/wipe 072 — замена/удаление) — чекпоинт тогда не нужен.
           db.pragma('wal_checkpoint(TRUNCATE)');
+        } catch {
+          // соединение закрыто под контейнером — закрывать нечего
         } finally {
-          db.close();
+          try {
+            db.close();
+          } catch {
+            // уже закрыто (тот же кейс) — will-quit не роняет приложение
+          }
         }
         // §9: пул — ПОСЛЕ закрытия БД (воркеры БД не открывают, §8); задачи обрываются
         // (потерянный PDF при закрытии приложения допустим, §9), активные и ожидающие

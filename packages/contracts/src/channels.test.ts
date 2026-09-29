@@ -39,7 +39,7 @@ describe('HL_INVOKE_REQUEST_SCHEMA — форма запроса моста', ()
 });
 
 describe('типы реестра — компилятор выводит payload/ответ из схем (§23: без ручной синхронизации)', () => {
-  it('ChannelName — строковый union прикладных каналов (TASK-011: app/log-client-error; TASK-028: + 4 канала измерений; TASK-045: notes/search; TASK-051: scales/active; TASK-054: stats/period; TASK-056: trend/series; TASK-070: backup/create; TASK-071/072: backup/restore, data/wipe; TASK-062: __bench/seed; TASK-065: report/export-*; TASK-068: report/pdf, app/reveal-path)', () => {
+  it('ChannelName — строковый union прикладных каналов (TASK-011: app/log-client-error; TASK-028: + 4 канала измерений; TASK-045: notes/search; TASK-051: scales/active; TASK-054: stats/period; TASK-056: trend/series; TASK-070: backup/create; TASK-071/072: backup/restore, data/wipe; TASK-062: __bench/seed; TASK-065: report/export-*; TASK-068: report/pdf, app/reveal-path; TASK-073: file/open-dialog)', () => {
     expectTypeOf<ChannelName>().toEqualTypeOf<
       | '__bench/seed'
       | 'app/ping'
@@ -48,6 +48,7 @@ describe('типы реестра — компилятор выводит payloa
       | 'backup/create'
       | 'backup/restore'
       | 'data/wipe'
+      | 'file/open-dialog'
       | 'measurements/add'
       | 'measurements/list'
       | 'measurements/update'

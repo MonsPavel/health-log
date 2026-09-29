@@ -6,11 +6,13 @@
  * Каталоги: ru/common.json (названия разделов, aria-label навигации, wip),
  * ru/errors.json (internal/validation/renderer — согласованы с TASK-008/011: тот же
  * файл, что читает translateMessageKey), ru/export.json (TASK-065 §17: ключи
- * export.* — тексты UI файлового экспорта), feature-каталоги (features/⟨фича⟩/ru.json —
+ * export.* — тексты UI файлового экспорта), ru/data.json (TASK-073 §17: ключи
+ * data.backup.* / data.restore.* / data.wipe.* — тексты экрана «Данные»),
+ * feature-каталоги (features/⟨фича⟩/ru.json —
  * первый measurement, TASK-031: ключи с префиксом имени фичи) и каталог общих
  * компонентов components/critical/ru.json (TASK-041, группа critical); settings —
  * TASK-047 (features/settings/ru.json). Один namespace
- * 'translation' с группами common./errors./export./measurement./settings./critical./dashboard.: ключи в коде совпадают со
+ * 'translation' с группами common./data./errors./export./measurement./settings./critical./dashboard.: ключи в коде совпадают со
  * строками messageKey контрактов ('errors.renderer' — прецедент ErrorBoundary, TASK-011).
  *
  * escapeValue: false — экранирование делает React, ICU-подстановки включатся с
@@ -21,6 +23,7 @@ import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 import common from './ru/common.json';
+import data from './ru/data.json';
 import errors from './ru/errors.json';
 import exportCatalog from './ru/export.json';
 import report from './ru/report.json';
@@ -33,6 +36,7 @@ const resources = {
   ru: {
     translation: {
       common,
+      data,
       errors,
       export: exportCatalog,
       report,
