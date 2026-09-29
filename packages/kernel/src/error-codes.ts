@@ -59,6 +59,9 @@ export const ERROR_CODES = [
   // remaining в памяти main), отказ двухшаговости (execute без plan) и расхождение
   // состояния с моментом plan.
   'WIPE/FAILED',
+  // TASK-063 §5/§9: use case ExportCsv (модуль reporting) — неуспех сборки выгрузки
+  // (сбой чтения журнала при обходе пачками; причина — в cause, наружу только код).
+  'EXPORT/FAILED',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */

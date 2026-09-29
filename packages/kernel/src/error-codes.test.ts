@@ -74,4 +74,9 @@ describe('ErrorCode: реестр кодов (§5)', () => {
   it('код WIPE/FAILED присутствует (TASK-072)', () => {
     expect(ERROR_CODES).toContain('WIPE/FAILED');
   });
+
+  // TASK-063 §5/§9: use case ExportCsv (reporting) — неуспех сборки выгрузки.
+  it('код EXPORT/FAILED присутствует (TASK-063)', () => {
+    expect(ERROR_CODES).toContain('EXPORT/FAILED');
+  });
 });
