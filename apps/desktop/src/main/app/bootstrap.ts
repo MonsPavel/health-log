@@ -102,6 +102,8 @@ if (gotSingleInstanceLock) {
       clock: new SystemClock(),
       // TASK-070 §2: версия приложения в манифесте копии (титул отчёта — 067).
       appVersion: app.getVersion(),
+      // TASK-073 §5 (план wipe 072): категория logs — фактический каталог логов main.
+      logsDirPath: app.getPath('logs'),
     });
     // TASK-008 §5: мост `hl:invoke` ставится один раз до создания окна; каналы
     // зарегистрированы в реестре контейнера (TASK-027 §11).
