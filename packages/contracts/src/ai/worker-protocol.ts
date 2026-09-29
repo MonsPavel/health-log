@@ -36,9 +36,15 @@ export interface ChatMessage {
   readonly content: string;
 }
 
-/** Параметры генерации (§5 «params»); минимум, движок 077 расширит осознанно. */
+/**
+ * Параметры генерации (§5 «params»); минимум, движок 077 расширит осознанно.
+ * TASK-077 §7/§11: seed — опциональный параметр протокола (фиксация для
+ * повторяемости eval, TASK-091); дефолт temperature — движок (0.3, §7 077).
+ */
 export interface GenerationParams {
   readonly temperature?: number;
+  /** Фиксация случайности сэмплинга (повторяемость eval); не передан — эпоха. */
+  readonly seed?: number;
 }
 
 /** Причина завершения генерации (§7: done|cancelled — ошибка идёт отдельным error). */
