@@ -78,7 +78,8 @@ describe('ExportButtons — клик → loading → тост (TASK-065 §19/§2
     expect(toast.textContent).toContain('health-log-export-20260925-1600.csv');
     expect(toast.textContent).not.toContain('C:\\Users');
     expect(toast.querySelector('span[title]')?.getAttribute('title')).toBe(path);
-    expect(toast.querySelector('span[title]')?.textContent).toBe(
+    // §16: текст не полагается на title — basename присутствует целиком и в тексте.
+    expect(toast.querySelector('span[title]')?.textContent).toContain(
       'health-log-export-20260925-1600.csv',
     );
   });
