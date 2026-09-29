@@ -44,7 +44,11 @@ import { AppError, type Clock } from '@hl/kernel';
 
 import type { HlLogger } from '../../../shared/logger/logger.js';
 import type { EncryptedDatabase } from '../../../shared/db/sqlite.js';
-import { ALLOWED, EgressPolicy, NET_BLOCKED_BY_POLICY_MESSAGE_KEY } from './egress-policy.js';
+import {
+  EgressPolicy,
+  NET_BLOCKED_BY_POLICY_MESSAGE_KEY,
+  type EgressPolicyEntry,
+} from './egress-policy.js';
 
 /** Исполнитель запроса (§4): endpoint — строка-URL из политики потребителя. */
 export type EgressFetch = (endpoint: string, init?: RequestInit) => Promise<Response>;
@@ -135,18 +139,18 @@ export class EgressGateway {
    */
   async request(op: string, request: EgressRequest): Promise<Response> {
     const startedAt = this.deps.clock.nowMs();
-    const policyEntry = (EgressPolicy.ALLOWED as Readonly<Record<string, EgressPolicyEntryRef>>)[
-      op
-    ];
+    const policyEntry = (EgressPolicy.ALLOWED as Readonly<Record<string, EgressPolicyEntry>>)[op];
 
     // Ветки §13: вне списка ИЛИ без согласия → blocked-запись в журнале + отказ.
     if (policyEntry === undefined) {
       this.journalBlocked(op, request.endpoint, startedAt);
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт §7, прецедент sqlite.ts)
       throw this.blockedByPolicy(op);
     }
     const consents = await this.deps.consents();
     if (consents[policyEntry.consentKey] !== true) {
       this.journalBlocked(op, request.endpoint, startedAt);
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт §7, прецедент sqlite.ts)
       throw this.blockedByPolicy(op);
     }
 
@@ -227,9 +231,6 @@ export class EgressGateway {
     return AppError.of('NET/BLOCKED_BY_POLICY', NET_BLOCKED_BY_POLICY_MESSAGE_KEY, { op });
   }
 }
-
-/** Локальный алиас типа строки политики (импорт значения выше, тип — здесь). */
-type EgressPolicyEntryRef = (typeof ALLOWED)[keyof typeof ALLOWED];
 
 /** content-length → байты; отсутствующий/нечисловой заголовок — NULL (§5). */
 function parseContentLength(value: string | null): number | null {

@@ -22,7 +22,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer, request as httpRequest, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi, type Mock } from 'vitest';
 
 import { HL_EVENT_CHANNEL, type NetConsents } from '@hl/contracts';
 import { AppError, FixedClock, type Clock } from '@hl/kernel';
@@ -139,7 +139,9 @@ const makeFakeWindow = (): { target: BroadcastTarget; envelopes: { channel: stri
 interface Fixture {
   readonly db: EncryptedDatabase;
   readonly gateway: EgressGateway;
-  readonly fetchSpy: ReturnType<typeof vi.fn>;
+  readonly fetchSpy: Mock<(endpoint: string, init?: RequestInit) => Promise<Response>>;
+  /** Подмена исполнителя (§19): боевой в тесте — loopback-клиент httpFetch. */
+  readonly setFetch: (impl: (endpoint: string, init?: RequestInit) => Promise<Response>) => void;
   readonly envelopes: { channel: string; envelope: unknown }[];
   /** Мутабельные согласия — перечитываются на каждый request (§14). */
   consents: NetConsents;
@@ -154,9 +156,14 @@ const makeFixture = (
   const db = openEncrypted(join(dir, 'egress.sqlite'), randomBytes(32).toString('hex'));
   return new MigrationRunner({ migrations: MIGRATIONS }).migrate(db).then(() => {
     const consents: NetConsents = { updatesCheck: true, modelsDownload: true };
-    const fetchSpy = vi.fn(async () => {
-      throw new Error('fetch не должен вызываться в этом тесте');
-    });
+    let fetchImpl: (endpoint: string, init?: RequestInit) => Promise<Response> = () =>
+      Promise.reject(new Error('fetch не должен вызываться в этом тесте'));
+    const fetchSpy: Mock<(endpoint: string, init?: RequestInit) => Promise<Response>> = vi.fn(
+      (endpoint: string, init?: RequestInit) => fetchImpl(endpoint, init),
+    );
+    const setFetch = (impl: (endpoint: string, init?: RequestInit) => Promise<Response>): void => {
+      fetchImpl = impl;
+    };
     const { target, envelopes } = makeFakeWindow();
     const notify = createBroadcastToWindows({
       getAllTargets: () => [target],
@@ -177,7 +184,7 @@ const makeFixture = (
       fetch: fetchSpy,
       notify,
     });
-    return { db, gateway, fetchSpy, envelopes, consents };
+    return { db, gateway, fetchSpy, setFetch, envelopes, consents };
   });
 };
 
@@ -253,7 +260,7 @@ describe('EgressGateway — ветки §13 (TASK-075 §19/§20)', () => {
 
     // §14: согласие вернули — СЛЕДУЮЩИЙ запрос проходит (consents перечитываются).
     fx.consents.updatesCheck = true;
-    fx.fetchSpy.mockImplementation(async () => new Response('{}', { status: 200 }));
+    fx.setFetch(() => Promise.resolve(new Response('{}', { status: 200 })));
     await expect(
       fx.gateway.request('updates.check', { endpoint: 'https://releases.example.com/latest' }),
     ).resolves.toBeInstanceOf(Response);
@@ -265,7 +272,7 @@ describe('EgressGateway — ветки §13 (TASK-075 §19/§20)', () => {
     const startMs = 1_758_816_000_000;
     const fx = await makeFixture(new FixedClock(startMs, 180));
     // Реальный трафик (§19): fetch-деп — loopback-клиент node:http к мок-серверу.
-    fx.fetchSpy.mockImplementation(httpFetch);
+    fx.setFetch(httpFetch);
 
     const response = await fx.gateway.request('models.download', { endpoint });
 
@@ -297,7 +304,7 @@ describe('EgressGateway — ветки §13 (TASK-075 §19/§20)', () => {
   it('(4) сетевая ошибка → статус failed, ошибка проброшена вызывающему (§13/AC1)', async () => {
     const fx = await makeFixture();
     // Реальная сетевая неудача: порт без слушателя (сервер из beforeAll занимает свой).
-    fx.fetchSpy.mockImplementation(httpFetch);
+    fx.setFetch(httpFetch);
     const deadServer = createServer();
     await new Promise<void>((resolve) => deadServer.listen(0, '127.0.0.1', resolve));
     const deadAddress = deadServer.address();
@@ -330,7 +337,7 @@ describe('EgressGateway — ветки §13 (TASK-075 §19/§20)', () => {
       tzOffsetMin: () => 180,
     };
     const fx = await makeFixture(steppingClock);
-    fx.fetchSpy.mockImplementation(async () => new Response('', { status: 200 }));
+    fx.setFetch(() => Promise.resolve(new Response('', { status: 200 })));
     await fx.gateway.request('updates.check', { endpoint: 'https://releases.example.com/1' });
     // blocked-ветка ОТКАЗЫВАЕТ (AppError) — в журнале запись при этом появляется (§9).
     await fx.gateway

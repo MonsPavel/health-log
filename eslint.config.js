@@ -327,6 +327,40 @@ export default tseslint.config(
   },
 
   {
+    // TASK-075 §5 (D11, арх. 08 §5): сеть приложения — ТОЛЬКО через EgressGateway.
+    // Импорты node:http(s)/fetch и глобальный fetch вне каталога egress — error;
+    // зона-исключение — каталог **/egress/** (там живёт боевой исполнитель гейтвея).
+    // Тесты НЕ исключены: мок-серверы ходят через node:http-клиент в egress-тестах
+    // (внутри зоны) — guard FR-7.2 (vitest.setup) остаётся единственной сетью тестов.
+    // Блок стоит ДО renderer-блоков: их no-restricted-imports переопределяют этот
+    // для renderer-файлов, поэтому bare 'http'/'https'/'fetch' продублированы там.
+    files: TS_GLOBS,
+    ignores: ['**/egress/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['node:http', 'node:https', 'node:fetch', 'http', 'https', 'fetch'],
+              message:
+                'сеть — только через EgressGateway (TASK-075, D11): импорт fetch/http-модулей вне каталога egress запрещён',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'fetch',
+          message:
+            'глобальный fetch вне каталога egress запрещён — трафик только через EgressGateway (TASK-075, D11)',
+        },
+      ],
+    },
+  },
+
+  {
     // §7: зона renderer — без Node-библиотек. «Голые» билдены вроде `fs` (legacy-CJS стиль)
     // не ловятся намеренно: канон импорта в репо — `node:*`, а вторую сеть даёт TASK-005.
     files: ['apps/desktop/src-renderer/**/*.ts', 'apps/desktop/src-renderer/**/*.tsx'],
@@ -351,6 +385,14 @@ export default tseslint.config(
               group: ['node', 'node:*'],
               message:
                 'renderer без Node (арх. 08 §4); данные — через preload-мост и @hl/contracts',
+            },
+            {
+              // TASK-075 §5: net-ограничения блока EgressGateway выше переопределяются
+              // этим блоком для renderer-файлов — bare-имена продублированы здесь
+              // (node:http(s)/node:fetch уже покрыты группой node:*).
+              group: ['http', 'https', 'fetch'],
+              message:
+                'сеть — только через EgressGateway в main (TASK-075, D11): renderer без сети',
             },
           ],
         },
