@@ -12,6 +12,8 @@ import {
   BACKUP_CREATE_RESPONSE_SCHEMA,
   BACKUP_RESTORE_REQUEST_SCHEMA,
   BACKUP_RESTORE_RESPONSE_SCHEMA,
+  DATA_WIPE_REQUEST_SCHEMA,
+  DATA_WIPE_RESPONSE_SCHEMA,
 } from './data-care/schemas.js';
 import {
   MEASUREMENT_ADD_REQUEST_SCHEMA,
@@ -93,6 +95,18 @@ export const CHANNEL_SCHEMAS = {
   'backup/restore': {
     request: BACKUP_RESTORE_REQUEST_SCHEMA,
     response: BACKUP_RESTORE_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-072 §5/§11: полное удаление данных (Data Care) — двухфазный канал по
+   * `phase`: {phase:'plan'} → {plan: WipePlan} (basename+категория — пути от
+   * renderer не принимаются и наружу не идут, §7/§14); {phase:'execute'} →
+   * {restarting: true} (unlink по плану + отложенный relaunch, §9). Ошибки —
+   * WIPE/FAILED (частичный сбой: remainingCount в params). Регистрация хендлера
+   * и команда renderer'у на очистку localStorage — TASK-073.
+   */
+  'data/wipe': {
+    request: DATA_WIPE_REQUEST_SCHEMA,
+    response: DATA_WIPE_RESPONSE_SCHEMA,
   },
   /**
    * TASK-028 §5/§11: журнал измерений — CRUD и список (арх. 05 §3, FR-1/FR-2).

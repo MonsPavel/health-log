@@ -54,6 +54,11 @@ export const ERROR_CODES = [
   'BACKUP/DB_NEWER',
   'BACKUP/WRONG_PASSPHRASE',
   'BACKUP/INTEGRITY',
+  // TASK-072 §5/§11: Data Care — полное удаление данных: сбой операции (в т.ч.
+  // частичный unlink — что осталось, в params/cause: наружу счётчик, полный список
+  // remaining в памяти main), отказ двухшаговости (execute без plan) и расхождение
+  // состояния с моментом plan.
+  'WIPE/FAILED',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */

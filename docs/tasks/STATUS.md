@@ -77,7 +77,7 @@
 | TASK-069 | todo | | |
 | TASK-070 | done | | смержена |
 | TASK-071 | done | | смержена |
-| TASK-072 | todo | | |
+| TASK-072 | done | | смержена |
 | TASK-073 | todo | | |
 | TASK-074 | todo | | |
 | TASK-075 | todo | | |

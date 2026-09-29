@@ -68,4 +68,10 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('BACKUP/WRONG_PASSPHRASE');
     expect(ERROR_CODES).toContain('BACKUP/INTEGRITY');
   });
+
+  // TASK-072 §5/§11: код Data Care — полное удаление данных: сбой (в т.ч. частичный
+  // unlink — что осталось, в params/cause; отказ двухшаговости и расхождение плана).
+  it('код WIPE/FAILED присутствует (TASK-072)', () => {
+    expect(ERROR_CODES).toContain('WIPE/FAILED');
+  });
 });
