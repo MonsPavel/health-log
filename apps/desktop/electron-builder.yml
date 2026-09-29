@@ -25,13 +25,18 @@ asarUnpack:
 # вместе со своими dist). §14: исходники проекта в сборку не входят — исключаем src/
 # workspace-пакетов (их тесты — тоже там); src сторонних npm-пакетов — содержимое
 # их официальных tarball'ов, как у любого Electron-приложения.
+# TASK-079: манифест моделей — внутрь asar (§9 079: чтение ресурса по корню
+# приложения — app.getAppPath()/дефолтный резолв сквозь asar); САМИ файлы
+# моделей в установщик не входят (арх. 10 §2 — см. extraResources ниже).
 files:
   - dist/main
   - dist-renderer
+  - resources/models-manifest.json
   - '!node_modules/@hl/kernel/src'
   - '!node_modules/@hl/contracts/src'
 
-# §5: extraResources пока пусто — реестр моделей позже (арх. 10 §2: модели вне установщика).
+# §5: файлы моделей — вне установщика (арх. 10 §2), поэтому extraResources пусто;
+# манифест моделей с TASK-079 идёт внутрь asar (files выше, §9 079).
 extraResources: []
 
 # Нативный стек better-sqlite3-multiple-ciphers — prebuilt Node-API, бинарь уже в пакете
