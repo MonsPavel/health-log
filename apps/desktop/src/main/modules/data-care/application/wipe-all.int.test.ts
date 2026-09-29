@@ -23,15 +23,7 @@
  *     попадает.
  */
 import { randomBytes } from 'node:crypto';
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  rmSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterAll, describe, expect, it, vi } from 'vitest';
@@ -56,7 +48,10 @@ const KEY_HEX = randomBytes(32).toString('hex');
 const DB_FILENAME = 'health-log.db';
 const VAULT_KEY_FILENAME = 'vault.key';
 const LOG_FILENAMES = ['hl.1.log', 'hl.2.log'];
-const BACKUP_FILENAMES = ['health-log-backup-20260101T000000.hlbackup', 'pre-migration-v3.hlbackup'];
+const BACKUP_FILENAMES = [
+  'health-log-backup-20260101T000000.hlbackup',
+  'pre-migration-v3.hlbackup',
+];
 
 /** Каталоги этой сессии — удаляются в afterAll (§14); соединения закрываются первыми. */
 const dirs: string[] = [];
@@ -124,7 +119,12 @@ const buildWipeFixture = async (measurements: number): Promise<WipeFixture> => {
   for (let i = 0; i < measurements; i += 1) {
     db.prepare(
       "INSERT INTO bp_measurement (id, profile_id, taken_at_utc, tz_offset_minutes, sys, dia, pulse, irregular_pulse, arm, source, created_at_utc, updated_at_utc) VALUES (?, 'seed-profile-0001', ?, 180, 120, 80, 70, 0, 'left', 'manual', ?, ?)",
-    ).run(`m-${i}-${randomBytes(4).toString('hex')}`, 1_758_816_000_000 + i, 1_758_816_000_000, 1_758_816_000_000);
+    ).run(
+      `m-${i}-${randomBytes(4).toString('hex')}`,
+      1_758_816_000_000 + i,
+      1_758_816_000_000,
+      1_758_816_000_000,
+    );
   }
   // Ключ + logs/* + backups/* (fixture-файлы всех категорий, AC-1).
   writeFileSync(join(userDataDir, VAULT_KEY_FILENAME), '{"v":1,"wrapped":"…"}');
@@ -138,7 +138,14 @@ const buildWipeFixture = async (measurements: number): Promise<WipeFixture> => {
   for (const name of BACKUP_FILENAMES) {
     writeFileSync(join(backupsDir, name), 'HLBK1-fixture');
   }
-  return { userDataDir, db, dbPath, vaultKeyPath: join(userDataDir, VAULT_KEY_FILENAME), logsDir, backupsDir };
+  return {
+    userDataDir,
+    db,
+    dbPath,
+    vaultKeyPath: join(userDataDir, VAULT_KEY_FILENAME),
+    logsDir,
+    backupsDir,
+  };
 };
 
 /** Счётчик измерений открытой БД. */
@@ -378,7 +385,9 @@ describe('WipeAllDataUseCase — состояние изменилось с мо
     if (!execResult.ok) {
       expect(execResult.error.code).toBe('WIPE/FAILED');
     }
-    for (const path of fixtureFilePaths(fixture).filter((path) => path !== join(fixture.backupsDir, BACKUP_FILENAMES[0] as string))) {
+    for (const path of fixtureFilePaths(fixture).filter(
+      (path) => path !== join(fixture.backupsDir, BACKUP_FILENAMES[0] as string),
+    )) {
       expect(existsSync(path)).toBe(true);
     }
     expect(harness.relaunch).not.toHaveBeenCalled();

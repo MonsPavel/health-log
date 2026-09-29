@@ -153,13 +153,12 @@ export class WipeAllDataUseCase {
   constructor(private readonly deps: WipeAllDataDeps) {}
 
   /** Выполняет фазу (§11); ошибки — значением Result, исключения не пересекают слои. */
-  async execute(
-    command: WipeAllDataCommand,
-  ): Promise<Result<WipeAllDataResultValue, AppError>> {
+  async execute(command: WipeAllDataCommand): Promise<Result<WipeAllDataResultValue, AppError>> {
     // Plan — только чтение: без очереди (прецедент 071). Execute — файловая
-    // операция — строго под FileOpQueue (§9 070).
+    // операция — строго под FileOpQueue (§9 070); тело синхронное (unlink) —
+    // Promise.resolve подгоняет под сигнатуру очереди.
     return command.phase === 'execute'
-      ? this.deps.queue.run(() => this.runExecute())
+      ? this.deps.queue.run(() => Promise.resolve(this.runExecute()))
       : this.runPlan();
   }
 
@@ -192,7 +191,10 @@ export class WipeAllDataUseCase {
         code: 'WIPE/FAILED',
         durationMs: Math.round(performance.now() - startedAtMs),
       });
-      return { ok: false, error: AppError.of('WIPE/FAILED', WIPE_FAILED_MESSAGE_KEY, undefined, error) };
+      return {
+        ok: false,
+        error: AppError.of('WIPE/FAILED', WIPE_FAILED_MESSAGE_KEY, undefined, error),
+      };
     }
   }
 
@@ -240,7 +242,10 @@ export class WipeAllDataUseCase {
         code: 'WIPE/FAILED',
         durationMs: Math.round(performance.now() - startedAtMs),
       });
-      return { ok: false, error: AppError.of('WIPE/FAILED', WIPE_FAILED_MESSAGE_KEY, undefined, error) };
+      return {
+        ok: false,
+        error: AppError.of('WIPE/FAILED', WIPE_FAILED_MESSAGE_KEY, undefined, error),
+      };
     }
 
     // 4. Unlink по списку (§5: по одному, лог каждого; порядок §19 — БД последней).
@@ -308,7 +313,11 @@ export class WipeAllDataUseCase {
     files.push(...listDirFiles(this.deps.backupsDir, 'backups'));
     files.push(...listDirFiles(this.deps.logsDir, 'logs'));
     if (existsSync(this.deps.vaultKeyPath)) {
-      files.push({ path: basename(this.deps.vaultKeyPath), category: 'key', abs: this.deps.vaultKeyPath });
+      files.push({
+        path: basename(this.deps.vaultKeyPath),
+        category: 'key',
+        abs: this.deps.vaultKeyPath,
+      });
     }
     for (const suffix of ['-wal', '-shm']) {
       const abs = `${this.deps.dbPath}${suffix}`;
