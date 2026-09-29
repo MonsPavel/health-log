@@ -1,7 +1,6 @@
 {
-  "$comment": "TASK-002 §4: пресет NodeNext для packages/* и main-процесса desktop — честный Node-резолвинг и CJS/ESM-выпуски. composite включает инкрементальные сборки tsc -b (project references, §15).",
-  "extends": "./tsconfig.base.json",
   "$comment": "TASK-002 §4: пресет NodeNext для packages/* и main-процесса desktop — честный Node-резолвинг и CJS/ESM-выпуски. composite включает инкрементальные сборки tsc -b (project references, §15). TASK-067: rewriteRelativeImportExtensions — воркер-цепочка задач пула (reporting/adapters/pdf → domain/report-format) в тестах исполняется нативным type-stripping Node прямо из .ts (прецедент ограничений worker.ts TASK-066: runtime-импорт './x.js' из .ts нативным Node не резолвится), поэтому внутри цепочки спесификаторы пишутся с '.ts', а tsc-emit (dist для прод) переписывает их в '.js'. На существующий код флаг не влияет: переписывает только относительные спесификаторы, оканчивающиеся на .ts, — таких в репозитории нет вне reporting.",
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "module": "nodenext",
     "moduleResolution": "nodenext",

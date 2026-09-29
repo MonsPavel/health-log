@@ -70,7 +70,9 @@ describe('tsconfig-конфиги — без дубликатов ключей (
         warning.text.includes('Duplicate key'),
       );
       if (duplicates.length > 0) {
-        offenders.push(`${relative(REPO_ROOT, file).split(sep).join('/')}: ${duplicates.map((w) => w.text).join('; ')}`);
+        offenders.push(
+          `${relative(REPO_ROOT, file).split(sep).join('/')}: ${duplicates.map((w) => w.text).join('; ')}`,
+        );
       }
     }
 
