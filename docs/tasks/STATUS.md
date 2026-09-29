@@ -80,7 +80,7 @@
 | TASK-072 | done | | смержена |
 | TASK-073 | done | | смержена |
 | TASK-074 | done | | смержена |
-| TASK-075 | todo | | |
+| TASK-075 | done | | смержена |
 | TASK-076 | todo | | |
 | TASK-077 | todo | | |
 | TASK-078 | todo | | |
