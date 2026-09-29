@@ -66,6 +66,26 @@ export interface LlamaEngineOptions {
 /** Кэш нативного инстанса на процесс воркера (§15: перезагрузка модели без реинициализации). */
 let llamaPromise: Promise<LlamaInstance> | undefined;
 
+/**
+ * Память llama-инстанса процесса (§9/§20 п.5 — прокси факта «unload возвращает
+ * RAM»; диспетчер задач остаётся ручной приёмкой). Без инстанса (натив не
+ * поднимался — CI/безмодельные прогоны) — undefined: измерять нечего.
+ * Прецедент имени — resetLoggingForTests (саппорт-функция, не часть порта).
+ */
+export async function getLlamaMemoryUsageForTests(): Promise<
+  { gpuVram: number; cpuRam: number } | undefined
+> {
+  if (llamaPromise === undefined) {
+    return undefined;
+  }
+  try {
+    const llama = await llamaPromise;
+    return await llama.getLlamaMemoryUsage();
+  } catch {
+    return undefined; // инстанс диспознут/недоступен — факта нет, а не ошибка прогона
+  }
+}
+
 function getLlamaOnce(nlc: NodeLlamaCppModule): Promise<LlamaInstance> {
   llamaPromise ??= nlc.getLlama({
     // §4: threads — конфиг на контексте, не авто-тюнинг: maxThreads 0 отключает

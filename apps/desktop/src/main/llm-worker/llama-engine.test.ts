@@ -21,6 +21,7 @@ import {
 import {
   createDefaultLlmEngine,
   createNodeLlamaBackend,
+  getLlamaMemoryUsageForTests,
   resolveDefaultIdleUnloadMs,
   resolveThreads,
 } from './llama-engine.js';
@@ -84,6 +85,12 @@ describe('llama-engine — узлы без модели (CI)', () => {
     const backend = createNodeLlamaBackend();
     expect(typeof backend.loadModel).toBe('function');
   });
+
+  it('getLlamaMemoryUsageForTests — без нативного инстанса в процессе → undefined (§20 п.5: факт RAM доступен только в [model]-прогоне)', async () => {
+    // в CI-процессе getLlama ни разу не вызывался ([model]-тесты пропущены) —
+    // инстанса нет, измерять нечего; функция обязана честно ответить undefined
+    await expect(getLlamaMemoryUsageForTests()).resolves.toBeUndefined();
+  });
 });
 
 describe.skipIf(!hasModel)('llama-engine [model] — ручной прогон (§19/§24)', () => {
@@ -126,10 +133,27 @@ describe.skipIf(!hasModel)('llama-engine [model] — ручной прогон (
       expect(meta.tokens).toBeGreaterThan(0);
       expect(meta.firstTokenMs).toBeGreaterThanOrEqual(0);
       expect(meta.tps).toBeGreaterThan(0);
-      // значения — перенести в таблицу docs/dev/local-llm.md (§15/§20)
-      console.log(`[model] замер:`, JSON.stringify(meta));
+      // §20 п.4: факты — перенести в таблицу docs/dev/local-llm.md (§15)
+      console.log(`[model] §20.4 замер (${modelPath}):`, JSON.stringify(meta));
+      // §20 п.2: стрим дошёл до потребителя (в UI-логе 081+ — те же delta)
+      console.log(
+        `[model] §20.2 стрим: ${deltas.length} дельт, ${deltas.join('').length} символов, finishReason=${finishReason}`,
+      );
+
+      // §20 п.5 (прокси): RAM llama-инстанса с загруженной моделью
+      const ramBeforeUnload = await getLlamaMemoryUsageForTests();
 
       await engine.unload();
+
+      // §20 п.5 (прокси): после unload память модели возвращена (диспетчер — вручную)
+      const ramAfterUnload = await getLlamaMemoryUsageForTests();
+      if (ramBeforeUnload !== undefined && ramAfterUnload !== undefined) {
+        console.log(
+          `[model] §20.5 RAM: до unload cpuRam=${(ramBeforeUnload.cpuRam / 1024 / 1024).toFixed(1)} МБ, ` +
+            `после=${(ramAfterUnload.cpuRam / 1024 / 1024).toFixed(1)} МБ (native-учёт llama)`,
+        );
+        expect(ramAfterUnload.cpuRam).toBeLessThan(ramBeforeUnload.cpuRam);
+      }
     },
   );
 
@@ -164,6 +188,7 @@ describe.skipIf(!hasModel)('llama-engine [model] — ручной прогон (
       await expect(done).resolves.toBe('cancelled');
       const cancelMs = Date.now() - startedAt;
       expect(cancelMs).toBeLessThan(1_000); // §20: cancel останавливает <1 с
+      console.log(`[model] §20.2 cancel: останов за ${cancelMs} мс (<1000)`);
 
       const lengthAtCancel = deltas.join('').length;
       await new Promise<void>((resolve) => setTimeout(resolve, 300));
@@ -192,6 +217,7 @@ describe.skipIf(!hasModel)('llama-engine [model] — ручной прогон (
         ),
       ).rejects.toMatchObject({ workerErrorCode: LLM_ENGINE_ERROR.NO_MODEL });
       expect(calls.some((call) => (call.meta as { reason?: string }).reason === 'idle')).toBe(true);
+      console.log('[model] §20.2 idle-unload: подтверждён по сокращённому env-окну (1500 мс)');
       vi.unstubAllEnvs();
     },
   );
