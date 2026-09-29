@@ -11,8 +11,22 @@
  */
 const blockedFetch: typeof fetch = (input) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  // TASK-067: data:-URL — не сеть (inline-байты внутри самого модуля): yoga-layout
+  // (WASM-движок раскладки @react-pdf/renderer) грузит встроенный в пакет WASM
+  // через fetch(data:...) — «звонка домой» здесь невозможен, отдаём байты локально.
+  if (typeof url === 'string' && url.startsWith('data:')) {
+    const commaIndex = url.indexOf(',');
+    const meta = url.slice(5, commaIndex);
+    const payload = url.slice(commaIndex + 1);
+    const bytes = /;base64$/i.test(meta)
+      ? Uint8Array.from(atob(payload), (char) => char.charCodeAt(0))
+      : new TextEncoder().encode(decodeURIComponent(payload));
+    return Promise.resolve(
+      new Response(bytes, { headers: { 'Content-Type': meta || 'text/plain' } }),
+    );
+  }
   throw new Error(
-    `network is disabled in tests (FR-7.2): fetch(${url}) отклонён — тесты не ходят в сеть`,
+    `network is disabled in tests (FR-7.2): fetch(${String(url)}) отклонён — тесты не ходят в сеть`,
   );
 };
 

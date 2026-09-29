@@ -71,6 +71,9 @@ import { SqliteScaleRepository } from './modules/analytics/adapters/sqlite-scale
 import { GetPeriodStatistics } from './modules/analytics/application/get-period-statistics.js';
 import { ScaleService } from './modules/analytics/application/scale-service.js';
 import { TrendSeries } from './modules/analytics/application/trend-series.js';
+// TASK-067 §9: дефолт tasksModule пула — модуль задач reporting (лёгкий файл URL:
+// без импортов цепочки react-pdf — рендер живёт в воркере, не в графе main).
+import { PDF_TASKS_MODULE_URL } from './modules/reporting/adapters/pdf/pdf-tasks-url.js';
 import { SqliteBpMeasurementRepository } from './modules/measurement/adapters/sqlite-measurement-repository.js';
 import { NotesSearchAdapter } from './modules/measurement/adapters/notes-search.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
@@ -127,8 +130,9 @@ export interface ContainerDeps {
   readonly vault?: VaultFactory;
   /**
    * Опции пула воркеров (TASK-066 §5/§6); по умолчанию — боевые: entry worker.js из
-   * dist, реестр без модуля задач (потребитель 067 передаст свой). Тесты подставляют
-   * tasksModule с тестовыми задачами (§19; прецедент переопределяемых фабрик каркаса).
+   * dist, tasksModule — модуль задач reporting (pdf.render, TASK-067 §9). Тесты
+   * подставляют entry/.tasksModule с тестовыми задачами (§19; прецедент
+   * переопределяемых фабрик каркаса).
    */
   readonly workerPool?: WorkerPoolOptions;
 }
@@ -387,9 +391,14 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
 
     // 8.5. Пул воркеров CPU-задач (TASK-066 §5/§6): 2 worker_threads, ленивое создание
     //      при первой задаче (потоки при старте не спавнятся); воркеры без доступа к
-    //      БД/ключу (§8), задачи определяются потребителями через tasksModule (067
-    //      добавит pdf.render). Лог — категория job (§18: job start/end, краш).
-    const workerPool = new WorkerPool({ ...deps.workerPool, logger: createLogger('job') });
+    //      БД/ключу (§8). TASK-067 §9: дефолт tasksModule — модуль задач reporting
+    //      (pdf.render); тесты подставляют свой через deps.workerPool. Лог —
+    //      категория job (§18: job start/end, краш).
+    const workerPool = new WorkerPool({
+      ...deps.workerPool,
+      tasksModule: deps.workerPool?.tasksModule ?? PDF_TASKS_MODULE_URL.href,
+      logger: createLogger('job'),
+    });
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
