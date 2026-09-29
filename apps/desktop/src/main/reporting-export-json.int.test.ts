@@ -217,12 +217,14 @@ describe('ExportJsonUseCase: roundtrip-слепок на tmp-БД (TASK-064 §19
     );
     const source: ExportJsonSource = {
       getProfile: (profileId) =>
-        Promise.resolve((() => {
-          const row = profileStmt.get(profileId);
-          return row === undefined
-            ? undefined
-            : { id: row.id, name: row.name, createdAtUtc: row.created_at_utc };
-        })()),
+        Promise.resolve(
+          (() => {
+            const row = profileStmt.get(profileId);
+            return row === undefined
+              ? undefined
+              : { id: row.id, name: row.name, createdAtUtc: row.created_at_utc };
+          })(),
+        ),
       listMeasurements: (profileId) =>
         repo.listByPeriod({ profileId }).then((items) => items.map(toMeasurementDto)),
     };

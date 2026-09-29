@@ -13,7 +13,7 @@
 //  - производительность §15/AC: 5k измерений ≤300 мс (тест-таймер).
 import { performance } from 'node:perf_hooks';
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import type {
   JsonSnapshotProfile,
@@ -77,13 +77,19 @@ const prefs: Prefs = {
  * Подстановочные зависимости (§19): источники — vi.fn-шпионы с боевой семантикой
  * (замеры desc — контракт listByPeriod); частичная подмена — заменой целиком.
  */
+const makeLogger = (): {
+  debug: Mock<ExportJsonLogger['debug']>;
+  info: Mock<ExportJsonLogger['info']>;
+  error: Mock<ExportJsonLogger['error']>;
+} => ({ debug: vi.fn(), info: vi.fn(), error: vi.fn() });
+
 const makeDeps = (over?: {
   source?: ExportJsonSource;
   prefs?: ExportJsonPrefsSource;
   scales?: ExportJsonScalesSource;
   appVersion?: string;
-}): { deps: ExportJsonDeps; logger: ExportJsonLogger; source: ExportJsonSource } => {
-  const logger = { debug: vi.fn(), info: vi.fn(), error: vi.fn() };
+}): { deps: ExportJsonDeps; logger: ReturnType<typeof makeLogger>; source: ExportJsonSource } => {
+  const logger = makeLogger();
   const clock: Clock = new FixedClock(NOW_MS, 180);
   const source: ExportJsonSource = {
     getProfile: vi.fn(() => Promise.resolve(profile)),

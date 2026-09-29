@@ -80,7 +80,8 @@ describe('JSON_SNAPSHOT_SCHEMA — валидные формы (TASK-064 §5/§1
   });
 
   it('prefs опционально (§13); prefs: null отвергается — отсутствие это отсутствие ключа', () => {
-    const { prefs: _prefs, ...withoutPrefs } = validSnapshot;
+    const withoutPrefs = { ...validSnapshot } as Record<string, unknown>;
+    delete withoutPrefs.prefs;
     expect(JSON_SNAPSHOT_SCHEMA.safeParse(withoutPrefs).success).toBe(true);
     expect(JSON_SNAPSHOT_SCHEMA.safeParse({ ...withoutPrefs, prefs: null }).success).toBe(false);
   });
@@ -90,9 +91,9 @@ describe('JSON_SNAPSHOT_SCHEMA — валидные формы (TASK-064 §5/§1
     // та же конвенция, что у канала measurements/list (TASK-028).
     const noPulse: MeasurementDto = { ...validMeasurement, pulse: undefined };
     expect(MEASUREMENT_DTO_SCHEMA.safeParse(noPulse).success).toBe(true);
-    expect(JSON_SNAPSHOT_SCHEMA.safeParse({ ...validSnapshot, measurements: [noPulse] }).success).toBe(
-      true,
-    );
+    expect(
+      JSON_SNAPSHOT_SCHEMA.safeParse({ ...validSnapshot, measurements: [noPulse] }).success,
+    ).toBe(true);
     // Ломающий DTO (лишнее поле) ломает слепок: strict-переиспользование, не новый формат.
     expect(
       JSON_SNAPSHOT_SCHEMA.safeParse({
@@ -104,8 +105,10 @@ describe('JSON_SNAPSHOT_SCHEMA — валидные формы (TASK-064 §5/§1
 
   it('профиль: name непустая строка; createdAtUtc — целое ≥0 (мс эпохи, прецедент BackupManifest)', () => {
     expect(
-      JSON_SNAPSHOT_SCHEMA.safeParse({ ...validSnapshot, profiles: [{ ...validProfile, name: '' }] })
-        .success,
+      JSON_SNAPSHOT_SCHEMA.safeParse({
+        ...validSnapshot,
+        profiles: [{ ...validProfile, name: '' }],
+      }).success,
     ).toBe(false);
     expect(
       JSON_SNAPSHOT_SCHEMA.safeParse({
@@ -139,7 +142,15 @@ describe('JSON_SNAPSHOT_SCHEMA — валидные формы (TASK-064 §5/§1
 
 describe('JSON_SNAPSHOT_SCHEMA — строгость состава (§9/§14)', () => {
   it('каждое обязательное корневое поле обязательно (prefs — единственное опциональное)', () => {
-    const requiredKeys = ['formatVersion', 'appVersion', 'createdAtUtc', 'counts', 'profiles', 'measurements', 'scales'];
+    const requiredKeys = [
+      'formatVersion',
+      'appVersion',
+      'createdAtUtc',
+      'counts',
+      'profiles',
+      'measurements',
+      'scales',
+    ];
     for (const key of requiredKeys) {
       const without = { ...validSnapshot } as Record<string, unknown>;
       delete without[key];
@@ -150,8 +161,10 @@ describe('JSON_SNAPSHOT_SCHEMA — строгость состава (§9/§14)'
   it('counts — оба счётчика обязательны, целые ≥0; лишние поля отвергаются (counts — факт, §9)', () => {
     expect(JSON_SNAPSHOT_SCHEMA.safeParse({ ...validSnapshot, counts: {} }).success).toBe(false);
     expect(
-      JSON_SNAPSHOT_SCHEMA.safeParse({ ...validSnapshot, counts: { measurements: -1, profiles: 1 } })
-        .success,
+      JSON_SNAPSHOT_SCHEMA.safeParse({
+        ...validSnapshot,
+        counts: { measurements: -1, profiles: 1 },
+      }).success,
     ).toBe(false);
     expect(
       JSON_SNAPSHOT_SCHEMA.safeParse({
@@ -163,8 +176,10 @@ describe('JSON_SNAPSHOT_SCHEMA — строгость состава (§9/§14)'
 
   it('counts 1.5/строкой отвергаются — счётчики из фактов (§9)', () => {
     expect(
-      JSON_SNAPSHOT_SCHEMA.safeParse({ ...validSnapshot, counts: { measurements: 1.5, profiles: 1 } })
-        .success,
+      JSON_SNAPSHOT_SCHEMA.safeParse({
+        ...validSnapshot,
+        counts: { measurements: 1.5, profiles: 1 },
+      }).success,
     ).toBe(false);
     expect(
       JSON_SNAPSHOT_SCHEMA.safeParse({
@@ -177,7 +192,8 @@ describe('JSON_SNAPSHOT_SCHEMA — строгость состава (§9/§14)'
 
 describe('JSON_SNAPSHOT_SCHEMA — ломающие кейсы отвергаются (§19/AC5)', () => {
   it('ломающий 1: отсутствует formatVersion — отвергается', () => {
-    const { formatVersion: _fv, ...noVersion } = validSnapshot;
+    const noVersion = { ...validSnapshot } as Record<string, unknown>;
+    delete noVersion.formatVersion;
     expect(JSON_SNAPSHOT_SCHEMA.safeParse(noVersion).success).toBe(false);
   });
 
