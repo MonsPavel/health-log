@@ -9,10 +9,13 @@
  *  - request.signal (abort) → client.cancel(requestId): реальный воркер
  *    остановит стрим и закроет done(cancelled) — единообразие §13;
  *  - cancel() порт-метод → cancel(requestId) АКТИВНОЙ генерации этой обёртки
- *    (порт без requestId — движок держит один слот генерации, §5 076); разрыв
- *    потока потребителем (break/return) генерацию НЕ отменяет — как у реального
- *    стрима (AsyncGenerator.return() не может прервать never-settling await
- *    очереди; завершение — signal запроса или cancel(), контракт порта);
+ *    (порт без requestId — движок держит один слот генерации, §5 076); адресат —
+ *    реестр in-flight (промис клиента не завершён): BUSY-отказ второй параллельной
+ *    не вытесняет стримящую (ревью TASK-078 — activeRequestId перезаписывался и
+ *    cancel терял активную генерацию); разрыв потока потребителем (break/return)
+ *    генерацию НЕ отменяет — как у реального стрима (AsyncGenerator.return() не
+ *    может прервать never-settling await очереди; завершение — signal запроса
+ *    или cancel(), контракт порта);
  *  - ensureModel(modelId) → client.load(modelId), идемпотентно (§19): тот же
  *    id — no-op; отказ load не фиксирует модель (ретри следующим вызовом);
  *  - status() → EngineStatus §7: busy — по состоянию клиента ('busy'),
@@ -155,8 +158,17 @@ export class ProcessLlmEngine implements LlmEngine {
   private readonly maxTokens: number;
 
   private modelId: string | undefined;
-  /** requestId последней СТАРТОВАННОЙ обёрткой генерации (для cancel() порта). */
-  private activeRequestId: string | undefined;
+  /**
+   * Реестр генераций, чей промис клиента ещё НЕ завершён (адресат cancel()
+   * порта). Слот у клиента один (§5 076): в полёте — одна генерация; вторая
+   * параллельная отклоняется AI/BUSY гардом клиента и из реестра уходит в тот
+   * же тик, НЕ вытесняя стримящую (ревью TASK-078: одиночный activeRequestId
+   * перезаписывался запуском №2 и очищался её отказом — cancel() становился
+   * no-op до конца генерации №1, расходясь с FakeLlmEngine, где BUSY бросается
+   * до занятия слота). Разрыв потребителем оставляет id в реестре — cancel()
+   * порта по-прежнему достаёт генерацию (контракт порта).
+   */
+  private readonly inflight = new Set<string>();
   private requestCounter = 0;
 
   constructor(options: ProcessLlmEngineOptions) {
@@ -191,10 +203,15 @@ export class ProcessLlmEngine implements LlmEngine {
     };
   }
 
-  /** Отмена активной генерации этой обёртки (без сигнала); идемпотентна. */
+  /**
+   * Отмена активной генерации этой обёртки (без сигнала); идемпотентна. Адресат —
+   * реестр in-flight (см. поле): обычно одна генерация; повторные cancel тех же id
+   * и cancel незнакомых клиент молча игнорирует (§13 076), поэтому обход реестра
+   * без выбора «главной» безопасен.
+   */
   cancel(): void {
-    if (this.activeRequestId !== undefined) {
-      this.processClient.cancel(this.activeRequestId);
+    for (const requestId of this.inflight) {
+      this.processClient.cancel(requestId);
     }
   }
 
@@ -211,7 +228,7 @@ export class ProcessLlmEngine implements LlmEngine {
     }
 
     const requestId = `llm-engine-${(this.requestCounter += 1)}`;
-    this.activeRequestId = requestId;
+    this.inflight.add(requestId);
     const queue = new EngineChunkQueue();
     const onAbort = (): void => {
       // Реальный воркер остановит стрим и закроет done(cancelled) (§13 076).
@@ -226,13 +243,14 @@ export class ProcessLlmEngine implements LlmEngine {
     );
     void run.then(
       (result) => {
-        this.clearActive(requestId);
+        this.inflight.delete(requestId);
         request.signal.removeEventListener('abort', onAbort);
         queue.finish(result.finishReason);
       },
-      // Отказ промиса клиента — AppError по построению 076 (контракт TASK-006).
+      // Отказ промиса клиента — AppError по построению 076 (контракт TASK-006);
+      // BUSY-отказ уходит из реестра, не задевая стримящую параллельную генерацию.
       (error: AppError) => {
-        this.clearActive(requestId);
+        this.inflight.delete(requestId);
         request.signal.removeEventListener('abort', onAbort);
         queue.fail(error);
       },
@@ -242,11 +260,5 @@ export class ProcessLlmEngine implements LlmEngine {
     // (см. шапку): return() на приостановке await не завершится, пока очередь не
     // разбудит финал; завершать генерацию обязан потребитель (signal/cancel).
     yield* queue.stream();
-  }
-
-  private clearActive(requestId: string): void {
-    if (this.activeRequestId === requestId) {
-      this.activeRequestId = undefined;
-    }
   }
 }

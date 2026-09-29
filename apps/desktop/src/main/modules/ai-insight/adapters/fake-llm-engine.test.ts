@@ -153,6 +153,23 @@ describe('FakeLlmEngine — BUSY и слот генерации (TASK-078 §13)'
     await collect(engine.complete(request('запрос')));
     expect(engine.status().busy).toBe(false);
   });
+
+  it('BUSY-отказ второй параллельной не затрагивает слот №1: cancel() достаёт стримящую (ревью TASK-078 — зеркально process-адаптеру, §4)', async () => {
+    const engine = new FakeLlmEngine({ delayMs: 5 });
+    const first = engine.complete(request('первый'));
+    const opened = await openStream(first);
+
+    // Вторая генерация отклонена BUSY (до занятия слота — активной остаётся №1).
+    await expect(collect(engine.complete(request('второй')))).rejects.toMatchObject({
+      code: 'AI/BUSY',
+    });
+
+    // cancel() порта отменяет именно стримящую №1.
+    engine.cancel();
+    const rest = await drain(opened.iterator);
+    expect(rest.at(-1)).toEqual({ done: 'cancelled' });
+    expect(engine.status().busy).toBe(false);
+  });
 });
 
 describe('FakeLlmEngine — отмена (TASK-078 §13)', () => {

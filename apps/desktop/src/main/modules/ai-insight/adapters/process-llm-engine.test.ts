@@ -276,6 +276,52 @@ describe('ProcessLlmEngine — ensureModel/cancel/status (TASK-078 §5/§19)', (
     expect(client.cancels).toHaveLength(1);
   });
 
+  it('BUSY-отказ второй параллельной НЕ теряет активную генерацию: cancel() порта достаёт стримящую №1 (ревью TASK-078)', async () => {
+    const client = new FakeProcessClient();
+    const engine = new ProcessLlmEngine({ client });
+
+    // №1 стартована и стримит (поток открыт, промис клиента не завершён).
+    const first = await startStream(engine.complete(request()));
+
+    // №2 стартована и отклонена гардом клиента (AI/BUSY — штатный контракт порта,
+    // llm-engine.ts §13; клиент 076 отклоняет вторую параллельную).
+    const collected = collect(engine.complete(request()));
+    client.generations[1]!.reject(AppError.of('AI/BUSY', 'errors.AI_BUSY'));
+    await expect(collected).rejects.toMatchObject({ code: 'AI/BUSY' });
+
+    // cancel() порта обязан достать ВСЁ ЕЩЁ СТРИМЯЩУЮ №1 — раньше activeRequestId
+    // был затёрт запуском №2 и очищен её отказом: cancel становился no-op, и
+    // CancelGeneration use case'а (087) не могла остановить генерацию.
+    engine.cancel();
+    expect(client.cancels).toEqual([client.generations[0]!.requestId]);
+
+    // Воркер закрывает №1 done(cancelled) — потребитель получает финал отмены.
+    client.generations[0]!.resolve('cancelled');
+    const rest = await finish(first.first, first.iterator);
+    expect(rest.at(-1)).toEqual({ done: 'cancelled' });
+
+    // Реестр in-flight пуст — cancel снова no-op.
+    engine.cancel();
+    expect(client.cancels).toHaveLength(1);
+  });
+
+  it('параллельные отмены не дублируются: BUSY-отказ №2 не оставляет лишний id в cancel() (ревью TASK-078)', async () => {
+    const client = new FakeProcessClient();
+    const engine = new ProcessLlmEngine({ client });
+
+    const first = await startStream(engine.complete(request()));
+    const collected = collect(engine.complete(request()));
+    client.generations[1]!.reject(AppError.of('AI/BUSY', 'errors.AI_BUSY'));
+    await expect(collected).rejects.toMatchObject({ code: 'AI/BUSY' });
+
+    // Единственная адресат cancel() — стримящая №1; отклонённая №2 не отменяется.
+    engine.cancel();
+    expect(client.cancels).toEqual([client.generations[0]!.requestId]);
+
+    client.generations[0]!.resolve('stop');
+    await finish(first.first, first.iterator);
+  });
+
   it('status: busy по состоянию клиента, modelId — из ensureModel', async () => {
     const client = new FakeProcessClient();
     const engine = new ProcessLlmEngine({ client });
