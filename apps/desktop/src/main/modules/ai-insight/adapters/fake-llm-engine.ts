@@ -110,8 +110,9 @@ export class FakeLlmEngine implements LlmEngine {
   }
 
   /** Идемпотентная фиксация модели (§19): тот же id — no-op, другой — замена. */
-  async ensureModel(modelId: string): Promise<void> {
+  ensureModel(modelId: string): Promise<void> {
     this.modelId = modelId;
+    return Promise.resolve();
   }
 
   /** Статус (§7): loaded — модель фиксирована; busy — слот занят. */
@@ -183,7 +184,10 @@ export class FakeLlmEngine implements LlmEngine {
 
   /** Сценарный выбор ответа (§5): вхождение ключа в текст сообщений запроса. */
   private selectResponse(messages: LlmEngineRequest['messages']): string {
-    const prompt = messages.map((message) => message.content).join('\n').toLowerCase();
+    const prompt = messages
+      .map((message) => message.content)
+      .join('\n')
+      .toLowerCase();
     const scenario = this.scenarios.find((entry) =>
       entry.keywords.some((keyword) => prompt.includes(keyword.toLowerCase())),
     );

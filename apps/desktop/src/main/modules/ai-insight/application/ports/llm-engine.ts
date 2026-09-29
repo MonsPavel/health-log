@@ -64,9 +64,7 @@ export interface LlmEngineRequest {
 }
 
 /** Элемент потока генерации (§5): токен-дельта или финальная причина. */
-export type LlmEngineChunk =
-  | { readonly delta: string }
-  | { readonly done: LlmFinishReason };
+export type LlmEngineChunk = { readonly delta: string } | { readonly done: LlmFinishReason };
 
 /**
  * Порт движка LLM (§5): load/complete-stream/cancel/status. Fake и process —

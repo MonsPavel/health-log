@@ -21,10 +21,7 @@ import type {
   LlmCompleteRequest,
   LlmCompleteResult,
 } from './llm-process-client.js';
-import {
-  ProcessLlmEngine,
-  type LlmEngineProcessClient,
-} from './process-llm-engine.js';
+import { ProcessLlmEngine, type LlmEngineProcessClient } from './process-llm-engine.js';
 import type { LlmEngineChunk, LlmEngineRequest } from '../application/ports/llm-engine.js';
 
 /** Активная генерация fake-клиента: ручная проводка токенов/финала тестом. */
@@ -242,6 +239,7 @@ describe('ProcessLlmEngine — ensureModel/cancel/status (TASK-078 §5/§19)', (
 
   it('отказ load — AppError наружу; modelId не фиксируется, повтор возможен', async () => {
     const client = new FakeProcessClient();
+    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- имитация отказа клиента 076 — AppError (не Error по построению, TASK-006)
     client.loadResult = Promise.reject(
       AppError.of('AI/MODEL_NOT_FOUND', 'errors.AI_MODEL_NOT_FOUND', { model: 'x.gguf' }),
     );

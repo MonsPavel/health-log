@@ -203,9 +203,7 @@ export class ProcessLlmEngine implements LlmEngine {
     return this.generate(request);
   }
 
-  private async *generate(
-    request: LlmEngineRequest,
-  ): AsyncIterableIterator<LlmEngineChunk> {
+  private async *generate(request: LlmEngineRequest): AsyncIterableIterator<LlmEngineChunk> {
     if (request.signal.aborted) {
       // §13: abort до старта — немедленный done(cancelled), клиент не зовётся.
       yield { done: 'cancelled' };
@@ -232,7 +230,7 @@ export class ProcessLlmEngine implements LlmEngine {
         request.signal.removeEventListener('abort', onAbort);
         queue.finish(result.finishReason);
       },
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ промиса клиента — AppError по построению 076 (TASK-006)
+      // Отказ промиса клиента — AppError по построению 076 (контракт TASK-006).
       (error: AppError) => {
         this.clearActive(requestId);
         request.signal.removeEventListener('abort', onAbort);

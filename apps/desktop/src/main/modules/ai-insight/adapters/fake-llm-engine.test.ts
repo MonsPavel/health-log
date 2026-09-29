@@ -44,9 +44,7 @@ async function collect(stream: AsyncIterable<LlmEngineChunk>): Promise<LlmEngine
  * (слот генерации занят; for-await c break закрыл бы генератор return-ом и
  * освободил бы слот — семантика AsyncGenerator, а не движка).
  */
-async function openStream(
-  stream: AsyncIterable<LlmEngineChunk>,
-): Promise<{
+async function openStream(stream: AsyncIterable<LlmEngineChunk>): Promise<{
   iterator: AsyncIterator<LlmEngineChunk>;
   first: IteratorResult<LlmEngineChunk>;
 }> {
@@ -56,9 +54,7 @@ async function openStream(
 }
 
 /** Дочитывает открытый итератор до конца, собирая оставшиеся чанки. */
-async function drain(
-  iterator: AsyncIterator<LlmEngineChunk>,
-): Promise<LlmEngineChunk[]> {
+async function drain(iterator: AsyncIterator<LlmEngineChunk>): Promise<LlmEngineChunk[]> {
   const chunks: LlmEngineChunk[] = [];
   for (;;) {
     const next = await iterator.next();
@@ -71,9 +67,7 @@ async function drain(
 
 /** Соединяет дельты стрима в полный текст ответа. */
 function deltasText(chunks: readonly LlmEngineChunk[]): string {
-  return chunks
-    .map((chunk) => ('delta' in chunk ? chunk.delta : ''))
-    .join('');
+  return chunks.map((chunk) => ('delta' in chunk ? chunk.delta : '')).join('');
 }
 
 /** Запрос по умолчанию (форма §7: стандартный LLM-формат chat-сообщений). */
@@ -115,7 +109,9 @@ describe('FakeLlmEngine — детерминированный стрим (TASK-
   it('сценарная таблица: запрос про «средние» — текст-резюме, прочий запрос — нейтральный текст (§5)', async () => {
     const engine = new FakeLlmEngine();
 
-    const summary = deltasText(await collect(engine.complete(request('Сделай резюме по среднему АД'))));
+    const summary = deltasText(
+      await collect(engine.complete(request('Сделай резюме по среднему АД'))),
+    );
     expect(summary).toBe(`${FAKE_LLM_PREFIX} ${FAKE_AVERAGE_SUMMARY_RESPONSE}`);
 
     const neutral = deltasText(await collect(engine.complete(request('Что такое пульс?'))));
