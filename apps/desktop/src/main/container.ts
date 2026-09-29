@@ -128,6 +128,11 @@ import {
   createDefaultEgressFetch,
   EgressGateway,
 } from './modules/platform-services/egress/egress-gateway.js';
+// TASK-076 §5/§9: LlmProcessClient — main-side клиент llm-worker (UtilityProcess).
+import {
+  createDefaultLlmWorkerSpawn,
+  LlmProcessClient,
+} from './modules/ai-insight/adapters/llm-process-client.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
 import { DeleteMeasurementUseCase } from './modules/measurement/application/delete-measurement.js';
 import { ListMeasurementsUseCase } from './modules/measurement/application/list-measurements.js';
@@ -290,6 +295,13 @@ export interface Container {
    * (обновления); журнал — TASK-099.
    */
   readonly egress: EgressGateway;
+  /**
+   * Клиент llm-worker (TASK-076 §5/§9) — синглтон контейнера: spawn
+   * UtilityProcess ленивый (первая операция), события ai:status/ai:token — в
+   * боевой мост broadcastToWindows (§11). Потребители — use case'ы ai-insight
+   * (TASK-077/087+); реальный движок подключит 077.
+   */
+  readonly llm: LlmProcessClient;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
 }
@@ -620,6 +632,18 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       fetch: egressFetch,
       notify: broadcastToWindows,
     });
+    //      TASK-076 §5/§9: LlmProcessClient — синглтон контейнера. Spawn ленивый
+    //      (первая операция — сборка контейнера в node-vitest не спавнит, §19);
+    //      боевая фабрика — utilityProcess.fork + MessageChannelMain (ленивый
+    //      import electron, прецедент createDefaultEgressFetch: вне Electron-
+    //      рантайма честный отказ при ВЫЗОВЕ); события ai:status/ai:token — боевой
+    //      мост broadcastToWindows (§11, как net:activity); лог — категория ai (§18).
+    const llmWorkerSpawn = await createDefaultLlmWorkerSpawn();
+    const llm = new LlmProcessClient({
+      spawn: llmWorkerSpawn,
+      notify: broadcastToWindows,
+      logger: createLogger('ai'),
+    });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -800,6 +824,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       fileOpQueue,
       scheduler,
       egress,
+      llm,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op
@@ -824,6 +849,10 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         // job отклоняются — will-quit не висит (AC4). terminate async — fire-and-forget.
         logger.info('worker pool shutdown: terminating', { reason: 'will-quit' });
         void workerPool.terminate();
+        // TASK-076 §9: клиент llm-worker — после пула: процесс ИИ убивается без
+        // перезапуска, активная генерация отклоняется (потерянное резюме при
+        // закрытии приложения допустимо — не сохранено и не потеряно, §8).
+        llm.dispose();
       },
     };
   } catch (error) {
