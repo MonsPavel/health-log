@@ -12,11 +12,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import axe from 'axe-core';
 import { createElement, type ReactElement, type ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ApiEnvelope, DataWipePlan } from '@hl/contracts';
 
-import '../../../i18n';
+import '../../../../i18n';
 import { PROFILE_ID } from '../../../measurement/api/use-add-measurement';
 import { WipeFlow } from './WipeFlow';
 
@@ -74,7 +74,7 @@ describe('WipeFlow — план (§5: предупреждение-список,
     );
     renderFlow();
 
-    expect(invoke).toHaveBeenCalledWith('data/wipe', { phase: 'plan' });
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('data/wipe', { phase: 'plan' }));
     expect(screen.getByTestId('data-wipe-loading').textContent).toContain('Составляем список');
 
     release({ v: 1, ok: true, data: { plan: PLAN } });
@@ -217,12 +217,10 @@ describe('WipeFlow — ошибка плана и доступность (§10/�
 
   it('axe — violations с impact=critical отсутствуют (шаг плана, §20)', async () => {
     await renderAtPlan();
-    const { container } = screen.getByTestId('data-wipe-plan').closest('body') as HTMLElement;
-    // Axe по контейнеру портала (диалог в body — прецедент DeleteConfirmDialog).
-    const results = await axe.run(
-      (container.querySelector('[data-testid="data-wipe-dialog"]')?.parentElement ??
-        container) as HTMLElement,
-    );
+    const dialog = document.querySelector('[data-testid="data-wipe-dialog"]') as HTMLElement;
+
+    // Axe по поддереву Content (портал Radix живёт в body — мимо фокус-гардов).
+    const results = await axe.run(dialog);
 
     expect(results.violations.filter((v) => v.impact === 'critical')).toEqual([]);
   });

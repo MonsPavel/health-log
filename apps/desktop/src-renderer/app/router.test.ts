@@ -29,10 +29,17 @@ const SECTIONS = [
   { href: '#/settings', label: 'Настройки' },
 ] as const;
 
-/** Маршруты-заглушки (журнал с TASK-031 — экран истории; настройки с TASK-047 — реальный экран; динамика с TASK-057 — реальный экран). */
+/**
+ * Маршруты-заглушки (журнал с TASK-031 — экран истории; настройки с TASK-047 —
+ * реальный экран; динамика с TASK-057 — реальный экран; отчёты с TASK-073 —
+ * реальная секция «Данные»).
+ */
 const WIP_SECTIONS = SECTIONS.filter(
   (section) =>
-    section.href !== '#/journal' && section.href !== '#/settings' && section.href !== '#/dashboard',
+    section.href !== '#/journal' &&
+    section.href !== '#/settings' &&
+    section.href !== '#/dashboard' &&
+    section.href !== '#/reports',
 );
 
 function renderRouterAt(hash: string): void {
@@ -78,6 +85,17 @@ describe('AppRouter — маршруты (§5)', () => {
       expect(screen.getByText('Экран появится после настройки')).not.toBeNull();
     },
   );
+
+  it('#/reports: реальная секция «Данные» (TASK-073) — копия/восстановление/удаление', async () => {
+    renderRouterAt('#/reports');
+
+    expect(await screen.findByRole('heading', { name: 'Отчёты' })).not.toBeNull();
+    expect(screen.getByTestId('data-care')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Данные' })).not.toBeNull();
+    expect(screen.getByTestId('data-backup-button').textContent).toBe('Создать копию');
+    expect(screen.getByTestId('data-restore-button').textContent).toBe('Восстановить из копии');
+    expect(screen.getByTestId('data-wipe-button').textContent).toBe('Удалить все данные');
+  });
 
   it('#/journal: экран истории, «Добавить» открывает форму измерения (TASK-033 §4)', async () => {
     // Мост журнала: list → пусто (доответ mockHlBridge в beforeEach),

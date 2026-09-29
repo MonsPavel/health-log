@@ -13,11 +13,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import axe from 'axe-core';
 import { createElement, type ReactElement, type ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ApiEnvelope, BackupRestorePlan } from '@hl/contracts';
 
-import '../../../i18n';
+import '../../../../i18n';
 import { RestoreFlow } from './RestoreFlow';
 
 /** Мост `window.hl` с журналом вызовов (§19, прецедент ExportButtons.test). */
@@ -236,10 +236,13 @@ describe('RestoreFlow — навигация и доступность (§10/§1
   });
 
   it('axe — violations с impact=critical отсутствуют (шаг файла, §20)', async () => {
-    const { container } = render(createElement(RestoreFlow, { open: true, onClose: () => undefined }));
-    await waitFor(() => expect(screen.getByTestId('data-restore-dialog')).toBeDefined());
+    renderFlow();
+    const dialog = (await waitFor(() =>
+      document.querySelector('[data-testid="data-restore-dialog"]'),
+    )) as HTMLElement;
 
-    const results = await axe.run(container);
+    // Axe по поддереву Content (портал Radix живёт в body — мимо фокус-гардов).
+    const results = await axe.run(dialog);
 
     expect(results.violations.filter((v) => v.impact === 'critical')).toEqual([]);
   });

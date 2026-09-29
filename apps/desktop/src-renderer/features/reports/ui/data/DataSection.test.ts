@@ -9,11 +9,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import axe from 'axe-core';
 import { createElement, type ReactElement, type ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ApiEnvelope } from '@hl/contracts';
 
-import '../../../i18n';
+import '../../../../i18n';
 import { DataSection } from './DataSection';
 
 /** Мост `window.hl` с журналом вызовов (§19, прецедент ExportButtons.test). */

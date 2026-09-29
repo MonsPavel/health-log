@@ -11,12 +11,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import axe from 'axe-core';
-import { createElement, type ReactElement, type ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createElement, useState, type ReactElement, type ReactNode } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ApiEnvelope } from '@hl/contracts';
 
-import '../../../i18n';
+import '../../../../i18n';
 import { BackupDialog } from './BackupDialog';
 
 /** Мост `window.hl` с журналом вызовов (§19, прецедент ExportButtons.test). */
@@ -34,13 +34,27 @@ afterEach(() => {
   invoke.mockReset();
 });
 
-function renderDialog(open = true): void {
+/**
+ * Рендер с харнессом-владельцем модальности (зеркало DataSection): onClose реально
+ * закрывает диалог — поведение «диалог закрыт после успеха/отмены» проверяется честно.
+ */
+function renderDialog(onCloseSpy: () => void = () => undefined): void {
   const client = new QueryClient();
+  function Harness(): JSX.Element {
+    const [open, setOpen] = useState(true);
+    return createElement(BackupDialog, {
+      open,
+      onClose: () => {
+        onCloseSpy();
+        setOpen(false);
+      },
+    }) as ReactElement;
+  }
   render(
     createElement(
       QueryClientProvider,
       { client },
-      createElement(BackupDialog, { open, onClose: () => undefined }) as ReactElement,
+      createElement(Harness) as ReactElement,
     ) as ReactNode,
   );
 }
@@ -124,13 +138,15 @@ describe('BackupDialog — валидация до канала (§19: мисм�
     expect(invoke).not.toHaveBeenCalled();
   });
 
-  it('короткий пароль (политика — предупреждение, не блокировка §13 070) → канал вызван', () => {
+  it('короткий пароль (политика — предупреждение, не блокировка §13 070) → канал вызван', async () => {
     renderDialog();
     fillPasswords('коротко', 'коротко');
 
     fireEvent.click(submit());
 
-    expect(invoke).toHaveBeenCalledWith('backup/create', { mode: 'ask', passphrase: 'коротко' });
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('backup/create', { mode: 'ask', passphrase: 'коротко' }),
+    );
   });
 });
 
@@ -164,7 +180,7 @@ describe('BackupDialog — исходы канала backup/create (§7/§10/§1
     expect(screen.queryByRole('status')).toBeNull();
   });
 
-  it('BACKUP/FAILED — инлайн-ошибка в диалоге, диалог остаётся открыт (§10: контекст важен)', async () => {
+  it('BACKUP/FAILED — инлайн-ошибка канона каталога errors.*, диалог остаётся открыт (§10)', async () => {
     invoke.mockResolvedValue(failedEnvelope());
     renderDialog();
     fillPasswords('пароль-копии', 'пароль-копии');
@@ -173,7 +189,7 @@ describe('BackupDialog — исходы канала backup/create (§7/§10/§1
 
     await waitFor(() =>
       expect(screen.getByTestId('data-backup-error').textContent).toBe(
-        'Не удалось создать копию. Попробуйте ещё раз.',
+        'Не удалось выполнить операцию с копией. Попробуйте ещё раз.',
       ),
     );
     expect(screen.queryByTestId('data-backup-dialog')).not.toBeNull();
@@ -206,12 +222,13 @@ describe('BackupDialog — доступность (§16/§20)', () => {
   });
 
   it('axe — violations с impact=critical отсутствуют (§20)', async () => {
-    const { container } = render(
-      createElement(BackupDialog, { open: true, onClose: () => undefined }),
-    );
-    await waitFor(() => expect(screen.getByTestId('data-backup-dialog')).toBeDefined());
+    renderDialog();
+    const dialog = (await waitFor(() =>
+      document.querySelector('[data-testid="data-backup-dialog"]'),
+    )) as HTMLElement;
 
-    const results = await axe.run(container);
+    // Axe по поддереву Content (портал Radix живёт в body — мимо фокус-гардов).
+    const results = await axe.run(dialog);
 
     expect(results.violations.filter((v) => v.impact === 'critical')).toEqual([]);
   });
