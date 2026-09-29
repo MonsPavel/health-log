@@ -41,6 +41,7 @@ export * from './data-care/index.js';
 export * from './export/index.js';
 export * from './file.js';
 export * from './measurement/index.js';
+export * from './models.js';
 export * from './notes/index.js';
 export * from './prefs/index.js';
 export * from './report/index.js';
