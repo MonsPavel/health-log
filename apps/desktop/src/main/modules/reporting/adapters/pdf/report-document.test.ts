@@ -44,12 +44,20 @@ describe('reportFontSources — src шрифтов без схемы file: (ре
     }
   });
 
-  it('POSIX-раскладка CI (file:///home/...) → обычный путь, не URL (регресс ревью)', () => {
-    const posixFontsDir = new URL(
-      'file:///home/runner/work/health-log/apps/desktop/src/main/modules/reporting/adapters/pdf/fonts/',
-    );
-    assertPlainPaths(reportFontSources(posixFontsDir));
-  });
+  it(
+    'POSIX-раскладка CI (file:///home/...) → обычный путь, не URL (регресс ревью)',
+    // win32-вариант fileURLToPath по дизайну ОТКАЗЫВАЕТ (TypeError «path must be
+    // absolute») для POSIX-абсолютных file: URL без буквы диска — это fail-fast,
+    // а не тихий URL; сам регресс охраняется на POSIX-раннерах (pr.yml: ubuntu-
+    // latest), где этот тест выполняется. Реальный каталог-тест выше — на всех ОС.
+    { skip: process.platform === 'win32' },
+    () => {
+      const posixFontsDir = new URL(
+        'file:///home/runner/work/health-log/apps/desktop/src/main/modules/reporting/adapters/pdf/fonts/',
+      );
+      assertPlainPaths(reportFontSources(posixFontsDir));
+    },
+  );
 
   it('Windows-раскладка (file:///D:/...) → обычный путь, не URL', () => {
     const windowsFontsDir = new URL(

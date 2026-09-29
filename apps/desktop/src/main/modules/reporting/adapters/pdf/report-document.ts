@@ -22,6 +22,8 @@
  * §14: примечания пользователя печатаются как текст (react-pdf экранирует);
  * шрифты — Roboto OFL 1.1 (каталог fonts/, LICENSE рядом).
  */
+import { fileURLToPath } from 'node:url';
+
 import {
   Document,
   Font,
@@ -87,18 +89,15 @@ export interface ReportFontSource {
 
 /**
  * src-дескрипторы шрифтов отчёта от URL каталога fonts/ (юнит §19: платформенная
- * раскладка — src обязан быть обычным путём ФС, не 'file:'-URL).
+ * раскладка — src обязан быть обычным путём ФС, не 'file:'-URL: is-url('file:…')
+ * = true → react-pdf пошёл бы в fetch(file:) и упал бы на POSIX-CI; fileURLToPath
+ * из node:url даёт путь и на Windows, и на POSIX — прецедент pdf-tasks-url.ts).
  */
 export function reportFontSources(fontsDirUrl: URL): ReportFontSource[] {
   return [
-    { src: fileUrlToPath(new URL('Roboto-Regular.ttf', fontsDirUrl)) },
-    { src: fileUrlToPath(new URL('Roboto-Bold.ttf', fontsDirUrl)), fontWeight: 700 },
+    { src: fileURLToPath(new URL('Roboto-Regular.ttf', fontsDirUrl)) },
+    { src: fileURLToPath(new URL('Roboto-Bold.ttf', fontsDirUrl)), fontWeight: 700 },
   ];
-}
-
-/** file:// URL → путь файловой системы (Font.register читает fs на Windows). */
-function fileUrlToPath(url: URL): string {
-  return decodeURIComponent(url.href.replace(/^file:\/\/\/(?=[A-Za-z]:)/, '')).replace(/\//g, '/');
 }
 
 // --- чистая логика секций (юниты §19 без рендера) ---
