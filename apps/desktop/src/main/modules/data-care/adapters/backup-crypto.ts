@@ -51,19 +51,17 @@ export const IV_BYTES = 12;
 /** Длина auth-тега GCM (байты). */
 export const TAG_BYTES = 16;
 
+/**
+ * Ошибка целостности контейнера — с TASK-071 живёт в порте BackupCrypto (часть
+ * контракта: use case восстановления маппит её в коды BACKUP/*, application не
+ * импортирует адаптеры, арх. 03 §4). Реэкспорт — совместимость существующих
+ * импортов (прецедент порта notes-search).
+ */
+import { BackupIntegrityError } from '../application/ports/backup-crypto.js';
+export { BackupIntegrityError };
+
 /** Минимальная соль Argon2id (байты) — требование алгоритма. */
 const ARGON2_MIN_SALT_BYTES = 8;
-
-/**
- * Ошибка целостности контейнера (§14/AC-3): GCM отклонил шифртекст/AAD/тег —
- * неверный пароль копии или порча файла. Наружу (071) маппится в BACKUP/*-коды.
- */
-export class BackupIntegrityError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = 'BackupIntegrityError';
-  }
-}
 
 /**
  * Выводит 32-байтный ключ содержимого из пароля копии (§8): Argon2id с солью и

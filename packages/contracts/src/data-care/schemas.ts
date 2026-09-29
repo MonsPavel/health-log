@@ -127,3 +127,72 @@ export const BACKUP_CREATE_RESPONSE_SCHEMA = z
 
 export type BackupCreateRequest = z.output<typeof BACKUP_CREATE_REQUEST_SCHEMA>;
 export type BackupCreateResponse = z.output<typeof BACKUP_CREATE_RESPONSE_SCHEMA>;
+
+/**
+ * TASK-071 §7/§11: план восстановления — результат фазы 1 канала `backup/restore`.
+ * Показывается пользователю ДО подтверждения (§10: план → предупреждения →
+ * подтверждение → execute); полный манифест наружу не идёт (соль/запись kdf
+ * рендереру не нужны, §14 — минимум данных).
+ */
+export const BACKUP_RESTORE_PLAN_SCHEMA = z
+  .object({
+    /** schema_version БД внутри копии (из манифеста, §5). */
+    schemaVersion: z.number().int().min(0),
+    /** Сравнение с текущей БД (§5/§13): equal — та же схема, older — миграции при старте, newer — отказ DB_NEWER. */
+    schemaDelta: z.enum(['equal', 'older', 'newer']),
+    /** Момент создания копии, мс эпохи Unix (из манифеста, §5). */
+    createdAtUtc: z.number().int().min(0),
+    /** Счётчики копии (из манифеста, §5). */
+    counts: z.object({ measurements: z.number().int().min(0) }).strict(),
+    /** Счётчики ТЕКУЩЕЙ БД (§5/§13: «в копии 120 записей, сейчас 350» — факт, не оценка). */
+    currentCounts: z.object({ measurements: z.number().int().min(0) }).strict(),
+    /**
+     * Предупреждения (§7): `replaces-current` — всегда (текущие данные будут
+     * заменены, согласованность даже при пустой БД, §13); `older-than-current` —
+     * копия старее текущей схемы (после перезапуска применятся миграции).
+     */
+    warnings: z.array(z.enum(['replaces-current', 'older-than-current'])),
+  })
+  .strict();
+
+export type BackupRestorePlan = z.output<typeof BACKUP_RESTORE_PLAN_SCHEMA>;
+
+/**
+ * TASK-071 §11: запрос канала `backup/restore` — двухфазный (§7: execute только
+ * после явного confirmed=true вторым вызовом — против случайного двойного клика):
+ *  - фаза 1 `{file, passphrase, confirmed: false}` → `{plan}`|ошибки;
+ *  - фаза 2 `{file, passphrase, confirmed: true}` → `{restarting: true}`.
+ * `file` — путь контейнера, выбранного рендерером диалогом (073); пароль копии —
+ * обязательное непустое поле (IPC-гигиена §14: лимит длины, как у backup/create).
+ */
+export const BACKUP_RESTORE_REQUEST_SCHEMA = z.discriminatedUnion('confirmed', [
+  z
+    .object({
+      confirmed: z.literal(false),
+      file: z.string().min(1).max(1024),
+      passphrase: z.string().min(1).max(1024),
+    })
+    .strict(),
+  z
+    .object({
+      confirmed: z.literal(true),
+      file: z.string().min(1).max(1024),
+      passphrase: z.string().min(1).max(1024),
+    })
+    .strict(),
+]);
+
+/**
+ * TASK-071 §11: ответ канала — union по фазе: план (`plan`) после фазы 1 или факт
+ * запланированного перезапуска (`restarting: true`) после фазы 2 (§9: ответ уходит
+ * до relaunch — канал завершается, приложение перезапускается отложенно). Формы
+ * различны по ключам (discriminator-ключа общего нет — потому plain union), обе
+ * strict: смешанная форма отвергается.
+ */
+export const BACKUP_RESTORE_RESPONSE_SCHEMA = z.union([
+  z.object({ plan: BACKUP_RESTORE_PLAN_SCHEMA }).strict(),
+  z.object({ restarting: z.literal(true) }).strict(),
+]);
+
+export type BackupRestoreRequest = z.output<typeof BACKUP_RESTORE_REQUEST_SCHEMA>;
+export type BackupRestoreResponse = z.output<typeof BACKUP_RESTORE_RESPONSE_SCHEMA>;

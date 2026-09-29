@@ -40,14 +40,22 @@ import {
   TAG_BYTES,
   type Argon2Params,
 } from './backup-crypto.js';
-import type {
-  BackupCrypto,
-  BackupKeySource,
-  BackupKdf,
-  PreparedBackupKey,
-  ReadContainerResult,
-  WriteContainerInput,
+import {
+  BackupContainerFormatError,
+  type BackupCrypto,
+  type BackupKeySource,
+  type BackupKdf,
+  type PreparedBackupKey,
+  type ReadContainerResult,
+  type ReadHeaderResult,
+  type WriteContainerInput,
 } from '../application/ports/backup-crypto.js';
+
+/**
+ * Ошибка формата контейнера — с TASK-071 живёт в порте BackupCrypto (см. шапку
+ * порта). Реэкспорт — совместимость существующих импортов.
+ */
+export { BackupContainerFormatError };
 
 /** Магия формата (§4: HLBK1 — «Health Log Backup v1»). */
 const BACKUP_MAGIC = Buffer.from('HLBK1', 'utf8');
@@ -58,12 +66,39 @@ const MANIFEST_MAX_BYTES = 64 * 1024;
 /** Минимальный размер контейнера: заголовок + iv + тег (+ непустой манифест). */
 const MIN_CONTAINER_BYTES = HEADER_BYTES + IV_BYTES + TAG_BYTES + 2;
 
-/** Ошибка формата контейнера (не крипто): чужая магия, битые длины, не-JSON манифест. */
-export class BackupContainerFormatError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = 'BackupContainerFormatError';
+/**
+ * Разбор заголовка (§4): magic/длины (FormatError) → срезы манифеста, iv,
+ * шифртекста и тега. Разбор НЕ аутентифицирует байты — GCM-проверка в
+ * readContainer (§14: сначала аутентификация, потом использование).
+ */
+function parseHeader(file: Buffer): {
+  readonly manifestJson: Buffer;
+  readonly iv: Buffer;
+  readonly ciphertext: Buffer;
+  readonly tag: Buffer;
+} {
+  if (
+    file.length < MIN_CONTAINER_BYTES ||
+    !file.subarray(0, BACKUP_MAGIC.length).equals(BACKUP_MAGIC)
+  ) {
+    throw new BackupContainerFormatError('контейнер копии повреждён: магия HLBK1 не найдена (§4)');
   }
+  const manifestLength = file.readUInt32BE(BACKUP_MAGIC.length);
+  const manifestStart = HEADER_BYTES;
+  const ivStart = manifestStart + manifestLength;
+  const ciphertextStart = ivStart + IV_BYTES;
+  const tagStart = file.length - TAG_BYTES;
+  if (manifestLength < 2 || manifestLength > MANIFEST_MAX_BYTES || ciphertextStart > tagStart) {
+    throw new BackupContainerFormatError(
+      'контейнер копии повреждён: длины заголовка не сходятся (§4)',
+    );
+  }
+  return {
+    manifestJson: file.subarray(manifestStart, ivStart),
+    iv: file.subarray(ivStart, ciphertextStart),
+    ciphertext: file.subarray(ciphertextStart, tagStart),
+    tag: file.subarray(tagStart),
+  };
 }
 
 /** Опции кодека (точка сборки; §14: параметры Argon2id переопределяются калибровкой 093). */
@@ -194,30 +229,7 @@ export class BackupContainerCodec implements BackupCrypto {
     containerPath: string;
     contentKey: Buffer;
   }): Promise<ReadContainerResult> {
-    const file = await readFile(input.containerPath);
-    if (
-      file.length < MIN_CONTAINER_BYTES ||
-      !file.subarray(0, BACKUP_MAGIC.length).equals(BACKUP_MAGIC)
-    ) {
-      throw new BackupContainerFormatError(
-        'контейнер копии повреждён: магия HLBK1 не найдена (§4)',
-      );
-    }
-    const manifestLength = file.readUInt32BE(BACKUP_MAGIC.length);
-    const manifestStart = HEADER_BYTES;
-    const ivStart = manifestStart + manifestLength;
-    const ciphertextStart = ivStart + IV_BYTES;
-    const tagStart = file.length - TAG_BYTES;
-    if (manifestLength < 2 || manifestLength > MANIFEST_MAX_BYTES || ciphertextStart > tagStart) {
-      throw new BackupContainerFormatError(
-        'контейнер копии повреждён: длины заголовка не сходятся (§4)',
-      );
-    }
-
-    const manifestJson = file.subarray(manifestStart, ivStart);
-    const iv = file.subarray(ivStart, ciphertextStart);
-    const tag = file.subarray(tagStart);
-    const ciphertext = file.subarray(ciphertextStart, tagStart);
+    const header = parseHeader(await readFile(input.containerPath));
 
     // ПОРЯДОК (§14): сначала аутентификация (манифест — AAD), потом разбор JSON —
     // ЛЮБАЯ подмена манифеста даёт BackupIntegrityError (необработанный
@@ -225,12 +237,35 @@ export class BackupContainerCodec implements BackupCrypto {
     // означал бы ошибку писавшего — FormatError (патологический случай).
     const payload = decryptBackupPayload({
       contentKey: input.contentKey,
-      iv,
-      aad: manifestJson,
-      tag,
-      ciphertext,
+      iv: header.iv,
+      aad: header.manifestJson,
+      tag: header.tag,
+      ciphertext: header.ciphertext,
     });
 
+    let manifest: unknown;
+    try {
+      manifest = JSON.parse(header.manifestJson.toString('utf8'));
+    } catch (error) {
+      throw new BackupContainerFormatError('манифест контейнера не является JSON (§7)', {
+        cause: error,
+      });
+    }
+
+    return {
+      manifest: manifest as ReadContainerResult['manifest'],
+      manifestJson: header.manifestJson,
+      payload,
+    };
+  }
+
+  /**
+   * Читает заголовок БЕЗ расшифровки (TASK-071 §5): формат-проверки (FormatError),
+   * разбор JSON манифеста — БЕЗ GCM (см. контракт порта: манифест не доверенный
+   * до readContainer; вызыватель валидирует zod и использует только запись kdf).
+   */
+  async readHeader(input: { containerPath: string }): Promise<ReadHeaderResult> {
+    const { manifestJson } = parseHeader(await readFile(input.containerPath));
     let manifest: unknown;
     try {
       manifest = JSON.parse(manifestJson.toString('utf8'));
@@ -239,8 +274,7 @@ export class BackupContainerCodec implements BackupCrypto {
         cause: error,
       });
     }
-
-    return { manifest: manifest as ReadContainerResult['manifest'], manifestJson, payload };
+    return { manifest: manifest as ReadHeaderResult['manifest'], manifestJson };
   }
 }
 

@@ -570,6 +570,7 @@ describe('CreateBackupUseCase — прогресс (AC-6) и очередь (§9
           }
         },
         readContainer: (input) => codec.readContainer(input),
+        readHeader: (input) => codec.readHeader(input),
       };
       const { useCase } = buildHarness(db, { codec: watched });
 

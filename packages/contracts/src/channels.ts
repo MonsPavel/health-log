@@ -24,7 +24,9 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * статистика периода `stats/period` — TASK-054 §5/§11 (схемы — stats/schemas.ts);
  * серии графика `trend/series` — TASK-056 §5/§11 (схемы — trends.ts);
  * создание копии `backup/create` — TASK-070 §6/§11 (схемы — data-care/schemas.ts;
- * канал-контракт здесь, регистрация хендлера с UI — TASK-073).
+ * канал-контракт здесь, регистрация хендлера с UI — TASK-073);
+ * восстановление из копии `backup/restore` (двухфазный: plan → execute) — TASK-071
+ * §6/§11 (схемы — data-care/schemas.ts; регистрация хендлера — TASK-073).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -37,6 +39,7 @@ export type ChannelName =
   | 'app/ping'
   | 'app/log-client-error'
   | 'backup/create'
+  | 'backup/restore'
   | 'measurements/add'
   | 'measurements/list'
   | 'measurements/update'

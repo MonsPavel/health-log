@@ -1,17 +1,20 @@
 /**
- * TASK-070 §19: контракт-тесты Data Care — форма канала `backup/create` и
- * манифеста копии (валидатор восстановления TASK-071).
+ * TASK-070 §19/071 §19: контракт-тесты Data Care — формы каналов `backup/create` и
+ * `backup/restore` и манифеста копии (валидатор восстановления TASK-071).
  *
  * Матрица:
  *  - манифест: полная форма §2 разбирается; каждое поле §2 обязательно (strict —
  *    лишние/недостающие поля отвергаются); dbSha256 — строго lowercase-hex 64;
  *  - kdf — discriminated union: `db-key` (авто-копия hook'а, §5/§9) и `argon2id`
  *    с параметрами/солью (§8); посторонний id отвергается;
- *  - запрос: `ask` требует непустой пароль (§8; политика ≥8 — предупреждение UI
+ *  - запрос create: `ask` требует непустой пароль (§8; политика ≥8 — предупреждение UI
  *    073, не блокировка, §13 — пароль из 1 символа формой допускается);
  *    `auto` — без пароля, опциональное имя файла в безопасном наборе символов
  *    (IPC-гигиена §14: `../`, абсолютные пути, чужие расширения отвергаются);
- *  - ответ: basename + размер + манифест; полный путь не предусмотрен (§14).
+ *  - ответ create: basename + размер + манифест; полный путь не предусмотрен (§14);
+ *  - restore (071 §11): двухфазный запрос discriminated union по confirmed
+ *    (false → план, true → execute); план — schemaDelta/warnings/counts (§5/§7);
+ *    ответ — union {plan} | {restarting: true}.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -19,6 +22,9 @@ import {
   BACKUP_CREATE_REQUEST_SCHEMA,
   BACKUP_CREATE_RESPONSE_SCHEMA,
   BACKUP_MANIFEST_SCHEMA,
+  BACKUP_RESTORE_PLAN_SCHEMA,
+  BACKUP_RESTORE_REQUEST_SCHEMA,
+  BACKUP_RESTORE_RESPONSE_SCHEMA,
 } from './schemas.js';
 
 /** Валидный манифест-пример (§2): все поля, kdf=argon2id. */
@@ -154,5 +160,102 @@ describe('BACKUP_CREATE_RESPONSE_SCHEMA (TASK-070 §18: basename, не полн�
     expect(
       BACKUP_CREATE_RESPONSE_SCHEMA.safeParse({ file: 'x.hlbackup', sizeBytes: 10 }).success,
     ).toBe(false);
+  });
+});
+
+/** Валидный план восстановления (071 §5/§7: дельта, счётчики, предупреждения). */
+const validPlan = {
+  schemaVersion: 4,
+  schemaDelta: 'equal',
+  createdAtUtc: 1_758_816_000_000,
+  counts: { measurements: 120 },
+  currentCounts: { measurements: 350 },
+  warnings: ['replaces-current'],
+};
+
+describe('BACKUP_RESTORE_PLAN_SCHEMA (TASK-071 §5/§7)', () => {
+  it('полная форма плана разбирается', () => {
+    expect(BACKUP_RESTORE_PLAN_SCHEMA.parse(validPlan)).toEqual(validPlan);
+  });
+
+  it('schemaDelta — только equal|older|newer; поля обязательны (strict)', () => {
+    expect(
+      BACKUP_RESTORE_PLAN_SCHEMA.safeParse({ ...validPlan, schemaDelta: 'merge' }).success,
+    ).toBe(false);
+    const without = { ...validPlan } as Record<string, unknown>;
+    delete without['currentCounts'];
+    expect(BACKUP_RESTORE_PLAN_SCHEMA.safeParse(without).success).toBe(false);
+    expect(BACKUP_RESTORE_PLAN_SCHEMA.safeParse({ ...validPlan, extra: 1 }).success).toBe(false);
+  });
+
+  it('warnings — enum replaces-current|older-than-current (§7: обе допустимы)', () => {
+    expect(
+      BACKUP_RESTORE_PLAN_SCHEMA.parse({
+        ...validPlan,
+        schemaDelta: 'older',
+        warnings: ['replaces-current', 'older-than-current'],
+      }).warnings,
+    ).toEqual(['replaces-current', 'older-than-current']);
+    expect(
+      BACKUP_RESTORE_PLAN_SCHEMA.safeParse({ ...validPlan, warnings: ['surprise'] }).success,
+    ).toBe(false);
+  });
+});
+
+describe('BACKUP_RESTORE_REQUEST_SCHEMA (TASK-071 §11: две фазы по confirmed)', () => {
+  it('фаза 1 {file, passphrase, confirmed: false} разбирается', () => {
+    expect(
+      BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({
+        confirmed: false,
+        file: 'C:\\backup\\health-log-backup.hlbackup',
+        passphrase: 'пароль-копии',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('фаза 2 {…, confirmed: true} разбирается; без пароля/файла — отказ', () => {
+    expect(
+      BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({
+        confirmed: true,
+        file: 'x.hlbackup',
+        passphrase: 'пароль-копии',
+      }).success,
+    ).toBe(true);
+    expect(
+      BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({ confirmed: true, file: 'x.hlbackup' }).success,
+    ).toBe(false);
+    expect(
+      BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({
+        confirmed: false,
+        file: 'x.hlbackup',
+        passphrase: '',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('confirmed отсутствует или лишние поля — отказ (strict)', () => {
+    expect(BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({ file: 'x', passphrase: 'p' }).success).toBe(
+      false,
+    );
+    expect(
+      BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({
+        confirmed: false,
+        file: 'x',
+        passphrase: 'p',
+        extra: 1,
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('BACKUP_RESTORE_RESPONSE_SCHEMA (TASK-071 §11: plan | restarting)', () => {
+  it('фаза 1: {plan} разбирается', () => {
+    expect(BACKUP_RESTORE_RESPONSE_SCHEMA.parse({ plan: validPlan })).toEqual({ plan: validPlan });
+  });
+
+  it('фаза 2: {restarting: true} разбирается; restart false / пустой объект — отказ', () => {
+    expect(BACKUP_RESTORE_RESPONSE_SCHEMA.safeParse({ restarting: true }).success).toBe(true);
+    expect(BACKUP_RESTORE_RESPONSE_SCHEMA.safeParse({ restarting: false }).success).toBe(false);
+    expect(BACKUP_RESTORE_RESPONSE_SCHEMA.safeParse({}).success).toBe(false);
   });
 });
