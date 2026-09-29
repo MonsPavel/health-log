@@ -28,7 +28,10 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * восстановление из копии `backup/restore` (двухфазный: plan → execute) — TASK-071
  * §6/§11 (схемы — data-care/schemas.ts; регистрация хендлера — TASK-073);
  * полное удаление данных `data/wipe` (двухфазный по phase: plan → execute) —
- * TASK-072 §6/§11 (схемы — data-care/schemas.ts; регистрация хендлера — TASK-073).
+ * TASK-072 §6/§11 (схемы — data-care/schemas.ts; регистрация хендлера — TASK-073);
+ * экспорт CSV/JSON `report/export-csv|export-json` — TASK-065 §5/§11 (схемы —
+ * report/schemas.ts: запрос {profileId}, путь выбирает main-диалог — §14; ответ
+ * {path} | {canceled: true} — отмена не ошибка, §7).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -50,6 +53,8 @@ export type ChannelName =
   | 'notes/search'
   | 'prefs/get'
   | 'prefs/set'
+  | 'report/export-csv'
+  | 'report/export-json'
   | 'scales/active'
   | 'stats/period'
   | 'trend/series';
