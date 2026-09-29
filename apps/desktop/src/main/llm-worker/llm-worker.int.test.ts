@@ -125,6 +125,8 @@ class InProcessWorkerChannel {
 /** Опции echo-движка. */
 interface EchoEngineOptions {
   readonly tokenDelayMs?: number;
+  /** Задержка выгрузки (окно «unload в полёте» для краша, ревью TASK-076). */
+  readonly unloadDelayMs?: number;
   /** Хук краша «процесса» (передаётся каналу — нативный сбой, §19). */
   readonly onCrash?: () => void;
 }
@@ -139,7 +141,10 @@ function createEchoEngine(options: EchoEngineOptions = {}): LlmWorkerEngine {
   const cancelled = new Set<string>();
   return {
     load: () => Promise.resolve(),
-    unload: () => Promise.resolve(),
+    unload: () =>
+      options.unloadDelayMs === undefined
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => setTimeout(resolve, options.unloadDelayMs)),
     complete: (request, emit) => {
       if (process.env['HL_FAKE_WORKER_CRASH'] === '1') {
         delete process.env['HL_FAKE_WORKER_CRASH'];
@@ -186,21 +191,24 @@ function collectingNotify(): {
 /**
  * Клиент над in-process воркерами с БОЕВЫМ циклом; backoff/flush — тестовые.
  * Фабрика движка получает хук краша СВОЕГО канала (краш «убивает» процесс —
- * порт мёртв + exit, как с настоящим UtilityProcess).
+ * порт мёртв + exit, как с настоящим UtilityProcess). Каналы отдаются тесту —
+ * для краша вне движка (ревью TASK-076: unload в полёте + queued load).
  */
 function newClient(
   engineFactory: (crash: () => void) => LlmWorkerEngine,
   notify: LlmNotify,
-): LlmProcessClient {
+): { client: LlmProcessClient; channels: InProcessWorkerChannel[] } {
+  const channels: InProcessWorkerChannel[] = [];
   const spawn: SpawnLlmWorker = () => {
     const channel = new InProcessWorkerChannel();
+    channels.push(channel);
     startLlmWorkerLoop(
       channel.workerTransport,
       engineFactory(() => channel.crash(1)),
     );
     return channel.process;
   };
-  return new LlmProcessClient({
+  const client = new LlmProcessClient({
     spawn,
     notify,
     pathExists: () => true,
@@ -209,6 +217,7 @@ function newClient(
     idleTimeoutMs: 10_000,
     logger: silentLogger,
   });
+  return { client, channels };
 }
 
 const sleep = (ms: number): Promise<void> =>
@@ -226,7 +235,7 @@ afterEach(() => {
 describe('llm-worker.int — полный цикл протокола (§19/§20 AC1)', () => {
   it('load → complete → стрим 10 токенов пачками → done(stop)', async () => {
     const { notify, events } = collectingNotify();
-    const client = newClient((crash) => createEchoEngine({ onCrash: crash }), notify);
+    const { client } = newClient((crash) => createEchoEngine({ onCrash: crash }), notify);
 
     await expect(client.load('test://model.gguf')).resolves.toBeUndefined();
 
@@ -258,7 +267,7 @@ describe('llm-worker.int — полный цикл протокола (§19/§20
   });
 
   it('боевой каркас без движка: load/complete → AI/ENGINE_NOT_CONFIGURED (§5 мост для 077)', async () => {
-    const client = newClient(() => notConfiguredEngine, collectingNotify().notify);
+    const { client } = newClient(() => notConfiguredEngine, collectingNotify().notify);
     await expect(client.load('test://model.gguf')).rejects.toMatchObject({
       code: 'AI/ENGINE_NOT_CONFIGURED',
       messageKey: AI_ENGINE_NOT_CONFIGURED_MESSAGE_KEY,
@@ -272,7 +281,7 @@ describe('llm-worker.int — полный цикл протокола (§19/§20
 
 describe('llm-worker.int — cancel и BUSY (§19/§20 AC4/AC5)', () => {
   it('cancel посреди: поток останавливается, done(cancelled), после отмены токенов нет', async () => {
-    const client = newClient(
+    const { client } = newClient(
       (crash) => createEchoEngine({ tokenDelayMs: 15, onCrash: crash }),
       collectingNotify().notify,
     );
@@ -292,7 +301,7 @@ describe('llm-worker.int — cancel и BUSY (§19/§20 AC4/AC5)', () => {
   });
 
   it('BUSY на второй параллельной генерации (код AI/BUSY); первая завершается штатно', async () => {
-    const client = newClient(
+    const { client } = newClient(
       (crash) => createEchoEngine({ tokenDelayMs: 10, onCrash: crash }),
       collectingNotify().notify,
     );
@@ -310,7 +319,7 @@ describe('llm-worker.int — cancel и BUSY (§19/§20 AC4/AC5)', () => {
   });
 
   it('unload при активной генерации → AI/BUSY; после done — выгружается', async () => {
-    const client = newClient(
+    const { client } = newClient(
       (crash) => createEchoEngine({ tokenDelayMs: 10, onCrash: crash }),
       collectingNotify().notify,
     );
@@ -327,7 +336,7 @@ describe('llm-worker.int — краш и восстановление (§19/§20
   it('краш во время генерации (HL_FAKE_WORKER_CRASH): отклонение requestId, перезапуск + авто-reload, следующая генерация успешна', async () => {
     vi.stubEnv('HL_FAKE_WORKER_CRASH', '1');
     const { notify, events } = collectingNotify();
-    const client = newClient((crash) => createEchoEngine({ onCrash: crash }), notify);
+    const { client } = newClient((crash) => createEchoEngine({ onCrash: crash }), notify);
 
     await client.load('test://model.gguf');
 
@@ -359,7 +368,7 @@ describe('llm-worker.int — краш и восстановление (§19/§20
 
   it('краш после успешной генерации: перезапуск восстанавливает модель, генерация работает', async () => {
     const { notify, events } = collectingNotify();
-    const client = newClient((crash) => createEchoEngine({ onCrash: crash }), notify);
+    const { client } = newClient((crash) => createEchoEngine({ onCrash: crash }), notify);
     await client.load('test://model.gguf');
     await expect(client.complete('req-1', COMPLETE)).resolves.toEqual({ finishReason: 'stop' });
 
@@ -377,5 +386,34 @@ describe('llm-worker.int — краш и восстановление (§19/§20
       .filter((event) => event.name === 'ai:status')
       .map((event) => (event.payload as { state: string }).state);
     expect(statuses).toContain('restarting');
+  });
+});
+
+describe('llm-worker.int — queued-операции при краше (ревью TASK-076, §7/§13/§23)', () => {
+  it('краш во время unload с queued load: unload → WORKER_CRASHED, queued load дожидается перезапуска и проходит (каскад не зависает)', async () => {
+    const { client, channels } = newClient(
+      (crash) => createEchoEngine({ unloadDelayMs: 40, onCrash: crash }),
+      collectingNotify().notify,
+    );
+
+    await client.load('test://model-m1.gguf');
+
+    // unload в полёте (движок держит его 40 мс), queued load за ним (§23).
+    const unloading = client.unload();
+    await sleep(5); // unload ушёл воркеру
+    const unloadingExpectation = expect(unloading).rejects.toMatchObject({
+      code: 'AI/WORKER_CRASHED',
+      messageKey: AI_WORKER_CRASHED_MESSAGE_KEY,
+    });
+    const loading2 = client.load('test://model-m2.gguf');
+    await sleep(5); // m2 дошёл до очереди и залег на слоте unload'а (while pendingCall)
+
+    channels[0]?.crash(1); // краш процесса при незавершённом unload — ровно окно ревью
+    await unloadingExpectation; // unload получил терминальное состояние (§7)
+
+    // Перезапуск (backoff 5 мс) + авто-reload m1, затем queued load уходит новому воркеру.
+    await sleep(60);
+    expect(client.state).toBe('ready');
+    await expect(loading2).resolves.toBeUndefined();
   });
 });

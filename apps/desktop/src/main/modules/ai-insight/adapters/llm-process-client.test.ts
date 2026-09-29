@@ -42,9 +42,15 @@ import {
 class FakePort implements LlmWorkerPort {
   readonly sentToWorker: WorkerRequest[] = [];
   closed = false;
+  /** Следующий postMessage бросит (порт мёртв, exit ещё не дошёл — ревью TASK-076). */
+  failNextPost = false;
   private readonly listeners = new Set<(message: WorkerResponse) => void>();
 
   postMessage(message: WorkerRequest): void {
+    if (this.failNextPost) {
+      this.failNextPost = false;
+      throw new Error('порт закрыт (postMessage failed)');
+    }
     this.sentToWorker.push(message);
   }
 
@@ -574,5 +580,115 @@ describe('LlmProcessClient — краш и автоперезапуск (§13/§
     await sleep(20);
     expect(records).toHaveLength(countAtDispose);
     await expect(client.load('C:/m.gguf')).rejects.toMatchObject({ code: 'APP/INTERNAL' });
+  });
+});
+
+describe('LlmProcessClient — queued-операции при краше (ревью TASK-076: терминальность §7)', () => {
+  it('краш во время unload с queued load: unload отклонён WORKER_CRASHED, queued load дожидается перезапуска и проходит (не висит)', async () => {
+    const { spawn, records } = fakeSpawn();
+    const client = newClient(spawn, collectingNotify().notify);
+    const loaded1 = client.load('C:/m1.gguf');
+    await tick();
+    respondPending(records[0]?.process.port as FakePort, { answered: 0 });
+    await loaded1;
+
+    // unload в полёте (ack НЕ отсылаем), за ним queued load (§23: unload+load).
+    const unloading = client.unload();
+    await tick();
+    const unloadingExpectation = expect(unloading).rejects.toMatchObject({
+      code: 'AI/WORKER_CRASHED',
+      messageKey: AI_WORKER_CRASHED_MESSAGE_KEY,
+    });
+    const loading2 = client.load('C:/m2.gguf'); // встал в очередь за unload
+    await tick();
+
+    records[0]?.process.crash(1);
+    await unloadingExpectation; // unload получил терминальное состояние (§7)
+
+    // Перезапуск + авто-reload m1 (unload не успел завершиться — модель осталась).
+    await sleep(20);
+    expect(records).toHaveLength(2);
+    const port2 = records[1]?.process.port as FakePort;
+    port2.fromWorker({ type: 'ready' }); // ack авто-reload — гейт готовности
+    await tick();
+    await tick();
+
+    // QUEUED load дожил: ушёл НОВОМУ воркеру и разрешается (раньше — вечный pending:
+    // send() глотал при alive === undefined, слот затирался авто-reload'ом).
+    expect(port2.sentToWorker).toEqual([
+      { type: 'load', modelPath: 'C:/m1.gguf' }, // авто-reload
+      { type: 'load', modelPath: 'C:/m2.gguf' }, // queued load
+    ]);
+    port2.fromWorker({ type: 'ready' }); // ack m2
+    await expect(loading2).resolves.toBeUndefined();
+  });
+
+  it('краш во время queued load за load: второй дожидается перезапуска и уходит новому воркеру', async () => {
+    const { spawn, records } = fakeSpawn();
+    const client = newClient(spawn, collectingNotify().notify);
+    const loaded1 = client.load('C:/m1.gguf');
+    await tick();
+    respondPending(records[0]?.process.port as FakePort, { answered: 0 });
+    await loaded1;
+
+    // load m2 в полёте (ack не отсылаем), load m3 — в очереди.
+    const loading2 = client.load('C:/m2.gguf');
+    await tick();
+    const loading2Expectation = expect(loading2).rejects.toMatchObject({
+      code: 'AI/WORKER_CRASHED',
+    });
+    const loading3 = client.load('C:/m3.gguf');
+    await tick();
+
+    records[0]?.process.crash(1);
+    await loading2Expectation;
+
+    await sleep(20);
+    const port2 = records[1]?.process.port as FakePort;
+    port2.fromWorker({ type: 'ready' }); // ack авто-reload m1
+    await tick();
+    await tick();
+    // m3 дожил в очереди и уходит новому воркеру.
+    expect(port2.sentToWorker.at(-1)).toEqual({ type: 'load', modelPath: 'C:/m3.gguf' });
+    port2.fromWorker({ type: 'ready' });
+    await expect(loading3).resolves.toBeUndefined();
+  });
+
+  it('отказ доставки load (мёртвый порт без exit) — терминальный отказ, не вечный pending', async () => {
+    const { spawn, records } = fakeSpawn();
+    const client = newClient(spawn, collectingNotify().notify);
+    const loaded1 = client.load('C:/m1.gguf');
+    await tick();
+    respondPending(records[0]?.process.port as FakePort, { answered: 0 });
+    await loaded1;
+    const port1 = records[0]?.process.port as FakePort;
+
+    port1.failNextPost = true; // send() не доставит: операция обязана завершиться (§7)
+    await expect(client.load('C:/m2.gguf')).rejects.toMatchObject({
+      code: 'AI/WORKER_CRASHED',
+    });
+  });
+
+  it('отказ доставки complete — терминальный отказ без ожидания watchdog (§7)', async () => {
+    const { spawn, records } = fakeSpawn();
+    const client = newClient(spawn, collectingNotify().notify, { idleMs: 10_000 });
+    const loaded1 = client.load('C:/m1.gguf');
+    await tick();
+    respondPending(records[0]?.process.port as FakePort, { answered: 0 });
+    await loaded1;
+    const port1 = records[0]?.process.port as FakePort;
+
+    port1.failNextPost = true;
+    const generating = client.complete('req-1', COMPLETE_REQUEST);
+    // Раньше: генерация висела бы до watchdog (10 с) или вечно — теперь сразу отказ.
+    await expect(generating).rejects.toMatchObject({
+      code: 'AI/WORKER_CRASHED',
+      messageKey: AI_WORKER_CRASHED_MESSAGE_KEY,
+    });
+    // Слот освободился — следующая генерация принимается.
+    const second = client.complete('req-2', COMPLETE_REQUEST);
+    await tick();
+    port1.fromWorker({ type: 'done', requestId: 'req-2', finishReason: 'stop' });
+    await expect(second).resolves.toEqual({ finishReason: 'stop' });
   });
 });

@@ -16,6 +16,14 @@
  * ENGINE_NOT_CONFIGURED до TASK-077). Пользовательские load сериализуются
  * очередью (§23: переключение модели = unload+load, вне генерации).
  *
+ * ТЕРМИНАЛЬНОСТЬ ОПЕРАЦИЙ (§7; ревью TASK-076): операция, стоявшая в очереди за
+ * чужим pendingCall/loadQueue в момент краша, после освобождения слота
+ * маршрутизируется заново через ensureAlive (дождаться рестарта/заспавнить) —
+ * queued load доходит НОВОМУ воркеру. Если доставка всё же не состоялась
+ * (процесс умер в том же тике), send() возвращает false и операция получает
+ * немедленный отказ AI/WORKER_CRASHED — вечных pending нет; complete в этом
+ * случае отклоняется сразу, не дожидаясь watchdog.
+ *
  * БАТЧИНГ ТОКЕНОВ (§11 — деталь зафиксирована): delta воркера копятся в буфер и
  * доставляются подписчику И renderer'у (ai:token) одной пачкой раз в 50 мс —
  * частота ≤20/с приемлема для канала hl:event. done дочищает буфер ДО резолва
@@ -367,6 +375,11 @@ export class LlmProcessClient {
       while (this.pendingCall !== undefined) {
         await this.pendingCall.done.catch(() => undefined);
       }
+      // Слот мог освободиться КРАШОМ (ревью TASK-076): процесс умер, пока эта
+      // операция стояла за чужим pendingCall — маршрутизируем заново через
+      // ensureAlive (дождаться рестарта/заспавнить), иначе send уйдёт в мёртвый
+      // процесс и promise зависнет навсегда (§7: у операции терминальное состояние).
+      await this.ensureAlive();
       const pending = this.createPendingCall();
       this.pendingCall = {
         ...pending,
@@ -375,7 +388,12 @@ export class LlmProcessClient {
           pending.resolve();
         },
       };
-      this.send({ type: 'load', modelPath });
+      if (!this.send({ type: 'load', modelPath })) {
+        // Доставка не состоялась (процесс умер в этом же тике, exit ещё не дошёл) —
+        // терминальный отказ немедленно; exit-путь слот уже не увидит (очищен).
+        this.pendingCall = undefined;
+        pending.reject(workerCrashedError('exit'));
+      }
       return pending.done;
     };
     const result = this.loadQueue.then(run, run);
@@ -407,6 +425,8 @@ export class LlmProcessClient {
     while (this.pendingCall !== undefined) {
       await this.pendingCall.done.catch(() => undefined);
     }
+    // Слот мог освободиться КРАШОМ (ревью TASK-076) — см. комментарий в load().
+    await this.ensureAlive();
     const pending = this.createPendingCall();
     this.pendingCall = {
       ...pending,
@@ -415,7 +435,10 @@ export class LlmProcessClient {
         pending.resolve();
       },
     };
-    this.send({ type: 'unload' });
+    if (!this.send({ type: 'unload' })) {
+      this.pendingCall = undefined;
+      pending.reject(workerCrashedError('exit'));
+    }
     return pending.done;
   }
 
@@ -455,13 +478,20 @@ export class LlmProcessClient {
       };
       this.active = generation;
       this.setState('busy', requestId);
-      this.send({
+      const delivered = this.send({
         type: 'complete',
         requestId,
         messages: request.messages,
         params: request.params,
         maxTokens: request.maxTokens,
       });
+      if (!delivered) {
+        // Доставка не состоялась (процесс умер до отправки) — терминальный отказ
+        // СРАЗУ, а не по истечении watchdog (§7; ревью TASK-076). Статус уже
+        // переведён exit-путём (restarting/failed) — 'ready' здесь не эмитим.
+        this.failGeneration(generation, workerCrashedError('exit'), false);
+        return;
+      }
       this.resetIdleTimer();
     });
   }
@@ -634,7 +664,15 @@ export class LlmProcessClient {
           pending.reject(error);
         },
       };
-      this.send({ type: 'load', modelPath });
+      if (!this.send({ type: 'load', modelPath })) {
+        // Защитная ветка (свежий порт не может быть мёртв, но гейт не вправе висеть):
+        // гейт и слот получают терминальный отказ — операции не зависают (§7).
+        const error = workerCrashedError('exit');
+        alive.readinessDone = true;
+        alive.readyReject(error);
+        pending.reject(error);
+        this.pendingCall = undefined;
+      }
     } else {
       alive.readinessDone = true;
       readyResolve();
@@ -934,19 +972,26 @@ export class LlmProcessClient {
 
   // --- внутреннее: отправка ---
 
-  /** Отправка запроса воркеру; мёртвый порт глушится — exit-путь обработает. */
-  private send(message: WorkerRequest): void {
+  /**
+   * Отправка запроса воркеру. Возвращает false, если доставки НЕ было: процесса
+   * нет (вызывающий код обязан дать операции терминальное состояние — §7, ревью
+   * TASK-076) либо порт бросил (exit-путь подстрахует, повторного set'а не будет
+   * — settled-флаги). Cancel-не-доставка не обрабатывается: cancel идемпотентен.
+   */
+  private send(message: WorkerRequest): boolean {
     const alive = this.alive;
     if (alive === undefined) {
-      return;
+      return false;
     }
     try {
       alive.handle.port.postMessage(message);
+      return true;
     } catch (cause) {
       this.logger.warn('llm-worker: запрос не отправлен (порт закрыт?)', {
         type: message.type,
         cause,
       });
+      return false;
     }
   }
 }
