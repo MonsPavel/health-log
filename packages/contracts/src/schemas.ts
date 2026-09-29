@@ -32,6 +32,7 @@ import {
   PREFS_SET_REQUEST_SCHEMA,
   PREFS_SET_RESPONSE_SCHEMA,
 } from './prefs/schemas.js';
+import { REPORT_EXPORT_REQUEST_SCHEMA, REPORT_EXPORT_RESPONSE_SCHEMA } from './report/schemas.js';
 import { SCALES_ACTIVE_REQUEST_SCHEMA, SCALES_ACTIVE_RESPONSE_SCHEMA } from './scales.js';
 import { STATS_REQUEST_SCHEMA, STATS_RESPONSE_SCHEMA } from './stats/schemas.js';
 import { TREND_REQUEST_SCHEMA, TREND_RESPONSE_SCHEMA } from './trends.js';
@@ -149,6 +150,19 @@ export const CHANNEL_SCHEMAS = {
   'prefs/set': {
     request: PREFS_SET_REQUEST_SCHEMA,
     response: PREFS_SET_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-065 §5/§11: экспорт CSV/JSON (US-27) — {profileId} → {path} | {canceled: true}.
+   * Путь файла выбирает save-диалог main (§14: renderer путь не присылает); отмена —
+   * не ошибка (§7). Оба канала — одна пара схем (запрос одинаков, §5 «аналогично»).
+   */
+  'report/export-csv': {
+    request: REPORT_EXPORT_REQUEST_SCHEMA,
+    response: REPORT_EXPORT_RESPONSE_SCHEMA,
+  },
+  'report/export-json': {
+    request: REPORT_EXPORT_REQUEST_SCHEMA,
+    response: REPORT_EXPORT_RESPONSE_SCHEMA,
   },
   /**
    * TASK-051 §5/§11: активная справочная шкала — {} → полная форма ActiveScale
