@@ -30,6 +30,11 @@ export interface HlEventMap {
    * имена изменённых ключей patch (компактность §7), не значения.
    */
   'prefs:changed': { readonly patchKeys: readonly string[] };
+  /**
+   * TASK-074 §5/§11: показать баннер-подсказку о копии на дашборде (решение о показе
+   * — JobScheduler, дедупликация ≤1/7д). Payload пуст — имя события несёт смысл.
+   */
+  'job:backup-reminder': Record<string, never>;
   /** Технологическое событие журнала main (§18): только ключ сообщения, без PHI. */
   'app:log': { readonly level: HlLogLevel; readonly messageKey: string };
 }
@@ -43,6 +48,7 @@ export const HL_EVENT_PAYLOAD_KEYS = {
   'data:versionBumped': ['newVersion'],
   'measurement:changed': ['profileId'],
   'prefs:changed': ['patchKeys'],
+  'job:backup-reminder': [],
   'app:log': ['level', 'messageKey'],
 } as const satisfies {
   readonly [K in keyof HlEventMap]: readonly (keyof HlEventMap[K])[];

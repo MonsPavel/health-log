@@ -6,6 +6,8 @@
 import type { z } from 'zod';
 
 import type {
+  JOB_LAST_BACKUP_SCHEMA,
+  JOB_STATE_SCHEMA,
   NET_CONSENTS_SCHEMA,
   PREFS_GET_REQUEST_SCHEMA,
   PREFS_GET_RESPONSE_SCHEMA,
@@ -23,6 +25,12 @@ export type PrefsPatch = z.infer<typeof PREFS_PATCH_SCHEMA>;
 
 /** Согласия на сеть (§5/§14): редактор UI — TASK-099, читает EgressGateway TASK-075. */
 export type NetConsents = z.infer<typeof NET_CONSENTS_SCHEMA>;
+
+/** TASK-074 §5: состояние каркасных задач (JobScheduler) в документе prefs. */
+export type JobState = z.infer<typeof JOB_STATE_SCHEMA>;
+
+/** TASK-074 §5: метаданные последней копии (путь/дата). */
+export type JobLastBackup = z.infer<typeof JOB_LAST_BACKUP_SCHEMA>;
 
 /** §11: запрос/ответ prefs/get (полный документ без параметров). */
 export type PrefsGetRequest = z.infer<typeof PREFS_GET_REQUEST_SCHEMA>;

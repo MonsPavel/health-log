@@ -29,6 +29,24 @@ export const DATE_FORMAT_SCHEMA = z.enum(['auto', 'dmy', 'mdy']);
  */
 export const NET_CONSENTS_SCHEMA = z.object({ updatesCheck: z.boolean() }).strict();
 
+/** TASK-074 §5: метаданные последней копии — путь/дата (пишет onSuccess канала backup/create). */
+export const JOB_LAST_BACKUP_SCHEMA = z.object({ path: z.string(), at: z.number() }).strict();
+
+/**
+ * TASK-074 §5/§12: состояние каркасных задач (JobScheduler) — персистентно в prefs:
+ * lastRun задач (jobs: имя → utcMs), дедупликация показа подсказок (shown:
+ * kind → utcMs, «не чаще раза в неделю» §13) и метаданные последней копии.
+ * Объект заменяется ЦЕЛИКОМ (семантика netConsents — без deep-merge): писатель
+ * (scheduler/main) читает документ и возвращает обновлённый целиком.
+ */
+export const JOB_STATE_SCHEMA = z
+  .object({
+    lastBackup: JOB_LAST_BACKUP_SCHEMA.optional(),
+    jobs: z.record(z.string(), z.number()).default({}),
+    shown: z.record(z.string(), z.number()).default({}),
+  })
+  .strict();
+
 /**
  * §5/§22: единый документ настроек (атомарное чтение/запись). Zod-дефолты в схеме —
  * ЕДИНСТВЕННЫЙ источник значений по умолчанию (§8: DEFAULT_PREFS сервиса = parse({})):
@@ -44,6 +62,8 @@ export const PREFS_SCHEMA = z
     advancedMode: z.boolean().default(false),
     /** §14: согласие на сеть по умолчанию НЕ дано (приватность first). */
     netConsents: NET_CONSENTS_SCHEMA.default({ updatesCheck: false }),
+    /** TASK-074 §5: состояние задач планировщика (последний запуск, показы, копия). */
+    jobState: JOB_STATE_SCHEMA.default({ jobs: {}, shown: {} }),
   })
   .strict();
 
@@ -57,6 +77,8 @@ export const PREFS_PATCH_SCHEMA = z.object({
   dateFormat: DATE_FORMAT_SCHEMA.optional(),
   advancedMode: z.boolean().optional(),
   netConsents: NET_CONSENTS_SCHEMA.optional(),
+  // TASK-074 §5/§12: jobState пишут use case'ы/планировщик main (объектом целиком).
+  jobState: JOB_STATE_SCHEMA.optional(),
 });
 
 /** §11: запрос prefs/get — полный документ без параметров. */

@@ -25,6 +25,7 @@ const VALID_PREFS = {
   dateFormat: 'auto',
   advancedMode: false,
   netConsents: { updatesCheck: false },
+  jobState: { jobs: {}, shown: {} },
 } as const;
 
 describe('PREFS_SCHEMA — документ настроек (§5)', () => {
@@ -61,6 +62,33 @@ describe('PREFS_SCHEMA — документ настроек (§5)', () => {
   });
 });
 
+describe('PREFS_SCHEMA — jobState (TASK-074 §5: состояние задач JobScheduler)', () => {
+  it('дефолт: пустой jobState {jobs: {}, shown: {}} без метаданных копии', () => {
+    expect(PREFS_SCHEMA.parse({}).jobState).toEqual({ jobs: {}, shown: {} });
+  });
+
+  it('парсит полный jobState: lastBackup {path, at}; jobs/shown — имя/kind → utcMs', () => {
+    const jobState = {
+      lastBackup: { path: String.raw`C:\users\backup.hlbackup`, at: 1_700_000_000_000 },
+      jobs: { 'backup.reminder': 1_700_000_000_000 },
+      shown: { 'backup-reminder': 1_700_000_000_000 },
+    };
+    expect(PREFS_SCHEMA.parse({ ...VALID_PREFS, jobState }).jobState).toEqual(jobState);
+  });
+
+  it('мусор отклоняется (strict): чужое поле, неверная форма lastBackup, не-число в jobs', () => {
+    expect(
+      PREFS_SCHEMA.safeParse({ ...VALID_PREFS, jobState: { stranger: 1 } }).success,
+    ).toBe(false);
+    expect(
+      PREFS_SCHEMA.safeParse({ ...VALID_PREFS, jobState: { lastBackup: { path: 1 } } }).success,
+    ).toBe(false);
+    expect(
+      PREFS_SCHEMA.safeParse({ ...VALID_PREFS, jobState: { jobs: { j: 'x' } } }).success,
+    ).toBe(false);
+  });
+});
+
 describe('PREFS_PATCH_SCHEMA — patch set (§7/§11)', () => {
   it('пустой patch валиден (частичное обновление)', () => {
     expect(PREFS_PATCH_SCHEMA.parse({})).toEqual({});
@@ -82,6 +110,14 @@ describe('PREFS_PATCH_SCHEMA — patch set (§7/§11)', () => {
       netConsents: { updatesCheck: true },
     });
     expect(PREFS_PATCH_SCHEMA.safeParse({ netConsents: {} }).success).toBe(false);
+  });
+
+  it('jobState — объектом целиком (без deep-merge, семантика netConsents; TASK-074 §5/§12)', () => {
+    expect(PREFS_PATCH_SCHEMA.parse({ jobState: { shown: { 'backup-reminder': 1 } } })).toEqual({
+      jobState: { shown: { 'backup-reminder': 1 }, jobs: {} },
+    });
+    expect(PREFS_PATCH_SCHEMA.safeParse({ jobState: { stranger: 1 } }).success).toBe(false);
+    expect(PREFS_PATCH_SCHEMA.safeParse({ jobState: { jobs: 5 } }).success).toBe(false);
   });
 });
 
