@@ -49,7 +49,8 @@ import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import { CHANNEL_SCHEMAS } from '@hl/contracts';
-import { AppError, SystemClock, type Clock } from '@hl/kernel';
+import type { BackupCreateRequest } from '@hl/contracts';
+import { AppError, SystemClock, type Clock, type Result } from '@hl/kernel';
 import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 
 import { createLogClientErrorHandler } from './app/global-errors.js';
@@ -61,7 +62,13 @@ import { DialogFileSaver } from './modules/data-care/adapters/dialog-file-saver.
 import {
   CreateBackupUseCase,
   createPreMigrationBackupHook,
+  type CreateBackupResult,
 } from './modules/data-care/application/create-backup.js';
+import {
+  BACKUP_REMINDER_KIND,
+  createBackupReminderJob,
+  jobStateWithBackup,
+} from './modules/data-care/application/backup-reminder-job.js';
 import {
   RestoreBackupUseCase,
   cleanupRestoreSafetyCopy,
@@ -137,11 +144,18 @@ import { MigrationRunner } from './shared/db/migration-runner.js';
 import { MIGRATIONS } from './shared/db/migrations/index.js';
 import { openEncrypted, type EncryptedDatabase } from './shared/db/sqlite.js';
 import { createLogger, type HlLogger } from './shared/logger/logger.js';
+import { JobScheduler } from './shared/scheduler/scheduler.js';
 import { WorkerPool, type WorkerPoolOptions } from './shared/workerpool/pool.js';
 import { electronRevealPath } from './platform/reveal-path.js';
 
 /** Имя файла БД в userData (§8): `<userData>/health-log.db` (+ `-wal`, `-shm`). */
 export const DATABASE_FILENAME = 'health-log.db';
+
+/**
+ * Профиль дневника (seed миграции v1; bench-seed.ts — тот же идентификатор):
+ * счётчик записей задачи backup.reminder считается по нему (§13).
+ */
+const SEED_PROFILE_ID = 'seed-profile-0001';
 
 /** Каталог копий в userData (TASK-070 §7 — фикс): `<userData>/backups/`. */
 export const BACKUPS_DIRNAME = 'backups';
@@ -540,6 +554,35 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       appVersion,
       logger,
     });
+    //      TASK-074 §5/§9: JobScheduler — реестр задач каркаса и первая задача
+    //      backup.reminder. Store — PreferencesService (lastRun/lastShown —
+    //      персистентно в prefs.jobState, §12); sink — доставка решения о показе:
+    //      событие job:backup-reminder renderer-у (§11) + лог §18 shown/snoozed.
+    //      Повторный tick при каждом старте безопасен: частоту ограничивает
+    //      дедупликация scheduler'а (1/7д, jobState.shown — §13).
+    const scheduler = new JobScheduler({
+      store: preferencesService,
+      sink: {
+        show: (kind) => {
+          if (kind === BACKUP_REMINDER_KIND) {
+            logger.info('job backup-reminder shown');
+            events.emit('job:backup-reminder', {});
+          }
+        },
+        snooze: (kind) => {
+          if (kind === BACKUP_REMINDER_KIND) {
+            logger.info('job backup-reminder snoozed');
+          }
+        },
+      },
+      logger,
+    });
+    scheduler.register(
+      createBackupReminderJob({
+        // §13: счётчик записей дневника — COUNT журнала (seed-профиль миграции v1).
+        countMeasurements: () => measurementRepo.countByPeriod({ profileId: SEED_PROFILE_ID }),
+      }),
+    );
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -641,10 +684,35 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     // полное удаление план+execute (072) и выбор файла копии (open-диалог main,
     // §14: путь возникает только в main). Рестарт после execute — отложенный
     // relaunch (scheduleAppRelaunch выше, §9).
+    // TASK-074 §5: onSuccess канала копии — метаданные (путь/дата) в
+    // prefs.jobState.lastBackup (чистая jobStateWithBackup); best-effort: сбой
+    // записи jobState не отменяет созданную копию и не возвращается ошибкой.
+    const backupCreateWithJobState: {
+      execute(command: BackupCreateRequest): Promise<Result<CreateBackupResult, AppError>>;
+    } = {
+      execute: async (command) => {
+        const result = await createBackup.execute(command);
+        if (result.ok) {
+          try {
+            const prefs = await preferencesService.getPrefs();
+            await preferencesService.setPrefs({
+              jobState: jobStateWithBackup(
+                prefs.jobState,
+                result.value.path,
+                result.value.manifest.createdAtUtc,
+              ),
+            });
+          } catch (cause) {
+            logger.warn('backup/create: метаданные копии не записаны в prefs', { cause });
+          }
+        }
+        return result;
+      },
+    };
     channels.register(
       'backup/create',
       CHANNEL_SCHEMAS['backup/create'],
-      createBackupCreateHandler(createBackup),
+      createBackupCreateHandler(backupCreateWithJobState),
     );
     channels.register(
       'backup/restore',
@@ -671,6 +739,17 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         });
       }),
     );
+
+    // 8.5. Tick планировщика (TASK-074 §5/§9 — «подключение scheduler к контейнеру,
+    //      tick при старте»): один проход по задачам с истёкшим интервалом. Падения
+    //      задач изолированы в scheduler'е (лог, остальные работают); сбой store —
+    //      лог, старт приложения не валится (подсказка некритична). Fire-and-forget:
+    //      показ едет событием, ответа ждать нечего.
+    void scheduler
+      .tick({ utcMs: clock.nowMs(), tzOffsetMin: clock.tzOffsetMin() })
+      .catch((cause: unknown) => {
+        logger.warn('scheduler: tick при старте не удался', { cause });
+      });
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {

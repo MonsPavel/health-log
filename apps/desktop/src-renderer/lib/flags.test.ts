@@ -25,6 +25,8 @@ const DEFAULT_PREFS: Prefs = {
   dateFormat: 'auto',
   advancedMode: false,
   netConsents: { updatesCheck: false },
+  // TASK-074: состояние задач планировщика — новое поле документа (дефолт схемы).
+  jobState: { jobs: {}, shown: {} },
 };
 
 const OK_ENVELOPE = (data: unknown) => ({ v: 1, ok: true, data });

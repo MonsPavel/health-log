@@ -30,6 +30,7 @@ const DEFAULT_PREFS: Prefs = {
   dateFormat: 'auto',
   advancedMode: false,
   netConsents: { updatesCheck: false },
+  jobState: { jobs: {}, shown: {} },
 };
 
 const OK_ENVELOPE = (data: unknown) => ({ v: 1, ok: true, data });

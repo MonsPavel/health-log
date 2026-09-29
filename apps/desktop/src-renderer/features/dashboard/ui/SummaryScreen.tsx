@@ -26,7 +26,7 @@
  * и 'last', и страницы журнала) + ['stats', pid] — сводка живая, без
  * перезагрузки (§24 ручная проверка).
  */
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -37,9 +37,11 @@ import type { AppErrorDto } from '@hl/contracts';
 import { useToast } from '../../../app/toast';
 import { useHlEvent } from '../../../lib/events';
 import { IpcApiError, PROFILE_ID } from '../../measurement/api/use-add-measurement';
+import { BackupDialog } from '../../reports/ui/data/BackupDialog';
 import { useLastMeasurement } from '../api/use-last-measurement';
 import { STATS_KEY_ROOT, useStats } from '../api/use-stats';
 import { AverageCard } from './AverageCard';
+import { BackupReminderBanner } from './BackupReminderBanner';
 import { DashboardScreen } from './DashboardScreen';
 import { LastMeasurementCard } from './LastMeasurementCard';
 import { RegularityCard } from './RegularityCard';
@@ -115,6 +117,13 @@ export function SummaryScreen(): JSX.Element {
   const stats7d = useStats(PROFILE_ID, '7d');
   const stats30d = useStats(PROFILE_ID, '30d');
 
+  // TASK-074 §12: баннер-подсказка о копии — локальный state от события
+  // job:backup-reminder (решение о показе — scheduler main, дедупликация 1/7д);
+  // «Создать копию» — диалог 073 (локально, §11).
+  const [backupReminderVisible, setBackupReminderVisible] = useState(false);
+  const [backupDialogOpen, setBackupDialogOpen] = useState(false);
+  useHlEvent('job:backup-reminder', () => setBackupReminderVisible(true));
+
   // Live-обновление (§12): частичные ключи матчат 'last' и все периоды stats.
   useHlEvent('measurement:changed', (payload) => {
     void queryClient.invalidateQueries({ queryKey: ['measurements', payload.profileId] });
@@ -132,6 +141,16 @@ export function SummaryScreen(): JSX.Element {
     void navigate('/journal');
   }, [navigate]);
 
+  // TASK-074 §10: «Создать копию» — баннер скрыт, открывается диалог 073;
+  // «Позже» — баннер скрыт (пауза недели уже записана scheduler'ом при показе).
+  const openBackupDialog = useCallback(() => {
+    setBackupReminderVisible(false);
+    setBackupDialogOpen(true);
+  }, []);
+  const dismissBackupReminder = useCallback(() => {
+    setBackupReminderVisible(false);
+  }, []);
+
   // Пустая БД (§5/§20 AC1): total — ВСЕ записи профиля (TASK-030 §7); ноль →
   // приветственный экран вместо карточек и графика (см. шапку).
   const isEmpty = !last.isError && last.data !== undefined && last.data.total === 0;
@@ -139,6 +158,11 @@ export function SummaryScreen(): JSX.Element {
 
   return (
     <section className="p-4">
+      {/* TASK-074 §10: подсказка о копии — ненавязчивый баннер вверху дашборда. */}
+      {backupReminderVisible && (
+        <BackupReminderBanner onCreate={openBackupDialog} onLater={dismissBackupReminder} />
+      )}
+
       <header className="mb-4">
         <h2 className="text-lg font-semibold">{t('dashboard.home.title')}</h2>
       </header>
@@ -181,6 +205,9 @@ export function SummaryScreen(): JSX.Element {
           </section>
         </>
       )}
+
+      {/* TASK-074 §11: «Создать копию» баннера — тот же диалог 073 (локально). */}
+      <BackupDialog open={backupDialogOpen} onClose={() => setBackupDialogOpen(false)} />
     </section>
   );
 }
