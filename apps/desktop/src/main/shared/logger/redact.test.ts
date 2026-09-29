@@ -147,7 +147,7 @@ describe('redactPhi — отказобезопасность (§14)', () => {
 });
 
 describe('конфиг редакции — контракт спецификации (§5/§7)', () => {
-  it('PHI_REDACT_PATHS — ровно redact-пути из §5 + ключи БД (TASK-022/023 §14: pino.redact слой)', () => {
+  it('PHI_REDACT_PATHS — ровно redact-пути из §5 + ключи БД (TASK-022/023) + пароль копии (TASK-070: pino.redact слой)', () => {
     expect([...PHI_REDACT_PATHS]).toEqual([
       'sys',
       'dia',
@@ -170,10 +170,13 @@ describe('конфиг редакции — контракт специфика�
       'wrappedB64',
       '*.wrapped',
       '*.wrappedB64',
+      // TASK-070 §14: пароль копии (backup/create) — top-level и глубина 1.
+      'passphrase',
+      '*.passphrase',
     ]);
   });
 
-  it('PHI_KEYS покрывает доменные PHI-поля §7, ключи БД TASK-022 и wrapped-ключ TASK-023 (рекурсивный слой)', () => {
+  it('PHI_KEYS покрывает доменные PHI-поля §7, ключи БД TASK-022, wrapped TASK-023 и пароль копии TASK-070 (рекурсивный слой)', () => {
     for (const key of [
       'sys',
       'dia',
@@ -189,6 +192,8 @@ describe('конфиг редакции — контракт специфика�
       // TASK-023 §14: wrapped-ключ в обеих формах имени поля (файл §5 / порт §7).
       'wrapped',
       'wrappedB64',
+      // TASK-070 §14: пароль копии — цензура на ЛЮБОЙ глубине.
+      'passphrase',
     ]) {
       expect(PHI_KEYS.has(key)).toBe(true);
     }

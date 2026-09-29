@@ -6,11 +6,12 @@
  * Приложение стартует с реальной зашифрованной БД в userData.
  *
  * ПОРЯДОК ИНИЦИАЛИЗАЦИИ (§5): paths → logger (TASK-010) → vault.ensureKey →
- * openEncrypted(dbPath, keyHex) → миграции → репозиторий → события; регистрация
+ * openEncrypted(dbPath, keyHex) → Data Care/use case CreateBackup (TASK-070 — hook
+ * миграций) → миграции → репозиторий → события; регистрация
  * существующих IPC-хендлеров — в конце buildContainer (§11), следом пул воркеров
  * CPU-задач (TASK-066, ленивый). Порядок полей Container — конвенция читаемости §7
  * (db, clock, vault, measurementRepo, events, logger); каналы каркаса и close
- * добавлены задачей 027, workerPool — 066 (см. Container).
+ * добавлены задачей 027, workerPool — 066, createBackup/fileOpQueue — 070 (см. Container).
  *
  * ТЕСТИРУЕМОСТЬ (§13/§19/§20 п. 4): контейнер не читает сам app.getPath — пути
  * вводятся параметрами (bootstrap подставляет реальные); время — порт Clock
@@ -53,6 +54,10 @@ import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 
 import { createLogClientErrorHandler } from './app/global-errors.js';
 import { EventBus } from './events/event-bus.js';
+import { BackupContainerCodec } from './modules/data-care/adapters/backup-container.js';
+import { DialogFileSaver } from './modules/data-care/adapters/dialog-file-saver.js';
+import { CreateBackupUseCase, createPreMigrationBackupHook } from './modules/data-care/application/create-backup.js';
+import { FileOpQueue } from './modules/data-care/application/file-op-queue.js';
 import {
   createAddMeasurementHandler,
   createListMeasurementHandler,
@@ -103,6 +108,12 @@ import { WorkerPool, type WorkerPoolOptions } from './shared/workerpool/pool.js'
 /** Имя файла БД в userData (§8): `<userData>/health-log.db` (+ `-wal`, `-shm`). */
 export const DATABASE_FILENAME = 'health-log.db';
 
+/** Каталог копий в userData (TASK-070 §7 — фикс): `<userData>/backups/`. */
+export const BACKUPS_DIRNAME = 'backups';
+
+/** Версия приложения по умолчанию (манифест копии, TASK-070 §2; bootstrap передаёт app.getVersion()). */
+const DEFAULT_APP_VERSION = '0.0.0';
+
 /**
  * Контекст сборки vault-а (§19: фабрика переопределяема): путь файла ключа контейнер
  * собирает сам (`<userData>/vault.key` — константа shared, TASK-023 §6), время и
@@ -135,6 +146,11 @@ export interface ContainerDeps {
    * переопределяемых фабрик каркаса).
    */
   readonly workerPool?: WorkerPoolOptions;
+  /**
+   * Версия приложения (манифест копии, TASK-070 §2; титул отчёта). Bootstrap
+   * передаёт app.getVersion(); по умолчанию — '0.0.0' (тесты/node-сборка).
+   */
+  readonly appVersion?: string;
 }
 
 /**
@@ -165,6 +181,16 @@ export interface Container {
    * (§8): данные передаются payload'ом.
    */
   readonly workerPool: WorkerPool;
+  /**
+   * Use case создания копии (TASK-070 §5): канал `backup/create` зарегистрирует
+   * TASK-073 (с диалогами UI); сейчас используется hook'ом миграций (beforeMigration).
+   */
+  readonly createBackup: CreateBackupUseCase;
+  /**
+   * Очередь файловых операций данных (TASK-070 §9): копии и будущие экспорты
+   * (TASK-063) выполняются строго по одной.
+   */
+  readonly fileOpQueue: FileOpQueue;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
 }
@@ -217,6 +243,8 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
   // 1. Paths (§13: контейнер пути принимает параметрами — тестируемость; §8: БД внутри userData).
   const dbPath = join(deps.userDataPath, DATABASE_FILENAME);
   const vaultFilePath = join(deps.userDataPath, VAULT_KEY_FILENAME);
+  const backupsDir = join(deps.userDataPath, BACKUPS_DIRNAME);
+  const appVersion = deps.appVersion ?? DEFAULT_APP_VERSION;
 
   // 2. Logger (TASK-010): контейнер — категория app; vault/репозиторий — db; события — events.
   const logger = createLogger('app');
@@ -243,9 +271,33 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
   // 4. БД (§5: openEncrypted(dbPath, keyHex) — единственная точка открытия, TASK-022).
   const db = openEncrypted(dbPath, keyHex);
   try {
+    // 4.5. Data Care (TASK-070 §5): use case CreateBackup — ДО миграций: hook
+    //      снапшота (beforeMigration) зовёт его перед каждой применяемой миграцией
+    //      (§5/§22: порядок hook → DDL runner'а TASK-024). Авто-копии шифруются
+    //      ключом БД (§8: kdf db-key) — keyHex живёт в замыкании, полем графа не
+    //      становится и наружу не уходит (§14). Диалог сохранения — ленивый electron
+    //      (боевой путь ask-режима; хендлер канала — TASK-073).
+    const fileOpQueue = new FileOpQueue();
+    const createBackup = new CreateBackupUseCase({
+      db,
+      clock,
+      logger: dbLogger,
+      crypto: new BackupContainerCodec(),
+      fileSaver: new DialogFileSaver(),
+      queue: fileOpQueue,
+      backupsDir,
+      appVersion,
+      dbKeyHex: () => keyHex,
+    });
+
     // 5. Миграции (старт БД §9 TASK-024: openEncrypted → migrate(); failure → STORAGE/*).
+    //    TASK-070 §5: hook снапшота — createBackup(mode auto) перед каждой
+    //    применяемой миграцией (pre-migration-vN.hlbackup в userData/backups, §7).
     const schemaVersionBefore = readSchemaVersionForLog(db);
-    await new MigrationRunner({ migrations: MIGRATIONS }).migrate(db);
+    await new MigrationRunner({
+      migrations: MIGRATIONS,
+      beforeMigration: createPreMigrationBackupHook(createBackup),
+    }).migrate(db);
     // После успешного migrate схема на максимальной версии реестра (иначе — throw выше).
     const schemaVersion = MIGRATIONS.at(-1)?.version ?? schemaVersionBefore;
     const migrationsApplied = schemaVersion - schemaVersionBefore;
@@ -406,6 +458,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       schemaVersion,
       keyCreated,
       migrationsApplied,
+      backupHook: 'on',
     });
 
     let closed = false;
@@ -418,6 +471,8 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       logger,
       channels,
       workerPool,
+      createBackup,
+      fileOpQueue,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op
