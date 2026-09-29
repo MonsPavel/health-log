@@ -1,0 +1,24 @@
+/**
+ * Хендлер канала `app/reveal-path` (TASK-068 §5/§11) — «открыть папку» после
+ * сохранения отчёта/экспорта (shell.showItemInFolder). Слой тонкий, прецедент
+ * report-pdf.ts: zod-валидацию {path} делает каркас TASK-008; здесь — вызов
+ * внедрённой функции reveal и ответ null (fire-and-forget, §9).
+ *
+ * Отказ reveal (файл удалён/проводник недоступен) — НЕ ошибка канала для UI
+ * (§11: UX-удобство на своей машине); боевая обвязка контейнера глушит отказ
+ * асинхронного адаптера с warn-логом — конверт ответа всегда ok null.
+ */
+import type { RevealPathRequest } from '@hl/contracts';
+
+/** Порт подсветки файла в папке (боевой — electron shell, main/platform). */
+export type RevealPathFn = (path: string) => void;
+
+/** Фабрика хендлера `app/reveal-path`: {path} → null (§11). */
+export function createRevealPathHandler(
+  revealPath: RevealPathFn,
+): (payload: RevealPathRequest) => null {
+  return (payload) => {
+    revealPath(payload.path);
+    return null;
+  };
+}

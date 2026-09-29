@@ -62,6 +62,11 @@ export const ERROR_CODES = [
   // TASK-063 §5/§9: use case ExportCsv (модуль reporting) — неуспех сборки выгрузки
   // (сбой чтения журнала при обходе пачками; причина — в cause, наружу только код).
   'EXPORT/FAILED',
+  // TASK-068 §5/§7: use case BuildPdfReport (модуль reporting) — пустой период не
+  // формируется (count=0, §9) и отказ рендера/сборки payload (воркер/чтение read
+  // models; причина — в cause, наружу только код).
+  'REPORT/EMPTY_PERIOD',
+  'REPORT/RENDER_FAILED',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */

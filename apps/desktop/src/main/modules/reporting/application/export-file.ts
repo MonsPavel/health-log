@@ -54,8 +54,9 @@ function pad2(value: number): string {
  * Имя файла по умолчанию (§13/§20 AC5): health-log-export-YYYYMMDD-HHmm.<ext> в
  * локальном времени. Сдвиг на tzOffsetMin даёт настенные компоненты через UTC-геттеры
  * Date (прецедент takenAt-инварианта ядра: utcMs + offset·мин = настенное время).
+ * TASK-068: ext расширен 'pdf' — тот же механизм имени для PDF-отчёта (§23 реюз).
  */
-export function buildExportDefaultName(clock: Clock, ext: 'csv' | 'json'): string {
+export function buildExportDefaultName(clock: Clock, ext: 'csv' | 'json' | 'pdf'): string {
   const wall = new Date(clock.nowMs() + clock.tzOffsetMin() * 60_000);
   const y = wall.getUTCFullYear();
   const mo = pad2(wall.getUTCMonth() + 1);

@@ -32,7 +32,13 @@ import {
   PREFS_SET_REQUEST_SCHEMA,
   PREFS_SET_RESPONSE_SCHEMA,
 } from './prefs/schemas.js';
-import { REPORT_EXPORT_REQUEST_SCHEMA, REPORT_EXPORT_RESPONSE_SCHEMA } from './report/schemas.js';
+import {
+  REPORT_EXPORT_REQUEST_SCHEMA,
+  REPORT_EXPORT_RESPONSE_SCHEMA,
+  REPORT_PDF_REQUEST_SCHEMA,
+  REPORT_PDF_RESPONSE_SCHEMA,
+  REVEAL_PATH_REQUEST_SCHEMA,
+} from './report/schemas.js';
 import { SCALES_ACTIVE_REQUEST_SCHEMA, SCALES_ACTIVE_RESPONSE_SCHEMA } from './scales.js';
 import { STATS_REQUEST_SCHEMA, STATS_RESPONSE_SCHEMA } from './stats/schemas.js';
 import { TREND_REQUEST_SCHEMA, TREND_RESPONSE_SCHEMA } from './trends.js';
@@ -75,6 +81,15 @@ export const CHANNEL_SCHEMAS = {
         digest: z.string().max(64),
       })
       .strict(),
+    response: z.null(),
+  },
+  /**
+   * TASK-068 §5/§11: «открыть папку» после сохранения отчёта/экспорта —
+   * {path} → null (fire-and-forget, §9). Путь — тот, что вернул наш же save-диалог
+   * (UX-удобство на своей машине, решение §11 — без санитизации).
+   */
+  'app/reveal-path': {
+    request: REVEAL_PATH_REQUEST_SCHEMA,
     response: z.null(),
   },
   /**
@@ -163,6 +178,15 @@ export const CHANNEL_SCHEMAS = {
   'report/export-json': {
     request: REPORT_EXPORT_REQUEST_SCHEMA,
     response: REPORT_EXPORT_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-068 §5/§11: сборка+сохранение PDF-отчёта (UC-05) — {profileId, period,
+   * includeAiSection, aiText?} → {path} | {canceled: true} (та же union-схема, §23).
+   * Пустой период → REPORT/EMPTY_PERIOD (main-валидация, §9); путь — save-диалог main.
+   */
+  'report/pdf': {
+    request: REPORT_PDF_REQUEST_SCHEMA,
+    response: REPORT_PDF_RESPONSE_SCHEMA,
   },
   /**
    * TASK-051 §5/§11: активная справочная шкала — {} → полная форма ActiveScale

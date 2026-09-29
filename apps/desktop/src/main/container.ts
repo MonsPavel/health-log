@@ -70,6 +70,8 @@ import {
 import { createDeleteMeasurementHandler } from './ipc/handlers/measurements-delete.js';
 import { createPingHandler } from './ipc/handlers/ping.js';
 import { createExportCsvHandler, createExportJsonHandler } from './ipc/handlers/report.js';
+import { createBuildPdfReportHandler } from './ipc/handlers/report-pdf.js';
+import { createRevealPathHandler } from './ipc/handlers/reveal.js';
 import { createSearchNotesHandler } from './ipc/handlers/search.js';
 import { createGetPrefsHandler, createSetPrefsHandler } from './ipc/handlers/prefs.js';
 import { createGetActiveScaleHandler } from './ipc/handlers/scales.js';
@@ -85,10 +87,17 @@ import { TrendSeries } from './modules/analytics/application/trend-series.js';
 // оркестрация файловой записи (общая очередь fileOpQueue, §9).
 import { MeasurementExportAdapter } from './modules/reporting/adapters/measurement-export-adapter.js';
 import { JsonSnapshotSource } from './modules/reporting/adapters/json-snapshot-source.js';
+import { ReportPointsAdapter } from './modules/reporting/adapters/report-points-adapter.js';
+import { ReportStatsAdapter } from './modules/reporting/adapters/report-stats-adapter.js';
 import { ExportCsvUseCase } from './modules/reporting/application/export-csv.js';
 import { ExportCsvFileUseCase } from './modules/reporting/application/export-csv-file.js';
 import { ExportJsonUseCase } from './modules/reporting/application/export-json.js';
 import { ExportJsonFileUseCase } from './modules/reporting/application/export-json-file.js';
+import {
+  BuildPdfReportUseCase,
+  type PdfRenderRunner,
+} from './modules/reporting/application/build-pdf-report.js';
+import type { PdfRenderResult } from './modules/reporting/application/report-spec.js';
 // TASK-067 §9: дефолт tasksModule пула — модуль задач reporting (лёгкий файл URL:
 // без импортов цепочки react-pdf — рендер живёт в воркере, не в графе main).
 import { PDF_TASKS_MODULE_URL } from './modules/reporting/adapters/pdf/pdf-tasks-url.js';
@@ -117,6 +126,7 @@ import { MIGRATIONS } from './shared/db/migrations/index.js';
 import { openEncrypted, type EncryptedDatabase } from './shared/db/sqlite.js';
 import { createLogger, type HlLogger } from './shared/logger/logger.js';
 import { WorkerPool, type WorkerPoolOptions } from './shared/workerpool/pool.js';
+import { electronRevealPath } from './platform/reveal-path.js';
 
 /** Имя файла БД в userData (§8): `<userData>/health-log.db` (+ `-wal`, `-shm`). */
 export const DATABASE_FILENAME = 'health-log.db';
@@ -413,6 +423,39 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       clock,
       logger,
     });
+    //      TASK-068: PDF-отчёт (UC-05) — use case над боевыми частями: сырые точки —
+    //      ReportPointsAdapter над журналом (§5: таблице нужен raw, не daily 056),
+    //      статистика — ReportStatsAdapter над портом точек + read model 052 (§5
+    //      «stats (054)»), рендер — WorkerPool ниже (создан здесь, воркеры ленивые),
+    //      запись — ОБЩАЯ очередь fileOpQueue (§4: очередь сериализует только ЗАПИСЬ).
+    //      Составляющая создания копии у fileOpQueue та же — один инстанс (§9).
+    //
+    //      Пул воркеров CPU-задач (TASK-066 §5/§6): 2 worker_threads, ленивое создание
+    //      при первой задаче (потоки при старте не спавнятся); воркеры без доступа к
+    //      БД/ключу (§8). TASK-067 §9: дефолт tasksModule — модуль задач reporting
+    //      (pdf.render); тесты подставляют свой через deps.workerPool. Лог —
+    //      категория job (§18: job start/end, краш).
+    const workerPool = new WorkerPool({
+      ...deps.workerPool,
+      tasksModule: deps.workerPool?.tasksModule ?? PDF_TASKS_MODULE_URL.href,
+      logger: createLogger('job'),
+    });
+    //      Карта задач боевого пула шире карты 067 (run возвращает unknown) — сужение
+    //      до PdfRenderRunner в точке сборки (прецедент container-pdf.int.test.ts:
+    //      run('pdf.render') as PdfRenderResult).
+    const pdfRenderRunner: PdfRenderRunner = {
+      run: (name, payload) => workerPool.run(name, payload) as Promise<PdfRenderResult>,
+    };
+    const buildPdfReport = new BuildPdfReportUseCase({
+      points: new ReportPointsAdapter(measurementRepo),
+      stats: new ReportStatsAdapter(measurementPoints),
+      pool: pdfRenderRunner,
+      saver: fileSaver,
+      queue: fileOpQueue,
+      clock,
+      appVersion,
+      logger,
+    });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -500,17 +543,26 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       CHANNEL_SCHEMAS['report/export-json'],
       createExportJsonHandler(exportJsonFile),
     );
-
-    // 8.5. Пул воркеров CPU-задач (TASK-066 §5/§6): 2 worker_threads, ленивое создание
-    //      при первой задаче (потоки при старте не спавнятся); воркеры без доступа к
-    //      БД/ключу (§8). TASK-067 §9: дефолт tasksModule — модуль задач reporting
-    //      (pdf.render); тесты подставляют свой через deps.workerPool. Лог —
-    //      категория job (§18: job start/end, краш).
-    const workerPool = new WorkerPool({
-      ...deps.workerPool,
-      tasksModule: deps.workerPool?.tasksModule ?? PDF_TASKS_MODULE_URL.href,
-      logger: createLogger('job'),
-    });
+    // TASK-068 §5/§11: report/pdf — use case buildPdfReport (пул → очередь →
+    // save-диалог; отмена → {canceled: true}, §7; EMPTY_PERIOD/RENDER_FAILED — §7);
+    // app/reveal-path — «открыть папку» после сохранения (fire-and-forget §9:
+    // отказ боевого адаптера вне Electron/при исчезнувшем файле глушится warn-ом,
+    // конверт всегда ok null).
+    channels.register(
+      'report/pdf',
+      CHANNEL_SCHEMAS['report/pdf'],
+      createBuildPdfReportHandler(buildPdfReport),
+    );
+    channels.register(
+      'app/reveal-path',
+      CHANNEL_SCHEMAS['app/reveal-path'],
+      createRevealPathHandler((path) => {
+        void electronRevealPath(path).catch(() => {
+          // §18: без путей и причин (userData содержит имя Windows-пользователя).
+          logger.warn('app/reveal-path: не удалось открыть папку с файлом');
+        });
+      }),
+    );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
