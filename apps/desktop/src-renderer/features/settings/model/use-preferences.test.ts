@@ -29,7 +29,8 @@ const DEFAULT_PREFS: Prefs = {
   textScale: '100',
   dateFormat: 'auto',
   advancedMode: false,
-  netConsents: { updatesCheck: false },
+  // TASK-075: modelsDownload — новое согласие схемы (дефолт false).
+  netConsents: { updatesCheck: false, modelsDownload: false },
   jobState: { jobs: {}, shown: {} },
 };
 

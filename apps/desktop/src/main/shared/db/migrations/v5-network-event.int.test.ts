@@ -89,7 +89,14 @@ describe('миграция v5 — network_event (TASK-075 §19/§20)', () => {
       'bytes',
       'at_utc',
     ]);
-    expect(columns.map((c) => c.type)).toEqual(['TEXT', 'TEXT', 'TEXT', 'TEXT', 'INTEGER', 'INTEGER']);
+    expect(columns.map((c) => c.type)).toEqual([
+      'TEXT',
+      'TEXT',
+      'TEXT',
+      'TEXT',
+      'INTEGER',
+      'INTEGER',
+    ]);
     expect(columns.map((c) => c.notnull)).toEqual([0, 1, 1, 1, 0, 1]); // PK неявно NOT NULL
     expect(columns.map((c) => c.pk)).toEqual([1, 0, 0, 0, 0, 0]);
 
@@ -117,7 +124,14 @@ describe('миграция v5 — network_event (TASK-075 §19/§20)', () => {
     const insert = db.prepare(
       'INSERT INTO network_event (id, kind, endpoint, status, bytes, at_utc) VALUES (?, ?, ?, ?, ?, ?)',
     );
-    insert.run('e-blocked', 'updates.check', 'https://releases.example.com/v1', 'blocked', null, 1000);
+    insert.run(
+      'e-blocked',
+      'updates.check',
+      'https://releases.example.com/v1',
+      'blocked',
+      null,
+      1000,
+    );
     insert.run('e-ok', 'models.download', 'https://cdn.example.com/llm.bin', 'ok', 2048, 2000);
 
     const blocked = db
@@ -139,9 +153,9 @@ describe('миграция v5 — network_event (TASK-075 §19/§20)', () => {
       at_utc: 1000,
     });
 
-    const ok = db
-      .prepare('SELECT bytes FROM network_event WHERE id = ?')
-      .get('e-ok') as { bytes: number };
+    const ok = db.prepare('SELECT bytes FROM network_event WHERE id = ?').get('e-ok') as {
+      bytes: number;
+    };
     expect(ok.bytes).toBe(2048);
     db.close();
   });
@@ -156,9 +170,7 @@ describe('миграция v5 — network_event (TASK-075 §19/§20)', () => {
     insert.run('e-3', 'updates.check', 'https://releases.example.com/3', 'failed', null, 3000);
 
     const recent = db
-      .prepare(
-        'SELECT id FROM network_event WHERE kind = ? ORDER BY at_utc DESC, id DESC LIMIT ?',
-      )
+      .prepare('SELECT id FROM network_event WHERE kind = ? ORDER BY at_utc DESC, id DESC LIMIT ?')
       .all('updates.check', 1) as { id: string }[];
     expect(recent.map((r) => r.id)).toEqual(['e-3']);
     db.close();

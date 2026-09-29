@@ -57,10 +57,7 @@ export type EgressFetch = (endpoint: string, init?: RequestInit) => Promise<Resp
  * Доставка событий renderer'у (§11): структурно BroadcastToWindows TASK-009 —
  * подмена в тестах (fake-окно) и боевой мост в контейнере.
  */
-export type EgressNotify = <K extends keyof HlEventMap>(
-  name: K,
-  payload: HlEventMap[K],
-) => void;
+export type EgressNotify = <K extends keyof HlEventMap>(name: K, payload: HlEventMap[K]) => void;
 
 /** Параметры запроса (§5): endpoint обязателен, init — опции fetch. */
 export interface EgressRequest {
@@ -100,8 +97,7 @@ export interface EgressGatewayDeps {
 /** SQL журнала: statements готовятся один раз (§15: обёртка над fetch, дёшево). */
 const INSERT_EVENT_SQL =
   'INSERT INTO network_event (id, kind, endpoint, status, bytes, at_utc) VALUES (?, ?, ?, ?, ?, ?)';
-const FINISH_SQL =
-  'UPDATE network_event SET status = ?, bytes = ?, at_utc = ? WHERE id = ?';
+const FINISH_SQL = 'UPDATE network_event SET status = ?, bytes = ?, at_utc = ? WHERE id = ?';
 const LIST_RECENT_SQL =
   'SELECT id, kind, endpoint, status, bytes, at_utc FROM network_event ' +
   'ORDER BY at_utc DESC, id DESC LIMIT ?';
@@ -158,7 +154,9 @@ export class EgressGateway {
     // Лента — fire-and-forget (§9, семантика broadcast TASK-009): отказ доставки
     // (нет окон/рантайма) НЕ рвёт операцию и журнал — это лучится в debug-лог.
     const id = uuidV7();
-    this.deps.db.prepare(INSERT_EVENT_SQL).run(id, op, request.endpoint, 'running', null, startedAt);
+    this.deps.db
+      .prepare(INSERT_EVENT_SQL)
+      .run(id, op, request.endpoint, 'running', null, startedAt);
     this.notifyActivity(op, request.endpoint);
     this.deps.logger.info('net request', { kind: op, endpoint: request.endpoint });
 
@@ -240,7 +238,12 @@ export class EgressGateway {
   }
 
   /** Обновляет running-запись финальным статусом (§5 п. 3: status/bytes/at). */
-  private finish(id: string, status: NetworkEventStatus, bytes: number | null, atUtc: number): void {
+  private finish(
+    id: string,
+    status: NetworkEventStatus,
+    bytes: number | null,
+    atUtc: number,
+  ): void {
     this.deps.db.prepare(FINISH_SQL).run(status, bytes, atUtc, id);
   }
 

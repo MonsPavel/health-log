@@ -110,9 +110,7 @@ const httpFetch = (endpoint: string, init?: RequestInit): Promise<Response> =>
               }
             }
           }
-          resolve(
-            new Response(Buffer.concat(chunks), { status: res.statusCode ?? 200, headers }),
-          );
+          resolve(new Response(Buffer.concat(chunks), { status: res.statusCode ?? 200, headers }));
         });
       },
     );
@@ -124,7 +122,10 @@ const httpFetch = (endpoint: string, init?: RequestInit): Promise<Response> =>
  * Fake-окно (webContents со шпионом send) — приёмник моста broadcast (§19/AC4:
  * «net:activity доходит в renderer»).
  */
-const makeFakeWindow = (): { target: BroadcastTarget; envelopes: { channel: string; envelope: unknown }[] } => {
+const makeFakeWindow = (): {
+  target: BroadcastTarget;
+  envelopes: { channel: string; envelope: unknown }[];
+} => {
   const envelopes: { channel: string; envelope: unknown }[] = [];
   const target: BroadcastTarget = {
     isDestroyed: () => false,
@@ -148,9 +149,7 @@ interface Fixture {
 }
 
 /** Полная фикстура: tmp-БД v5 + gateway с реальным мостом broadcast на fake-окно. */
-const makeFixture = (
-  clock: Clock = new FixedClock(1_758_816_000_000, 180),
-): Promise<Fixture> => {
+const makeFixture = (clock: Clock = new FixedClock(1_758_816_000_000, 180)): Promise<Fixture> => {
   const dir = mkdtempSync(join(tmpdir(), 'hl-egress-gateway-int-'));
   dirs.push(dir);
   const db = openEncrypted(join(dir, 'egress.sqlite'), randomBytes(32).toString('hex'));
@@ -189,7 +188,9 @@ const makeFixture = (
 };
 
 /** Записи журнала (полный состав колонок — §7). */
-const journalRows = (db: EncryptedDatabase): {
+const journalRows = (
+  db: EncryptedDatabase,
+): {
   id: string;
   kind: string;
   endpoint: string;
@@ -198,7 +199,9 @@ const journalRows = (db: EncryptedDatabase): {
   at_utc: number;
 }[] =>
   db
-    .prepare('SELECT id, kind, endpoint, status, bytes, at_utc FROM network_event ORDER BY at_utc, id')
+    .prepare(
+      'SELECT id, kind, endpoint, status, bytes, at_utc FROM network_event ORDER BY at_utc, id',
+    )
     .all() as {
     id: string;
     kind: string;
@@ -354,9 +357,6 @@ describe('EgressGateway — ветки §13 (TASK-075 §19/§20)', () => {
   it('(6) EgressPolicy — белый список §5: только models.download/updates.check с consentKey prefs', () => {
     expect(EgressPolicy.ALLOWED['models.download']).toEqual({ consentKey: 'modelsDownload' });
     expect(EgressPolicy.ALLOWED['updates.check']).toEqual({ consentKey: 'updatesCheck' });
-    expect(Object.keys(EgressPolicy.ALLOWED).sort()).toEqual([
-      'models.download',
-      'updates.check',
-    ]);
+    expect(Object.keys(EgressPolicy.ALLOWED).sort()).toEqual(['models.download', 'updates.check']);
   });
 });

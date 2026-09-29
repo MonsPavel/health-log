@@ -117,7 +117,9 @@ describe('PREFS_PATCH_SCHEMA — patch set (§7/§11)', () => {
       updatesCheck: true,
       modelsDownload: false,
     });
-    expect(PREFS_PATCH_SCHEMA.parse({ netConsents: { updatesCheck: true, modelsDownload: true } })).toEqual({
+    expect(
+      PREFS_PATCH_SCHEMA.parse({ netConsents: { updatesCheck: true, modelsDownload: true } }),
+    ).toEqual({
       netConsents: { updatesCheck: true, modelsDownload: true },
     });
   });
