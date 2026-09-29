@@ -27,7 +27,12 @@ import {
   type LlmEngineLogCall,
   type LlmEngineLogger,
 } from './engine.js';
-import { EngineError, startLlmWorkerLoop, type WorkerCompleteParams, type WorkerTransport } from './protocol.js';
+import {
+  EngineError,
+  startLlmWorkerLoop,
+  type WorkerCompleteParams,
+  type WorkerTransport,
+} from './protocol.js';
 import type { WorkerResponse } from '@hl/contracts';
 
 // --- фикстуры-файлы (§19: GGUF-magic — фиксстура-байты) ---
@@ -92,9 +97,10 @@ class MockSession implements LlamaModelSession {
     })();
   }
 
-  async dispose(): Promise<void> {
+  dispose(): Promise<void> {
     this.disposed = true;
     this.disposeCount += 1;
+    return Promise.resolve();
   }
 }
 
@@ -108,12 +114,12 @@ function createMockBackend(sessionDeltas: readonly string[][] = [['а ', 'б ']]
   const loadCalls: Array<{ readonly modelPath: string; readonly contextSize: number }> = [];
   let index = 0;
   const backend: LlamaBackend = {
-    loadModel: async (modelPath, config) => {
+    loadModel: (modelPath, config) => {
       loadCalls.push({ modelPath, contextSize: config.contextSize });
       const session = new MockSession(sessionDeltas[index] ?? ['а ', 'б ']);
       index += 1;
       sessions.push(session);
-      return session;
+      return Promise.resolve(session);
     },
   };
   return { backend, sessions, loadCalls };
@@ -122,9 +128,11 @@ function createMockBackend(sessionDeltas: readonly string[][] = [['а ', 'б ']]
 /** Логгер-шпион (§18: ассерты по фактам вызова). */
 function createLoggerSpy(): { logger: LlmEngineLogger; calls: LlmEngineLogCall[] } {
   const calls: LlmEngineLogCall[] = [];
-  const push = (level: LlmEngineLogCall['level']) => (message: string, meta = {}) => {
-    calls.push({ level, message, meta });
-  };
+  const push =
+    (level: LlmEngineLogCall['level']) =>
+    (message: string, meta = {}) => {
+      calls.push({ level, message, meta });
+    };
   const logger: LlmEngineLogger = {
     debug: push('debug'),
     info: push('info'),
@@ -272,9 +280,9 @@ describe('createManagedLlamaEngine — complete (§5/§13/§18)', () => {
     await engine.load(VALID_MODEL_PATH);
 
     const deltas: string[] = [];
-    await expect(
-      engine.complete(COMPLETE_REQUEST, (delta) => deltas.push(delta)),
-    ).resolves.toBe('stop');
+    await expect(engine.complete(COMPLETE_REQUEST, (delta) => deltas.push(delta))).resolves.toBe(
+      'stop',
+    );
     expect(deltas.join('')).toBe('а б ');
   });
 
@@ -483,65 +491,65 @@ describe('мок-движок за протоколом 076 (§19)', () => {
   it('load → ready, complete → token/done(stop) — маппинг протокола 076', async () => {
     const { backend } = createMockBackend([['а ', 'б ']]);
     const engine = createManagedLlamaEngine(backend, { idleUnloadMs: 60_000 });
-    const { transport, sent, receive } = createFakeTransport();
-    startLlmWorkerLoop(transport, engine);
+    const fake = createFakeTransport();
+    startLlmWorkerLoop(fake.transport, engine);
 
-    receive({ type: 'load', modelPath: VALID_MODEL_PATH });
-    await waitFor(() => sent.some((m) => m.type === 'ready'), 'ready после load');
-    expect(sent.some((m) => m.type === 'error')).toBe(false);
+    fake.receive({ type: 'load', modelPath: VALID_MODEL_PATH });
+    await waitFor(() => fake.sent.some((m) => m.type === 'ready'), 'ready после load');
+    expect(fake.sent.some((m) => m.type === 'error')).toBe(false);
 
-    receive({
+    fake.receive({
       type: 'complete',
       requestId: 'gen-1',
       messages: [{ role: 'user', content: 'резюме' }],
       maxTokens: 2,
     });
     await waitFor(
-      () => sent.some((m) => m.type === 'done') && sent.some((m) => m.type === 'token'),
+      () => fake.sent.some((m) => m.type === 'done') && fake.sent.some((m) => m.type === 'token'),
       'token+done',
     );
-    expect(sent.filter((m) => m.type === 'token')).toEqual([
+    expect(fake.sent.filter((m) => m.type === 'token')).toEqual([
       { type: 'token', requestId: 'gen-1', delta: 'а ' },
       { type: 'token', requestId: 'gen-1', delta: 'б ' },
     ]);
-    expect(sent.at(-1)).toEqual({ type: 'done', requestId: 'gen-1', finishReason: 'stop' });
+    expect(fake.sent.at(-1)).toEqual({ type: 'done', requestId: 'gen-1', finishReason: 'stop' });
   });
 
   it('без модели → адресный error AI/NO_MODEL; cancel посреди → done(cancelled)', async () => {
     const { backend } = createMockBackend([['а ', 'б ', 'в ']]);
     const engine = createManagedLlamaEngine(backend, { idleUnloadMs: 60_000 });
-    const { transport, sent, receive } = createFakeTransport();
-    startLlmWorkerLoop(transport, engine);
+    const fake = createFakeTransport();
+    startLlmWorkerLoop(fake.transport, engine);
 
     // без модели: адресный error AI/NO_MODEL
-    receive({
+    fake.receive({
       type: 'complete',
       requestId: 'gen-0',
       messages: [{ role: 'user', content: 'вопрос' }],
       maxTokens: 2,
     });
     await waitFor(
-      () => sent.some((m) => m.type === 'error' && m.code === LLM_ENGINE_ERROR.NO_MODEL),
+      () => fake.sent.some((m) => m.type === 'error' && m.code === LLM_ENGINE_ERROR.NO_MODEL),
       'AI/NO_MODEL без модели',
     );
 
-    receive({ type: 'load', modelPath: VALID_MODEL_PATH });
-    await waitFor(() => sent.some((m) => m.type === 'ready'), 'ready');
+    fake.receive({ type: 'load', modelPath: VALID_MODEL_PATH });
+    await waitFor(() => fake.sent.some((m) => m.type === 'ready'), 'ready');
 
-    receive({
+    fake.receive({
       type: 'complete',
       requestId: 'gen-2',
       messages: [{ role: 'user', content: 'резюме' }],
       maxTokens: 3,
     });
     await waitFor(
-      () => sent.filter((m) => m.type === 'token' && m.requestId === 'gen-2').length >= 1,
+      () => fake.sent.filter((m) => m.type === 'token' && m.requestId === 'gen-2').length >= 1,
       'первый токен gen-2',
     );
-    receive({ type: 'cancel', requestId: 'gen-2' });
+    fake.receive({ type: 'cancel', requestId: 'gen-2' });
     await waitFor(
       () =>
-        sent.some(
+        fake.sent.some(
           (m) => m.type === 'done' && m.requestId === 'gen-2' && m.finishReason === 'cancelled',
         ),
       'done(cancelled)',

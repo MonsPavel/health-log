@@ -102,7 +102,9 @@ export function resolveDefaultIdleUnloadMs(
  * сообщение — если история им не кончается (защитная ветка), добавляется
  * пустое user-сообщение.
  */
-function toChatHistory(messages: readonly ChatMessage[]): import('node-llama-cpp').ChatHistoryItem[] {
+function toChatHistory(
+  messages: readonly ChatMessage[],
+): import('node-llama-cpp').ChatHistoryItem[] {
   const history = messages.map((message): import('node-llama-cpp').ChatHistoryItem => {
     switch (message.role) {
       case 'system':
@@ -174,7 +176,7 @@ function createSession(
       async dispose(): Promise<void> {
         // §9: освобождение памяти — чат/контекст/модель; инстанс llama живёт.
         chat.dispose();
-        context.dispose();
+        await context.dispose();
         await model.dispose();
       },
     };
@@ -188,7 +190,7 @@ function createSession(
 export function createNodeLlamaBackend(options: LlamaEngineOptions = {}): LlamaBackend {
   return {
     loadModel: async (modelPath, config) => {
-      const nlc = (await import('node-llama-cpp')) as NodeLlamaCppModule;
+      const nlc = await import('node-llama-cpp');
       const llama = await getLlamaOnce(nlc);
       const threads = options.threads ?? resolveThreads(cpus().length);
       return createSession(nlc, llama, modelPath, {

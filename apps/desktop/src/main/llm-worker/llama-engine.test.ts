@@ -32,9 +32,11 @@ const hasModel = typeof MODEL_PATH === 'string' && MODEL_PATH.length > 0;
 /** Логгер-шпион (§18: замеры генерации идут в лог — ассерт по структуре). */
 function createLoggerSpy(): { logger: LlmEngineLogger; calls: LlmEngineLogCall[] } {
   const calls: LlmEngineLogCall[] = [];
-  const push = (level: LlmEngineLogCall['level']) => (message: string, meta = {}) => {
-    calls.push({ level, message, meta });
-  };
+  const push =
+    (level: LlmEngineLogCall['level']) =>
+    (message: string, meta = {}) => {
+      calls.push({ level, message, meta });
+    };
   return {
     calls,
     logger: { debug: push('debug'), info: push('info'), warn: push('warn'), error: push('error') },
@@ -105,7 +107,10 @@ describe.skipIf(!hasModel)('llama-engine [model] — ручной прогон (
           requestId: 'model-1',
           messages: [
             { role: 'system', content: 'Отвечай кратко по-русски.' },
-            { role: 'user', content: 'Скажи одно короткое предложение о пользе измерений давления.' },
+            {
+              role: 'user',
+              content: 'Скажи одно короткое предложение о пользе измерений давления.',
+            },
           ],
           maxTokens: 64,
         },
@@ -121,8 +126,8 @@ describe.skipIf(!hasModel)('llama-engine [model] — ручной прогон (
       expect(meta.tokens).toBeGreaterThan(0);
       expect(meta.firstTokenMs).toBeGreaterThanOrEqual(0);
       expect(meta.tps).toBeGreaterThan(0);
-      // eslint-disable-next-line no-console
-      console.log(`[model] замер:`, JSON.stringify(meta)); // значения — в docs/dev/local-llm.md (§20)
+      // значения — перенести в таблицу docs/dev/local-llm.md (§15/§20)
+      console.log(`[model] замер:`, JSON.stringify(meta));
 
       await engine.unload();
     },
@@ -168,22 +173,26 @@ describe.skipIf(!hasModel)('llama-engine [model] — ручной прогон (
     },
   );
 
-  it('idle-unload по сокращённому окну из env (§20 ручной сценарий)', { timeout: 300_000 }, async () => {
-    vi.stubEnv('HL_LLM_IDLE_UNLOAD_MS', '1500');
-    const { logger, calls } = createLoggerSpy();
-    const engine = createDefaultLlmEngine({ logger });
+  it(
+    'idle-unload по сокращённому окну из env (§20 ручной сценарий)',
+    { timeout: 300_000 },
+    async () => {
+      vi.stubEnv('HL_LLM_IDLE_UNLOAD_MS', '1500');
+      const { logger, calls } = createLoggerSpy();
+      const engine = createDefaultLlmEngine({ logger });
 
-    await engine.load(modelPath);
-    await new Promise<void>((resolve) => setTimeout(resolve, 2_500));
+      await engine.load(modelPath);
+      await new Promise<void>((resolve) => setTimeout(resolve, 2_500));
 
-    // после idle-unload генерация честно отвечает NO_MODEL (состояние no-model, §12)
-    await expect(
-      engine.complete(
-        { requestId: 'model-3', messages: [{ role: 'user', content: 'вопрос' }], maxTokens: 4 },
-        () => undefined,
-      ),
-    ).rejects.toMatchObject({ workerErrorCode: LLM_ENGINE_ERROR.NO_MODEL });
-    expect(calls.some((call) => (call.meta as { reason?: string }).reason === 'idle')).toBe(true);
-    vi.unstubAllEnvs();
-  });
+      // после idle-unload генерация честно отвечает NO_MODEL (состояние no-model, §12)
+      await expect(
+        engine.complete(
+          { requestId: 'model-3', messages: [{ role: 'user', content: 'вопрос' }], maxTokens: 4 },
+          () => undefined,
+        ),
+      ).rejects.toMatchObject({ workerErrorCode: LLM_ENGINE_ERROR.NO_MODEL });
+      expect(calls.some((call) => (call.meta as { reason?: string }).reason === 'idle')).toBe(true);
+      vi.unstubAllEnvs();
+    },
+  );
 });

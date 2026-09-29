@@ -24,11 +24,7 @@
 import type { WorkerRequest } from '@hl/contracts';
 
 import { createDefaultLlmEngine } from './llama-engine.js';
-import {
-  startLlmWorkerLoop,
-  type LlmWorkerEngine,
-  type WorkerTransport,
-} from './protocol.js';
+import { startLlmWorkerLoop, type LlmWorkerEngine, type WorkerTransport } from './protocol.js';
 
 /** Минимальная форма process.parentPort Electron (структурно — MessagePortMain). */
 interface ParentPortLike {

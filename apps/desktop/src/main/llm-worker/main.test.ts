@@ -85,9 +85,7 @@ describe('attachToParentPort — handshake UtilityProcess (§5)', () => {
     port.receive({ type: 'load', modelPath: 'Z:/точно-нет/model.gguf' });
     await tick();
 
-    expect(port.sent).toEqual([
-      { type: 'error', code: LLM_ENGINE_ERROR.MODEL_FILE_MISSING },
-    ]);
+    expect(port.sent).toEqual([{ type: 'error', code: LLM_ENGINE_ERROR.MODEL_FILE_MISSING }]);
   });
 
   it('parentPort-message без порта и повторный handshake цикл не запускают', () => {
