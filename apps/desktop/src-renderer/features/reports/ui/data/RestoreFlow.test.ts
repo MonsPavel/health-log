@@ -80,9 +80,9 @@ describe('RestoreFlow — шаг 1: выбор файла (§5: файл-пик�
 
     fireEvent.click(screen.getByTestId('data-restore-pick'));
 
-    const input = (await waitFor(() =>
-      screen.getByTestId('data-restore-passphrase'),
-    )) as HTMLInputElement;
+    const input = await waitFor(() =>
+      screen.getByTestId<HTMLInputElement>('data-restore-passphrase'),
+    );
     expect(invoke).toHaveBeenCalledWith('file/open-dialog', {
       filters: [{ name: 'Health Log Backup', extensions: ['hlbackup'] }],
     });
@@ -96,7 +96,7 @@ describe('RestoreFlow — шаг 1: выбор файла (§5: файл-пик�
     fireEvent.click(screen.getByTestId('data-restore-pick'));
 
     await waitFor(() =>
-      expect((screen.getByTestId('data-restore-pick') as HTMLButtonElement).disabled).toBe(false),
+      expect(screen.getByTestId<HTMLButtonElement>('data-restore-pick').disabled).toBe(false),
     );
     expect(screen.queryByTestId('data-restore-passphrase')).toBeNull();
     expect(screen.queryByTestId('data-restore-error')).toBeNull();
@@ -187,13 +187,16 @@ describe('RestoreFlow — шаг 3: чекбокс-гейт и execute (§13/§1
   it('без чекбокса кнопка «Восстановить» недоступна; после отметки — активна (§13)', async () => {
     await renderAtPlan(PLAN);
 
-    const execute = screen.getByTestId('data-restore-execute') as HTMLButtonElement;
+    const execute = screen.getByTestId<HTMLButtonElement>('data-restore-execute');
     expect(execute.disabled).toBe(true);
     fireEvent.click(screen.getByTestId('data-restore-confirm'));
     expect(execute.disabled).toBe(false);
     // Enter-спам по мёртвой кнопке канала не вызывает.
     fireEvent.keyDown(screen.getByTestId('data-restore-plan'), { key: 'Enter' });
-    expect(invoke).not.toHaveBeenCalledWith('backup/restore', expect.objectContaining({ confirmed: true }));
+    expect(invoke).not.toHaveBeenCalledWith(
+      'backup/restore',
+      expect.objectContaining({ confirmed: true }),
+    );
   });
 
   it('execute → backup/restore {confirmed:true} → рестарт-экран role=alert, диалог закрыт (AC2)', async () => {

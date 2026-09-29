@@ -187,7 +187,11 @@ export function BackupDialog({ open, onClose }: BackupDialogProps): JSX.Element 
               </p>
 
               {formError !== null ? (
-                <p data-testid="data-backup-error" role="alert" className="text-sm font-medium text-text">
+                <p
+                  data-testid="data-backup-error"
+                  role="alert"
+                  className="text-sm font-medium text-text"
+                >
                   {formError}
                 </p>
               ) : null}

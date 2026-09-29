@@ -135,7 +135,7 @@ describe('WipeFlow — чекбокс-гейт и execute (§13/§10 072)', () =
   it('без чекбокса кнопка «Удалить всё» недоступна; после отметки — активна (§13)', async () => {
     await renderAtPlan();
 
-    const execute = screen.getByTestId('data-wipe-execute') as HTMLButtonElement;
+    const execute = screen.getByTestId<HTMLButtonElement>('data-wipe-execute');
     expect(execute.disabled).toBe(true);
     fireEvent.click(screen.getByTestId('data-wipe-confirm'));
     expect(execute.disabled).toBe(false);

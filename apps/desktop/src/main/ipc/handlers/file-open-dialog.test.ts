@@ -23,7 +23,9 @@ describe('createFileOpenDialogHandler — {filters} → {path} | {canceled} (§9
   });
 
   it('отмена диалога → {canceled: true} без ошибки (§7)', async () => {
-    const openFile = vi.fn(() => Promise.resolve({ canceled: true }) as Promise<FileOpenDialogResponse>);
+    const openFile = vi.fn(
+      () => Promise.resolve({ canceled: true }) as Promise<FileOpenDialogResponse>,
+    );
     const handler = createFileOpenDialogHandler(openFile);
 
     await expect(handler(REQUEST)).resolves.toEqual({ canceled: true });

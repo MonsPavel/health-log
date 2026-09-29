@@ -30,22 +30,21 @@ import type {
   RestoreBackupResultValue,
   RestorePlan,
 } from '../../modules/data-care/application/restore-backup.js';
-import type {
-  WipeAllDataResultValue,
-} from '../../modules/data-care/application/wipe-all.js';
+import type { WipeAllDataResultValue } from '../../modules/data-care/application/wipe-all.js';
 
 /**
  * Фабрика хендлера `backup/create`: use case инъекцируется контейнером (TASK-027).
  * Ответ — {file, sizeBytes, manifest} по схеме 070; путь среза — `value.path` не
  * копируется (§14).
  */
-export function createBackupCreateHandler(
-  useCase: { execute(command: BackupCreateRequest): Promise<Result<CreateBackupResult, AppError>> },
-): (payload: BackupCreateRequest) => Promise<BackupCreateResponse> {
+export function createBackupCreateHandler(useCase: {
+  execute(command: BackupCreateRequest): Promise<Result<CreateBackupResult, AppError>>;
+}): (payload: BackupCreateRequest) => Promise<BackupCreateResponse> {
   return async (payload) => {
     const resolved = await useCase.execute(payload);
     if (isErr(resolved)) {
-      throw asAppError(resolved.error);
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (§9; каркас конвертирует в ApiFailure(toDto), прецедент report.ts)
+      throw resolved.error;
     }
     const { file, sizeBytes, manifest } = resolved.value;
     return { file, sizeBytes, manifest };
@@ -56,15 +55,14 @@ export function createBackupCreateHandler(
  * Фабрика хендлера `backup/restore` (двухфазный, §11 071): фаза плана переводит
  * внутренний RestorePlan (с манифестом) в контрактную форму без манифеста (§14).
  */
-export function createBackupRestoreHandler(
-  useCase: {
-    execute(command: BackupRestoreRequest): Promise<Result<RestoreBackupResultValue, AppError>>;
-  },
-): (payload: BackupRestoreRequest) => Promise<BackupRestoreResponse> {
+export function createBackupRestoreHandler(useCase: {
+  execute(command: BackupRestoreRequest): Promise<Result<RestoreBackupResultValue, AppError>>;
+}): (payload: BackupRestoreRequest) => Promise<BackupRestoreResponse> {
   return async (payload) => {
     const resolved = await useCase.execute(payload);
     if (isErr(resolved)) {
-      throw asAppError(resolved.error);
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (§9; каркас конвертирует в ApiFailure(toDto), прецедент report.ts)
+      throw resolved.error;
     }
     const value = resolved.value;
     return 'plan' in value ? { plan: toPlanDto(value.plan) } : value;
@@ -73,15 +71,14 @@ export function createBackupRestoreHandler(
 
 /** Фабрика хендлера `data/wipe` (двухфазный по phase, §11 072): план копируется в
  * мутабельную контрактную форму (readonly-массивы use case не проходят z.output). */
-export function createDataWipeHandler(
-  useCase: {
-    execute(command: DataWipeRequest): Promise<Result<WipeAllDataResultValue, AppError>>;
-  },
-): (payload: DataWipeRequest) => Promise<DataWipeResponse> {
+export function createDataWipeHandler(useCase: {
+  execute(command: DataWipeRequest): Promise<Result<WipeAllDataResultValue, AppError>>;
+}): (payload: DataWipeRequest) => Promise<DataWipeResponse> {
   return async (payload) => {
     const resolved = await useCase.execute(payload);
     if (isErr(resolved)) {
-      throw asAppError(resolved.error);
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (§9; каркас конвертирует в ApiFailure(toDto), прецедент report.ts)
+      throw resolved.error;
     }
     const value = resolved.value;
     return 'plan' in value
@@ -106,10 +103,4 @@ function toPlanDto(plan: RestorePlan): BackupRestorePlan {
     currentCounts: plan.currentCounts,
     warnings: [...plan.warnings],
   };
-}
-
-/** AppError — наружу только им (контракт §9; каркас конвертирует в ApiFailure(toDto)). */
-function asAppError(error: AppError): AppError {
-  // eslint-disable-next-line @typescript-eslint/only-throw-error -- прецедент report.ts/report-pdf.ts
-  return error;
 }

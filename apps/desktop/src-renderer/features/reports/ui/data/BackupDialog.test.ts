@@ -48,7 +48,7 @@ function renderDialog(onCloseSpy: () => void = () => undefined): void {
         onCloseSpy();
         setOpen(false);
       },
-    }) as ReactElement;
+    });
   }
   render(
     createElement(
@@ -59,12 +59,9 @@ function renderDialog(onCloseSpy: () => void = () => undefined): void {
   );
 }
 
-const pass1 = (): HTMLInputElement =>
-  screen.getByTestId('data-backup-passphrase') as HTMLInputElement;
-const pass2 = (): HTMLInputElement =>
-  screen.getByTestId('data-backup-passphrase-repeat') as HTMLInputElement;
-const submit = (): HTMLButtonElement =>
-  screen.getByTestId('data-backup-submit') as HTMLButtonElement;
+const pass1 = (): HTMLInputElement => screen.getByTestId('data-backup-passphrase');
+const pass2 = (): HTMLInputElement => screen.getByTestId('data-backup-passphrase-repeat');
+const submit = (): HTMLButtonElement => screen.getByTestId('data-backup-submit');
 
 function fillPasswords(first: string, second: string): void {
   fireEvent.change(pass1(), { target: { value: first } });
@@ -218,7 +215,9 @@ describe('BackupDialog — доступность (§16/§20)', () => {
   it('фокус при открытии — в безопасной кнопке «Отмена» (§16: safe-action дефолт)', async () => {
     renderDialog();
 
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId('data-backup-cancel')));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByTestId('data-backup-cancel')),
+    );
   });
 
   it('axe — violations с impact=critical отсутствуют (§20)', async () => {

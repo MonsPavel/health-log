@@ -85,7 +85,7 @@ describe('data-care хендлеры через каркас (TASK-073 §19)', (
   const fileSaver: BackupFileSaver = {
     save: () => Promise.resolve(containerTarget),
   };
-  const clock = new FixedClock(NOW_MS, TZ);
+  const clock = new FixedClock(NOW_MS);
 
   // restore: шпионы точек контейнера (§19).
   const closeCurrentDb = vi.fn(() => undefined);
@@ -152,11 +152,7 @@ describe('data-care хендлеры через каркас (TASK-073 §19)', (
     queue: new FileOpQueue(),
     relaunch: wipeRelaunch,
   });
-  registry.register(
-    'data/wipe',
-    CHANNEL_SCHEMAS['data/wipe'],
-    createDataWipeHandler(wipe),
-  );
+  registry.register('data/wipe', CHANNEL_SCHEMAS['data/wipe'], createDataWipeHandler(wipe));
 
   afterAll(() => {
     rmSync(dir, { recursive: true, force: true });

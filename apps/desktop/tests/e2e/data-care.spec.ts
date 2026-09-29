@@ -99,14 +99,18 @@ async function stubOsDialogs(app: ElectronApplication): Promise<void> {
   await app.evaluate(({ dialog, app: electronApp }) => {
     const state: { savePath?: string; openPaths: string[] } = { openPaths: [] };
     (globalThis as { __hlE2eDialogState?: unknown }).__hlE2eDialogState = state;
-    (dialog as unknown as { showSaveDialog: unknown }).showSaveDialog = async () =>
-      state.savePath === undefined
-        ? { canceled: true, filePaths: [] }
-        : { canceled: false, filePath: state.savePath };
-    (dialog as unknown as { showOpenDialog: unknown }).showOpenDialog = async () =>
-      state.openPaths.length === 0
-        ? { canceled: true, filePaths: [] }
-        : { canceled: false, filePaths: state.openPaths };
+    (dialog as unknown as { showSaveDialog: unknown }).showSaveDialog = () =>
+      Promise.resolve(
+        state.savePath === undefined
+          ? { canceled: true, filePaths: [] }
+          : { canceled: false, filePath: state.savePath },
+      );
+    (dialog as unknown as { showOpenDialog: unknown }).showOpenDialog = () =>
+      Promise.resolve(
+        state.openPaths.length === 0
+          ? { canceled: true, filePaths: [] }
+          : { canceled: false, filePaths: state.openPaths },
+      );
     (electronApp as unknown as MutableElectronApp).relaunch = () => undefined;
     (electronApp as unknown as MutableElectronApp).exit = () => undefined;
   });
@@ -199,9 +203,9 @@ test.describe('Data Care E2E — UC-08/UC-10 (TASK-073 §19)', () => {
     const window2 = await app2.firstWindow();
     await expect(window2).toHaveTitle('Health Log');
     await window2.getByRole('link', { name: 'Журнал' }).click();
-    await expect(
-      window2.getByTestId('measurement-row').filter({ hasText: '140/90' }),
-    ).toHaveCount(0);
+    await expect(window2.getByTestId('measurement-row').filter({ hasText: '140/90' })).toHaveCount(
+      0,
+    );
     await expect(
       window2.getByTestId('measurement-row').filter({ hasText: '120/80' }),
     ).toBeVisible();
@@ -222,8 +226,11 @@ test.describe('Data Care E2E — UC-08/UC-10 (TASK-073 §19)', () => {
     await seedMeasurements(window1, [
       { sys: 125, dia: 85, takenAtUtcMs: Date.now() - SEED_CLOCK_GUARD_MS },
     ]);
+    // Черновик в localStorage страницы (структурный доступ — прецедент fixture launch).
     await window1.evaluate(() => {
-      window.localStorage.setItem('hl.formDraft', 'черновик сценария');
+      (
+        globalThis as { localStorage?: { setItem: (key: string, value: string) => void } }
+      ).localStorage?.setItem('hl.formDraft', 'черновик сценария');
     });
 
     await stubOsDialogs(app1);
@@ -254,9 +261,23 @@ test.describe('Data Care E2E — UC-08/UC-10 (TASK-073 §19)', () => {
     await window1.getByTestId('data-wipe-confirm').check();
     await execute.click();
     await expect(window1.getByTestId('data-restart-overlay')).toContainText('Данные удалены');
-    const hlKeys = await window1.evaluate(() =>
-      Object.keys(window.localStorage).filter((key) => key.startsWith('hl.')),
-    );
+    // §10 072: hl.* стёрты рендерером до рестарта (снимок имён — прецедент
+    // wipe-local-storage: live-коллекция при удалении сдвигается).
+    const hlKeys = await window1.evaluate(() => {
+      const storage = (
+        globalThis as {
+          localStorage?: { length: number; key: (index: number) => string | null };
+        }
+      ).localStorage;
+      const names: string[] = [];
+      for (let index = 0; index < (storage?.length ?? 0); index += 1) {
+        const key = storage?.key(index);
+        if (key !== null && key !== undefined) {
+          names.push(key);
+        }
+      }
+      return names.filter((key) => key.startsWith('hl.'));
+    });
     expect(hlKeys).toEqual([]);
     // Файлы данных удалены (БД и ключ; -wal/-shm закрываются вместе с соединением).
     expect(existsSync(join(tmpUserData, 'health-log.db'))).toBe(false);

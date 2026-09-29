@@ -266,7 +266,11 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                 />
               </div>
               {error !== null ? (
-                <p data-testid="data-restore-error" role="alert" className="mt-3 text-sm font-medium text-text">
+                <p
+                  data-testid="data-restore-error"
+                  role="alert"
+                  className="mt-3 text-sm font-medium text-text"
+                >
                   {error}
                 </p>
               ) : null}
@@ -352,7 +356,11 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
               </div>
 
               {error !== null ? (
-                <p data-testid="data-restore-error" role="alert" className="mt-3 text-sm font-medium text-text">
+                <p
+                  data-testid="data-restore-error"
+                  role="alert"
+                  className="mt-3 text-sm font-medium text-text"
+                >
                   {error}
                 </p>
               ) : null}

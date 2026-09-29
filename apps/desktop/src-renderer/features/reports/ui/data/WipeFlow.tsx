@@ -102,7 +102,7 @@ export function WipeFlow({ open, onClose }: WipeFlowProps): JSX.Element {
       setExportNotice(null);
       planMutation.mutate();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- мутация плана запускается только открытием флоу
+    // Мутация плана запускается только открытием флоу (план — часть открытия, §5 072).
   }, [open]);
 
   const exportMutation = useMutation({
@@ -183,7 +183,11 @@ export function WipeFlow({ open, onClose }: WipeFlowProps): JSX.Element {
           ) : null}
 
           {planError !== null ? (
-            <p data-testid="data-wipe-error" role="alert" className="mt-3 text-sm font-medium text-text">
+            <p
+              data-testid="data-wipe-error"
+              role="alert"
+              className="mt-3 text-sm font-medium text-text"
+            >
               {planError}
             </p>
           ) : null}
@@ -196,7 +200,10 @@ export function WipeFlow({ open, onClose }: WipeFlowProps): JSX.Element {
               <AlertDialog.Description asChild>
                 <p className="mt-2 text-sm text-text">{t('data.wipe.willDelete')}</p>
               </AlertDialog.Description>
-              <ul data-testid="data-wipe-categories" className="mt-1 flex flex-col gap-1 text-sm text-text">
+              <ul
+                data-testid="data-wipe-categories"
+                className="mt-1 flex flex-col gap-1 text-sm text-text"
+              >
                 {categories.map((category) => (
                   <li key={category}>— {t(CATEGORY_KEYS[category])}</li>
                 ))}

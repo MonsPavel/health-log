@@ -12,10 +12,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { CHANNEL_SCHEMAS } from './schemas.js';
-import {
-  FILE_OPEN_DIALOG_REQUEST_SCHEMA,
-  FILE_OPEN_DIALOG_RESPONSE_SCHEMA,
-} from './file.js';
+import { FILE_OPEN_DIALOG_REQUEST_SCHEMA, FILE_OPEN_DIALOG_RESPONSE_SCHEMA } from './file.js';
 
 describe('FILE_OPEN_DIALOG_REQUEST_SCHEMA (TASK-073 §9: {filters} — путь не присылается)', () => {
   it('фильтр копии разбирается (§5: выбор файла восстановления .hlbackup)', () => {
