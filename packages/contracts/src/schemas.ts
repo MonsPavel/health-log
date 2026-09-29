@@ -16,6 +16,10 @@ import {
   DATA_WIPE_RESPONSE_SCHEMA,
 } from './data-care/schemas.js';
 import {
+  FILE_OPEN_DIALOG_REQUEST_SCHEMA,
+  FILE_OPEN_DIALOG_RESPONSE_SCHEMA,
+} from './file/schemas.js';
+import {
   MEASUREMENT_ADD_REQUEST_SCHEMA,
   MEASUREMENT_ADD_RESPONSE_SCHEMA,
   MEASUREMENT_DELETE_REQUEST_SCHEMA,
@@ -108,6 +112,15 @@ export const CHANNEL_SCHEMAS = {
   'data/wipe': {
     request: DATA_WIPE_REQUEST_SCHEMA,
     response: DATA_WIPE_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-073 §5/§9: файловый пикер восстановления — renderer присылает ТОЛЬКО
+   * фильтры диалога; путь выбирает main-диалог ОС и возвращается как {path} |
+   * {canceled: true} (отмена — не ошибка, §7; путь от renderer не принимается, §14).
+   */
+  'file/open-dialog': {
+    request: FILE_OPEN_DIALOG_REQUEST_SCHEMA,
+    response: FILE_OPEN_DIALOG_RESPONSE_SCHEMA,
   },
   /**
    * TASK-028 §5/§11: журнал измерений — CRUD и список (арх. 05 §3, FR-1/FR-2).

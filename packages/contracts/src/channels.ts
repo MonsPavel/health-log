@@ -29,6 +29,8 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * §6/§11 (схемы — data-care/schemas.ts; регистрация хендлера — TASK-073);
  * полное удаление данных `data/wipe` (двухфазный по phase: plan → execute) —
  * TASK-072 §6/§11 (схемы — data-care/schemas.ts; регистрация хендлера — TASK-073);
+ * файловый пикер `file/open-dialog` — TASK-073 §5/§9 (схемы — file/schemas.ts:
+ * renderer присылает только фильтры, путь выбирает main-диалог — §14);
  * экспорт CSV/JSON `report/export-csv|export-json` — TASK-065 §5/§11 (схемы —
  * report/schemas.ts: запрос {profileId}, путь выбирает main-диалог — §14; ответ
  * {path} | {canceled: true} — отмена не ошибка, §7).
@@ -46,6 +48,7 @@ export type ChannelName =
   | 'backup/create'
   | 'backup/restore'
   | 'data/wipe'
+  | 'file/open-dialog'
   | 'measurements/add'
   | 'measurements/list'
   | 'measurements/update'
