@@ -24,7 +24,7 @@ const VALID_PREFS = {
   textScale: '100',
   dateFormat: 'auto',
   advancedMode: false,
-  netConsents: { updatesCheck: false },
+  netConsents: { updatesCheck: false, modelsDownload: false },
   jobState: { jobs: {}, shown: {} },
 } as const;
 
@@ -107,9 +107,21 @@ describe('PREFS_PATCH_SCHEMA — patch set (§7/§11)', () => {
 
   it('вложенные netConsents — объектом целиком (без deep-merge: один consent, §5)', () => {
     expect(PREFS_PATCH_SCHEMA.parse({ netConsents: { updatesCheck: true } })).toEqual({
-      netConsents: { updatesCheck: true },
+      netConsents: { updatesCheck: true, modelsDownload: false },
     });
     expect(PREFS_PATCH_SCHEMA.safeParse({ netConsents: {} }).success).toBe(false);
+  });
+
+  it('netConsents — обратная совместимость (TASK-075 §5): старый документ без modelsDownload парсится с дефолтом false, выданное updatesCheck сохранено', () => {
+    expect(PREFS_SCHEMA.parse({ netConsents: { updatesCheck: true } }).netConsents).toEqual({
+      updatesCheck: true,
+      modelsDownload: false,
+    });
+    expect(
+      PREFS_PATCH_SCHEMA.parse({ netConsents: { updatesCheck: true, modelsDownload: true } }),
+    ).toEqual({
+      netConsents: { updatesCheck: true, modelsDownload: true },
+    });
   });
 
   it('jobState — объектом целиком (без deep-merge, семантика netConsents; TASK-074 §5/§12)', () => {

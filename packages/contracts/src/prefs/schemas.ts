@@ -26,8 +26,14 @@ export const DATE_FORMAT_SCHEMA = z.enum(['auto', 'dmy', 'mdy']);
 /**
  * §5/§14: сетевые согласия. Поле схемы уже здесь; UI-редактор — TASK-099, читает
  * только EgressGateway (TASK-075). Объектом целиком — без deep-merge (см. шапку).
+ * TASK-075 §5: + modelsDownload (загрузка моделей, согласие запрашивается в
+ * TASK-081 UI) — с дефолтом false: усечённый/старый документ (§22, восстановление
+ * из копии до расширения схемы) парсится с заполнением недостающего БЕЗ сброса
+ * уже выданных согласий (updatesCheck читается как сохранён).
  */
-export const NET_CONSENTS_SCHEMA = z.object({ updatesCheck: z.boolean() }).strict();
+export const NET_CONSENTS_SCHEMA = z
+  .object({ updatesCheck: z.boolean(), modelsDownload: z.boolean().default(false) })
+  .strict();
 
 /** TASK-074 §5: метаданные последней копии — путь/дата (пишет onSuccess канала backup/create). */
 export const JOB_LAST_BACKUP_SCHEMA = z.object({ path: z.string(), at: z.number() }).strict();
@@ -61,7 +67,7 @@ export const PREFS_SCHEMA = z
     /** §5: крупный режим (TASK-048) — поле схемы уже, UI — своя задача. */
     advancedMode: z.boolean().default(false),
     /** §14: согласие на сеть по умолчанию НЕ дано (приватность first). */
-    netConsents: NET_CONSENTS_SCHEMA.default({ updatesCheck: false }),
+    netConsents: NET_CONSENTS_SCHEMA.default({ updatesCheck: false, modelsDownload: false }),
     /** TASK-074 §5: состояние задач планировщика (последний запуск, показы, копия). */
     jobState: JOB_STATE_SCHEMA.default({ jobs: {}, shown: {} }),
   })

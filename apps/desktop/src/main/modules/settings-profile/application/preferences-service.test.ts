@@ -77,7 +77,8 @@ describe('PreferencesService — getPrefs (§5/§8/§19)', () => {
       textScale: '100',
       dateFormat: 'auto',
       advancedMode: false,
-      netConsents: { updatesCheck: false },
+      // TASK-075: modelsDownload — новое согласие схемы, дефолт false (§5).
+      netConsents: { updatesCheck: false, modelsDownload: false },
       jobState: { jobs: {}, shown: {} },
     });
     expect(store.setCalls).toHaveLength(0);
@@ -99,7 +100,9 @@ describe('PreferencesService — getPrefs (§5/§8/§19)', () => {
       textScale: '125',
       dateFormat: 'mdy',
       advancedMode: true,
-      netConsents: { updatesCheck: true },
+      // TASK-075: усечённый netConsents (до расширения схемы) — modelsDownload из
+      // zod-дефолта, выданный updatesCheck сохранён (обратная совместимость §5).
+      netConsents: { updatesCheck: true, modelsDownload: false },
       // Усечённый документ (до расширения TASK-074) — jobState из zod-дефолта (§22).
       jobState: { jobs: {}, shown: {} },
     });
@@ -135,7 +138,7 @@ describe('PreferencesService — setPrefs (§7/§9/§11/§20)', () => {
       textScale: '112.5',
       dateFormat: 'dmy',
       advancedMode: true,
-      netConsents: { updatesCheck: true },
+      netConsents: { updatesCheck: true, modelsDownload: false },
       jobState: { jobs: {}, shown: {} },
     });
   });
@@ -248,6 +251,7 @@ describe('PreferencesService — setPrefs (§7/§9/§11/§20)', () => {
 
     const result = await service.setPrefs({ netConsents: { updatesCheck: false } });
 
-    expect(result.netConsents).toEqual({ updatesCheck: false });
+    // TASK-075: patch заменяет объект целиком; недостающий modelsDownload — дефолт.
+    expect(result.netConsents).toEqual({ updatesCheck: false, modelsDownload: false });
   });
 });

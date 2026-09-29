@@ -12,6 +12,9 @@
  *  - renderer импортирует node:fs            → error  (no-restricted-imports);
  *  - domain импортирует lodash               → error  (boundaries/external);
  *  - импорт чужого модуля через index.ts     → чисто;
+ *  - net-импорт вне egress (TASK-075)        → error  (no-restricted-imports);
+ *  - глобальный fetch вне egress (TASK-075)  → error  (no-restricted-globals);
+ *  - fetch/https внутри egress               → чисто (зона-исключение гейтвея);
  *  - явный any                               → error  (no-restricted-syntax, §20.3);
  *  - голый @ts-expect-error без пояснения    → error  (ban-ts-comment, §20.3).
  *
@@ -41,6 +44,17 @@ const EXPECTATIONS: ReadonlyArray<{ file: string; ruleId: string | null }> = [
   { file: `${FIXTURE_PREFIX}src/main/modules/alpha/domain/ok-cross-module-index.ts`, ruleId: null },
   // Ревью TASK-003: Node-builtin в main-процессе ОБЯЗАН быть чистым (origin «core», не «external»).
   { file: `${FIXTURE_PREFIX}src/main/ok-node-builtin.ts`, ruleId: null },
+  // TASK-075 §19/§20: сеть — только через EgressGateway. fetch/http вне egress — error,
+  // внутри зоны-исключения egress — чисто (контраст).
+  {
+    file: `${FIXTURE_PREFIX}src/main/modules/alpha/application/violation-net-import.ts`,
+    ruleId: 'no-restricted-imports',
+  },
+  {
+    file: `${FIXTURE_PREFIX}src/main/modules/alpha/application/violation-net-fetch-global.ts`,
+    ruleId: 'no-restricted-globals',
+  },
+  { file: `${FIXTURE_PREFIX}src/main/modules/alpha/egress/ok-gateway-net.ts`, ruleId: null },
   { file: `${FIXTURE_PREFIX}violation-any.ts`, ruleId: 'no-restricted-syntax' },
   {
     file: `${FIXTURE_PREFIX}violation-ts-expect-error.ts`,
@@ -171,7 +185,7 @@ async function main(): Promise<number> {
     return 1;
   }
   console.log(
-    'test:lint-rules: 2 violations expected, ok-fixture clean (плюс §20.3: any и голый @ts-expect-error — error)',
+    'test:lint-rules: violations expected — ok-fixture clean (renderer-node, domain-npm/node, net вне egress; any и голый @ts-expect-error — error)',
   );
   return 0;
 }

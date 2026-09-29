@@ -163,8 +163,8 @@ describe('миграция v3 — app_setting (TASK-047 §19/§20)', () => {
     db.close();
   });
 
-  it('(5) реестр MIGRATIONS — версии [1, 2, 3, 4] (TASK-051: +v4); V3_APP_SETTING.version === 3', () => {
+  it('(5) реестр MIGRATIONS — версии [1, 2, 3, 4, 5] (TASK-051: +v4, TASK-075: +v5); V3_APP_SETTING.version === 3', () => {
     expect(V3_APP_SETTING.version).toBe(3);
-    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4]);
+    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4, 5]);
   });
 });

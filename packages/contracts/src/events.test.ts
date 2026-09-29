@@ -51,6 +51,14 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
     expect(HL_EVENT_PAYLOAD_KEYS['job:backup-reminder']).toEqual([]);
   });
 
+  it('содержит net:activity с payload {kind, endpoint} — только метаданные, без PHI (TASK-075 §5/§11/§7)', () => {
+    expectTypeOf<HlEventMap['net:activity']>().toEqualTypeOf<{
+      readonly kind: string;
+      readonly endpoint: string;
+    }>();
+    expect(HL_EVENT_PAYLOAD_KEYS['net:activity']).toEqual(['kind', 'endpoint']);
+  });
+
   it('runtime-реестр HL_EVENT_PAYLOAD_KEYS покрывает карту без лишних имён', () => {
     expect(Object.keys(HL_EVENT_PAYLOAD_KEYS).sort()).toEqual(
       [
@@ -58,6 +66,7 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
         'data:versionBumped',
         'job:backup-reminder',
         'measurement:changed',
+        'net:activity',
         'prefs:changed',
       ].sort(),
     );

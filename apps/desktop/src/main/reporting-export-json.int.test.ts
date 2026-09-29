@@ -280,13 +280,13 @@ describe('ExportJsonUseCase: roundtrip-слепок на tmp-БД (TASK-064 §19
     expect(snapshot.scales).toEqual([{ code: 'bp_office_esc2018', version: '1.0.0' }]);
 
     // prefs (§5): сохранённый частичный документ + zod-дефолты PREFS_SCHEMA
-    // (TASK-074: jobState — новое поле документа, дефолт из схемы).
+    // (TASK-074: jobState; TASK-075: netConsents.modelsDownload — дефолт схемы).
     expect(snapshot.prefs).toEqual({
       theme: 'dark',
       textScale: '112.5',
       dateFormat: 'auto',
       advancedMode: false,
-      netConsents: { updatesCheck: false },
+      netConsents: { updatesCheck: false, modelsDownload: false },
       jobState: { jobs: {}, shown: {} },
     });
 

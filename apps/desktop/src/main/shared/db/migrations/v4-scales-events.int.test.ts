@@ -124,7 +124,9 @@ describe('миграция v4 — reference_scale + app_event (TASK-051 §19/§2
     const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as {
       value: string;
     };
-    expect(version.value).toBe('4');
+    // TASK-075: реестр MIGRATIONS вырос до v5 — на свежей БД версия = максимум
+    // реестра (конвенция теста v3 §19 п. 1); v4 применена (таблицы выше).
+    expect(version.value).toBe(String(MIGRATIONS.at(-1)?.version));
     db.close();
   });
 
@@ -232,7 +234,9 @@ describe('миграция v4 — reference_scale + app_event (TASK-051 §19/§2
     const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as {
       value: string;
     };
-    expect(version.value).toBe('4');
+    // TASK-075: версия = максимум реестра (конвенция теста v3 §19 п. 1) — no-op
+    // повторного применения её не меняет.
+    expect(version.value).toBe(String(MIGRATIONS.at(-1)?.version));
     db.close();
   });
 
@@ -266,8 +270,8 @@ describe('миграция v4 — reference_scale + app_event (TASK-051 §19/§2
     db.close();
   });
 
-  it('(7) реестр MIGRATIONS — версии [1, 2, 3, 4]; V4_SCALES_EVENTS.version === 4', () => {
+  it('(7) реестр MIGRATIONS — версии [1, 2, 3, 4, 5] (TASK-075: +v5); V4_SCALES_EVENTS.version === 4', () => {
     expect(V4_SCALES_EVENTS.version).toBe(4);
-    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4]);
+    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4, 5]);
   });
 });
