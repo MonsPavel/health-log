@@ -74,7 +74,7 @@
 | TASK-066 | done | | смержена |
 | TASK-067 | done | | смержена |
 | TASK-068 | done | | смержена вручную после ручной PDF-проверки golden-PDF пользователем 29.09 (pnpm export:golden-pdf) |
-| TASK-069 | todo | | |
+| TASK-069 | done | | смержена |
 | TASK-070 | done | | смержена |
 | TASK-071 | done | | смержена |
 | TASK-072 | done | | смержена |
