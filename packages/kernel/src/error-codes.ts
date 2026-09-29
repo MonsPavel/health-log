@@ -81,6 +81,13 @@ export const ERROR_CODES = [
   'AI/WORKER_CRASHED',
   'AI/ENGINE_NOT_CONFIGURED',
   'AI/MODEL_NOT_FOUND',
+  // TASK-080 §5/§9/§13: ModelStore — недостаток места на диске (sizeBytes + 100 МБ
+  // запас; проверка до старта и перед финальным rename), расхождение sha256 после
+  // полной загрузки (.part удаляется — недокачанное не притворяется готовым, §3),
+  // вторая загрузка при активной (одна активная загрузка, §9).
+  'AI/DISK_FULL',
+  'AI/HASH_MISMATCH',
+  'AI/DOWNLOAD_BUSY',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */

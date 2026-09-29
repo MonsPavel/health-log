@@ -4,6 +4,19 @@
  * воркер llm-worker/main.ts, движок 077; renderer протокол НЕ видит (только
  * события ai:status/ai:token из events.ts).
  */
+/**
+ * TASK-080 §6: контракты витрины моделей — статусы загрузки (ModelStatus),
+ * форма статуса (ModelStatusInfo), payload ai:progress (ModelProgressPayload),
+ * паттерн имени файла (MODEL_FILE_PATTERN, §14).
+ */
+export {
+  MODEL_FILE_PATTERN,
+  MODEL_STATUSES,
+  type ModelProgressPayload,
+  type ModelStatus,
+  type ModelStatusInfo,
+} from './models.js';
+
 export {
   KNOWN_WORKER_ERROR_CODES,
   isWorkerRequest,

@@ -43,6 +43,15 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('AI/MODEL_NOT_FOUND');
   });
 
+  // TASK-080 §5/§13: ModelStore — недостаток места (sizeBytes + 100 МБ запас,
+  // до старта и перед финальным rename), расхождение sha256 после полной загрузки
+  // (.part удаляется) и вторая загрузка при активной (одна, §9).
+  it('коды AI/DISK_FULL, AI/HASH_MISMATCH и AI/DOWNLOAD_BUSY присутствуют (TASK-080)', () => {
+    expect(ERROR_CODES).toContain('AI/DISK_FULL');
+    expect(ERROR_CODES).toContain('AI/HASH_MISMATCH');
+    expect(ERROR_CODES).toContain('AI/DOWNLOAD_BUSY');
+  });
+
   // TASK-022 §7/§13: коды SQLCipher-стека — открытие зашифрованной БД.
   it('коды STORAGE/BAD_KEY, STORAGE/LOCKED и STORAGE/CORRUPT присутствуют (TASK-022)', () => {
     expect(ERROR_CODES).toContain('STORAGE/BAD_KEY');
