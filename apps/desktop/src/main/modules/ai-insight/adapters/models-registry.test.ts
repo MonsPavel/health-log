@@ -30,7 +30,10 @@ afterAll(() => {
 });
 
 /** Фейк структурного логгера (§18): собирает вызовы error для проверок AC3. */
-function fakeLogger(): { logger: LlmClientLogger; errors: Array<{ message: string; meta?: Record<string, unknown> }> } {
+function fakeLogger(): {
+  logger: LlmClientLogger;
+  errors: Array<{ message: string; meta?: Record<string, unknown> }>;
+} {
   const errors: Array<{ message: string; meta?: Record<string, unknown> }> = [];
   return {
     errors,

@@ -15,11 +15,7 @@
  */
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import {
-  MODELS_MANIFEST_SCHEMA,
-  MODEL_DESCRIPTOR_SCHEMA,
-  type ModelDescriptor,
-} from './models.js';
+import { MODELS_MANIFEST_SCHEMA, MODEL_DESCRIPTOR_SCHEMA, type ModelDescriptor } from './models.js';
 
 /** Валидная запись-кандидат (форма §7) — база мутаций тест-таблицы. */
 const VALID_MODEL = {
@@ -45,15 +41,17 @@ describe('MODEL_DESCRIPTOR_SCHEMA — валидная запись (§19)', () 
   it('notesKey опционален: без него запись валидна, с непустым — тоже', () => {
     expect(MODEL_DESCRIPTOR_SCHEMA.safeParse({ ...VALID_MODEL }).success).toBe(true);
     expect(
-      MODEL_DESCRIPTOR_SCHEMA.safeParse({ ...VALID_MODEL, notesKey: 'models.notes.ram16' })
-        .success,
+      MODEL_DESCRIPTOR_SCHEMA.safeParse({ ...VALID_MODEL, notesKey: 'models.notes.ram16' }).success,
     ).toBe(true);
   });
 });
 
 describe('MODEL_DESCRIPTOR_SCHEMA — инварианты §13 (тест-таблица, AC1/AC4)', () => {
   const cases: ReadonlyArray<{ readonly name: string; readonly patch: Record<string, unknown> }> = [
-    { name: 'url http — запрещён (https-only, §14)', patch: { url: 'http://cdn.example.com/m.gguf' } },
+    {
+      name: 'url http — запрещён (https-only, §14)',
+      patch: { url: 'http://cdn.example.com/m.gguf' },
+    },
     { name: 'url не-URL — запрещён', patch: { url: 'PLACEHOLDER' } },
     { name: 'url без схемы — запрещён', patch: { url: 'cdn.example.com/m.gguf' } },
     { name: 'sha256 короче 64 — запрещён', patch: { sha256: 'a'.repeat(63) } },
@@ -72,7 +70,10 @@ describe('MODEL_DESCRIPTOR_SCHEMA — инварианты §13 (тест-таб
     { name: 'version пустой — запрещён', patch: { version: '' } },
     { name: 'license пустая — запрещена (юр. чистота дистрибуции, §14)', patch: { license: '' } },
     { name: 'notesKey пустой — запрещён (i18n-ключ)', patch: { notesKey: '' } },
-    { name: 'неизвестное поле — запрещено (strict, §14)', patch: { mirror: 'https://x.example.com' } },
+    {
+      name: 'неизвестное поле — запрещено (strict, §14)',
+      patch: { mirror: 'https://x.example.com' },
+    },
   ];
 
   it.each(cases)('$name', ({ patch }) => {
@@ -89,9 +90,7 @@ describe('MODELS_MANIFEST_SCHEMA — манифест-уровень (§13: ду
 
   it('дубликат id → отказ', () => {
     const duplicate = { ...VALID_MODEL, name: 'Same id' };
-    expect(
-      MODELS_MANIFEST_SCHEMA.safeParse([{ ...VALID_MODEL }, duplicate]).success,
-    ).toBe(false);
+    expect(MODELS_MANIFEST_SCHEMA.safeParse([{ ...VALID_MODEL }, duplicate]).success).toBe(false);
   });
 
   it('пустой список валиден (форма ≠ отбор: отбор — внешний процесс, §2)', () => {
@@ -99,9 +98,7 @@ describe('MODELS_MANIFEST_SCHEMA — манифест-уровень (§13: ду
   });
 
   it('не-массив (объект) — запрещён', () => {
-    expect(MODELS_MANIFEST_SCHEMA.safeParse({ models: [{ ...VALID_MODEL }] }).success).toBe(
-      false,
-    );
+    expect(MODELS_MANIFEST_SCHEMA.safeParse({ models: [{ ...VALID_MODEL }] }).success).toBe(false);
   });
 });
 

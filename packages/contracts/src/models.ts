@@ -44,9 +44,7 @@ export const MODEL_DESCRIPTOR_SCHEMA = z
       .refine((url) => url.startsWith('https://'), 'models.urlHttpsOnly'),
     sha256: z.string().regex(SHA256_PATTERN, 'models.sha256Hex64'),
     sizeBytes: z.number().int('models.sizeBytesInt').positive('models.sizeBytesPositive'),
-    languages: z
-      .array(z.string().min(1))
-      .min(1, 'models.languagesNonEmpty'),
+    languages: z.array(z.string().min(1)).min(1, 'models.languagesNonEmpty'),
     minRamGb: z.number().positive('models.minRamGbPositive'),
     license: z.string().min(1),
     notesKey: z.string().min(1).optional(),
