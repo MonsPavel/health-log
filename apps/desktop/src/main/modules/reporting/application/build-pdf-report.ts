@@ -300,7 +300,12 @@ export class BuildPdfReportUseCase {
     startedAtMs: number,
     stage: 'count' | 'points' | 'stats' | 'render',
   ): Result<BuildPdfReportValue, AppError> {
-    const error = AppError.of('REPORT/RENDER_FAILED', REPORT_RENDER_FAILED_MESSAGE_KEY, undefined, cause);
+    const error = AppError.of(
+      'REPORT/RENDER_FAILED',
+      REPORT_RENDER_FAILED_MESSAGE_KEY,
+      undefined,
+      cause,
+    );
     this.deps.logger.error('report/pdf: не удалось сформировать отчёт', {
       code: error.code,
       stage,

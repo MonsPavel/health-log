@@ -101,7 +101,7 @@ describe('smoke: tmp-БД 50 записей → PDF >10 КБ (TASK-068 §19/§20
 
       // 50 записей за ~30 дней через полный путь записи (measurements/add, §19 056).
       for (let i = 0; i < RECORDS; i += 1) {
-        const utcMs = NOW_MS - 86_400_000 * 30 + i * (86_400_000 * 30) / RECORDS;
+        const utcMs = NOW_MS - 86_400_000 * 30 + (i * (86_400_000 * 30)) / RECORDS;
         const envelope = await container.channels.dispatch({
           channel: 'measurements/add',
           payload: {

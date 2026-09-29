@@ -62,9 +62,7 @@ export const REPORT_PDF_REQUEST_SCHEMA = z
     /** Профиль-владелец журнала — та же гигиена, что у экспорта (§14). */
     profileId: z.string().min(1).max(256),
     /** Границы периода по takenAt.utcMs, обе включительно (ReportPeriod 067). */
-    period: z
-      .object({ fromUtcMs: z.number().int(), toUtcMs: z.number().int() })
-      .strict(),
+    period: z.object({ fromUtcMs: z.number().int(), toUtcMs: z.number().int() }).strict(),
     /** Явное включение ИИ-раздела (по умолчанию выключен — §3/US-26). */
     includeAiSection: z.boolean(),
     /** Текст ИИ-раздела (ReportAiText 067); только по явному includeAiSection. */

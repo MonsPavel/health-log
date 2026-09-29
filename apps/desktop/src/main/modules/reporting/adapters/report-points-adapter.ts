@@ -14,7 +14,7 @@
  */
 import type { BpMeasurement, BpMeasurementRepository } from '../../measurement/index.js';
 
-import type { ReportPointsSource, ReportQuery } from '../application/build-pdf-report.js';
+import type { ReportPointsSource } from '../application/build-pdf-report.js';
 import type { ReportRow } from '../application/report-spec.js';
 
 /** Строка отчёта из агрегата журнала (§5): плоские числа + момент со своим offset. */
@@ -53,8 +53,6 @@ export class ReportPointsAdapter implements ReportPointsSource {
   }
 
   listByPeriod(query: ReportScope): Promise<ReportRow[]> {
-    return this.repo
-      .listByPeriod(query)
-      .then((measurements) => measurements.map(toReportRow));
+    return this.repo.listByPeriod(query).then((measurements) => measurements.map(toReportRow));
   }
 }

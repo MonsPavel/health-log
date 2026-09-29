@@ -79,4 +79,11 @@ describe('ErrorCode: реестр кодов (§5)', () => {
   it('код EXPORT/FAILED присутствует (TASK-063)', () => {
     expect(ERROR_CODES).toContain('EXPORT/FAILED');
   });
+
+  // TASK-068 §5/§7: use case BuildPdfReport (reporting) — пустой период не
+  // формируется (count=0) и отказ рендера/сборки payload (cause в лог).
+  it('коды REPORT/EMPTY_PERIOD и REPORT/RENDER_FAILED присутствуют (TASK-068)', () => {
+    expect(ERROR_CODES).toContain('REPORT/EMPTY_PERIOD');
+    expect(ERROR_CODES).toContain('REPORT/RENDER_FAILED');
+  });
 });

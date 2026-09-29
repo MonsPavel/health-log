@@ -9,8 +9,12 @@ import { AppError, err, ok } from '@hl/kernel';
 import { createBuildPdfReportHandler } from './report-pdf.js';
 import type { BuildPdfReportValue } from '../../modules/reporting/application/build-pdf-report.js';
 
-const useCaseOf = (result: Promise<{ ok: true; value: BuildPdfReportValue } | { ok: false; error: AppError }>) =>
-  ({ execute: vi.fn(() => result) }) as unknown as Parameters<typeof createBuildPdfReportHandler>[0];
+const useCaseOf = (
+  result: Promise<{ ok: true; value: BuildPdfReportValue } | { ok: false; error: AppError }>,
+) =>
+  ({ execute: vi.fn(() => result) }) as unknown as Parameters<
+    typeof createBuildPdfReportHandler
+  >[0];
 
 const REQUEST = {
   profileId: 'seed-profile-0001',

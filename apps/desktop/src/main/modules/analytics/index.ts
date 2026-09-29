@@ -13,7 +13,4 @@ export type {
   MeasurementPointsPort,
   MeasurementPointsQuery,
 } from './application/ports/measurement-points.js';
-export {
-  buildPeriodStatistics,
-  type PeriodStatistics,
-} from './application/period-statistics.js';
+export { buildPeriodStatistics, type PeriodStatistics } from './application/period-statistics.js';

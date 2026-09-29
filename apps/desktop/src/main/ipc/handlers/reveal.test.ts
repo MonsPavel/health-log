@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createRevealPathHandler } from './reveal.js';
 
 describe('createRevealPathHandler — {path} → null (§11)', () => {
-  it('вызывает reveal с путём payload\'а и отвечает null', () => {
+  it("вызывает reveal с путём payload'а и отвечает null", () => {
     const reveal = vi.fn();
     const handler = createRevealPathHandler(reveal);
 

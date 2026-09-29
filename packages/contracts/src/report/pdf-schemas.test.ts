@@ -10,10 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { type ChannelName } from '../channels.js';
 import { CHANNEL_SCHEMAS } from '../schemas.js';
-import {
-  REPORT_PDF_REQUEST_SCHEMA,
-  REVEAL_PATH_REQUEST_SCHEMA,
-} from './schemas.js';
+import { REPORT_PDF_REQUEST_SCHEMA, REVEAL_PATH_REQUEST_SCHEMA } from './schemas.js';
 
 const VALID_REQUEST = {
   profileId: 'seed-profile-0001',
@@ -36,8 +33,9 @@ describe('REPORT_PDF_REQUEST_SCHEMA — запрос сборки PDF-отчёт
   });
 
   it('strict: лишние поля, пустой profileId и неполные формы отклоняются (§14)', () => {
-    expect(REPORT_PDF_REQUEST_SCHEMA.safeParse({ ...VALID_REQUEST, path: 'C:/evil.pdf' }).success)
-      .toBe(false);
+    expect(
+      REPORT_PDF_REQUEST_SCHEMA.safeParse({ ...VALID_REQUEST, path: 'C:/evil.pdf' }).success,
+    ).toBe(false);
     expect(REPORT_PDF_REQUEST_SCHEMA.safeParse({ ...VALID_REQUEST, profileId: '' }).success).toBe(
       false,
     );

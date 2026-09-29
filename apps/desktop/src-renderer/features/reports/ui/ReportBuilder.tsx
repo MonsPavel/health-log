@@ -34,10 +34,7 @@ import { useTranslation } from 'react-i18next';
 import { type ReportPdfResponse } from '@hl/contracts';
 
 import { call } from '../../../src/lib/ipc';
-import {
-  IpcApiError,
-  PROFILE_ID,
-} from '../../measurement/api/use-add-measurement';
+import { IpcApiError, PROFILE_ID } from '../../measurement/api/use-add-measurement';
 import { useStats } from '../../dashboard/api/use-stats';
 import { CustomRangeFields } from '../../measurement/ui/CustomRangeFields';
 import {
@@ -83,7 +80,10 @@ function basenameOf(path: string): string {
 }
 
 /** Вызов канала сборки отчёта: разворот конверта; failure → IpcApiError (§11). */
-async function buildReport(period: { fromUtcMs: number; toUtcMs: number }): Promise<ReportPdfResponse> {
+async function buildReport(period: {
+  fromUtcMs: number;
+  toUtcMs: number;
+}): Promise<ReportPdfResponse> {
   const result = await call('report/pdf', {
     profileId: PROFILE_ID,
     period,
@@ -172,7 +172,9 @@ export function ReportBuilder(): JSX.Element {
                 value={option}
                 checked={state.period === option}
                 onChange={() =>
-                  setState(option === 'custom' ? { ...state, period: 'custom' } : { period: option })
+                  setState(
+                    option === 'custom' ? { ...state, period: 'custom' } : { period: option },
+                  )
                 }
                 className="h-5 w-5 accent-[var(--hl-accent)]"
               />
@@ -185,7 +187,13 @@ export function ReportBuilder(): JSX.Element {
             <CustomRangeFields
               from={state.from}
               to={state.to}
-              onApply={(from, to) => setState({ period: 'custom', ...(from === undefined ? {} : { from }), ...(to === undefined ? {} : { to }) })}
+              onApply={(from, to) =>
+                setState({
+                  period: 'custom',
+                  ...(from === undefined ? {} : { from }),
+                  ...(to === undefined ? {} : { to }),
+                })
+              }
             />
           </div>
         )}
@@ -254,7 +262,9 @@ export function ReportBuilder(): JSX.Element {
         <div role="status" className="mt-3 text-sm text-accent" data-testid="report-notice">
           {notice.kind === 'success' && notice.path !== undefined ? (
             <>
-              <span title={notice.path}>{t('report.done', { basename: basenameOf(notice.path) })}</span>{' '}
+              <span title={notice.path}>
+                {t('report.done', { basename: basenameOf(notice.path) })}
+              </span>{' '}
               <button
                 type="button"
                 onClick={() => void call('app/reveal-path', { path: notice.path ?? '' })}

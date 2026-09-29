@@ -54,11 +54,21 @@ const sparseMeasurement = (): BpMeasurement =>
     updatedAtUtc: 0,
   }) as unknown as BpMeasurement;
 
-const repoWith = (measurements: BpMeasurement[]): BpMeasurementRepository =>
-  ({
-    listByPeriod: vi.fn(() => Promise.resolve(measurements)),
-    countByPeriod: vi.fn(() => Promise.resolve(measurements.length)),
-  }) as unknown as BpMeasurementRepository;
+const repoWith = (
+  measurements: BpMeasurement[],
+): {
+  readonly repo: BpMeasurementRepository;
+  readonly listByPeriod: ReturnType<typeof vi.fn>;
+  readonly countByPeriod: ReturnType<typeof vi.fn>;
+} => {
+  const listByPeriod = vi.fn(() => Promise.resolve(measurements));
+  const countByPeriod = vi.fn(() => Promise.resolve(measurements.length));
+  return {
+    repo: { listByPeriod, countByPeriod } as unknown as BpMeasurementRepository,
+    listByPeriod,
+    countByPeriod,
+  };
+};
 
 describe('toReportRow — агрегат → строка отчёта (TASK-068 §5)', () => {
   it('bp развёрнут в sys/dia; utcMs/tzOffsetMin — из takenAt записи (EC-06)', () => {
@@ -86,12 +96,12 @@ describe('toReportRow — агрегат → строка отчёта (TASK-068
 
 describe('ReportPointsAdapter — порт точек над репозиторием (§5/§8)', () => {
   it('listByPeriod: агрегаты → ReportRow[]; скоуп передаётся как есть (§14)', async () => {
-    const repo = repoWith([fullMeasurement(), sparseMeasurement()]);
+    const { repo, listByPeriod } = repoWith([fullMeasurement(), sparseMeasurement()]);
     const adapter = new ReportPointsAdapter(repo);
 
     const rows = await adapter.listByPeriod({ profileId: PROFILE, fromUtcMs: FROM, toUtcMs: TO });
 
-    expect(repo.listByPeriod).toHaveBeenCalledWith({
+    expect(listByPeriod).toHaveBeenCalledWith({
       profileId: PROFILE,
       fromUtcMs: FROM,
       toUtcMs: TO,
@@ -101,13 +111,13 @@ describe('ReportPointsAdapter — порт точек над репозитор�
   });
 
   it('countByPeriod: быстрый count того же скоупа (§9 — валидация непустости)', async () => {
-    const repo = repoWith([]);
+    const { repo, countByPeriod } = repoWith([]);
     const adapter = new ReportPointsAdapter(repo);
 
     await expect(
       adapter.countByPeriod({ profileId: PROFILE, fromUtcMs: FROM, toUtcMs: TO }),
     ).resolves.toBe(0);
-    expect(repo.countByPeriod).toHaveBeenCalledWith({
+    expect(countByPeriod).toHaveBeenCalledWith({
       profileId: PROFILE,
       fromUtcMs: FROM,
       toUtcMs: TO,

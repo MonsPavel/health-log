@@ -37,7 +37,11 @@ function partAverages(part: {
     count: part.count,
     sysAvg: part.sys.avg as number,
     diaAvg: part.dia.avg as number,
-    ...(part.pulse !== undefined ? { pulseAvg: part.pulse.avg as number } : {}),
+    // avg определён у существующей части (инвариант 052: часть = ≥1 измерение);
+    // явная проверка undefined вместо as — flat-маппинг §7 без лишнего ключа.
+    ...(part.pulse !== undefined && part.pulse.avg !== undefined
+      ? { pulseAvg: part.pulse.avg }
+      : {}),
   };
 }
 

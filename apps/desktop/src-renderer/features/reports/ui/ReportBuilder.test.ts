@@ -51,7 +51,15 @@ const statsEnvelope = (count: number): ApiEnvelope<unknown> => ({
   v: 1,
   ok: true,
   data: {
-    stats: { count, daysWithMeasurements: 0, longestStreakDays: 0, critical: { high: false, low: false }, insufficientData: { tooFewMeasurements: true, tooFewDays: true }, sys: {}, dia: {} },
+    stats: {
+      count,
+      daysWithMeasurements: 0,
+      longestStreakDays: 0,
+      critical: { high: false, low: false },
+      insufficientData: { tooFewMeasurements: true, tooFewDays: true },
+      sys: {},
+      dia: {},
+    },
     scale: { code: 'BP_OFFICE_ESC2018', version: '1.0.0', sourceLabel: 'ESC 2018' },
   },
 });
@@ -81,7 +89,9 @@ describe('ReportBuilder — настройки и состав (§5/§13)', () =
     invoke.mockResolvedValue(statsEnvelope(12));
     renderBuilder();
 
-    await waitFor(() => expect(screen.getByTestId('report-compose-count').textContent).toContain('12'));
+    await waitFor(() =>
+      expect(screen.getByTestId('report-compose-count').textContent).toContain('12'),
+    );
     const compose = screen.getByTestId('report-compose');
     expect(compose.textContent).toContain('Таблица измерений');
     expect(compose.textContent).toContain('Средние');
@@ -101,8 +111,9 @@ describe('ReportBuilder — настройки и состав (§5/§13)', () =
     invoke.mockResolvedValue(statsEnvelope(5));
     renderBuilder();
 
-    const checkbox = screen.getByRole('checkbox', { name: 'Включить ИИ-разбор' }) as HTMLInputElement;
-    expect(checkbox.disabled).toBe(true);
+    const checkbox = screen.getByRole('checkbox', { name: 'Включить ИИ-разбор' });
+    expect(checkbox.hasAttribute('disabled')).toBe(true);
+    expect(checkbox.getAttribute('disabled')).not.toBeNull();
     // §12: подсказка «появится вместе с ИИ-разбором» — видимый текст.
     expect(screen.getByTestId('report-ai-hint').textContent).toContain('ИИ-разбор');
     // §10: tooltip про маркировку в отчёте — title-атрибут (не единственный носитель).
@@ -165,14 +176,12 @@ describe('ReportBuilder — генерация (§9/§10/§16)', () => {
 
   it('rendering: кнопка disabled + aria-busy, честная оценка «до 30 секунд» (§15/§16)', async () => {
     let release!: () => void;
-    invoke
-      .mockResolvedValueOnce(statsEnvelope(5))
-      .mockReturnValueOnce(
-        new Promise((resolve) => {
-          release = () =>
-            resolve({ v: 1, ok: true, data: { path: 'C:\\out\\health-log-export.pdf' } });
-        }),
-      );
+    invoke.mockResolvedValueOnce(statsEnvelope(5)).mockReturnValueOnce(
+      new Promise((resolve) => {
+        release = () =>
+          resolve({ v: 1, ok: true, data: { path: 'C:\\out\\health-log-export.pdf' } });
+      }),
+    );
     renderBuilder();
 
     await waitFor(() => expect(generateButton().hasAttribute('disabled')).toBe(false));
@@ -223,13 +232,11 @@ describe('ReportBuilder — генерация (§9/§10/§16)', () => {
   });
 
   it('отказ RENDER_FAILED → тост текстом messageKey (§10)', async () => {
-    invoke
-      .mockResolvedValueOnce(statsEnvelope(5))
-      .mockResolvedValueOnce({
-        v: 1,
-        ok: false,
-        error: { code: 'REPORT/RENDER_FAILED', messageKey: 'errors.REPORT_RENDER_FAILED' },
-      });
+    invoke.mockResolvedValueOnce(statsEnvelope(5)).mockResolvedValueOnce({
+      v: 1,
+      ok: false,
+      error: { code: 'REPORT/RENDER_FAILED', messageKey: 'errors.REPORT_RENDER_FAILED' },
+    });
     renderBuilder();
 
     await waitFor(() => expect(generateButton().hasAttribute('disabled')).toBe(false));

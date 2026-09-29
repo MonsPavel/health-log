@@ -29,21 +29,32 @@ const point = (overrides: Partial<MeasurementPoint>): MeasurementPoint => ({
   ...overrides,
 });
 
-const portWith = (points: MeasurementPoint[]): MeasurementPointsPort => ({
-  listByPeriod: vi.fn(() => Promise.resolve(points)),
-});
+const portWith = (
+  points: MeasurementPoint[],
+): {
+  readonly port: MeasurementPointsPort;
+  readonly listByPeriod: ReturnType<typeof vi.fn>;
+} => {
+  const listByPeriod = vi.fn(() => Promise.resolve(points));
+  return { port: { listByPeriod }, listByPeriod };
+};
 
 describe('ReportStatsAdapter — проекция read model 052 в снапшот отчёта (§5)', () => {
   it('period {count, sysAvg, diaAvg, pulseAvg} + morning + regularity; скоуп как есть', async () => {
-    const port = portWith([
+    const { port, listByPeriod } = portWith([
       point({ pulse: 64, takenAt: Instant.fromIso('2026-09-20T07:45:00.000+03:00') }),
-      point({ sys: 126, dia: 84, pulse: 70, takenAt: Instant.fromIso('2026-09-21T20:30:00.000+03:00') }),
+      point({
+        sys: 126,
+        dia: 84,
+        pulse: 70,
+        takenAt: Instant.fromIso('2026-09-21T20:30:00.000+03:00'),
+      }),
     ]);
     const adapter = new ReportStatsAdapter(port);
 
     const snapshot = await adapter.getStatistics(QUERY);
 
-    expect(port.listByPeriod).toHaveBeenCalledWith(QUERY);
+    expect(listByPeriod).toHaveBeenCalledWith(QUERY);
     expect(snapshot.count).toBe(2);
     expect(snapshot.sysAvg).toBeCloseTo((118 + 126) / 2, 5);
     expect(snapshot.diaAvg).toBeCloseTo((76 + 84) / 2, 5);
@@ -57,9 +68,11 @@ describe('ReportStatsAdapter — проекция read model 052 в снапшо
   });
 
   it('нет измеренного пульса → pulseAvg отсутствует (052 §13), чисел нуля нет', async () => {
-    const adapter = new ReportStatsAdapter(
-      portWith([point({}), point({ sys: 120, dia: 80, takenAt: Instant.fromIso('2026-09-21T08:00:00.000+03:00') })]),
-    );
+    const { port } = portWith([
+      point({}),
+      point({ sys: 120, dia: 80, takenAt: Instant.fromIso('2026-09-21T08:00:00.000+03:00') }),
+    ]);
+    const adapter = new ReportStatsAdapter(port);
 
     const snapshot = await adapter.getStatistics(QUERY);
 
@@ -68,7 +81,8 @@ describe('ReportStatsAdapter — проекция read model 052 в снапшо
 
   it('часть суток без измерений → соответствующее поле отсутствует (052 §13)', async () => {
     // Единственная точка утром 2026-09-20 → вечерней части нет.
-    const adapter = new ReportStatsAdapter(portWith([point({ pulse: 60 })]));
+    const { port } = portWith([point({ pulse: 60 })]);
+    const adapter = new ReportStatsAdapter(port);
 
     const snapshot = await adapter.getStatistics(QUERY);
 

@@ -93,7 +93,10 @@ import { ExportCsvUseCase } from './modules/reporting/application/export-csv.js'
 import { ExportCsvFileUseCase } from './modules/reporting/application/export-csv-file.js';
 import { ExportJsonUseCase } from './modules/reporting/application/export-json.js';
 import { ExportJsonFileUseCase } from './modules/reporting/application/export-json-file.js';
-import { BuildPdfReportUseCase, type PdfRenderRunner } from './modules/reporting/application/build-pdf-report.js';
+import {
+  BuildPdfReportUseCase,
+  type PdfRenderRunner,
+} from './modules/reporting/application/build-pdf-report.js';
 import type { PdfRenderResult } from './modules/reporting/application/report-spec.js';
 // TASK-067 §9: дефолт tasksModule пула — модуль задач reporting (лёгкий файл URL:
 // без импортов цепочки react-pdf — рендер живёт в воркере, не в графе main).
