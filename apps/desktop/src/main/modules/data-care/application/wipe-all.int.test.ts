@@ -58,14 +58,22 @@ const VAULT_KEY_FILENAME = 'vault.key';
 const LOG_FILENAMES = ['hl.1.log', 'hl.2.log'];
 const BACKUP_FILENAMES = ['health-log-backup-20260101T000000.hlbackup', 'pre-migration-v3.hlbackup'];
 
-/** Каталоги этой сессии — удаляются в afterAll (§14). */
+/** Каталоги этой сессии — удаляются в afterAll (§14); соединения закрываются первыми. */
 const dirs: string[] = [];
+const openDbs: EncryptedDatabase[] = [];
 const newDir = (prefix: string): string => {
   const dir = mkdtempSync(join(tmpdir(), prefix));
   dirs.push(dir);
   return dir;
 };
 afterAll(() => {
+  // Windows: открытый дескриптор блокирует каталог для удаления — закрываем всё,
+  // что тест оставил открытым (отказ/расхождение — чистая отмена без close).
+  for (const db of openDbs) {
+    if (db.open) {
+      db.close();
+    }
+  }
   for (const dir of dirs) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -111,6 +119,7 @@ const buildWipeFixture = async (measurements: number): Promise<WipeFixture> => {
   const userDataDir = newDir('hl-wipe-ud-');
   const dbPath = join(userDataDir, DB_FILENAME);
   const db = openEncrypted(dbPath, KEY_HEX);
+  openDbs.push(db);
   await new MigrationRunner({ migrations: MIGRATIONS }).migrate(db);
   for (let i = 0; i < measurements; i += 1) {
     db.prepare(
@@ -424,10 +433,20 @@ describe('WipeAllDataUseCase — лог (§18/§14: category+basename, без п
     expect(execResult.ok).toBe(true);
 
     // §18: лог каждой unlink — category + basename (аудиторский след поддержки).
+    // Фактические unlink — всё, кроме -wal/-shm: SQLite удаляет их сам при
+    // закрытии соединения (шаг 3 execute) — в плане они есть, к unlink их уже
+    // нет ('wipe file already absent', debug).
     const deleted = harness.entries.filter((entry) => entry.message === 'wipe file deleted');
-    expect(deleted.map((entry) => [entry.meta?.['category'], entry.meta?.['file']])).toEqual(
-      expectedPlanFiles().map(({ category, path }) => [category, path]),
+    const realFiles = expectedPlanFiles().filter(
+      ({ path }) => path !== `${DB_FILENAME}-wal` && path !== `${DB_FILENAME}-shm`,
     );
+    expect(deleted.map((entry) => [entry.meta?.['category'], entry.meta?.['file']])).toEqual(
+      realFiles.map(({ category, path }) => [category, path]),
+    );
+    const absent = harness.entries
+      .filter((entry) => entry.message === 'wipe file already absent')
+      .map((entry) => entry.meta?.['file']);
+    expect(absent).toEqual([`${DB_FILENAME}-wal`, `${DB_FILENAME}-shm`]);
     // §14: полный путь (userData содержит имя Windows-пользователя) — не в логе.
     const dumped = JSON.stringify(harness.entries);
     expect(dumped).not.toContain(fixture.userDataDir);

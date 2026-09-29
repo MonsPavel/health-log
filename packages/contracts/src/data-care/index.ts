@@ -1,7 +1,8 @@
 /**
- * TASK-070 §6/§071 §6: публичный API контрактов Data Care — каналы `backup/create`
- * и `backup/restore` (двухфазный; регистрация хендлеров — TASK-073) и манифест
- * копии (валидация при восстановлении — 071).
+ * TASK-070 §6/071 §6/072 §6: публичный API контрактов Data Care — каналы
+ * `backup/create`, `backup/restore` и `data/wipe` (оба двухфазные; регистрация
+ * хендлеров — TASK-073), манифест копии (валидация при восстановлении — 071)
+ * и план полного удаления (072).
  */
 export {
   BACKUP_CREATE_REQUEST_SCHEMA,
@@ -13,6 +14,10 @@ export {
   BACKUP_RESTORE_PLAN_SCHEMA,
   BACKUP_RESTORE_REQUEST_SCHEMA,
   BACKUP_RESTORE_RESPONSE_SCHEMA,
+  DATA_WIPE_FILE_SCHEMA,
+  DATA_WIPE_PLAN_SCHEMA,
+  DATA_WIPE_REQUEST_SCHEMA,
+  DATA_WIPE_RESPONSE_SCHEMA,
   type BackupCreateRequest,
   type BackupCreateResponse,
   type BackupKdf,
@@ -21,4 +26,8 @@ export {
   type BackupRestorePlan,
   type BackupRestoreRequest,
   type BackupRestoreResponse,
+  type DataWipeFile,
+  type DataWipePlan,
+  type DataWipeRequest,
+  type DataWipeResponse,
 } from './schemas.js';

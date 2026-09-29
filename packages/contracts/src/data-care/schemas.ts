@@ -1,7 +1,9 @@
 /**
  * TASK-070 §5/§6/§7: контракт Data Care — канал `backup/create` и zod-схема
  * `BackupManifest` (манифест копии — часть контракта: восстановление TASK-071
- * валидирует его при разборе контейнера, §7).
+ * валидирует его при разборе контейнера, §7). TASK-071 §6/§11: двухфазный канал
+ * `backup/restore` (plan → execute). TASK-072 §6/§7/§11: канал `data/wipe` —
+ * план полного удаления данных (двухфазный по `phase`).
  *
  * Контейнер копии (§4): `[magic 'HLBK1'][len(manifest-json)][manifest-json]
  * [iv 12б][ciphertext(снапшот БД)][auth-tag 16б]` — IV хранится рядом с
@@ -133,6 +135,8 @@ export type BackupCreateResponse = z.output<typeof BACKUP_CREATE_RESPONSE_SCHEMA
  * Показывается пользователю ДО подтверждения (§10: план → предупреждения →
  * подтверждение → execute); полный манифест наружу не идёт (соль/запись kdf
  * рендереру не нужны, §14 — минимум данных).
+ * TASK-072 §7/§11: план полного удаления — результат фазы plan канала `data/wipe`
+ * (ниже).
  */
 export const BACKUP_RESTORE_PLAN_SCHEMA = z
   .object({
@@ -196,3 +200,64 @@ export const BACKUP_RESTORE_RESPONSE_SCHEMA = z.union([
 
 export type BackupRestoreRequest = z.output<typeof BACKUP_RESTORE_REQUEST_SCHEMA>;
 export type BackupRestoreResponse = z.output<typeof BACKUP_RESTORE_RESPONSE_SCHEMA>;
+
+/**
+ * TASK-072 §7/§11: план полного удаления данных — результат фазы plan канала
+ * `data/wipe`. Показывается пользователю ДО подтверждения (§5: plan не удаляет;
+ * execute — только явным вторым вызовом, §13 — защита от двойного клика).
+ *
+ * Запись файла (§7): `path` — ТОЛЬКО basename («полный путь userData содержит имя
+ * Windows-пользователя», §14; renderer'у пути не нужны — план показывает, ЧТО будет
+ * удалено; пути от renderer не принимаются — план строит main из фактических
+ * каталогов, §7/§14). Категория — ключ текста подтверждения (§17).
+ */
+export const DATA_WIPE_FILE_SCHEMA = z
+  .object({
+    /** Имя файла (basename; полный путь остаётся в main, §14). */
+    path: z.string().min(1).max(256),
+    /** Категория (§7): db (db+wal+shm) | key (vault.key) | logs | backups. */
+    category: z.enum(['db', 'key', 'logs', 'backups']),
+  })
+  .strict();
+
+/**
+ * План (§7): файлы в ПОРЯДКЕ УДАЛЕНИЯ (§19 РЕШЕНИЕ: backups → logs → key → db — БД
+ * последней, чтобы частичный сбой оставил читаемое состояние); счётчик измерений
+ * удаляемой БД (факт для подтверждения); `rendererLocalStorage` — черновики
+ * localStorage рендерера будут очищены командой renderer'у (§5/§10: после
+ * подтверждённого execute и до relaunch) — факт для диалога подтверждения.
+ */
+export const DATA_WIPE_PLAN_SCHEMA = z
+  .object({
+    files: z.array(DATA_WIPE_FILE_SCHEMA),
+    counts: z.object({ measurements: z.number().int().min(0) }).strict(),
+    rendererLocalStorage: z.literal(true),
+  })
+  .strict();
+
+/**
+ * TASK-072 §5/§11: запрос канала `data/wipe` — двухфазный по `phase` (§13: plan и
+ * execute — два явных вызова). Команде нечего передавать (§7: пути от renderer не
+ * принимаются — план строит main из фактических каталогов; execute строится на
+ * плане, хранящемся в main).
+ */
+export const DATA_WIPE_REQUEST_SCHEMA = z.discriminatedUnion('phase', [
+  z.object({ phase: z.literal('plan') }).strict(),
+  z.object({ phase: z.literal('execute') }).strict(),
+]);
+
+/**
+ * TASK-072 §11: ответ канала — union по фазе: план (`plan`) после фазы plan или факт
+ * запланированного перезапуска (`restarting: true`) после execute (§9: ответ уходит
+ * до relaunch — приложение перезапускается отложенно; прецедент backup/restore 071).
+ * Ошибки — каркасные (WIPE/FAILED), формой ответа не выражаются.
+ */
+export const DATA_WIPE_RESPONSE_SCHEMA = z.union([
+  z.object({ plan: DATA_WIPE_PLAN_SCHEMA }).strict(),
+  z.object({ restarting: z.literal(true) }).strict(),
+]);
+
+export type DataWipeFile = z.output<typeof DATA_WIPE_FILE_SCHEMA>;
+export type DataWipePlan = z.output<typeof DATA_WIPE_PLAN_SCHEMA>;
+export type DataWipeRequest = z.output<typeof DATA_WIPE_REQUEST_SCHEMA>;
+export type DataWipeResponse = z.output<typeof DATA_WIPE_RESPONSE_SCHEMA>;

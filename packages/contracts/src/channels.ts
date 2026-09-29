@@ -26,7 +26,9 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * создание копии `backup/create` — TASK-070 §6/§11 (схемы — data-care/schemas.ts;
  * канал-контракт здесь, регистрация хендлера с UI — TASK-073);
  * восстановление из копии `backup/restore` (двухфазный: plan → execute) — TASK-071
- * §6/§11 (схемы — data-care/schemas.ts; регистрация хендлера — TASK-073).
+ * §6/§11 (схемы — data-care/schemas.ts; регистрация хендлера — TASK-073);
+ * полное удаление данных `data/wipe` (двухфазный по phase: plan → execute) —
+ * TASK-072 §6/§11 (схемы — data-care/schemas.ts; регистрация хендлера — TASK-073).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -40,6 +42,7 @@ export type ChannelName =
   | 'app/log-client-error'
   | 'backup/create'
   | 'backup/restore'
+  | 'data/wipe'
   | 'measurements/add'
   | 'measurements/list'
   | 'measurements/update'
