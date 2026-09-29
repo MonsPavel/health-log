@@ -1,6 +1,7 @@
 /**
- * TASK-070 §19/071 §19: контракт-тесты Data Care — формы каналов `backup/create` и
- * `backup/restore` и манифеста копии (валидатор восстановления TASK-071).
+ * TASK-070 §19/071 §19/072 §19: контракт-тесты Data Care — формы каналов
+ * `backup/create`, `backup/restore` и `data/wipe`, манифеста копии (валидатор
+ * восстановления TASK-071) и плана полного удаления (TASK-072).
  *
  * Матрица:
  *  - манифест: полная форма §2 разбирается; каждое поле §2 обязательно (strict —
@@ -25,6 +26,9 @@ import {
   BACKUP_RESTORE_PLAN_SCHEMA,
   BACKUP_RESTORE_REQUEST_SCHEMA,
   BACKUP_RESTORE_RESPONSE_SCHEMA,
+  DATA_WIPE_PLAN_SCHEMA,
+  DATA_WIPE_REQUEST_SCHEMA,
+  DATA_WIPE_RESPONSE_SCHEMA,
 } from './schemas.js';
 
 /** Валидный манифест-пример (§2): все поля, kdf=argon2id. */
@@ -257,5 +261,80 @@ describe('BACKUP_RESTORE_RESPONSE_SCHEMA (TASK-071 §11: plan | restarting)', ()
     expect(BACKUP_RESTORE_RESPONSE_SCHEMA.safeParse({ restarting: true }).success).toBe(true);
     expect(BACKUP_RESTORE_RESPONSE_SCHEMA.safeParse({ restarting: false }).success).toBe(false);
     expect(BACKUP_RESTORE_RESPONSE_SCHEMA.safeParse({}).success).toBe(false);
+  });
+});
+
+/** Валидный план стирания (072 §7: basename+категория, счётчики, команда renderer'у). */
+const validWipePlan = {
+  files: [
+    { path: 'health-log-backup-20260929T120000.hlbackup', category: 'backups' },
+    { path: 'hl.1.log', category: 'logs' },
+    { path: 'vault.key', category: 'key' },
+    { path: 'health-log.db-wal', category: 'db' },
+    { path: 'health-log.db', category: 'db' },
+  ],
+  counts: { measurements: 120 },
+  rendererLocalStorage: true,
+};
+
+describe('DATA_WIPE_PLAN_SCHEMA (TASK-072 §7: план полного удаления)', () => {
+  it('полная форма плана разбирается (basename + категория — без полных путей, §14)', () => {
+    expect(DATA_WIPE_PLAN_SCHEMA.parse(validWipePlan)).toEqual(validWipePlan);
+  });
+
+  it('category — только db|key|logs|backups; поля обязательны (strict)', () => {
+    expect(
+      DATA_WIPE_PLAN_SCHEMA.safeParse({
+        ...validWipePlan,
+        files: [{ path: 'x', category: 'renderer' }],
+      }).success,
+    ).toBe(false);
+    const without = { ...validWipePlan } as Record<string, unknown>;
+    delete without['counts'];
+    expect(DATA_WIPE_PLAN_SCHEMA.safeParse(without).success).toBe(false);
+    expect(DATA_WIPE_PLAN_SCHEMA.safeParse({ ...validWipePlan, extra: 1 }).success).toBe(false);
+  });
+
+  it('counts.measurements — неотрицательное целое; rendererLocalStorage — literal true', () => {
+    expect(
+      DATA_WIPE_PLAN_SCHEMA.safeParse({ ...validWipePlan, counts: { measurements: -1 } }).success,
+    ).toBe(false);
+    expect(
+      DATA_WIPE_PLAN_SCHEMA.safeParse({
+        ...validWipePlan,
+        rendererLocalStorage: false,
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('DATA_WIPE_REQUEST_SCHEMA (TASK-072 §5/§11: две фазы по phase)', () => {
+  it('фаза plan {phase: "plan"} разбирается — команде нечего передавать (§7: пути от renderer не принимаются)', () => {
+    expect(DATA_WIPE_REQUEST_SCHEMA.safeParse({ phase: 'plan' }).success).toBe(true);
+    expect(DATA_WIPE_REQUEST_SCHEMA.safeParse({ phase: 'plan', file: 'x' }).success).toBe(false);
+  });
+
+  it('фаза execute {phase: "execute"} разбирается; чужая фаза/лишние поля — отказ (strict)', () => {
+    expect(DATA_WIPE_REQUEST_SCHEMA.safeParse({ phase: 'execute' }).success).toBe(true);
+    expect(DATA_WIPE_REQUEST_SCHEMA.safeParse({ phase: 'run' }).success).toBe(false);
+    expect(DATA_WIPE_REQUEST_SCHEMA.safeParse({ phase: 'execute', paths: ['..'] }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('DATA_WIPE_RESPONSE_SCHEMA (TASK-072 §11: plan | restarting)', () => {
+  it('фаза plan: {plan} разбирается', () => {
+    expect(DATA_WIPE_RESPONSE_SCHEMA.parse({ plan: validWipePlan })).toEqual({
+      plan: validWipePlan,
+    });
+  });
+
+  it('фаза execute: {restarting: true} разбирается; restart false / смешанная форма — отказ', () => {
+    expect(DATA_WIPE_RESPONSE_SCHEMA.safeParse({ restarting: true }).success).toBe(true);
+    expect(DATA_WIPE_RESPONSE_SCHEMA.safeParse({ restarting: false }).success).toBe(false);
+    expect(
+      DATA_WIPE_RESPONSE_SCHEMA.safeParse({ plan: validWipePlan, restarting: true }).success,
+    ).toBe(false);
   });
 });
