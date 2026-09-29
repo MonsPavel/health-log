@@ -35,6 +35,7 @@ export {
 export { CHANNEL_SCHEMAS, type ChannelSchemas } from './schemas.js';
 export * from './bench.js';
 export * from './data-care/index.js';
+export * from './export/index.js';
 export * from './measurement/index.js';
 export * from './notes/index.js';
 export * from './prefs/index.js';
