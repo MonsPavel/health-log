@@ -408,7 +408,7 @@ describe('SummaryScreen — подсказка о копии (TASK-074 §5/§10/
     if (handler === undefined) {
       throw new Error('сводка обязана подписаться на job:backup-reminder (TASK-074 §11)');
     }
-    return handler as (payload: Record<string, never>) => void;
+    return handler;
   }
 
   it('баннера нет по умолчанию; событие job:backup-reminder → баннер на дашборде', async () => {

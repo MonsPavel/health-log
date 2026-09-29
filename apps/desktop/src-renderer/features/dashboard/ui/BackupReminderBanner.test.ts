@@ -21,7 +21,10 @@ afterEach(() => {
   cleanup();
 });
 
-function renderBanner(onCreate: () => void = () => undefined, onLater: () => void = () => undefined): void {
+function renderBanner(
+  onCreate: () => void = () => undefined,
+  onLater: () => void = () => undefined,
+): void {
   render(createElement(BackupReminderBanner, { onCreate, onLater }));
 }
 
@@ -41,7 +44,14 @@ describe('BackupReminderBanner — текст и тон (§17/§20 golden)', () 
     expect(later).toBe('Позже');
 
     // Golden-тест тона (§17): никаких упрёков — только забота.
-    for (const forbidden of ['забыли', 'Забыли', 'не делали', 'Не делали', 'рискуете', 'потеряете']) {
+    for (const forbidden of [
+      'забыли',
+      'Забыли',
+      'не делали',
+      'Не делали',
+      'рискуете',
+      'потеряете',
+    ]) {
       expect(all.toLowerCase()).not.toContain(forbidden.toLowerCase());
     }
   });
