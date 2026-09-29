@@ -4,6 +4,8 @@
  * для межмодульных потребителей: порт журнала измерений и политика критических
  * значений. Первый межмодульный потребитель — аналитика TASK-054 (адаптер точек
  * периода над репозиторием журнала); расширять список экспорта осознанно.
+ * TASK-065: toMeasurementDto (TASK-028) — маппинг агрегата для экспорта JSON-слепка
+ * (reporting/adapters, §7: переиспользование формы канала list).
  */
 export type { Arm } from './domain/arm.js';
 export type { BpMeasurement, MeasurementSource } from './domain/bp-measurement.js';
@@ -12,3 +14,4 @@ export type {
   MeasurementQuery,
 } from './application/ports/bp-measurement-repository.js';
 export { assessCritical, type CriticalFlag } from './domain/critical-value-policy.js';
+export { toMeasurementDto } from './application/add-measurement.js';
