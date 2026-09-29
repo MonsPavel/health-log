@@ -134,9 +134,9 @@ describe('buildContainer — полный цикл §19 (последовате�
     // TASK-070 AC-4: hook снапшота подключён в контейнере — перед каждой миграцией
     // свежей БД создана pre-migration копия в <userData>/backups (§7 — фикс).
     for (const migration of MIGRATIONS) {
-      expect(
-        existsSync(join(dir, 'backups', `pre-migration-v${migration.version}.hlbackup`)),
-      ).toBe(true);
+      expect(existsSync(join(dir, 'backups', `pre-migration-v${migration.version}.hlbackup`))).toBe(
+        true,
+      );
     }
     // ping через зарегистрированный каркас (§11): конверт TASK-008 + ts из FixedClock.
     const envelope = await container1.channels.dispatch({ channel: 'app/ping', payload: {} });

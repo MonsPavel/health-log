@@ -154,7 +154,10 @@ describe('BackupContainerCodec.writeContainer / readContainer (§4: формат
   it('чужая магия → BackupContainerFormatError', async () => {
     const base = newDir();
     const destinationPath = join(base, 'alien.hlbackup');
-    writeFileSync(destinationPath, Buffer.concat([Buffer.from('NOTBK', 'latin1'), randomBytes(64)]));
+    writeFileSync(
+      destinationPath,
+      Buffer.concat([Buffer.from('NOTBK', 'latin1'), randomBytes(64)]),
+    );
 
     await expect(
       newCodec().readContainer({ containerPath: destinationPath, contentKey: randomBytes(32) }),
@@ -178,7 +181,10 @@ describe('BackupContainerCodec.writeContainer / readContainer (§4: формат
 describe('BackupContainerCodec.prepareKey / contentKeyFor (§8: два вида ключа)', () => {
   it('пароль → kdf argon2id (соль/параметры записи) + 32-байтный ключ', async () => {
     const codec = newCodec();
-    const { kdf, contentKey } = await codec.prepareKey({ kind: 'passphrase', passphrase: 'пароль' });
+    const { kdf, contentKey } = await codec.prepareKey({
+      kind: 'passphrase',
+      passphrase: 'пароль',
+    });
 
     expect(kdf.id).toBe('argon2id');
     if (kdf.id !== 'argon2id') {
@@ -219,7 +225,13 @@ describe('BackupContainerCodec.prepareKey / contentKeyFor (§8: два вида 
     ).rejects.toThrow(TypeError);
     await expect(
       codec.contentKeyFor(
-        { id: 'argon2id', saltB64: Buffer.alloc(16, 1).toString('base64'), iterations: 1, memoryKib: 64, parallelism: 1 },
+        {
+          id: 'argon2id',
+          saltB64: Buffer.alloc(16, 1).toString('base64'),
+          iterations: 1,
+          memoryKib: 64,
+          parallelism: 1,
+        },
         { kind: 'dbKey', keyHex: 'ab'.repeat(32) },
       ),
     ).rejects.toThrow(TypeError);

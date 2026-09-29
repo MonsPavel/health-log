@@ -15,6 +15,10 @@
  */
 import type { BackupKdf, BackupManifest } from '@hl/contracts';
 
+/** Контрактные формы манифеста — реэкспорт порта (адаптеры типы берут через порт,
+ * прецедент notes-search: adapters → contracts напрямую запрещён матрицей арх. 03 §4). */
+export type { BackupKdf, BackupManifest };
+
 /** Источник ключа содержимого копии (§8). */
 export type BackupKeySource =
   | { readonly kind: 'passphrase'; readonly passphrase: string }
@@ -77,8 +81,5 @@ export interface BackupCrypto {
    * GCM-проверка манифеста+шифртекста (BackupIntegrityError — порча/чужой ключ).
    * Снапшот целиком в памяти (§15: ~20 МБ); потоковая версия — 071 при потребности.
    */
-  readContainer(input: {
-    containerPath: string;
-    contentKey: Buffer;
-  }): Promise<ReadContainerResult>;
+  readContainer(input: { containerPath: string; contentKey: Buffer }): Promise<ReadContainerResult>;
 }

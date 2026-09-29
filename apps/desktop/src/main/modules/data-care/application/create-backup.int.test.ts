@@ -76,7 +76,10 @@ afterAll(() => {
 
 /** Кодек с минимальными параметрами Argon2id (скорость набора; боевые — в контейнере). */
 const newCodec = (options?: BackupContainerCodecOptions): BackupContainerCodec =>
-  new BackupContainerCodec({ argon2Params: { iterations: 1, memoryKib: 64, parallelism: 1 }, ...options });
+  new BackupContainerCodec({
+    argon2Params: { iterations: 1, memoryKib: 64, parallelism: 1 },
+    ...options,
+  });
 
 /** Мета-сборщик логгера: все записи (для redact-проверки §14 и факта лога §18). */
 interface LogEntry {
@@ -84,11 +87,14 @@ interface LogEntry {
   readonly message: string;
   readonly meta?: Record<string, unknown>;
 }
-const recordingLogger = (): { entries: LogEntry[]; logger: {
-  debug(message: string, meta?: Record<string, unknown>): void;
-  info(message: string, meta?: Record<string, unknown>): void;
-  error(message: string, meta?: Record<string, unknown>): void;
-} } => {
+const recordingLogger = (): {
+  entries: LogEntry[];
+  logger: {
+    debug(message: string, meta?: Record<string, unknown>): void;
+    info(message: string, meta?: Record<string, unknown>): void;
+    error(message: string, meta?: Record<string, unknown>): void;
+  };
+} => {
   const entries: LogEntry[] = [];
   const push = (level: string) => (message: string, meta?: Record<string, unknown>) => {
     entries.push({ level, message, meta });
@@ -131,15 +137,19 @@ interface HarnessOptions {
 }
 interface Harness {
   readonly backupsDir: string;
+  /** Выделенный корень tmp-снапшотов — точка наблюдения чистки (AC-5, без гонок suite). */
+  readonly snapshotRoot: string;
   readonly useCase: CreateBackupUseCase;
   readonly entries: LogEntry[];
   readonly fileSaver: BackupFileSaver;
 }
 const buildHarness = (db: EncryptedDatabase, options: HarnessOptions = {}): Harness => {
   const backupsDir = options.backupsDir ?? newDir('hl-backups-');
+  const snapshotRoot = newDir('hl-backup-snap-root-');
   const { entries, logger } = recordingLogger();
-  const fileSaver: BackupFileSaver =
-    options.fileSaver ?? { save: vi.fn().mockResolvedValue(join(newDir('hl-backup-ask-'), 'picked.hlbackup')) };
+  const fileSaver: BackupFileSaver = options.fileSaver ?? {
+    save: vi.fn().mockResolvedValue(join(newDir('hl-backup-ask-'), 'picked.hlbackup')),
+  };
   const useCase = new CreateBackupUseCase({
     db,
     clock: new FixedClock(NOW_MS, TZ),
@@ -150,19 +160,21 @@ const buildHarness = (db: EncryptedDatabase, options: HarnessOptions = {}): Harn
     backupsDir,
     appVersion: 'test-0.7.0',
     dbKeyHex: options.dbKeyHex ?? (() => KEY_HEX),
+    snapshotTmpRoot: snapshotRoot,
   });
-  return { backupsDir, useCase, entries, fileSaver };
+  return { backupsDir, snapshotRoot, useCase, entries, fileSaver };
 };
 
 /** Читает все измерения снапшота (сравнение roundtrip, AC-1). */
-const readRows = (db: EncryptedDatabase): { id: string; sys: number; dia: number; note: string | null }[] =>
-  db
-    .prepare('SELECT id, sys, dia, note FROM bp_measurement ORDER BY taken_at_utc')
-    .all() as { id: string; sys: number; dia: number; note: string | null }[];
-
-/** Список имён каталогов tmp ОС с префиксом (проверка чистки снапшотов, AC-5). */
-const tmpDirNames = (prefix: string): string[] =>
-  readdirSync(tmpdir()).filter((name) => name.startsWith(prefix));
+const readRows = (
+  db: EncryptedDatabase,
+): { id: string; sys: number; dia: number; note: string | null }[] =>
+  db.prepare('SELECT id, sys, dia, note FROM bp_measurement ORDER BY taken_at_utc').all() as {
+    id: string;
+    sys: number;
+    dia: number;
+    note: string | null;
+  }[];
 
 describe('CreateBackupUseCase — roundtrip и манифест (AC-1/AC-2, §19)', () => {
   it('создание с паролем → расшифровка тем же кодеком → openEncrypted снапшота → записи равны', async () => {
@@ -172,7 +184,7 @@ describe('CreateBackupUseCase — roundtrip и манифест (AC-1/AC-2, §19
       insertMeasurements(db, 3);
       const askDir = newDir('hl-backup-ask-');
       const targetPath = join(askDir, 'health-log-backup.hlbackup');
-      const { useCase, fileSaver, entries } = buildHarness(db, {
+      const { useCase, entries } = buildHarness(db, {
         fileSaver: { save: vi.fn().mockResolvedValue(targetPath) },
       });
 
@@ -260,7 +272,10 @@ describe('CreateBackupUseCase — mode auto (hook-путь, §5/§7/§9)', () =>
 
       // Расшифровка ключом БД (машиносвязная авто-копия, §8).
       const codec = newCodec();
-      const contentKey = await codec.contentKeyFor({ id: 'db-key' }, { kind: 'dbKey', keyHex: KEY_HEX });
+      const contentKey = await codec.contentKeyFor(
+        { id: 'db-key' },
+        { kind: 'dbKey', keyHex: KEY_HEX },
+      );
       const read = await codec.readContainer({ containerPath: finalPath, contentKey });
       expect(createHash('sha256').update(read.payload).digest('hex')).toBe(
         result.value.manifest.dbSha256,
@@ -307,7 +322,10 @@ describe('CreateBackupUseCase — hook миграций TASK-024 (AC-4, §19/§2
 
       // Снапшот v1 открывается тем же ключом БД (шифрование сохранено, §14).
       const codec = newCodec();
-      const contentKey = await codec.contentKeyFor({ id: 'db-key' }, { kind: 'dbKey', keyHex: KEY_HEX });
+      const contentKey = await codec.contentKeyFor(
+        { id: 'db-key' },
+        { kind: 'dbKey', keyHex: KEY_HEX },
+      );
       const read = await codec.readContainer({
         containerPath: join(backupsDir, 'pre-migration-v101.hlbackup'),
         contentKey,
@@ -336,7 +354,10 @@ describe('CreateBackupUseCase — hook миграций TASK-024 (AC-4, §19/§2
     try {
       const { useCase } = buildHarness(db, { dbKeyHex: () => 'не-hex' });
       const migrations: Migration[] = [
-        { version: 201, up: (database) => void database.exec('CREATE TABLE t70_fail (id INTEGER)') },
+        {
+          version: 201,
+          up: (database) => void database.exec('CREATE TABLE t70_fail (id INTEGER)'),
+        },
       ];
       let thrown: unknown;
       try {
@@ -352,9 +373,11 @@ describe('CreateBackupUseCase — hook миграций TASK-024 (AC-4, §19/§2
       expect((thrown as AppError).params).toEqual({ version: 201 });
       // DDL не применён (hook до DDL, TASK-024 §13).
       expect(
-        (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map(
-          (row) => row.name,
-        ),
+        (
+          db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as {
+            name: string;
+          }[]
+        ).map((row) => row.name),
       ).toEqual(expect.not.arrayContaining(['t70_fail']));
     } finally {
       db.close();
@@ -368,7 +391,7 @@ describe('CreateBackupUseCase — отмена и пароль-политика 
     try {
       await migrateFresh(db);
       const backupsDir = newDir('hl-backups-');
-      const { useCase, backupsDir: dir } = buildHarness(db, {
+      const { useCase, snapshotRoot } = buildHarness(db, {
         backupsDir,
         fileSaver: { save: vi.fn().mockResolvedValue(null) },
       });
@@ -381,11 +404,9 @@ describe('CreateBackupUseCase — отмена и пароль-политика 
       expect(result.error).toBeInstanceOf(AppError);
       expect(result.error.code).toBe('BACKUP/CANCELED');
       expect(result.error.messageKey).toBe('errors.BACKUP_CANCELED');
-      // tmp-каталогов копий не осталось; целевой каталог пуст (mkdtemp-каталог
-      // создаёт сам тест — use case в ask-режиме ничего не пишет, §13).
-      expect(existsSync(dir)).toBe(true);
-      expect(readdirSync(dir)).toEqual([]);
-      expect(tmpDirNames('hl-backup-snap-')).toEqual([]);
+      // Отмена — ДО фаз: tmp-снапшот не создавался, целевой каталог пуст (mkdtemp-
+      // каталог создаёт сам тест — use case в ask-режиме ничего не пишет, §13).
+      expect(readdirSync(snapshotRoot)).toEqual([]);
     } finally {
       db.close();
     }
@@ -453,22 +474,27 @@ describe('CreateBackupUseCase — полный диск (AC-5, §13/§19: мок
         tmpContainerPath = path;
         let first = true;
         return new Writable({
-          async write(chunk: Buffer, _enc, cb) {
+          write(chunk: Buffer, _enc, cb) {
             if (first) {
               first = false;
-              await writeFile(path, chunk);
-              cb();
+              // Первая порция — НАСТОЯЩИЕ байты в файл (partial-контейнер существует);
+              // fd не удерживается (writeFile открывает и закрывает) — чистка на
+              // Windows детерминирована.
+              void writeFile(path, chunk).then(
+                () => cb(),
+                (error: Error) => cb(error),
+              );
               return;
             }
             cb(new Error('ENOSPC: no space left on device (mock)'));
           },
-          async final(cb) {
+          final(cb) {
             cb();
           },
         });
       };
 
-      const { useCase } = buildHarness(db, {
+      const { useCase, snapshotRoot } = buildHarness(db, {
         backupsDir,
         codec: newCodec({ createWriteStream: failingFactory }),
       });
@@ -487,13 +513,14 @@ describe('CreateBackupUseCase — полный диск (AC-5, §13/§19: мок
       expect(result.error.messageKey).toBe('errors.BACKUP_FAILED');
       expect(String(result.error.cause)).toContain('ENOSPC');
 
-      // AC-5: tmp-файлы удалены — каталог копий чист (только тестовый mkdir-каталог),
-      // tmp-каталогов снапшота нет, финальный файл не создан.
+      // AC-5: tmp-файлы удалены — каталог копий чист, tmp-контейнер с реальными
+      // байтами удалён, каталог tmp-снапшотов (открытый текст) пуст, финальный
+      // файл не создан.
       expect(existsSync(join(backupsDir, 'disk-full.hlbackup'))).toBe(false);
       expect(tmpContainerPath).toBeDefined();
       expect(existsSync(tmpContainerPath as string)).toBe(false);
       expect(readdirSync(backupsDir)).toEqual([]);
-      expect(tmpDirNames('hl-backup-snap-')).toEqual([]);
+      expect(readdirSync(snapshotRoot)).toEqual([]);
     } finally {
       db.close();
     }
@@ -572,7 +599,9 @@ describe('CreateBackupUseCase — прогресс (AC-6) и очередь (§9
       // Ни одна запись лога не содержит пароль или соль KDF (базовые байты секрета).
       const dumped = JSON.stringify(entries);
       expect(dumped).not.toContain('секрет-пароль-070');
-      expect(dumped).not.toContain(result.value.manifest.kdf.id === 'argon2id' ? result.value.manifest.kdf.saltB64 : '');
+      expect(dumped).not.toContain(
+        result.value.manifest.kdf.id === 'argon2id' ? result.value.manifest.kdf.saltB64 : '',
+      );
       // §18: лог — только факты (имя/размер/длительность).
       expect(entries.some((entry) => entry.message === 'backup created')).toBe(true);
       expect(basename(result.value.path)).toBe(result.value.file);

@@ -49,9 +49,7 @@ describe('BACKUP_MANIFEST_SCHEMA (TASK-070 §7: валидатор восста�
       delete without[key];
       expect(BACKUP_MANIFEST_SCHEMA.safeParse(without).success).toBe(false);
     }
-    expect(
-      BACKUP_MANIFEST_SCHEMA.safeParse({ ...validManifest, extra: 1 }).success,
-    ).toBe(false);
+    expect(BACKUP_MANIFEST_SCHEMA.safeParse({ ...validManifest, extra: 1 }).success).toBe(false);
   });
 
   it('dbSha256 — строго 64 hex-символа', () => {
@@ -64,9 +62,9 @@ describe('BACKUP_MANIFEST_SCHEMA (TASK-070 §7: валидатор восста�
   });
 
   it('kdf: db-key (авто-копия без диалога, §5/§9) и argon2id (§8) разбираются', () => {
-    expect(
-      BACKUP_MANIFEST_SCHEMA.parse({ ...validManifest, kdf: { id: 'db-key' } }),
-    ).toMatchObject({ kdf: { id: 'db-key' } });
+    expect(BACKUP_MANIFEST_SCHEMA.parse({ ...validManifest, kdf: { id: 'db-key' } })).toMatchObject(
+      { kdf: { id: 'db-key' } },
+    );
     expect(
       BACKUP_MANIFEST_SCHEMA.safeParse({
         ...validManifest,
@@ -77,21 +75,25 @@ describe('BACKUP_MANIFEST_SCHEMA (TASK-070 §7: валидатор восста�
 
   it('kdf argon2id: параметры — целые в допустимых пределах', () => {
     expect(
-      BACKUP_MANIFEST_SCHEMA.safeParse({ ...validManifest, kdf: { ...validManifest.kdf, iterations: 0 } })
-        .success,
+      BACKUP_MANIFEST_SCHEMA.safeParse({
+        ...validManifest,
+        kdf: { ...validManifest.kdf, iterations: 0 },
+      }).success,
     ).toBe(false);
     expect(
-      BACKUP_MANIFEST_SCHEMA.safeParse({ ...validManifest, kdf: { ...validManifest.kdf, memoryKib: 7.5 } })
-        .success,
+      BACKUP_MANIFEST_SCHEMA.safeParse({
+        ...validManifest,
+        kdf: { ...validManifest.kdf, memoryKib: 7.5 },
+      }).success,
     ).toBe(false);
   });
 });
 
 describe('BACKUP_CREATE_REQUEST_SCHEMA (TASK-070 §6: {mode: ask|auto})', () => {
   it('ask: непустой пароль обязателен (§8)', () => {
-    expect(BACKUP_CREATE_REQUEST_SCHEMA.safeParse({ mode: 'ask', passphrase: 'пароль' }).success).toBe(
-      true,
-    );
+    expect(
+      BACKUP_CREATE_REQUEST_SCHEMA.safeParse({ mode: 'ask', passphrase: 'пароль' }).success,
+    ).toBe(true);
     expect(BACKUP_CREATE_REQUEST_SCHEMA.safeParse({ mode: 'ask', passphrase: '' }).success).toBe(
       false,
     );
@@ -125,9 +127,9 @@ describe('BACKUP_CREATE_REQUEST_SCHEMA (TASK-070 §6: {mode: ask|auto})', () => 
 
   it('режим строго один из ask|auto; лишние поля отвергаются (strict)', () => {
     expect(BACKUP_CREATE_REQUEST_SCHEMA.safeParse({ mode: 'restore' }).success).toBe(false);
-    expect(
-      BACKUP_CREATE_REQUEST_SCHEMA.safeParse({ mode: 'auto', passphrase: 'x' }).success,
-    ).toBe(false);
+    expect(BACKUP_CREATE_REQUEST_SCHEMA.safeParse({ mode: 'auto', passphrase: 'x' }).success).toBe(
+      false,
+    );
   });
 });
 

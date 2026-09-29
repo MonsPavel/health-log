@@ -56,7 +56,10 @@ import { createLogClientErrorHandler } from './app/global-errors.js';
 import { EventBus } from './events/event-bus.js';
 import { BackupContainerCodec } from './modules/data-care/adapters/backup-container.js';
 import { DialogFileSaver } from './modules/data-care/adapters/dialog-file-saver.js';
-import { CreateBackupUseCase, createPreMigrationBackupHook } from './modules/data-care/application/create-backup.js';
+import {
+  CreateBackupUseCase,
+  createPreMigrationBackupHook,
+} from './modules/data-care/application/create-backup.js';
 import { FileOpQueue } from './modules/data-care/application/file-op-queue.js';
 import {
   createAddMeasurementHandler,

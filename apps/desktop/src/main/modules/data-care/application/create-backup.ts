@@ -46,7 +46,6 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { performance } from 'node:perf_hooks';
-
 import type { BackupManifest, BackupPhase } from '@hl/contracts';
 import { AppError, type Clock, type Result } from '@hl/kernel';
 
@@ -123,6 +122,12 @@ export interface CreateBackupDeps {
    * Обязателен при mode `auto` (нарушение — TypeError, программная ошибка сборки).
    */
   readonly dbKeyHex?: () => string;
+  /**
+   * Корень tmp-каталогов снапшота (§5: tmpdir ОС); по умолчанию os.tmpdir(). Точка
+   * наблюдения тестов (§19/AC-5: проверка чистки детерминированно — без гонок с
+   * параллельными воркерами suite на общем tmpdir ОС).
+   */
+  readonly snapshotTmpRoot?: string;
 }
 
 /**
@@ -140,7 +145,6 @@ export class CreateBackupUseCase {
   /** Тело операции — под очередью (§9). */
   private async run(command: CreateBackupCommand): Promise<Result<CreateBackupResult, AppError>> {
     const startedAtMs = performance.now();
-    const { clock, logger } = this.deps;
     try {
       // Валидация команды (§13): ask — пароль обязателен и непуст (после trim).
       if (command.mode === 'ask') {
@@ -159,7 +163,7 @@ export class CreateBackupUseCase {
       const destinationPath = await this.resolveDestination(command);
       if (typeof destinationPath !== 'string') {
         // Отказ диалога (§13): ожидаемый исход, не сбой — debug и CANCELED.
-        logger.debug('createBackup: диалог сохранения отменён', { mode: command.mode });
+        this.deps.logger.debug('createBackup: диалог сохранения отменён', { mode: command.mode });
         return {
           ok: false,
           error: AppError.of('BACKUP/CANCELED', BACKUP_CANCELED_MESSAGE_KEY),
@@ -168,7 +172,9 @@ export class CreateBackupUseCase {
 
       // 3-5. Фазы (§5); tmp-снапшот в tmpdir ОС, tmp-контейнер рядом с назначением.
       command.onProgress?.('snapshot');
-      const snapshotDir = mkdtempSync(join(tmpdir(), SNAPSHOT_TMP_PREFIX));
+      const snapshotDir = mkdtempSync(
+        join(this.deps.snapshotTmpRoot ?? tmpdir(), SNAPSHOT_TMP_PREFIX),
+      );
       const tmpContainerPath = join(
         dirname(destinationPath),
         `${CONTAINER_TMP_PREFIX}${randomBytes(8).toString('hex')}`,
@@ -184,7 +190,7 @@ export class CreateBackupUseCase {
             : { kind: 'dbKey', keyHex: this.deps.dbKeyHex?.() ?? '' },
         );
         const manifest: BackupManifest = {
-          ...(await this.buildManifest(dbSha256)),
+          ...this.buildManifest(dbSha256),
           kdf,
         };
         // Точные байты манифеста — с записью kdf (AAD привязывает ровно то, что в файле).
@@ -201,7 +207,7 @@ export class CreateBackupUseCase {
         renameSync(tmpContainerPath, destinationPath);
 
         // Лог §18: факты без путей (basename) и секретов (§14).
-        logger.info('backup created', {
+        this.deps.logger.info('backup created', {
           file: basename(destinationPath),
           sizeBytes,
           mode: command.mode,
@@ -229,7 +235,7 @@ export class CreateBackupUseCase {
       }
     } catch (error) {
       // §5: наружу только AppError — BACKUP/FAILED с исходом в cause (память main).
-      logger.error('createBackup: сбой создания копии', {
+      this.deps.logger.error('createBackup: сбой создания копии', {
         code: 'BACKUP/FAILED',
         durationMs: Math.round(performance.now() - startedAtMs),
       });
@@ -256,7 +262,10 @@ export class CreateBackupUseCase {
       return picked.endsWith(BACKUP_EXTENSION) ? picked : `${picked}${BACKUP_EXTENSION}`;
     }
     mkdirSync(this.deps.backupsDir, { recursive: true });
-    return join(this.deps.backupsDir, command.targetName ?? backupFileName(this.deps.clock.nowMs()));
+    return join(
+      this.deps.backupsDir,
+      command.targetName ?? backupFileName(this.deps.clock.nowMs()),
+    );
   }
 
   /**
@@ -276,7 +285,7 @@ export class CreateBackupUseCase {
    * время, счётчики, sha256. Запись kdf добавляется в run() после prepareKey —
    * фаза encrypt (соль/параметры известны только там).
    */
-  private async buildManifest(dbSha256: string): Promise<Omit<BackupManifest, 'kdf'>> {
+  private buildManifest(dbSha256: string): Omit<BackupManifest, 'kdf'> {
     return {
       formatVersion: BACKUP_FORMAT_VERSION,
       schemaVersion: readSchemaVersion(this.deps.db),
@@ -311,7 +320,6 @@ function backupFileName(nowMs: number): string {
 
 /** Потоковый SHA-256 файла (hex, lowercase; §2: dbSha256 — 64 hex). */
 async function sha256File(path: string): Promise<string> {
-  const { pipeline } = await import('node:stream/promises');
   const hash = createHash('sha256');
   await pipeline(createReadStream(path), hash);
   return hash.digest('hex');
@@ -324,8 +332,7 @@ async function sha256File(path: string): Promise<string> {
 function readSchemaVersion(db: BackupDatabase): number {
   try {
     const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as
-      | { value: string }
-      | undefined;
+      { value: string } | undefined;
     return row !== undefined && /^\d+$/.test(row.value) ? Number(row.value) : 0;
   } catch {
     return 0;
@@ -357,6 +364,10 @@ export function createPreMigrationBackupHook(
       targetName: `pre-migration-v${version}${BACKUP_EXTENSION}`,
     });
     if (!result.ok) {
+      // Контракт hook'а TASK-024: наружу AppError — runner оборачивает в
+      // STORAGE/MIGRATION_FAILED (cause, память main). Правилу only-throw-error
+      // это объяснено (прецедент sqlite.ts/migration-runner.ts).
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw result.error;
     }
   };

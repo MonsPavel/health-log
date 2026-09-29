@@ -70,39 +70,69 @@ describe('createBackupCipher / decryptBackupPayload (TASK-070 §5: AES-256-GCM)'
     expect(IV_BYTES).toBe(12);
     expect(TAG_BYTES).toBe(16);
     expect(cipher.iv).toHaveLength(12);
-    const ciphertext = Buffer.concat([cipher.transform.update(plaintext), cipher.transform.final()]);
+    const ciphertext = Buffer.concat([
+      cipher.transform.update(plaintext),
+      cipher.transform.final(),
+    ]);
     const tag = cipher.authTag();
     expect(tag).toHaveLength(16);
 
-    const decrypted = decryptBackupPayload({ contentKey: key, iv: cipher.iv, aad, tag, ciphertext });
+    const decrypted = decryptBackupPayload({
+      contentKey: key,
+      iv: cipher.iv,
+      aad,
+      tag,
+      ciphertext,
+    });
     expect(decrypted.equals(plaintext)).toBe(true);
   });
 
   it('подмена байта шифртекста → BackupIntegrityError, не мусор (AC-3)', () => {
     const cipher = createBackupCipher(key, aad);
-    const ciphertext = Buffer.concat([cipher.transform.update(plaintext), cipher.transform.final()]);
+    const ciphertext = Buffer.concat([
+      cipher.transform.update(plaintext),
+      cipher.transform.final(),
+    ]);
     const tampered = Buffer.from(ciphertext);
     tampered[0] ^= 0xff;
 
     expect(() =>
-      decryptBackupPayload({ contentKey: key, iv: cipher.iv, aad, tag: cipher.authTag(), ciphertext: tampered }),
+      decryptBackupPayload({
+        contentKey: key,
+        iv: cipher.iv,
+        aad,
+        tag: cipher.authTag(),
+        ciphertext: tampered,
+      }),
     ).toThrow(BackupIntegrityError);
   });
 
   it('подмена байта AAD (манифеста) → BackupIntegrityError (§14: метаданные привязаны)', () => {
     const cipher = createBackupCipher(key, aad);
-    const ciphertext = Buffer.concat([cipher.transform.update(plaintext), cipher.transform.final()]);
+    const ciphertext = Buffer.concat([
+      cipher.transform.update(plaintext),
+      cipher.transform.final(),
+    ]);
     const tamperedAad = Buffer.from(aad);
     tamperedAad[2] ^= 0x01;
 
     expect(() =>
-      decryptBackupPayload({ contentKey: key, iv: cipher.iv, aad: tamperedAad, tag: cipher.authTag(), ciphertext }),
+      decryptBackupPayload({
+        contentKey: key,
+        iv: cipher.iv,
+        aad: tamperedAad,
+        tag: cipher.authTag(),
+        ciphertext,
+      }),
     ).toThrow(BackupIntegrityError);
   });
 
   it('подмена байта тега → BackupIntegrityError', () => {
     const cipher = createBackupCipher(key, aad);
-    const ciphertext = Buffer.concat([cipher.transform.update(plaintext), cipher.transform.final()]);
+    const ciphertext = Buffer.concat([
+      cipher.transform.update(plaintext),
+      cipher.transform.final(),
+    ]);
     const tamperedTag = Buffer.from(cipher.authTag());
     tamperedTag[15] ^= 0xff;
 
@@ -113,7 +143,10 @@ describe('createBackupCipher / decryptBackupPayload (TASK-070 §5: AES-256-GCM)'
 
   it('чужой ключ (неверный пароль копии) → BackupIntegrityError', () => {
     const cipher = createBackupCipher(key, aad);
-    const ciphertext = Buffer.concat([cipher.transform.update(plaintext), cipher.transform.final()]);
+    const ciphertext = Buffer.concat([
+      cipher.transform.update(plaintext),
+      cipher.transform.final(),
+    ]);
 
     expect(() =>
       decryptBackupPayload({

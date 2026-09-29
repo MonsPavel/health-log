@@ -31,9 +31,7 @@ import { pipeline } from 'node:stream/promises';
 
 import {
   ARGON2ID_DEFAULT_PARAMS,
-  BACKUP_KEY_BYTES,
   BACKUP_SALT_BYTES,
-  BackupIntegrityError,
   createBackupCipher,
   contentKeyFromDbKeyHex,
   decryptBackupPayload,
@@ -45,6 +43,7 @@ import {
 import type {
   BackupCrypto,
   BackupKeySource,
+  BackupKdf,
   PreparedBackupKey,
   ReadContainerResult,
   WriteContainerInput,
@@ -112,7 +111,7 @@ export class BackupContainerCodec implements BackupCrypto {
     if (kdf.id === 'db-key') {
       if (source.kind !== 'dbKey') {
         throw new TypeError(
-          'contentKeyFor: запись kdf db-key требует источник dbKey (авто-копия hook\'а, TASK-070 §8)',
+          "contentKeyFor: запись kdf db-key требует источник dbKey (авто-копия hook'а, TASK-070 §8)",
         );
       }
       return contentKeyFromDbKeyHex(source.keyHex);
@@ -191,9 +190,15 @@ export class BackupContainerCodec implements BackupCrypto {
    * Читает контейнер (§4): формат-проверки → расшифровка с AAD-привязкой манифеста.
    * Ошибка GCM → BackupIntegrityError (§14/AC-3), формат → BackupContainerFormatError.
    */
-  async readContainer(input: { containerPath: string; contentKey: Buffer }): Promise<ReadContainerResult> {
+  async readContainer(input: {
+    containerPath: string;
+    contentKey: Buffer;
+  }): Promise<ReadContainerResult> {
     const file = await readFile(input.containerPath);
-    if (file.length < MIN_CONTAINER_BYTES || !file.subarray(0, BACKUP_MAGIC.length).equals(BACKUP_MAGIC)) {
+    if (
+      file.length < MIN_CONTAINER_BYTES ||
+      !file.subarray(0, BACKUP_MAGIC.length).equals(BACKUP_MAGIC)
+    ) {
       throw new BackupContainerFormatError(
         'контейнер копии повреждён: магия HLBK1 не найдена (§4)',
       );
@@ -203,11 +208,7 @@ export class BackupContainerCodec implements BackupCrypto {
     const ivStart = manifestStart + manifestLength;
     const ciphertextStart = ivStart + IV_BYTES;
     const tagStart = file.length - TAG_BYTES;
-    if (
-      manifestLength < 2 ||
-      manifestLength > MANIFEST_MAX_BYTES ||
-      ciphertextStart > tagStart
-    ) {
+    if (manifestLength < 2 || manifestLength > MANIFEST_MAX_BYTES || ciphertextStart > tagStart) {
       throw new BackupContainerFormatError(
         'контейнер копии повреждён: длины заголовка не сходятся (§4)',
       );
