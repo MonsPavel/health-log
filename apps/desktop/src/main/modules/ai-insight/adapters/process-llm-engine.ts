@@ -151,7 +151,7 @@ class EngineChunkQueue {
  * клиента 076 — тонкая»). Реализует порт LlmEngine.
  */
 export class ProcessLlmEngine implements LlmEngine {
-  private readonly client: LlmEngineProcessClient;
+  private readonly processClient: LlmEngineProcessClient;
   private readonly maxTokens: number;
 
   private modelId: string | undefined;
@@ -160,8 +160,17 @@ export class ProcessLlmEngine implements LlmEngine {
   private requestCounter = 0;
 
   constructor(options: ProcessLlmEngineOptions) {
-    this.client = options.client;
+    this.processClient = options.client;
     this.maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
+  }
+
+  /**
+   * Клиент 076 под обёрткой: контейнер-тесты фиксируют проводку (обёртка над
+   * ТЕМ ЖЕ синглтоном графа, container-llm-engine.int.test.ts), TASK-088 сможет
+   * мостить статусы ai:status без новых зависимостей.
+   */
+  get client(): LlmEngineProcessClient {
+    return this.processClient;
   }
 
   /** Идемпотентная загрузка модели (§19): тот же id — no-op; отказ — не фиксирует. */
@@ -169,7 +178,7 @@ export class ProcessLlmEngine implements LlmEngine {
     if (this.modelId === modelId) {
       return;
     }
-    await this.client.load(modelId);
+    await this.processClient.load(modelId);
     this.modelId = modelId;
   }
 
@@ -178,14 +187,14 @@ export class ProcessLlmEngine implements LlmEngine {
     return {
       loaded: this.modelId !== undefined,
       modelId: this.modelId,
-      busy: this.client.state === 'busy',
+      busy: this.processClient.state === 'busy',
     };
   }
 
   /** Отмена активной генерации этой обёртки (без сигнала); идемпотентна. */
   cancel(): void {
     if (this.activeRequestId !== undefined) {
-      this.client.cancel(this.activeRequestId);
+      this.processClient.cancel(this.activeRequestId);
     }
   }
 
@@ -208,11 +217,11 @@ export class ProcessLlmEngine implements LlmEngine {
     const queue = new EngineChunkQueue();
     const onAbort = (): void => {
       // Реальный воркер остановит стрим и закроет done(cancelled) (§13 076).
-      this.client.cancel(requestId);
+      this.processClient.cancel(requestId);
     };
     request.signal.addEventListener('abort', onAbort, { once: true });
 
-    const run = this.client.complete(
+    const run = this.processClient.complete(
       requestId,
       { messages: request.messages, params: request.params, maxTokens: this.maxTokens },
       { onToken: (text) => queue.pushDelta(text) },
