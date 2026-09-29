@@ -17,21 +17,27 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { CHANNEL_SCHEMAS } from '@hl/contracts';
 import { FixedClock, unsafeUnwrap } from '@hl/kernel';
 
-vi.mock('electron', () => ({ dialog: { showSaveDialog: vi.fn() } }));
-
-const { dialog } = await import('electron');
-const showSaveDialog = vi.mocked(dialog.showSaveDialog);
+// Шпион диалога — vi.hoisted (фабрика vi.mock поднимается выше const);
+// отдельная функция, а не member-ссылка dialog.showSaveDialog (unbound-method).
+const { showSaveDialog } = vi.hoisted(() => ({ showSaveDialog: vi.fn() }));
+vi.mock('electron', () => ({ dialog: { showSaveDialog } }));
 
 import { FileOpQueue } from '../../modules/data-care/application/file-op-queue.js';
 import { createChannelRegistry } from '../register-channel.js';
 import { ElectronFileSaver } from '../../platform/file-saver.js';
-import { ExportCsvUseCase, type ExportCsvSource } from '../../modules/reporting/application/export-csv.js';
-import { ExportJsonUseCase, type ExportJsonSource } from '../../modules/reporting/application/export-json.js';
+import {
+  ExportCsvUseCase,
+  type ExportCsvSource,
+} from '../../modules/reporting/application/export-csv.js';
+import {
+  ExportJsonUseCase,
+  type ExportJsonSource,
+} from '../../modules/reporting/application/export-json.js';
 import { ExportCsvFileUseCase } from '../../modules/reporting/application/export-csv-file.js';
 import { ExportJsonFileUseCase } from '../../modules/reporting/application/export-json-file.js';
 import { createExportCsvHandler, createExportJsonHandler } from './report.js';

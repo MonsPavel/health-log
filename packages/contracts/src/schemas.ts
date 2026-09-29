@@ -32,10 +32,7 @@ import {
   PREFS_SET_REQUEST_SCHEMA,
   PREFS_SET_RESPONSE_SCHEMA,
 } from './prefs/schemas.js';
-import {
-  REPORT_EXPORT_REQUEST_SCHEMA,
-  REPORT_EXPORT_RESPONSE_SCHEMA,
-} from './report/schemas.js';
+import { REPORT_EXPORT_REQUEST_SCHEMA, REPORT_EXPORT_RESPONSE_SCHEMA } from './report/schemas.js';
 import { SCALES_ACTIVE_REQUEST_SCHEMA, SCALES_ACTIVE_RESPONSE_SCHEMA } from './scales.js';
 import { STATS_REQUEST_SCHEMA, STATS_RESPONSE_SCHEMA } from './stats/schemas.js';
 import { TREND_REQUEST_SCHEMA, TREND_RESPONSE_SCHEMA } from './trends.js';

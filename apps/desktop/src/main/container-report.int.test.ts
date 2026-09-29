@@ -87,11 +87,13 @@ describe('container + каналы экспорта report/export-* (TASK-065 §
   });
 
   it('битый payload → VALIDATION/FAILED (схема канала в реестре, хендлер не зовётся)', async () => {
-    container = container ?? (await buildContainer({
-      userDataPath: dir,
-      clock: new FixedClock(NOW_MS, TZ),
-      vault: () => new MockVault(),
-    }));
+    container =
+      container ??
+      (await buildContainer({
+        userDataPath: dir,
+        clock: new FixedClock(NOW_MS, TZ),
+        vault: () => new MockVault(),
+      }));
 
     const envelope = await container.channels.dispatch({
       channel: 'report/export-csv',
@@ -108,7 +110,7 @@ describe('container + каналы экспорта report/export-* (TASK-065 §
     expect(envelope).toMatchObject({ v: 1, ok: false, error: { code: 'VALIDATION/FAILED' } });
   });
 
-  it('очередь одна на экспорты и копии: fileOpQueue — тот же инстанс в графе (§9)', async () => {
+  it('очередь одна на экспорты и копии: fileOpQueue — тот же инстанс в графе (§9)', () => {
     // Контейнер строится без хендлеров копии (канал 073), но CreateBackup уже
     // работает на fileOpQueue (TASK-070 §5) — экспорты делят ЕГО (§9, факт сборки:
     // один инстанс на оба use case'а проверяется компиляцией графа в buildContainer).

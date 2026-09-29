@@ -19,7 +19,10 @@
  */
 import { writeFile } from 'node:fs/promises';
 
-import type { ExportFileResult, ExportFileSaver } from '../modules/reporting/application/ports/export-file-saver.js';
+import type {
+  ExportFileResult,
+  ExportFileSaver,
+} from '../modules/reporting/application/ports/export-file-saver.js';
 
 /** Минимальная поверхность dialog.showSaveDialog (structural, §19-прецедент SaveDialogApi). */
 export interface SaveDialogApi {
@@ -72,11 +75,7 @@ export class ElectronFileSaver implements ExportFileSaver {
       return { canceled: true };
     }
     // CSV/JSON — utf8 (§5); PDF — бинарный буфер без кодировки (TASK-068).
-    await writeFile(
-      result.filePath,
-      content,
-      typeof content === 'string' ? 'utf8' : undefined,
-    );
+    await writeFile(result.filePath, content, typeof content === 'string' ? 'utf8' : undefined);
     return { path: result.filePath };
   }
 }

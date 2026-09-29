@@ -42,9 +42,10 @@ describe('FileOpQueue — сериализация файловых операц
         events.push('end:1');
       });
     });
-    const op2 = queue.run(async () => {
+    const op2 = queue.run(() => {
       events.push('start:2');
       events.push('end:2');
+      return Promise.resolve();
     });
 
     // Вторая поставлена в очередь, но ещё не началась: первая в полёте.
@@ -61,11 +62,9 @@ describe('FileOpQueue — сериализация файловых операц
     const queue = new FileOpQueue();
     const boom = new Error('запись не удалась (read-only каталог)');
 
-    const failed = queue.run(async () => {
-      throw boom;
-    });
+    const failed = queue.run(() => Promise.reject(boom));
     // Третья операция сразу за упавшей — должна выполниться (§20: очередь живая).
-    const after = queue.run(async () => 'ок');
+    const after = queue.run(() => Promise.resolve('ок'));
 
     await expect(failed).rejects.toBe(boom);
     await expect(after).resolves.toBe('ок');
@@ -73,7 +72,7 @@ describe('FileOpQueue — сериализация файловых операц
 
   it('результат операции возвращается вызвавшему как есть (значение без потерь)', async () => {
     const queue = new FileOpQueue();
-    const result = await queue.run(async () => ({ path: 'C:/tmp/x.csv' }));
+    const result = await queue.run(() => Promise.resolve({ path: 'C:/tmp/x.csv' }));
     expect(result).toEqual({ path: 'C:/tmp/x.csv' });
   });
 
@@ -83,11 +82,13 @@ describe('FileOpQueue — сериализация файловых операц
     const events: string[] = [];
 
     const op1 = queue.run(() => first.promise);
-    const op2 = queue.run(async () => {
+    const op2 = queue.run(() => {
       events.push('second-start');
+      return Promise.resolve();
     });
-    const op3 = queue.run(async () => {
+    const op3 = queue.run(() => {
       events.push('third-start');
+      return Promise.resolve();
     });
 
     first.reject(new Error('ENOSPC'));

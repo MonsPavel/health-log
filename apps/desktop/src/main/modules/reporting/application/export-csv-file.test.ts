@@ -19,9 +19,9 @@ import { FixedClock, unsafeUnwrap, type Result, type AppError } from '@hl/kernel
 import { EXPORT_FAILED_MESSAGE_KEY } from '../domain/constants.js';
 import { toCsv, type ExportRow } from '../domain/csv.js';
 import { ExportCsvUseCase, type ExportCsvSource } from './export-csv.js';
-import { ExportCsvFileUseCase, type ExportFileLogger } from './export-csv-file.js';
+import { ExportCsvFileUseCase } from './export-csv-file.js';
 import type { ExportFileResult, ExportFileSaver } from './ports/export-file-saver.js';
-import type { FileOpRunner } from './export-file.js';
+import { type ExportFileLogger, type FileOpRunner } from './export-file.js';
 
 /** Фиксированное «сейчас» = 2026-09-25T16:00:00+03:00 (прецедент int-тестов 063/064). */
 const NOW_MS = 1_790_341_200_000;
@@ -63,15 +63,19 @@ const makeLogger = (): {
  * Подставочный FileSaver (§22: «мок-интерфейс FileSaver — порт, тестируется чисто»):
  * фиксированный результат, журнал вызовов; режим fail — исключение записи (§10).
  */
-const makeSaver = (options?: { result?: ExportFileResult; failWith?: Error }): {
+const makeSaver = (options?: {
+  result?: ExportFileResult;
+  failWith?: Error;
+}): {
   saver: ExportFileSaver;
   saveCsv: Mock<ExportFileSaver['saveCsv']>;
 } => {
-  const saveCsv = vi.fn<(defaultName: string, csv: string) => Promise<ExportFileResult>>(
-    (_defaultName: string, _csv: string) =>
-      options?.failWith !== undefined
-        ? Promise.reject(options.failWith)
-        : Promise.resolve(options?.result ?? { path: 'C:/Users/me/health-log-export-20260925-1600.csv' }),
+  const saveCsv = vi.fn<(defaultName: string, csv: string) => Promise<ExportFileResult>>(() =>
+    options?.failWith !== undefined
+      ? Promise.reject(options.failWith)
+      : Promise.resolve(
+          options?.result ?? { path: 'C:/Users/me/health-log-export-20260925-1600.csv' },
+        ),
   );
   return {
     saver: { saveCsv, saveJson: vi.fn(), savePdf: vi.fn() },
@@ -111,7 +115,9 @@ describe('ExportCsvFileUseCase — оркестрация экспорта CSV (
     const clock = new FixedClock(NOW_MS, TZ);
     // Эталон содержимого: тот же use case 063 напрямую (§19: файл == собранному).
     const expected = unsafeUnwrap(
-      await new ExportCsvUseCase({ source: makeSource(rows), logger: makeLogger() }).execute(PROFILE),
+      await new ExportCsvUseCase({ source: makeSource(rows), logger: makeLogger() }).execute(
+        PROFILE,
+      ),
     );
     const logger = makeLogger();
     const { saver, saveCsv } = makeSaver();
@@ -133,10 +139,11 @@ describe('ExportCsvFileUseCase — оркестрация экспорта CSV (
     expect(saveCsv).toHaveBeenCalledWith('health-log-export-20260925-1600.csv', expected.csv);
     // §18: info `export csv` {basename, count, durationMs} — путь только basename.
     expect(logger.info).toHaveBeenCalledTimes(1);
-    const [message, meta] = logger.info.mock.calls[0] ?? ['', {}];
+    const [message, meta] = vi.mocked(logger.info).mock.calls[0] ?? [];
     expect(message).toBe('export csv');
-    expect(meta).toMatchObject({ basename: 'health-log-export-20260925-1600.csv', count: 1 });
-    expect(typeof (meta as { durationMs?: unknown }).durationMs).toBe('number');
+    expect(meta?.['basename']).toBe('health-log-export-20260925-1600.csv');
+    expect(meta?.['count']).toBe(1);
+    expect(typeof meta?.['durationMs']).toBe('number');
     expect(JSON.stringify(meta)).not.toContain('C:/Users');
   });
 
@@ -232,12 +239,12 @@ describe('ExportCsvFileUseCase — оркестрация экспорта CSV (
     });
 
     const slowSource: ExportCsvSource = {
-      listBatch: vi.fn((_profileId: string, offset: number, limit: number) =>
+      listBatch: vi.fn((_profileId: string, offset: number) =>
         offset === 0 ? firstBatch : Promise.resolve([]),
       ),
     };
     const saverA: ExportFileSaver = {
-      saveCsv: vi.fn((_n: string, _c: string) => {
+      saveCsv: vi.fn(() => {
         events.push('save1');
         return Promise.resolve({ path: 'C:/a.csv' });
       }),
@@ -245,7 +252,7 @@ describe('ExportCsvFileUseCase — оркестрация экспорта CSV (
       savePdf: vi.fn(),
     };
     const saverB: ExportFileSaver = {
-      saveCsv: vi.fn((_n: string, _c: string) => {
+      saveCsv: vi.fn(() => {
         events.push('save2');
         return Promise.resolve({ path: 'C:/b.csv' });
       }),

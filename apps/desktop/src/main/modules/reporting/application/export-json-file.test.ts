@@ -8,9 +8,9 @@ import { FixedClock, unsafeUnwrap, type Result, type AppError } from '@hl/kernel
 
 import { EXPORT_FAILED_MESSAGE_KEY } from '../domain/constants.js';
 import { ExportJsonUseCase, type ExportJsonSource } from './export-json.js';
-import { ExportJsonFileUseCase, type ExportFileLogger } from './export-json-file.js';
+import { ExportJsonFileUseCase } from './export-json-file.js';
 import type { ExportFileResult, ExportFileSaver } from './ports/export-file-saver.js';
-import type { FileOpRunner } from './export-file.js';
+import { type ExportFileLogger, type FileOpRunner } from './export-file.js';
 
 /** Фиксированное «сейчас» = 2026-09-25T16:00:00+03:00 (прецедент int-тестов 063/064). */
 const NOW_MS = 1_790_341_200_000;
@@ -31,15 +31,19 @@ const makeLogger = (): {
 } => ({ debug: vi.fn(), info: vi.fn(), error: vi.fn() });
 
 /** Подставочный FileSaver с журналом вызова saveJson (§22: порт — мок-интерфейс). */
-const makeSaver = (options?: { result?: ExportFileResult; failWith?: Error }): {
+const makeSaver = (options?: {
+  result?: ExportFileResult;
+  failWith?: Error;
+}): {
   saver: ExportFileSaver;
   saveJson: Mock<ExportFileSaver['saveJson']>;
 } => {
-  const saveJson = vi.fn<(defaultName: string, json: string) => Promise<ExportFileResult>>(
-    (_defaultName: string, _json: string) =>
-      options?.failWith !== undefined
-        ? Promise.reject(options.failWith)
-        : Promise.resolve(options?.result ?? { path: 'C:/Users/me/health-log-export-20260925-1600.json' }),
+  const saveJson = vi.fn<(defaultName: string, json: string) => Promise<ExportFileResult>>(() =>
+    options?.failWith !== undefined
+      ? Promise.reject(options.failWith)
+      : Promise.resolve(
+          options?.result ?? { path: 'C:/Users/me/health-log-export-20260925-1600.json' },
+        ),
   );
   return {
     saver: { saveCsv: vi.fn(), saveJson, savePdf: vi.fn() },
@@ -103,9 +107,10 @@ describe('ExportJsonFileUseCase — оркестрация экспорта JSON
     });
     expect(saveJson).toHaveBeenCalledTimes(1);
     expect(saveJson).toHaveBeenCalledWith('health-log-export-20260925-1600.json', expected.json);
-    const [message, meta] = logger.info.mock.calls[0] ?? ['', {}];
+    const [message, meta] = vi.mocked(logger.info).mock.calls[0] ?? [];
     expect(message).toBe('export json');
-    expect(meta).toMatchObject({ basename: 'health-log-export-20260925-1600.json', count: 0 });
+    expect(meta?.['basename']).toBe('health-log-export-20260925-1600.json');
+    expect(meta?.['count']).toBe(0);
     expect(JSON.stringify(meta)).not.toContain('C:/Users');
   });
 
@@ -119,7 +124,10 @@ describe('ExportJsonFileUseCase — оркестрация экспорта JSON
       logger: makeLogger(),
     });
 
-    await expect(useCase.execute(PROFILE)).resolves.toMatchObject({ ok: true, value: { canceled: true } });
+    await expect(useCase.execute(PROFILE)).resolves.toMatchObject({
+      ok: true,
+      value: { canceled: true },
+    });
     expect(saveJson).toHaveBeenCalledTimes(1);
   });
 

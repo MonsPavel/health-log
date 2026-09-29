@@ -6,34 +6,36 @@
 //  - listMeasurements: журнал порта репозитория → MeasurementDto (маппинг add-measurement,
 //    контракт 028) — use case 064 разворачивает desc→asc сам;
 //  - скоуп профиля (§14): listByPeriod зовётся с {profileId} без расширений.
+//
+// Агрегат в фикстуре — структурная форма порта (type-only импорт через публичный API
+// measurement): реальное создание агрегата и маппинг на живой БД покрывает
+// reporting-export-json.int.test.ts (боевой SqliteBpMeasurementRepository).
 import { describe, expect, it, vi } from 'vitest';
 
-import { FixedClock, Instant, unsafeUnwrap } from '@hl/kernel';
+import { Instant } from '@hl/kernel';
 
-import { BpMeasurement } from '../../measurement/domain/bp-measurement.js';
+import type { BpMeasurement } from '../../measurement/index.js';
 import { JsonSnapshotSource } from './json-snapshot-source.js';
 
 const NOW_MS = 1_790_341_200_000;
 const TZ = 180;
 const PROFILE = 'profile-1';
 
-/** Агрегат журнала (боевой домен) — фикстура для маппинга DTO. */
+/** Агрегат журнала (структурная форма порта) — фикстура для маппинга DTO. */
 const measurement = (): BpMeasurement =>
-  unsafeUnwrap(
-    BpMeasurement.create(
-      {
-        profileId: PROFILE,
-        sys: 118,
-        dia: 76,
-        pulse: undefined,
-        irregularPulse: true,
-        arm: 'right',
-        note: undefined,
-        takenAt: Instant.fromIso('2026-09-20T07:45:00.000+03:00'),
-      },
-      new FixedClock(NOW_MS, TZ),
-    ),
-  );
+  ({
+    id: 'm-1',
+    profileId: PROFILE,
+    bp: { sys: 118, dia: 76 },
+    pulse: undefined,
+    irregularPulse: true,
+    arm: 'right',
+    note: undefined,
+    takenAt: Instant.fromIso('2026-09-20T07:45:00.000+03:00'),
+    source: 'manual',
+    createdAtUtc: NOW_MS,
+    updatedAtUtc: NOW_MS,
+  }) as unknown as BpMeasurement;
 
 describe('JsonSnapshotSource — адаптер источника слепка (TASK-065 §8)', () => {
   it('getProfile: строка profile-таблицы → {id, name, createdAtUtc}; нет строки → undefined (§9)', async () => {
@@ -64,7 +66,9 @@ describe('JsonSnapshotSource — адаптер источника слепка 
     const m = measurement();
     const listByPeriod = vi.fn(() => Promise.resolve([m]));
     const source = new JsonSnapshotSource({
-      db: { prepare: vi.fn() } as unknown as Parameters<typeof JsonSnapshotSource>[0]['db'],
+      // Заглушка prepare структурно удовлетворяет ProfileReader (Pick от БД) —
+      // каста не требуется (типобезопасно: вызов getProfile в тесте не происходит).
+      db: { prepare: vi.fn() },
       repo: { listByPeriod },
     });
 

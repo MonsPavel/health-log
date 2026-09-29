@@ -24,7 +24,7 @@ import { performance } from 'node:perf_hooks';
 import { AppError, err, ok, type Clock, type Result } from '@hl/kernel';
 
 import { EXPORT_FAILED_MESSAGE_KEY } from '../domain/constants.js';
-import type { ExportFileResult, ExportFileSaver } from './ports/export-file-saver.js';
+import type { ExportFileResult } from './ports/export-file-saver.js';
 
 /** Порт очереди файловых операций (§9): минимальная поверхность FileOpQueue. */
 export interface FileOpRunner {

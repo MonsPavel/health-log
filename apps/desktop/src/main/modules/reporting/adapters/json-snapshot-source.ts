@@ -41,10 +41,9 @@ export class JsonSnapshotSource implements ExportJsonSource {
   private readonly repo: Pick<BpMeasurementRepository, 'listByPeriod'>;
 
   constructor(deps: JsonSnapshotSourceDeps) {
-    this.profileStmt = deps.db.prepare<
-      [string],
-      ProfileRow
-    >('SELECT id, name, created_at_utc FROM profile WHERE id = ?');
+    this.profileStmt = deps.db.prepare<[string], ProfileRow>(
+      'SELECT id, name, created_at_utc FROM profile WHERE id = ?',
+    );
     this.repo = deps.repo;
   }
 
@@ -52,12 +51,16 @@ export class JsonSnapshotSource implements ExportJsonSource {
   getProfile(profileId: string): Promise<JsonSnapshotProfile | undefined> {
     const row = this.profileStmt.get(profileId);
     return Promise.resolve(
-      row === undefined ? undefined : { id: row.id, name: row.name, createdAtUtc: row.created_at_utc },
+      row === undefined
+        ? undefined
+        : { id: row.id, name: row.name, createdAtUtc: row.created_at_utc },
     );
   }
 
   /** Все измерения профиля (§5) в форме DTO TASK-028. */
   listMeasurements(profileId: string): Promise<MeasurementDto[]> {
-    return this.repo.listByPeriod({ profileId }).then((measurements) => measurements.map(toMeasurementDto));
+    return this.repo
+      .listByPeriod({ profileId })
+      .then((measurements) => measurements.map(toMeasurementDto));
   }
 }
