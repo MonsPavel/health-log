@@ -87,7 +87,7 @@ const makeDeps = (over?: {
   const clock: Clock = new FixedClock(NOW_MS, 180);
   const source: ExportJsonSource = {
     getProfile: vi.fn(() => Promise.resolve(profile)),
-    listMeasurements: vi.fn(() => Promise.resolve([dto(2), dto(0), dto(1)])),
+    listMeasurements: vi.fn(() => Promise.resolve([dto(2), dto(1), dto(0)])),
     ...over?.source,
   };
   const prefsSource: ExportJsonPrefsSource = {
