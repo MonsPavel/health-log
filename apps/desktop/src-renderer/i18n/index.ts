@@ -23,6 +23,7 @@ import { initReactI18next } from 'react-i18next';
 import common from './ru/common.json';
 import errors from './ru/errors.json';
 import exportCatalog from './ru/export.json';
+import report from './ru/report.json';
 import measurement from '../features/measurement/ru.json';
 import settings from '../features/settings/ru.json';
 import critical from '../components/critical/ru.json';
@@ -34,6 +35,7 @@ const resources = {
       common,
       errors,
       export: exportCatalog,
+      report,
       measurement,
       settings,
       critical,
