@@ -60,4 +60,12 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('BACKUP/FAILED');
     expect(ERROR_CODES).toContain('BACKUP/CANCELED');
   });
+
+  // TASK-071 §5/§13: коды Data Care — восстановление: копия новее текущей схемы
+  // (EC-25), неверный пароль копии и отказ целостности контейнера/sha256.
+  it('коды BACKUP/DB_NEWER, BACKUP/WRONG_PASSPHRASE и BACKUP/INTEGRITY присутствуют (TASK-071)', () => {
+    expect(ERROR_CODES).toContain('BACKUP/DB_NEWER');
+    expect(ERROR_CODES).toContain('BACKUP/WRONG_PASSPHRASE');
+    expect(ERROR_CODES).toContain('BACKUP/INTEGRITY');
+  });
 });

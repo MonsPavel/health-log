@@ -13,7 +13,9 @@
  *  - формат: чужая магия и обрезанный файл → BackupContainerFormatError (не краш);
  *  - prepareKey/contentKeyFor: пароль → запись kdf argon2id (детерминированный вывод
  *    того же ключа по записи манифеста — путь восстановления 071); db-key → ключ БД;
- *    нарушение контракта hex — TypeError.
+ *    нарушение контракта hex — TypeError;
+ *  - readHeader (071 §5): заголовок без расшифровки — байты манифеста для выбора
+ *    записи kdf; чужая магия/не-JSON — BackupContainerFormatError.
  *
  * Файлы в tmp ОС, удаляются в afterAll (§14); ключи генерируются в тесте.
  */
@@ -235,5 +237,54 @@ describe('BackupContainerCodec.prepareKey / contentKeyFor (§8: два вида 
         { kind: 'dbKey', keyHex: 'ab'.repeat(32) },
       ),
     ).rejects.toThrow(TypeError);
+  });
+});
+
+describe('BackupContainerCodec.readHeader (TASK-071 §5: заголовок без расшифровки)', () => {
+  it('манифест заголовка = записанным байтам, без GCM (выбор записи kdf для вывода ключа)', async () => {
+    const base = newDir();
+    const snapshotPath = join(base, 'snapshot.db');
+    writeSnapshot(snapshotPath, 1024);
+    const destinationPath = join(base, 'header.hlbackup');
+    const manifestJson = Buffer.from(JSON.stringify(manifest), 'utf8');
+
+    const codec = newCodec();
+    await codec.writeContainer({
+      manifestJson,
+      contentKey: randomBytes(32),
+      snapshotPath,
+      destinationPath,
+    });
+
+    const header = await codec.readHeader({ containerPath: destinationPath });
+    expect(header.manifestJson.equals(manifestJson)).toBe(true);
+    expect(header.manifest).toEqual(manifest);
+  });
+
+  it('чужая магия → BackupContainerFormatError (как у readContainer)', async () => {
+    const base = newDir();
+    const destinationPath = join(base, 'header-alien.hlbackup');
+    writeFileSync(
+      destinationPath,
+      Buffer.concat([Buffer.from('XXXXX', 'latin1'), randomBytes(64)]),
+    );
+    await expect(newCodec().readHeader({ containerPath: destinationPath })).rejects.toThrow(
+      BackupContainerFormatError,
+    );
+  });
+
+  it('не-JSON манифест при валидных длинах → BackupContainerFormatError', async () => {
+    const base = newDir();
+    const destinationPath = join(base, 'header-badjson.hlbackup');
+    const garbageManifest = Buffer.from('не-json{', 'utf8');
+    const header = Buffer.alloc(5 + 4 + garbageManifest.length + 12 + 16);
+    header.write('HLBK1', 0, 'latin1');
+    header.writeUInt32BE(garbageManifest.length, 5);
+    garbageManifest.copy(header, 9);
+    writeFileSync(destinationPath, header);
+
+    await expect(newCodec().readHeader({ containerPath: destinationPath })).rejects.toThrow(
+      BackupContainerFormatError,
+    );
   });
 });

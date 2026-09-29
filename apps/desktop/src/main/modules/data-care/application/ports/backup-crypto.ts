@@ -54,6 +54,14 @@ export interface ReadContainerResult {
   readonly payload: Buffer;
 }
 
+/** Результат чтения заголовка БЕЗ расшифровки (TASK-071 §5: выбор записи kdf). */
+export interface ReadHeaderResult {
+  /** Манифест, разобранный из заголовка (НЕ доверенный до GCM; zod — вызыватель). */
+  readonly manifest: BackupManifest;
+  /** Точные байты манифеста из заголовка (сверка привязки GCM — в readContainer). */
+  readonly manifestJson: Buffer;
+}
+
 /** Порт криптоконтейнера копии (арх. 02 §3.5). Реализация — BackupContainerCodec. */
 export interface BackupCrypto {
   /**
@@ -82,4 +90,18 @@ export interface BackupCrypto {
    * Снапшот целиком в памяти (§15: ~20 МБ); потоковая версия — 071 при потребности.
    */
   readContainer(input: { containerPath: string; contentKey: Buffer }): Promise<ReadContainerResult>;
+
+  /**
+   * Читает заголовок контейнера БЕЗ расшифровки (TASK-071 §5: parse → magic →
+   * манифест → выбор записи kdf для вывода ключа; GCM-расшифровка — следующим
+   * шагом readContainer). Возвращает точные байты манифеста и разобранный JSON;
+   * не-JSON после формат-проверок — BackupContainerFormatError (§4).
+   *
+   * Манифест из заголовка НЕ доверенный: привязка GCM проверяется только в
+   * readContainer, валидацию zod-схемой выполняет вызыватель (§7: «восстановление
+   * валидирует») — до неё манифест используется только для contentKeyFor (параметры
+   * ограничены схемой, деривация по подменённой записи даёт просто неверный ключ →
+   * честную GCM-неудачу, §14).
+   */
+  readHeader(input: { containerPath: string }): Promise<ReadHeaderResult>;
 }

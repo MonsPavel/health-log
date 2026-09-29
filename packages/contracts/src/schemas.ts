@@ -10,6 +10,8 @@ import type { ChannelName } from './channels.js';
 import {
   BACKUP_CREATE_REQUEST_SCHEMA,
   BACKUP_CREATE_RESPONSE_SCHEMA,
+  BACKUP_RESTORE_REQUEST_SCHEMA,
+  BACKUP_RESTORE_RESPONSE_SCHEMA,
 } from './data-care/schemas.js';
 import {
   MEASUREMENT_ADD_REQUEST_SCHEMA,
@@ -81,6 +83,16 @@ export const CHANNEL_SCHEMAS = {
   'backup/create': {
     request: BACKUP_CREATE_REQUEST_SCHEMA,
     response: BACKUP_CREATE_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-071 §6/§11: восстановление из копии (Data Care) — двухфазный канал:
+   * фаза 1 {file, passphrase, confirmed: false} → {plan} (предупреждения — UI
+   * показывает до подтверждения); фаза 2 {…, confirmed: true} → {restarting: true}
+   * (замена БД + отложенный relaunch, §9). Регистрация хендлера — TASK-073.
+   */
+  'backup/restore': {
+    request: BACKUP_RESTORE_REQUEST_SCHEMA,
+    response: BACKUP_RESTORE_RESPONSE_SCHEMA,
   },
   /**
    * TASK-028 §5/§11: журнал измерений — CRUD и список (арх. 05 §3, FR-1/FR-2).
