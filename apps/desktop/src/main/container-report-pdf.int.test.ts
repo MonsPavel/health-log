@@ -11,10 +11,18 @@
 //
 // Хелперы (мок-vault, tmp-userData) повторяют container-report.int.test.ts: импорт
 // тест-файла в тест-файл регистрировал бы его describe-блоки повторно — копия.
+//
+// §20-6 (автоматический эквивалент): electron мокается на уровне модуля
+// (прецедент report.int.test.ts) — канал app/reveal-path проверяется ДО боевого
+// shell.showItemInFolder: путь из save-диалога доходит до shell БЕЗ изменений.
+// Сам эффект ОС (окно проводника с подсвеченным файлом) — ручная приёмка §20-6/§24.
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+
+const { showItemInFolder } = vi.hoisted(() => ({ showItemInFolder: vi.fn() }));
+vi.mock('electron', () => ({ shell: { showItemInFolder } }));
 
 import { AppError, FixedClock, type Result } from '@hl/kernel';
 
@@ -105,11 +113,15 @@ describe('container + каналы report/pdf и app/reveal-path (TASK-068 §9/�
     expect(envelope).toMatchObject({ v: 1, ok: false, error: { code: 'VALIDATION/FAILED' } });
   });
 
-  it('app/reveal-path зарегистрирован: {path} → ok null (fire-and-forget §9; отказ адаптера вне Electron глушится)', async () => {
+  it('app/reveal-path: {path} → ok null И путь доходит до shell.showItemInFolder без изменений (§20-6, §9 fire-and-forget)', async () => {
+    const path = 'C:/out/health-log-export-20250925-1900.pdf';
     const envelope = await container!.channels.dispatch({
       channel: 'app/reveal-path',
-      payload: { path: 'C:/out/health-log-export-20250925-1900.pdf' },
+      payload: { path },
     });
     expect(envelope).toEqual({ v: 1, ok: true, data: null });
+    // Полная цепочка UI-кнопки: канал → хендлер → electronRevealPath → shell.
+    // reveal — fire-and-forget (§9): ответ канала не ждёт его — ждём тестом.
+    await vi.waitFor(() => expect(showItemInFolder).toHaveBeenCalledWith(path));
   });
 });

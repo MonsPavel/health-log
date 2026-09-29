@@ -9,7 +9,7 @@
 // байты воркера во временный каталог — ровно то, что сделал бы диалог+writeFile
 // с путём, выбранным пользователем. Файл в src/main (не в modules/): тесту нужны
 // адаптеры разных модулей и контейнер целиком.
-import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeFile } from 'node:fs/promises';
@@ -160,7 +160,9 @@ describe('smoke: tmp-БД 50 записей → PDF >10 КБ (TASK-068 §19/§20
       if (!result.ok) {
         return;
       }
-      expect(result.value.pages).toBeGreaterThanOrEqual(1);
+      // §20-1 «открывается» (автоматический эквивалент, без GUI): число страниц
+      // честное (таблица 50 записей + средние/регулярность/график).
+      expect(result.value.pages).toBeGreaterThanOrEqual(2);
       expect('path' in result.value.file).toBe(true);
       if (!('path' in result.value.file)) {
         return;
@@ -168,6 +170,11 @@ describe('smoke: tmp-БД 50 записей → PDF >10 КБ (TASK-068 §19/§20
       expect(existsSync(result.value.file.path)).toBe(true);
       // §19: PDF файл существует и >10 КБ (шрифты Roboto + таблица 50 записей).
       expect(statSync(result.value.file.path).size).toBeGreaterThan(10 * 1024);
+      // Структурная валидность PDF-файла на диске (то, что читает системный
+      // просмотрщик): заголовок %PDF- в начале и хвост %%EOF в конце.
+      const bytes = readFileSync(result.value.file.path);
+      expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+      expect(bytes.subarray(bytes.length - 32).toString('latin1')).toContain('%%EOF');
     },
   );
 });
