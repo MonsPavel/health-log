@@ -8,6 +8,10 @@ import { z } from 'zod';
 import { BENCH_SEED_REQUEST_SCHEMA, BENCH_SEED_RESPONSE_SCHEMA } from './bench.js';
 import type { ChannelName } from './channels.js';
 import {
+  BACKUP_CREATE_REQUEST_SCHEMA,
+  BACKUP_CREATE_RESPONSE_SCHEMA,
+} from './data-care/schemas.js';
+import {
   MEASUREMENT_ADD_REQUEST_SCHEMA,
   MEASUREMENT_ADD_RESPONSE_SCHEMA,
   MEASUREMENT_DELETE_REQUEST_SCHEMA,
@@ -67,6 +71,16 @@ export const CHANNEL_SCHEMAS = {
       })
       .strict(),
     response: z.null(),
+  },
+  /**
+   * TASK-070 §6/§11: создание копии (Data Care) — {mode:'ask', passphrase} |
+   * {mode:'auto', targetName?} → {file: basename, sizeBytes, manifest}.
+   * Канал-контракт и формат манифеста — здесь; регистрация хендлера и диалоги —
+   * TASK-073 (§6 РЕШЕНИЕ). Пароль копии ≠ пароль приложения (§14).
+   */
+  'backup/create': {
+    request: BACKUP_CREATE_REQUEST_SCHEMA,
+    response: BACKUP_CREATE_RESPONSE_SCHEMA,
   },
   /**
    * TASK-028 §5/§11: журнал измерений — CRUD и список (арх. 05 §3, FR-1/FR-2).

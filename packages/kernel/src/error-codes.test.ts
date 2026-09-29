@@ -52,4 +52,12 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('STORAGE/MIGRATION_FAILED');
     expect(ERROR_CODES).toContain('STORAGE/DB_NEWER_THAN_APP');
   });
+
+  // TASK-070 §5/§13: коды Data Care — создание копии: сбой операции (VACUUM INTO,
+  // шифрование, запись контейнера — например, исчерпание диска) и отмена
+  // пользователем (отказ диалога сохранения — ожидаемый исход).
+  it('коды BACKUP/FAILED и BACKUP/CANCELED присутствуют (TASK-070)', () => {
+    expect(ERROR_CODES).toContain('BACKUP/FAILED');
+    expect(ERROR_CODES).toContain('BACKUP/CANCELED');
+  });
 });
