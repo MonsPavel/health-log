@@ -27,14 +27,7 @@
  * 11. §14: пароль и пути не попадают в лог (redact-страховка).
  */
 import { createHash, randomBytes } from 'node:crypto';
-import {
-  existsSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it, vi } from 'vitest';
@@ -49,7 +42,12 @@ import {
 import type { BackupCrypto } from './ports/backup-crypto.js';
 import { CreateBackupUseCase } from './create-backup.js';
 import { FileOpQueue } from './file-op-queue.js';
-import { cleanupRestoreSafetyCopy, RestoreBackupUseCase } from './restore-backup.js';
+import {
+  cleanupRestoreSafetyCopy,
+  RestoreBackupUseCase,
+  type RestoreBackupResultValue,
+  type RestorePlan,
+} from './restore-backup.js';
 
 import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite.js';
 import { MigrationRunner, type Migration } from '../../../shared/db/migration-runner.js';
@@ -111,12 +109,13 @@ const recordingLogger = (): {
 
 /**
  * Свежая БД актуальной схемы (файл в tmp, реальный openEncrypted + MigrationRunner
- * с реестром приложения) — прецедент create-backup.int.test.
+ * с реестром приложения) — прецедент create-backup.int.test. Миграции завершаются
+ * до возврата (await — соединение не закрывается под работающим runner'ом).
  */
-const openFreshDb = (name: string): { db: EncryptedDatabase; file: string } => {
+const openFreshDb = async (name: string): Promise<{ db: EncryptedDatabase; file: string }> => {
   const file = join(newDir('hl-restore-db-'), name);
   const db = openEncrypted(file, KEY_HEX);
-  void new MigrationRunner({ migrations: MIGRATIONS }).migrate(db);
+  await new MigrationRunner({ migrations: MIGRATIONS }).migrate(db);
   return { db, file };
 };
 
@@ -208,9 +207,25 @@ const buildRestoreHarness = (
   return { dbPath: dbFile, safetyFlagPath, safetyTmpRoot, useCase, entries, relaunch };
 };
 
+/** Сужение значения фазы 1 к плану (иначе — ошибка сценария теста). */
+const expectPlan = (value: RestoreBackupResultValue): RestorePlan => {
+  if (!('plan' in value)) {
+    throw new Error('ожидался план восстановления (confirmed: false)');
+  }
+  return value.plan;
+};
+
+/** Сужение значения фазы 2 к факту перезапуска (иначе — ошибка сценария теста). */
+const expectRestarting = (value: RestoreBackupResultValue): true => {
+  if (!('restarting' in value)) {
+    throw new Error('ожидался запланированный перезапуск (confirmed: true)');
+  }
+  return value.restarting;
+};
+
 describe('RestoreBackupUseCase — happy: равная схема, подмена + relaunch (AC-1, §19)', () => {
   it('plan → execute: файл БД заменён снапшотом копии, перезапуск запланирован, страховка зашифрована', async () => {
-    const { db, file: dbFile } = openFreshDb('happy.sqlite');
+    const { db, file: dbFile } = await openFreshDb('happy.sqlite');
     try {
       insertMeasurements(db, 3);
       const backupPath = await createBackupFile(db, PASSPHRASE, 'happy.hlbackup');
@@ -226,7 +241,7 @@ describe('RestoreBackupUseCase — happy: равная схема, подмен�
       if (!planResult.ok) {
         return;
       }
-      const plan = planResult.value.plan;
+      const plan = expectPlan(planResult.value);
       expect(plan.schemaDelta).toBe('equal');
       expect(plan.warnings).toEqual(['replaces-current']);
       expect(plan.manifest.schemaVersion).toBe(MIGRATIONS.at(-1)?.version);
@@ -246,7 +261,7 @@ describe('RestoreBackupUseCase — happy: равная схема, подмен�
       if (!execResult.ok) {
         return;
       }
-      expect(execResult.value.restarting).toBe(true);
+      expect(expectRestarting(execResult.value)).toBe(true);
       // §9: перезапуск запланирован (контейнер откладывает фактический relaunch на 500 мс).
       expect(harness.relaunch).toHaveBeenCalledTimes(1);
 
@@ -312,14 +327,12 @@ describe('RestoreBackupUseCase — копия старее (§13/§19: план 
     ];
     const legacyDb = openEncrypted(join(newDir('hl-restore-legacy-'), 'legacy.sqlite'), KEY_HEX);
     try {
-      void new MigrationRunner({ migrations: legacy }).migrate(legacyDb);
-      legacyDb.prepare(
-        "INSERT INTO bp_measurement (id) VALUES ('legacy-1')",
-      ).run();
+      await new MigrationRunner({ migrations: legacy }).migrate(legacyDb);
+      legacyDb.prepare("INSERT INTO bp_measurement (id) VALUES ('legacy-1')").run();
       const backupPath = await createBackupFile(legacyDb, PASSPHRASE, 'legacy.hlbackup');
 
       // Текущая БД — актуальной схемы v4 с ДВУМЯ записями (counts-предупреждение §13).
-      const { db, file: dbFile } = openFreshDb('current.sqlite');
+      const { db, file: dbFile } = await openFreshDb('current.sqlite');
       try {
         insertMeasurements(db, 2);
         const harness = buildRestoreHarness(db, dbFile);
@@ -333,7 +346,7 @@ describe('RestoreBackupUseCase — копия старее (§13/§19: план 
         if (!planResult.ok) {
           return;
         }
-        const plan = planResult.value.plan;
+        const plan = expectPlan(planResult.value);
         expect(plan.schemaDelta).toBe('older');
         expect(plan.warnings).toEqual(['replaces-current', 'older-than-current']);
         expect(plan.manifest.schemaVersion).toBe(1);
@@ -370,11 +383,11 @@ describe('RestoreBackupUseCase — копия старее (§13/§19: план 
   });
 
   it('§13: пустая текущая БД → replaces-current всё равно показывается (согласованность)', async () => {
-    const { db, file: dbFile } = openFreshDb('empty-current.sqlite');
+    const { db } = await openFreshDb('empty-current.sqlite');
     try {
       const backupPath = await createBackupFile(db, PASSPHRASE, 'empty-current.hlbackup');
       // Отдельная пустая текущая БД (0 записей) — предупреждение замены неизменно.
-      const current = openFreshDb('empty-target.sqlite');
+      const current = await openFreshDb('empty-target.sqlite');
       try {
         insertMeasurements(current.db, 0);
         const harness = buildRestoreHarness(current.db, current.file);
@@ -387,8 +400,9 @@ describe('RestoreBackupUseCase — копия старее (§13/§19: план 
         if (!planResult.ok) {
           return;
         }
-        expect(planResult.value.plan.currentCounts).toEqual({ measurements: 0 });
-        expect(planResult.value.plan.warnings).toEqual(['replaces-current']);
+        const plan = expectPlan(planResult.value);
+        expect(plan.currentCounts).toEqual({ measurements: 0 });
+        expect(plan.warnings).toEqual(['replaces-current']);
       } finally {
         if (current.db.open) {
           current.db.close();
@@ -406,7 +420,10 @@ describe('RestoreBackupUseCase — копия новее: отказ DB_NEWER д
   /** Собирает самосогласованный контейнер с манифестом schemaVersion=99 (codec напрямую). */
   const craftNewerCopy = async (payloadPath: string, destinationPath: string): Promise<void> => {
     const codec = newCodec();
-    const { kdf, contentKey } = await codec.prepareKey({ kind: 'passphrase', passphrase: PASSPHRASE });
+    const { kdf, contentKey } = await codec.prepareKey({
+      kind: 'passphrase',
+      passphrase: PASSPHRASE,
+    });
     const payload = readFileSync(payloadPath);
     const manifest = {
       formatVersion: 1,
@@ -426,7 +443,7 @@ describe('RestoreBackupUseCase — копия новее: отказ DB_NEWER д
   };
 
   it('plan → err BACKUP/DB_NEWER с params; execute → тот же отказ; текущая БД работает', async () => {
-    const { db, file: dbFile } = openFreshDb('newer.sqlite');
+    const { db, file: dbFile } = await openFreshDb('newer.sqlite');
     try {
       insertMeasurements(db, 4);
       // Пayload — байты живой БД (содержимое не важно: отказ по схеме, до расшифровки).
@@ -465,7 +482,7 @@ describe('RestoreBackupUseCase — копия новее: отказ DB_NEWER д
 
 describe('RestoreBackupUseCase — неверный пароль (AC-3, §19: дважды — не деградирует)', () => {
   it('два попытки → BACKUP/WRONG_PASSPHRASE, БД не тронута', async () => {
-    const { db, file: dbFile } = openFreshDb('wrong-pass.sqlite');
+    const { db, file: dbFile } = await openFreshDb('wrong-pass.sqlite');
     try {
       insertMeasurements(db, 2);
       const backupPath = await createBackupFile(db, PASSPHRASE, 'wrong-pass.hlbackup');
@@ -499,7 +516,7 @@ describe('RestoreBackupUseCase — неверный пароль (AC-3, §19: д
 
 describe('RestoreBackupUseCase — битый sha256: отказ целостности (AC-4)', () => {
   it('самосогласованный контейнер с чужим dbSha256 → BACKUP/INTEGRITY', async () => {
-    const { db, file: dbFile } = openFreshDb('bad-sha.sqlite');
+    const { db, file: dbFile } = await openFreshDb('bad-sha.sqlite');
     try {
       insertMeasurements(db, 1);
       // Контейнер собирается кодеком напрямую: манифест валиден по форме, но
@@ -550,7 +567,7 @@ describe('RestoreBackupUseCase — битый sha256: отказ целостн�
 
 describe('RestoreBackupUseCase — откат-страховка (AC-5, §19: сбой расшифровки после закрытия)', () => {
   it('мок readContainer после plan → текущая БД возвращена и работоспособна, relaunch запланирован', async () => {
-    const { db, file: dbFile } = openFreshDb('rollback.sqlite');
+    const { db, file: dbFile } = await openFreshDb('rollback.sqlite');
     try {
       insertMeasurements(db, 3);
       const backupPath = await createBackupFile(db, PASSPHRASE, 'rollback.hlbackup');
@@ -616,7 +633,7 @@ describe('RestoreBackupUseCase — откат-страховка (AC-5, §19: с
 
 describe('RestoreBackupUseCase — execute без plan-фазы (AC-6)', () => {
   it('execute самодостаточен: валидный файл без предварительного plan → restarting', async () => {
-    const { db, file: dbFile } = openFreshDb('no-plan.sqlite');
+    const { db, file: dbFile } = await openFreshDb('no-plan.sqlite');
     try {
       insertMeasurements(db, 2);
       const backupPath = await createBackupFile(db, PASSPHRASE, 'no-plan.hlbackup');
@@ -631,7 +648,7 @@ describe('RestoreBackupUseCase — execute без plan-фазы (AC-6)', () => {
       if (!result.ok) {
         return;
       }
-      expect(result.value.restarting).toBe(true);
+      expect(expectRestarting(result.value)).toBe(true);
       expect(harness.relaunch).toHaveBeenCalledTimes(1);
       const reopened = openEncrypted(dbFile, KEY_HEX);
       try {
@@ -647,7 +664,7 @@ describe('RestoreBackupUseCase — execute без plan-фазы (AC-6)', () => {
   });
 
   it('confirmed без валидного файла → отказ, текущая БД не тронута, relaunch не планировался', async () => {
-    const { db, file: dbFile } = openFreshDb('no-file.sqlite');
+    const { db, file: dbFile } = await openFreshDb('no-file.sqlite');
     try {
       insertMeasurements(db, 1);
       const harness = buildRestoreHarness(db, dbFile);
@@ -674,7 +691,7 @@ describe('RestoreBackupUseCase — execute без plan-фазы (AC-6)', () => {
 
 describe('RestoreBackupUseCase — валидация команды (§13, прецедент 070)', () => {
   it('пустой/из пробелов пароль → VALIDATION/FAILED в обеих фазах', async () => {
-    const { db, file: dbFile } = openFreshDb('empty-pass.sqlite');
+    const { db, file: dbFile } = await openFreshDb('empty-pass.sqlite');
     try {
       insertMeasurements(db, 1);
       const backupPath = await createBackupFile(db, PASSPHRASE, 'empty-pass.hlbackup');
@@ -703,7 +720,7 @@ describe('RestoreBackupUseCase — валидация команды (§13, пр
 
 describe('cleanupRestoreSafetyCopy (§14: удаление страховки при успешном старте)', () => {
   it('после успешного restore: флаг → каталог страховки удалён, флаг удалён; повтор — no-op', async () => {
-    const { db, file: dbFile } = openFreshDb('cleanup.sqlite');
+    const { db, file: dbFile } = await openFreshDb('cleanup.sqlite');
     try {
       insertMeasurements(db, 1);
       const backupPath = await createBackupFile(db, PASSPHRASE, 'cleanup.hlbackup');

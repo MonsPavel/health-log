@@ -234,9 +234,9 @@ describe('BACKUP_RESTORE_REQUEST_SCHEMA (TASK-071 §11: две фазы по con
   });
 
   it('confirmed отсутствует или лишние поля — отказ (strict)', () => {
-    expect(
-      BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({ file: 'x', passphrase: 'p' }).success,
-    ).toBe(false);
+    expect(BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({ file: 'x', passphrase: 'p' }).success).toBe(
+      false,
+    );
     expect(
       BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({
         confirmed: false,

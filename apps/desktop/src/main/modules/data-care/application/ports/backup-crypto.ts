@@ -12,8 +12,37 @@
  * Соглашения (прецедент порта KeyVault TASK-023): Promise-методы; нарушение
  * контракта вызова — TypeError в точке вызова (dev-контракт); типы манифеста —
  * контракт @hl/contracts (type-only, арх. 03 §4).
+ *
+ * TASK-071: ошибки формата/целостности контейнера переехали из адаптеров СЮДА —
+ * они часть контракта порта (use case восстановления различает их при маппинге в
+ * коды BACKUP/*, а application не импортирует адаптеры — арх. 03 §4); адаптеры
+ * реэкспортируют классы для совместимости импортов.
  */
 import type { BackupKdf, BackupManifest } from '@hl/contracts';
+
+/**
+ * Ошибка формата контейнера (не крипто): чужая магия, битые длины, не-JSON
+ * манифест. Наружу (071) маппится в BACKUP/INTEGRITY — файл не является копией.
+ */
+export class BackupContainerFormatError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'BackupContainerFormatError';
+  }
+}
+
+/**
+ * Ошибка целостности контейнера (§14/AC-3): GCM отклонил шифртекст/AAD/тег —
+ * неверный пароль копии или порча файла (криптографически неотличимы —
+ * различение текстом сообщения, TASK-071). Наружу (071) маппится в
+ * BACKUP/WRONG_PASSPHRASE.
+ */
+export class BackupIntegrityError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'BackupIntegrityError';
+  }
+}
 
 /** Контрактные формы манифеста — реэкспорт порта (адаптеры типы берут через порт,
  * прецедент notes-search: adapters → contracts напрямую запрещён матрицей арх. 03 §4). */
