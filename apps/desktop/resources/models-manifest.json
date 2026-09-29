@@ -1,0 +1,15 @@
+[
+  {
+    "id": "dev-placeholder-ru",
+    "name": "Dev Placeholder Model",
+    "version": "0.0.0-dev",
+    "file": "dev-placeholder.gguf",
+    "url": "https://PLACEHOLDER.invalid/models/dev-placeholder.gguf",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sizeBytes": 1,
+    "languages": ["ru", "en"],
+    "minRamGb": 8,
+    "license": "UNLICENSED-DEV-PLACEHOLDER",
+    "notesKey": "models.notes.devPlaceholder"
+  }
+]
