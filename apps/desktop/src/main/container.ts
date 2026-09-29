@@ -54,6 +54,7 @@ import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 
 import { createLogClientErrorHandler } from './app/global-errors.js';
 import { EventBus } from './events/event-bus.js';
+import { ElectronFileSaver } from './platform/file-saver.js';
 import { BackupContainerCodec } from './modules/data-care/adapters/backup-container.js';
 import { DialogFileSaver } from './modules/data-care/adapters/dialog-file-saver.js';
 import {
@@ -68,6 +69,7 @@ import {
 } from './ipc/handlers/measurements.js';
 import { createDeleteMeasurementHandler } from './ipc/handlers/measurements-delete.js';
 import { createPingHandler } from './ipc/handlers/ping.js';
+import { createExportCsvHandler, createExportJsonHandler } from './ipc/handlers/report.js';
 import { createSearchNotesHandler } from './ipc/handlers/search.js';
 import { createGetPrefsHandler, createSetPrefsHandler } from './ipc/handlers/prefs.js';
 import { createGetActiveScaleHandler } from './ipc/handlers/scales.js';
@@ -79,6 +81,14 @@ import { SqliteScaleRepository } from './modules/analytics/adapters/sqlite-scale
 import { GetPeriodStatistics } from './modules/analytics/application/get-period-statistics.js';
 import { ScaleService } from './modules/analytics/application/scale-service.js';
 import { TrendSeries } from './modules/analytics/application/trend-series.js';
+// TASK-065 §5: экспорт CSV/JSON — use case'ы 063/064, адаптеры источников и
+// оркестрация файловой записи (общая очередь fileOpQueue, §9).
+import { MeasurementExportAdapter } from './modules/reporting/adapters/measurement-export-adapter.js';
+import { JsonSnapshotSource } from './modules/reporting/adapters/json-snapshot-source.js';
+import { ExportCsvUseCase } from './modules/reporting/application/export-csv.js';
+import { ExportCsvFileUseCase } from './modules/reporting/application/export-csv-file.js';
+import { ExportJsonUseCase } from './modules/reporting/application/export-json.js';
+import { ExportJsonFileUseCase } from './modules/reporting/application/export-json-file.js';
 // TASK-067 §9: дефолт tasksModule пула — модуль задач reporting (лёгкий файл URL:
 // без импортов цепочки react-pdf — рендер живёт в воркере, не в графе main).
 import { PDF_TASKS_MODULE_URL } from './modules/reporting/adapters/pdf/pdf-tasks-url.js';
@@ -368,6 +378,41 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //      TASK-056: TrendSeries — read model серий точек графика (тот же порт точек,
     //      без нового SQL; режим raw/daily по порогу 500 решает read model, §2).
     const trendSeries = new TrendSeries({ points: measurementPoints, clock });
+    //      TASK-065: экспорт CSV/JSON (US-27) — источники §8 над боевой инфраструктурой
+    //      (адаптеры reporting), генерация use case'ами 063/064, запись — через ОБЩУЮ
+    //      очередь fileOpQueue (§9: не пересекается с копией БД) и боевой
+    //      ElectronFileSaver (диалог ОС всегда, арх. 02 §3.4; prefs — PreferencesService,
+    //      шкалы — проекция ActiveScale в {code, version}).
+    const fileSaver = new ElectronFileSaver();
+    const exportCsvFile = new ExportCsvFileUseCase({
+      generate: new ExportCsvUseCase({
+        source: new MeasurementExportAdapter(measurementRepo),
+        logger,
+      }),
+      saver: fileSaver,
+      queue: fileOpQueue,
+      clock,
+      logger,
+    });
+    const exportJsonFile = new ExportJsonFileUseCase({
+      generate: new ExportJsonUseCase({
+        source: new JsonSnapshotSource({ db, repo: measurementRepo }),
+        prefs: preferencesService,
+        scales: {
+          listActiveScales: () =>
+            scaleService
+              .getActiveScale()
+              .then((scale) => [{ code: scale.code, version: scale.version }]),
+        },
+        clock,
+        appVersion,
+        logger,
+      }),
+      saver: fileSaver,
+      queue: fileOpQueue,
+      clock,
+      logger,
+    });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -442,6 +487,18 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       'trend/series',
       CHANNEL_SCHEMAS['trend/series'],
       createTrendSeriesHandler(trendSeries, createLogger('ipc')),
+    );
+    // TASK-065 §5/§11: report/export-csv|json — файловый экспорт (save-диалог main
+    // всегда, §3.4; отмена → {canceled: true}, §7; телеметрия §18 — в оркестраторе).
+    channels.register(
+      'report/export-csv',
+      CHANNEL_SCHEMAS['report/export-csv'],
+      createExportCsvHandler(exportCsvFile),
+    );
+    channels.register(
+      'report/export-json',
+      CHANNEL_SCHEMAS['report/export-json'],
+      createExportJsonHandler(exportJsonFile),
     );
 
     // 8.5. Пул воркеров CPU-задач (TASK-066 §5/§6): 2 worker_threads, ленивое создание
