@@ -155,9 +155,11 @@ export class EgressGateway {
     }
 
     // (3) журнал: запись running до сети (§5 п. 3) + (4) событие ленты (§11).
+    // Лента — fire-and-forget (§9, семантика broadcast TASK-009): отказ доставки
+    // (нет окон/рантайма) НЕ рвёт операцию и журнал — это лучится в debug-лог.
     const id = uuidV7();
     this.deps.db.prepare(INSERT_EVENT_SQL).run(id, op, request.endpoint, 'running', null, startedAt);
-    this.deps.notify('net:activity', { kind: op, endpoint: request.endpoint });
+    this.notifyActivity(op, request.endpoint);
     this.deps.logger.info('net request', { kind: op, endpoint: request.endpoint });
 
     try {
@@ -217,8 +219,24 @@ export class EgressGateway {
   private journalBlocked(kind: string, endpoint: string, atUtc: number): void {
     // Сразу финальным статусом: сети не было — running-фаза отсутствует.
     this.deps.db.prepare(INSERT_EVENT_SQL).run(uuidV7(), kind, endpoint, 'blocked', null, atUtc);
-    this.deps.notify('net:activity', { kind, endpoint });
+    this.notifyActivity(kind, endpoint);
     this.deps.logger.info('net request blocked', { kind });
+  }
+
+  /**
+   * Доставка ленты (§11) — fire-and-forget: исключение моста (окна уничтожены,
+   * транспорт недоступен) глушится с debug-логом; журнал и сетевая операция не
+   * зависят от UI-доставки (прецедент broadcast.ts §5).
+   */
+  private notifyActivity(kind: string, endpoint: string): void {
+    try {
+      this.deps.notify('net:activity', { kind, endpoint });
+    } catch (cause) {
+      this.deps.logger.debug('net:activity: доставка не удалась (мост/окна недоступны?)', {
+        kind,
+        cause,
+      });
+    }
   }
 
   /** Обновляет running-запись финальным статусом (§5 п. 3: status/bytes/at). */

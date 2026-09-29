@@ -42,8 +42,8 @@
  *
  * БУДУЩАЯ РАБОТА (§23): здесь же включатся use case'ы 029+ (место помечено —
  * секция «прикладные use case'ы» ниже), SettingsStore (047), ScaleService (051),
- * AI-модуль (076+), EgressGateway (075). Рост: при >15 зависимостях — деление на
- * per-module секции-фабрики (§22).
+ * AI-модуль (076+). EgressGateway подключён (075, §9 — singleton). Рост: при >15
+ * зависимостях — деление на per-module секции-фабрики (§22).
  */
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
@@ -55,6 +55,7 @@ import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 
 import { createLogClientErrorHandler } from './app/global-errors.js';
 import { EventBus } from './events/event-bus.js';
+import { broadcastToWindows } from './events/broadcast.js';
 import { ElectronFileSaver } from './platform/file-saver.js';
 import { electronFileOpenDialog } from './platform/file-open.js';
 import { BackupContainerCodec } from './modules/data-care/adapters/backup-container.js';
@@ -122,6 +123,11 @@ import type { PdfRenderResult } from './modules/reporting/application/report-spe
 import { PDF_TASKS_MODULE_URL } from './modules/reporting/adapters/pdf/pdf-tasks-url.js';
 import { SqliteBpMeasurementRepository } from './modules/measurement/adapters/sqlite-measurement-repository.js';
 import { NotesSearchAdapter } from './modules/measurement/adapters/notes-search.js';
+// TASK-075 §5/§9: EgressGateway — единственная точка сети приложения (D11).
+import {
+  createDefaultEgressFetch,
+  EgressGateway,
+} from './modules/platform-services/egress/egress-gateway.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
 import { DeleteMeasurementUseCase } from './modules/measurement/application/delete-measurement.js';
 import { ListMeasurementsUseCase } from './modules/measurement/application/list-measurements.js';
@@ -277,6 +283,13 @@ export interface Container {
    * с prefs-вызовами сборки).
    */
   readonly scheduler: JobScheduler;
+  /**
+   * EgressGateway — ЕДИНСТВЕННАЯ точка сети приложения (TASK-075 §5/§9, D11):
+   * белый список EgressPolicy + согласия prefs.netConsents + журнал network_event
+   * (v5) + событие net:activity. Потребители — TASK-080 (модели), TASK-096
+   * (обновления); журнал — TASK-099.
+   */
+  readonly egress: EgressGateway;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
 }
@@ -591,6 +604,22 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         countMeasurements: () => measurementRepo.countByPeriod({ profileId: SEED_PROFILE_ID }),
       }),
     );
+    //      TASK-075 §5/§9: EgressGateway — singleton контейнера, единственная точка
+    //      сети (D11). Согласия — read-only срез prefs (§14; перечитываются на каждый
+    //      запрос — отмена согласия мгновенна); исполнитель — net.fetch Electron
+    //      (прокси ОС, §4; в node-vitest — фолбэк globalThis.fetch, до сети боевые
+    //      тесты не доходят — guard FR-7.2); доставка net:activity — боевой мост
+    //      broadcastToWindows (TASK-009) на живые окна (§11); журнал — network_event
+    //      v5, лог — категория net (§18).
+    const egressFetch = await createDefaultEgressFetch();
+    const egress = new EgressGateway({
+      db,
+      clock,
+      logger: createLogger('net'),
+      consents: async () => (await preferencesService.getPrefs()).netConsents,
+      fetch: egressFetch,
+      notify: broadcastToWindows,
+    });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -770,6 +799,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       createBackup,
       fileOpQueue,
       scheduler,
+      egress,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op
