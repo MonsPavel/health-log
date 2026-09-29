@@ -100,6 +100,8 @@ if (gotSingleInstanceLock) {
     container = await buildContainer({
       userDataPath: resolveUserDataPath(app.getPath('userData'), process.env),
       clock: new SystemClock(),
+      // TASK-070 §2: версия приложения в манифесте копии (титул отчёта — 067).
+      appVersion: app.getVersion(),
     });
     // TASK-008 §5: мост `hl:invoke` ставится один раз до создания окна; каналы
     // зарегистрированы в реестре контейнера (TASK-027 §11).

@@ -46,6 +46,9 @@ export const PHI_KEYS: ReadonlySet<string> = new Set([
   // порта (§7: wrappedB64); обе формы имени под цензурой на любой глубине.
   'wrapped',
   'wrappedB64',
+  // TASK-070 §14: пароль копии (backup/create) никогда не логируется — цензура на
+  // любом уровне вложенности (прецедент keyHex TASK-022).
+  'passphrase',
 ]);
 
 /**
@@ -75,6 +78,9 @@ export const PHI_REDACT_PATHS: readonly string[] = [
   'wrappedB64',
   '*.wrapped',
   '*.wrappedB64',
+  // TASK-070 §14: пароль копии — top-level и глубина 1 (глубже — рекурсивный слой).
+  'passphrase',
+  '*.passphrase',
 ];
 
 /**

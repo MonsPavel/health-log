@@ -131,6 +131,13 @@ describe('buildContainer — полный цикл §19 (последовате�
       .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
       .get() as { value: string };
     expect(version.value).toBe(String(MIGRATIONS.at(-1)?.version));
+    // TASK-070 AC-4: hook снапшота подключён в контейнере — перед каждой миграцией
+    // свежей БД создана pre-migration копия в <userData>/backups (§7 — фикс).
+    for (const migration of MIGRATIONS) {
+      expect(existsSync(join(dir, 'backups', `pre-migration-v${migration.version}.hlbackup`))).toBe(
+        true,
+      );
+    }
     // ping через зарегистрированный каркас (§11): конверт TASK-008 + ts из FixedClock.
     const envelope = await container1.channels.dispatch({ channel: 'app/ping', payload: {} });
     expect(envelope).toEqual({
