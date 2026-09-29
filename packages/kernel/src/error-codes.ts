@@ -67,6 +67,11 @@ export const ERROR_CODES = [
   // models; причина — в cause, наружу только код).
   'REPORT/EMPTY_PERIOD',
   'REPORT/RENDER_FAILED',
+  // TASK-075 §5/§9/§13: EgressGateway — операция вне белого списка EgressPolicy
+  // или без согласия пользователя (prefs.netConsents): БЫСТРЫЙ отказ ДО сети
+  // (params {op}), blocked-запись в журнале network_event. Видимый, не тихий (D11,
+  // арх. 08 §5).
+  'NET/BLOCKED_BY_POLICY',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */

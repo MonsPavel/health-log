@@ -35,6 +35,13 @@ export interface HlEventMap {
    * — JobScheduler, дедупликация ≤1/7д). Payload пуст — имя события несёт смысл.
    */
   'job:backup-reminder': Record<string, never>;
+  /**
+   * TASK-075 §5/§11: сетевая активность EgressGateway — лента приватности в реальном
+   * времени (FR-7.1, карта арх. 05). Payload — только метаданные операции (kind — имя
+   * операции белого списка, endpoint — URL без PHI: CDN моделей/сервер обновлений,
+   * §7 TASK-075); статусы/байты — в журнале network_event (TASK-099).
+   */
+  'net:activity': { readonly kind: string; readonly endpoint: string };
   /** Технологическое событие журнала main (§18): только ключ сообщения, без PHI. */
   'app:log': { readonly level: HlLogLevel; readonly messageKey: string };
 }
@@ -49,6 +56,7 @@ export const HL_EVENT_PAYLOAD_KEYS = {
   'measurement:changed': ['profileId'],
   'prefs:changed': ['patchKeys'],
   'job:backup-reminder': [],
+  'net:activity': ['kind', 'endpoint'],
   'app:log': ['level', 'messageKey'],
 } as const satisfies {
   readonly [K in keyof HlEventMap]: readonly (keyof HlEventMap[K])[];
