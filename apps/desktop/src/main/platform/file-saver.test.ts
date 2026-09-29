@@ -98,7 +98,10 @@ describe('ElectronFileSaver.savePdf — без HL_BENCH боевой путь с
     const target = join(BENCH_USER_DATA, 'chosen.pdf');
     showSaveDialog.mockResolvedValueOnce({ canceled: false, filePath: target });
 
-    const saved = await new ElectronFileSaver().savePdf('health-log-export.pdf', new Uint8Array([9]));
+    const saved = await new ElectronFileSaver().savePdf(
+      'health-log-export.pdf',
+      new Uint8Array([9]),
+    );
 
     expect(saved).toEqual({ path: target });
     expect(showSaveDialog).toHaveBeenCalledWith(

@@ -82,9 +82,7 @@ async function measurePdfRun(window, payload) {
     window.evaluate(async (benchPayload) => {
       const startedAtMs = performance.now();
       const envelope = await globalThis.hl.invoke('report/pdf', benchPayload);
-      const data = /** @type {{path?: unknown}} */ (
-        /** @type {unknown} */ (envelope?.data)
-      );
+      const data = /** @type {{path?: unknown}} */ (/** @type {unknown} */ (envelope?.data));
       return {
         ms: performance.now() - startedAtMs,
         ok: envelope?.ok === true,
