@@ -72,6 +72,15 @@ export const ERROR_CODES = [
   // (params {op}), blocked-запись в журнале network_event. Видимый, не тихий (D11,
   // арх. 08 §5).
   'NET/BLOCKED_BY_POLICY',
+  // TASK-076 §9/§13/§14/§5: llm-worker (UtilityProcess) — вторая генерация при активной
+  // (BUSY, §9 «код в реестре»); краш/зависание воркера во время генерации — активный
+  // requestId отклоняется клиентом (§13); заглушка движка до TASK-077 (§5 «engine:
+  // not-configured» — мост для 077); файла модели нет (§14 — путь валидируется на
+  // main-стороне ДО передачи воркеру).
+  'AI/BUSY',
+  'AI/WORKER_CRASHED',
+  'AI/ENGINE_NOT_CONFIGURED',
+  'AI/MODEL_NOT_FOUND',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */

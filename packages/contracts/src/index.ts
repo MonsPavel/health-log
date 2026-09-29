@@ -29,10 +29,13 @@ export {
 export {
   HL_EVENT_CHANNEL,
   HL_EVENT_PAYLOAD_KEYS,
+  type AiWorkerState,
   type HlEventMap,
   type HlLogLevel,
 } from './events.js';
 export { CHANNEL_SCHEMAS, type ChannelSchemas } from './schemas.js';
+export * from './ai/index.js';
+export * from './ai/index.js';
 export * from './bench.js';
 export * from './data-care/index.js';
 export * from './export/index.js';

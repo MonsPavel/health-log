@@ -12,6 +12,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   HL_EVENT_CHANNEL,
   HL_EVENT_PAYLOAD_KEYS,
+  type AiWorkerState,
   type HlEventMap,
   type HlLogLevel,
 } from './events.js';
@@ -59,9 +60,27 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
     expect(HL_EVENT_PAYLOAD_KEYS['net:activity']).toEqual(['kind', 'endpoint']);
   });
 
+  it('содержит ai:status с payload {state, requestId?} — статусы воркера §7 TASK-076', () => {
+    expectTypeOf<HlEventMap['ai:status']>().toEqualTypeOf<{
+      readonly state: AiWorkerState;
+      readonly requestId?: string;
+    }>();
+    expect(HL_EVENT_PAYLOAD_KEYS['ai:status']).toEqual(['state', 'requestId']);
+  });
+
+  it('содержит ai:token с payload {requestId, text} — БАТЧ токенов (flush 50 мс, TASK-076 §11)', () => {
+    expectTypeOf<HlEventMap['ai:token']>().toEqualTypeOf<{
+      readonly requestId: string;
+      readonly text: string;
+    }>();
+    expect(HL_EVENT_PAYLOAD_KEYS['ai:token']).toEqual(['requestId', 'text']);
+  });
+
   it('runtime-реестр HL_EVENT_PAYLOAD_KEYS покрывает карту без лишних имён', () => {
     expect(Object.keys(HL_EVENT_PAYLOAD_KEYS).sort()).toEqual(
       [
+        'ai:status',
+        'ai:token',
         'app:log',
         'data:versionBumped',
         'job:backup-reminder',
