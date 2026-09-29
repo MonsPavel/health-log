@@ -72,10 +72,7 @@ export interface WorkerCancelRequest {
 
 /** Сообщения main → worker. */
 export type WorkerRequest =
-  | WorkerLoadRequest
-  | WorkerUnloadRequest
-  | WorkerCompleteRequest
-  | WorkerCancelRequest;
+  WorkerLoadRequest | WorkerUnloadRequest | WorkerCompleteRequest | WorkerCancelRequest;
 
 /**
  * Код ошибки в ответе worker → main. Строка (движок 077 расширит): известные
@@ -133,7 +130,9 @@ const CHAT_ROLES: ReadonlySet<string> = new Set<ChatRole>(['system', 'user', 'as
 
 /** Сужение unknown → record без any (§5: any запрещён; прецедент workerpool guard). */
 function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined;
+  return typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -176,12 +175,13 @@ export function isWorkerRequest(value: unknown): value is WorkerRequest {
         (asRecord(params) !== undefined &&
           (asRecord(params)?.['temperature'] === undefined ||
             typeof asRecord(params)?.['temperature'] === 'number'));
+      const maxTokens = record['maxTokens'];
       return (
         Array.isArray(record['messages']) &&
         record['messages'].every(isChatMessage) &&
-        typeof record['maxTokens'] === 'number' &&
-        Number.isInteger(record['maxTokens']) &&
-        (record['maxTokens'] as number) > 0 &&
+        typeof maxTokens === 'number' &&
+        Number.isInteger(maxTokens) &&
+        maxTokens > 0 &&
         paramsOk
       );
     }
@@ -208,8 +208,11 @@ export function isWorkerResponse(value: unknown): value is WorkerResponse {
     case 'unloaded':
       return keys.length === 1;
     case 'token':
-      return keys.length === 3 && isNonEmptyString(record['requestId']) &&
-        typeof record['delta'] === 'string';
+      return (
+        keys.length === 3 &&
+        isNonEmptyString(record['requestId']) &&
+        typeof record['delta'] === 'string'
+      );
     case 'done':
       return (
         keys.length === 3 &&

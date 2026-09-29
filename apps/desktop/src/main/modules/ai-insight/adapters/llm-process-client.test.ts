@@ -22,7 +22,7 @@
  *    отклонение, перезапуск;
  *  - dispose: активное отклоняется, процессов больше не создаётся.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { WorkerRequest, WorkerResponse } from '@hl/contracts';
 
@@ -140,10 +140,14 @@ function respondPending(
 
 /** Прогон микротасков, чтобы async-цепочки клиента разошлись. */
 const tick = (): Promise<void> => new Promise<void>((resolve) => setTimeout(resolve, 0));
-const sleep = (ms: number): Promise<void> => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** Сборщик событий notify (ai:status/ai:token). */
-function collectingNotify(): { notify: LlmNotify; events: Array<{ name: string; payload: unknown }> } {
+function collectingNotify(): {
+  notify: LlmNotify;
+  events: Array<{ name: string; payload: unknown }>;
+} {
   const events: Array<{ name: string; payload: unknown }> = [];
   const notify: LlmNotify = (name, payload) => {
     events.push({ name, payload });
@@ -170,7 +174,12 @@ function newClient(
     tokenFlushMs: options.flushMs ?? 5,
     idleTimeoutMs: options.idleMs ?? 10_000,
     maxRestartAttempts: options.maxRestarts ?? 3,
-    logger: { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined },
+    logger: {
+      debug: () => undefined,
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+    },
   });
 }
 
@@ -209,7 +218,12 @@ describe('LlmProcessClient — spawn/handshake/статусы (§5/§15)', () =>
     const client = new LlmProcessClient({
       spawn,
       pathExists: () => false,
-      logger: { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined },
+      logger: {
+        debug: () => undefined,
+        info: () => undefined,
+        warn: () => undefined,
+        error: () => undefined,
+      },
     });
 
     await expect(client.load('C:/models/нет.gguf')).rejects.toMatchObject({

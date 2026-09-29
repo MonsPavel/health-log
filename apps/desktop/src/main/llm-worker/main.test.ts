@@ -74,7 +74,7 @@ describe('attachToParentPort — handshake UtilityProcess (§5)', () => {
     ]);
   });
 
-  it('parentPort-message без порта и повторный handshake цикл не запускают', async () => {
+  it('parentPort-message без порта и повторный handshake цикл не запускают', () => {
     const parentPort = new FakeParentPort();
     const first = new FakePort();
     attachToParentPort(parentPort);

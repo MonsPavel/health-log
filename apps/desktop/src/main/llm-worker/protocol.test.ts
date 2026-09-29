@@ -56,14 +56,11 @@ class ScriptedEngine implements LlmWorkerEngine {
   loadError: EngineError | undefined;
   /** Задан — complete идёт через него (стрим/отказ); иначе — управляемый promise. */
   onCompleteHook:
-    | ((requestId: string, emit: (delta: string) => void) => Promise<LlmFinishReason>)
-    | undefined;
+    ((requestId: string, emit: (delta: string) => void) => Promise<LlmFinishReason>) | undefined;
 
   load(modelPath: string): Promise<void> {
     this.loadedPaths.push(modelPath);
-    return this.loadError !== undefined
-      ? Promise.reject(this.loadError)
-      : Promise.resolve();
+    return this.loadError !== undefined ? Promise.reject(this.loadError) : Promise.resolve();
   }
 
   unload(): Promise<void> {
@@ -131,10 +128,7 @@ describe('startLlmWorkerLoop — load/unload (§5/§13/§23)', () => {
     engine.loadError = new EngineError('MODEL_CORRUPT');
     transport.receive({ type: 'load', modelPath: 'C:/models/bad.gguf' });
     await tick();
-    expect(transport.sent).toEqual([
-      { type: 'ready' },
-      { type: 'error', code: 'MODEL_CORRUPT' },
-    ]);
+    expect(transport.sent).toEqual([{ type: 'ready' }, { type: 'error', code: 'MODEL_CORRUPT' }]);
   });
 
   it('load при активной генерации → BUSY, движок не вызывается (переключение = unload+load, §23)', async () => {

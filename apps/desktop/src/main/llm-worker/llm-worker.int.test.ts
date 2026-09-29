@@ -194,7 +194,10 @@ function newClient(
 ): LlmProcessClient {
   const spawn: SpawnLlmWorker = () => {
     const channel = new InProcessWorkerChannel();
-    startLlmWorkerLoop(channel.workerTransport, engineFactory(() => channel.crash(1)));
+    startLlmWorkerLoop(
+      channel.workerTransport,
+      engineFactory(() => channel.crash(1)),
+    );
     return channel.process;
   };
   return new LlmProcessClient({
@@ -269,7 +272,10 @@ describe('llm-worker.int — полный цикл протокола (§19/§20
 
 describe('llm-worker.int — cancel и BUSY (§19/§20 AC4/AC5)', () => {
   it('cancel посреди: поток останавливается, done(cancelled), после отмены токенов нет', async () => {
-    const client = newClient((crash) => createEchoEngine({ tokenDelayMs: 15, onCrash: crash }), collectingNotify().notify);
+    const client = newClient(
+      (crash) => createEchoEngine({ tokenDelayMs: 15, onCrash: crash }),
+      collectingNotify().notify,
+    );
 
     await client.load('test://model.gguf');
     const tokens: string[] = [];
@@ -286,7 +292,10 @@ describe('llm-worker.int — cancel и BUSY (§19/§20 AC4/AC5)', () => {
   });
 
   it('BUSY на второй параллельной генерации (код AI/BUSY); первая завершается штатно', async () => {
-    const client = newClient((crash) => createEchoEngine({ tokenDelayMs: 10, onCrash: crash }), collectingNotify().notify);
+    const client = newClient(
+      (crash) => createEchoEngine({ tokenDelayMs: 10, onCrash: crash }),
+      collectingNotify().notify,
+    );
     await client.load('test://model.gguf');
 
     const first = client.complete('req-1', COMPLETE);
@@ -301,7 +310,10 @@ describe('llm-worker.int — cancel и BUSY (§19/§20 AC4/AC5)', () => {
   });
 
   it('unload при активной генерации → AI/BUSY; после done — выгружается', async () => {
-    const client = newClient((crash) => createEchoEngine({ tokenDelayMs: 10, onCrash: crash }), collectingNotify().notify);
+    const client = newClient(
+      (crash) => createEchoEngine({ tokenDelayMs: 10, onCrash: crash }),
+      collectingNotify().notify,
+    );
     await client.load('test://model.gguf');
 
     const generating = client.complete('req-1', COMPLETE);

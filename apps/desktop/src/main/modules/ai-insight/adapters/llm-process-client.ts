@@ -345,13 +345,16 @@ export class LlmProcessClient {
    */
   load(modelPath: string): Promise<void> {
     if (this.disposed) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006)
       return Promise.reject(disposedError());
     }
     if (this.active !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006)
       return Promise.reject(AppError.of('AI/BUSY', AI_BUSY_MESSAGE_KEY));
     }
     if (!this.pathExists(modelPath)) {
       // §14/§18: наружу basename, не полный путь (userData содержит имя пользователя).
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006)
       return Promise.reject(
         AppError.of('AI/MODEL_NOT_FOUND', AI_MODEL_NOT_FOUND_MESSAGE_KEY, {
           model: basename(modelPath),
@@ -389,9 +392,11 @@ export class LlmProcessClient {
    */
   async unload(): Promise<void> {
     if (this.disposed) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт ошибок TASK-006; прецедент sqlite.ts)
       throw disposedError();
     }
     if (this.active !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт ошибок TASK-006; прецедент sqlite.ts)
       throw AppError.of('AI/BUSY', AI_BUSY_MESSAGE_KEY);
     }
     if (this.alive === undefined && this.restartGate === undefined) {
@@ -425,9 +430,11 @@ export class LlmProcessClient {
     handlers?: LlmCompleteHandlers,
   ): Promise<LlmCompleteResult> {
     if (this.disposed) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт ошибок TASK-006; прецедент sqlite.ts)
       throw disposedError();
     }
     if (this.active !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт ошибок TASK-006; прецедент sqlite.ts)
       throw AppError.of('AI/BUSY', AI_BUSY_MESSAGE_KEY);
     }
     await this.ensureAlive();
@@ -435,6 +442,7 @@ export class LlmProcessClient {
     await this.loadQueue.catch(() => undefined);
     if (this.active !== undefined) {
       // Вторая из двух гонок complete — отклоняется здесь, а не уходить воркеру.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт ошибок TASK-006; прецедент sqlite.ts)
       throw AppError.of('AI/BUSY', AI_BUSY_MESSAGE_KEY);
     }
     return new Promise<LlmCompleteResult>((resolve, reject) => {
@@ -539,6 +547,7 @@ export class LlmProcessClient {
    */
   private async ensureAlive(): Promise<AliveProcess> {
     if (this.disposed) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт ошибок TASK-006; прецедент sqlite.ts)
       throw disposedError();
     }
     if (this.alive !== undefined) {
@@ -549,12 +558,20 @@ export class LlmProcessClient {
       return this.restartGate;
     }
     this.spawnProcess(true);
-    const alive = this.alive;
+    // currentAlive() (не this.alive напрямую): метод сбрасывает сужение типа
+    // после ветки `this.alive !== undefined` выше (spawnProcess его заполняет).
+    const alive = this.currentAlive();
     if (alive === undefined) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт ошибок TASK-006; прецедент sqlite.ts)
       throw disposedError();
     }
     await alive.readyPromise;
     return alive;
+  }
+
+  /** Чтение alive без сужения потока управления (см. ensureAlive). */
+  private currentAlive(): AliveProcess | undefined {
+    return this.alive;
   }
 
   /**
@@ -572,6 +589,7 @@ export class LlmProcessClient {
     } catch (cause) {
       // Системный отказ фабрики — без цикла перезапусков (см. шапку «ОШИБКИ»).
       this.logger.error('llm-worker: spawn не удался', { cause });
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт ошибок TASK-006; прецедент sqlite.ts)
       throw AppError.of('APP/INTERNAL', 'errors.internal', { reason: 'llm-worker-spawn' }, cause);
     }
     let readyResolve!: () => void;
@@ -676,20 +694,28 @@ export class LlmProcessClient {
         try {
           this.spawnProcess(false);
         } catch (cause) {
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ гейта — AppError (не Error по построению, TASK-006)
           reject(
             cause instanceof AppError
               ? cause
-              : AppError.of('APP/INTERNAL', 'errors.internal', { reason: 'llm-worker-spawn' }, cause),
+              : AppError.of(
+                  'APP/INTERNAL',
+                  'errors.internal',
+                  { reason: 'llm-worker-spawn' },
+                  cause,
+                ),
           );
           return;
         }
         const alive = this.alive;
         if (alive === undefined) {
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ гейта — AppError (не Error по построению, TASK-006)
           reject(disposedError());
           return;
         }
         void alive.readyPromise.then(
           () => resolve(alive),
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ гейта — AppError (не Error по построению, TASK-006)
           (error: AppError) => reject(error),
         );
       }, this.restartBackoffMs);

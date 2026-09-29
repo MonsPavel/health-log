@@ -112,8 +112,8 @@ describe('WorkerResponse — формы ответов worker → main (§5)', (
   it('ответы не содержат полей содержимого генерации, кроме delta (§14: payload-гигиена)', () => {
     // Единственное текстовое поле воркер → main — delta стрима; prompts/контекст
     // через протокол воркера наружу (renderer) не идут вовсе.
-    expect(isWorkerResponse({ type: 'done', requestId: 'r1', finishReason: 'stop', text: 'x' })).toBe(
-      false,
-    );
+    expect(
+      isWorkerResponse({ type: 'done', requestId: 'r1', finishReason: 'stop', text: 'x' }),
+    ).toBe(false);
   });
 });
