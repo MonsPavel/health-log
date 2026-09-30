@@ -56,6 +56,19 @@ export {
 } from './context-channels.js';
 
 export {
+  AI_SUMMARY_DTO_SCHEMA,
+  AI_SUMMARY_GENERATE_REQUEST_SCHEMA,
+  AI_SUMMARY_GENERATE_RESPONSE_SCHEMA,
+  AI_SUMMARY_LATEST_REQUEST_SCHEMA,
+  AI_SUMMARY_LATEST_RESPONSE_SCHEMA,
+  type AiSummaryDto,
+  type AiSummaryGenerateRequest,
+  type AiSummaryGenerateResponse,
+  type AiSummaryLatestRequest,
+  type AiSummaryLatestResponse,
+} from './summary-channels.js';
+
+export {
   KNOWN_WORKER_ERROR_CODES,
   isWorkerRequest,
   isWorkerResponse,

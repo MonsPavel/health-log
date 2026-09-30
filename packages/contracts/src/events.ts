@@ -77,6 +77,20 @@ export interface HlEventMap {
     readonly totalBytes: number;
     readonly state: ModelStatus;
   };
+  /**
+   * TASK-087 §5/§11: ФИНАЛ генерации резюме (UC-03) — ровно один на requestId:
+   * {summaryId} есть — сохранено (miss→done(ok)); summaryId нет + cached=false —
+   * «не резюме» (отказ 086 / cancel / guard-replace — решение §5/§9, запись нет);
+   * cached=true — ответ из кэша. Имя — дословно §11 (финал `ai/summary/result`);
+   * стрим-данные идут отдельно событиями ai:token (arch. 05 §3). summaryId — id,
+   * текста в payload нет (PHI, §14).
+   */
+  'ai/summary/result': {
+    readonly requestId: string;
+    readonly summaryId?: string;
+    readonly cached: boolean;
+    readonly stale: boolean;
+  };
   /** Технологическое событие журнала main (§18): только ключ сообщения, без PHI. */
   'app:log': { readonly level: HlLogLevel; readonly messageKey: string };
 }
@@ -95,6 +109,7 @@ export const HL_EVENT_PAYLOAD_KEYS = {
   'ai:status': ['state', 'requestId'],
   'ai:token': ['requestId', 'text'],
   'ai:progress': ['modelId', 'downloadedBytes', 'totalBytes', 'state'],
+  'ai/summary/result': ['requestId', 'summaryId', 'cached', 'stale'],
   'app:log': ['level', 'messageKey'],
 } as const satisfies {
   readonly [K in keyof HlEventMap]: readonly (keyof HlEventMap[K])[];

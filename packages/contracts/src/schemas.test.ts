@@ -102,7 +102,7 @@ describe('CHANNEL_SCHEMAS["app/log-client-error"] — клиентский от�
 });
 
 describe('CHANNEL_SCHEMAS — дисциплина реестра (§5)', () => {
-  it('реестр типизирован по ChannelName: __bench/seed (TASK-062, test-only) + ai/models/* (TASK-081) + ai/context/preview (TASK-083) + каркасные + app/reveal-path (TASK-068) + backup/create (TASK-070) + backup/restore (TASK-071) + data/wipe (TASK-072) + file/open-dialog (TASK-073) + 4 канала измерений (TASK-028) + notes/search (TASK-045) + prefs/get|set (TASK-047) + report/export-csv|json (TASK-065) + report/pdf (TASK-068) + scales/active (TASK-051) + stats/period (TASK-054) + trend/series (TASK-056)', () => {
+  it('реестр типизирован по ChannelName: __bench/seed (TASK-062, test-only) + ai/models/* (TASK-081) + ai/context/preview (TASK-083) + ai/summary/generate|latest (TASK-087) + каркасные + app/reveal-path (TASK-068) + backup/create (TASK-070) + backup/restore (TASK-071) + data/wipe (TASK-072) + file/open-dialog (TASK-073) + 4 канала измерений (TASK-028) + notes/search (TASK-045) + prefs/get|set (TASK-047) + report/export-csv|json (TASK-065) + report/pdf (TASK-068) + scales/active (TASK-051) + stats/period (TASK-054) + trend/series (TASK-056)', () => {
     expect(Object.keys(CHANNEL_SCHEMAS)).toEqual([
       '__bench/seed',
       'ai/models/list',
@@ -112,6 +112,8 @@ describe('CHANNEL_SCHEMAS — дисциплина реестра (§5)', () => 
       'ai/models/reset',
       'ai/models/select',
       'ai/context/preview',
+      'ai/summary/generate',
+      'ai/summary/latest',
       'app/ping',
       'app/log-client-error',
       'app/reveal-path',
