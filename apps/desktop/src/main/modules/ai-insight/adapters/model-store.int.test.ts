@@ -564,10 +564,13 @@ describe('ModelStore — интеграция (TASK-080 §19/§20)', () => {
     expect(readFileSync(fx.finalPath()).equals(content)).toBe(true);
   });
 
-  it('(7) прогресс-события ≤4/сек: пауза между downloading-событиями ≥250 мс (AC5, §15)', async () => {
-    const content = makeContent(800); // 8 кусков по 100 байт
+  it('(7) троттл прогресса: чанки чаще окна 250 мс — downloading-события подавлены до ≤4/сек (AC5, §15)', async () => {
+    // Чанки приходят РЕЖЕ окна не годится: тогда троттл ничего не подавляет и
+    // тест проходил бы при удалённом троттле. Гоняем 64 Б раз в 50 мс (~20/с —
+    // как у реальной закачки 2–3 ГБ, где чанки на порядки чаще 4/сек, §15).
+    const content = makeContent(1600); // 25 кусков по 64 байта, ~1.3 с суммарно
     const fx = await makeFixture({ content });
-    fx.server.paceNextGet(100, 300); // кусок раз в 300 мс — ~2.4 с суммарно
+    fx.server.paceNextGet(64, 50);
 
     const result = await fx.store.download('test-model');
     expect(unsafeUnwrap(result)).toMatchObject({ state: 'installed' });
@@ -576,9 +579,11 @@ describe('ModelStore — интеграция (TASK-080 §19/§20)', () => {
       .progressPayloads()
       .filter((payload) => payload.state === 'downloading')
       .map((payload) => payload.atMs);
+    // События текут, но ПОДАВЛЕНЫ: без троттла их было бы ~26 (старт + 25 чанков).
     expect(downloading.length).toBeGreaterThanOrEqual(2);
+    expect(downloading.length).toBeLessThan(15);
+    // throttle 250 мс: между byte-событиями пауза ≥250 мс (допуск 10 мс на часы).
     for (let i = 1; i < downloading.length; i += 1) {
-      // throttle 250 мс: события_byte-прогресса не чаще, чем раз в 250 мс.
       expect(downloading[i] - downloading[i - 1]).toBeGreaterThanOrEqual(240);
     }
     // ≤4/сек: в любом окне 1000 мс не больше 4 downloading-событий.
