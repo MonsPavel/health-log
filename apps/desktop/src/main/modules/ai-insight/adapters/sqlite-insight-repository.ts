@@ -104,6 +104,7 @@ export class SqliteInsightRepository implements InsightRepository {
         | undefined;
       return Promise.resolve(row === undefined ? undefined : toRecord(row));
     } catch (cause) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006; прецедент llm-process-client)
       return Promise.reject(this.storageError('findByContextHash', cause));
     }
   }
@@ -129,6 +130,7 @@ export class SqliteInsightRepository implements InsightRepository {
         );
       return Promise.resolve();
     } catch (cause) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006; прецедент llm-process-client)
       return Promise.reject(this.storageError('save', cause));
     }
   }
@@ -141,6 +143,7 @@ export class SqliteInsightRepository implements InsightRepository {
         .get(profileId, period.fromUtcMs, period.toUtcMs) as SummaryRow | undefined;
       return Promise.resolve(row === undefined ? undefined : toRecord(row));
     } catch (cause) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006; прецедент llm-process-client)
       return Promise.reject(this.storageError('latestForPeriod', cause));
     }
   }
@@ -151,6 +154,7 @@ export class SqliteInsightRepository implements InsightRepository {
       this.db.prepare('DELETE FROM ai_summary').run();
       return Promise.resolve();
     } catch (cause) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006; прецедент llm-process-client)
       return Promise.reject(this.storageError('deleteAll', cause));
     }
   }
@@ -162,12 +166,14 @@ export class SqliteInsightRepository implements InsightRepository {
       const version = row === undefined ? Number.NaN : Number(row.value);
       if (!Number.isInteger(version) || version < 0) {
         // Счётчик отсутствует/испорчен — не молча «0» (стейлс бы соврал), а честный отказ.
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006; прецедент llm-process-client)
         return Promise.reject(
-          this.storageError('currentDataVersion', new Error('meta.data_version отсутствует или испорчен')),
+          this.storageError('currentDataVersion', new Error('meta.data_version некорректен')),
         );
       }
       return Promise.resolve(version);
     } catch (cause) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006; прецедент llm-process-client)
       return Promise.reject(this.storageError('currentDataVersion', cause));
     }
   }
