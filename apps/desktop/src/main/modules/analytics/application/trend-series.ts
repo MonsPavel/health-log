@@ -185,3 +185,25 @@ export class TrendSeries {
     return { mode: 'raw', points: sorted.map(toRawPoint) };
   }
 }
+
+/**
+ * TASK-083 §5: полный TrendResponse из точек с ЯВНЫМ режимом — для ИИ-контекста,
+ * который решает агрегацию по лимиту контекст-окна (CONTEXT_MAX_DAYS=90, §5 083),
+ * а не по порогу точек 056: порог про график, лимит — про объём текста для LLM.
+ * Сортировка (utc asc, id asc) и провод raw-точки — ТЕ ЖЕ приватные правила 056
+ * (единый источник, NFR-10: дубликат сортировки/маппинга в ai-insight недопустим);
+ * daily — тот же buildDayPoints. Чистая функция над точками (§9).
+ */
+export function buildTrendResponse(
+  points: readonly MeasurementPoint[],
+  mode: TrendResponse['mode'],
+): TrendResponse {
+  // Пустой период — валидный ответ {mode:'raw', points:[]} в обеих ветках (§11).
+  if (points.length === 0) {
+    return { mode: 'raw', points: [] };
+  }
+  const sorted = [...points].sort(compareByUtcThenId);
+  return mode === 'daily'
+    ? { mode: 'daily', days: buildDayPoints(sorted) }
+    : { mode: 'raw', points: sorted.map(toRawPoint) };
+}

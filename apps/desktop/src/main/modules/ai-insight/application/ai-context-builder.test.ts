@@ -94,7 +94,10 @@ function makeDeps(points: ContextPoint[], clock: Clock = new FixedClock(NOW_MS, 
 
 const INPUT = {
   profileId: 'profile-1',
-  period: { fromUtcMs: Instant.fromIso('2026-03-01T00:00:00.000+03:00').utcMs, toUtcMs: Instant.fromIso('2026-03-08T23:59:00.000+03:00').utcMs },
+  period: {
+    fromUtcMs: Instant.fromIso('2026-03-01T00:00:00.000+03:00').utcMs,
+    toUtcMs: Instant.fromIso('2026-03-31T23:59:00.000+03:00').utcMs,
+  },
   includeNotes: true,
   modelId: 'test-model',
 } as const;
@@ -117,7 +120,8 @@ describe('AiContextBuilder — детерминизм (§13)', () => {
     // Прод-записи всегда имеют id (uuid v7 агрегата — адаптер порта), поэтому
     // полный порядок (utc asc, id asc) инвариантен к порядку выборки. Генератор
     // держит utcMs уникальными: в тестах id-меньше точки с равным utc не дают
-    // полного порядка — прод-вход такой формы не производит.
+    // полного порядка — прод-вход такой формы не производит. Перестановка —
+    // детерминированный Fisher–Yates по seed fast-check (fc.shuffle в v4 нет).
     const rowArb = fc.record({
       utcMs: fc.integer({ min: 1_577_836_800_000, max: 1_831_232_000_000 }),
       sys: fc.integer({ min: 90, max: 180 }),
@@ -127,7 +131,8 @@ describe('AiContextBuilder — детерминизм (§13)', () => {
     await fc.assert(
       fc.asyncProperty(
         fc.uniqueArray(rowArb, { maxLength: 24, selector: (row) => row.utcMs }),
-        async (rows) => {
+        fc.nat(),
+        async (rows, seed) => {
           const points: ContextPoint[] = rows.map((row, i) => ({
             id: `uuid-${i}`,
             sys: row.sys,
@@ -139,7 +144,7 @@ describe('AiContextBuilder — детерминизм (§13)', () => {
           const builder = new AiContextBuilder(makeDeps(points));
           const input = { ...INPUT, period: 'all' as const };
           const base = await builder.build(input);
-          const shuffled = await fc.shuffle([...points]);
+          const shuffled = seededShuffle(points, seed);
           const permuted = await new AiContextBuilder(makeDeps(shuffled)).build(input);
           expect(permuted.text).toBe(base.text);
           expect(permuted.contextHash).toBe(base.contextHash);
@@ -162,7 +167,7 @@ describe('AiContextBuilder — детерминизм (§13)', () => {
   it('в тексте нет дат «сейчас»: период в тексте — только сам период (§4/§9)', async () => {
     const points = [ctxPoint('2026-03-02', '07:30', 118, 76, 58)];
     const ctx = await new AiContextBuilder(makeDeps(points, new FixedClock(Instant.fromIso('2027-06-01T00:00:00.000+03:00').utcMs, TZ))).build(INPUT);
-    expect(ctx.text).toContain('Диапазон: 01.03.2026–08.03.2026');
+    expect(ctx.text).toContain('Диапазон: 01.03.2026–31.03.2026');
     expect(ctx.text).not.toContain('2027');
   });
 });
@@ -381,4 +386,24 @@ function daysFrom(startIso: string, count: number, make: (dayIso: string) => Con
     const day = Instant.toIso({ utcMs: base + i * 86_400_000, tzOffsetMin: TZ }).slice(0, 10);
     return make(day);
   });
+}
+
+/** Детерминированная перестановка Fisher–Yates по целому seed (LCG; тестовая утилита). */
+function seededShuffle<T>(items: readonly T[], seed: number): T[] {
+  let state = (seed % 2_147_483_647) + 1;
+  const next = (): number => {
+    state = (state * 48_271) % 2_147_483_647;
+    return state / 2_147_483_647;
+  };
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(next() * (i + 1));
+    const atI = copy[i];
+    const atJ = copy[j];
+    if (atI !== undefined && atJ !== undefined) {
+      copy[i] = atJ;
+      copy[j] = atI;
+    }
+  }
+  return copy;
 }
