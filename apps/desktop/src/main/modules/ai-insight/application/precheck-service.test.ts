@@ -1,9 +1,14 @@
 // TASK-086 §19/§20: тесты PrecheckService — таблица redSetCase → PrecheckResult (§20
 // п.1), пороги 7/3 kernel (3 записи → insufficient; 8 за 4 дня → undefined), приоритеты
 // §13 (emergency перекрывает всё; криз в ПЕРИОДЕ эскалирует только вопросы о состоянии
-// — решение §19), spy: при refusal LlmEngine.complete не вызван (§9/§20 п.6), лог
-// precheck.refusal без текста вопроса (§18). Статистика — боевой read model 052
-// (buildPeriodStatistics над ручными точками, прецедент system-prompt.test.ts).
+// — решение §19), структурный guard «ответ без LLM» (§9/§20 п.6 — ревью: спай на
+// неподключённом движке таутологичен, фальсифицируемая форма — запрет импорта
+// llm-engine в исходнике + синхронность check()), лог precheck.refusal без текста
+// вопроса (§18). Статистика — боевой read model 052 (buildPeriodStatistics над
+// ручными точками, прецедент system-prompt.test.ts).
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PeriodStatisticsDto } from '@hl/contracts';
@@ -13,12 +18,6 @@ import { buildPeriodStatistics, type MeasurementPoint } from '../../analytics/in
 import { RED_SET_CASES } from '../domain/red-set.js';
 import type { RedSetCase } from '../domain/guardrail-policy.js';
 import { refusalText } from './refusal-texts.js';
-import type {
-  LlmEngine,
-  LlmEngineChunk,
-  LlmEngineRequest,
-  EngineStatus,
-} from './ports/llm-engine.js';
 import { PrecheckService, isStateQuestion, type PrecheckContext } from './precheck-service.js';
 
 /** Точка периода (та же механика, что в golden-фикстурах 052; пояс +03:00 без DST). */
@@ -95,22 +94,6 @@ function ctxOf(stats: PeriodStatisticsDto, locale = 'ru'): PrecheckContext {
 function service() {
   const logger = { info: vi.fn<(message: string, meta?: Record<string, unknown>) => void>() };
   return { svc: new PrecheckService({ refusalText, logger }), logger };
-}
-
-/**
- * Спай движка LLM (§20 п.6): полный порт, счётчики вызовов читает тест.
- * vi.fn — отдельные значения (не обращения к методам типа — unbound-method).
- */
-function engineSpy() {
-  const ensureModel = vi.fn<(modelId: string) => Promise<void>>();
-  const complete = vi.fn<(request: LlmEngineRequest) => AsyncIterable<LlmEngineChunk>>();
-  const cancel = vi.fn<() => void>();
-  const status = vi.fn<() => EngineStatus>();
-  return {
-    complete,
-    ensureModel,
-    engine: { ensureModel, complete, cancel, status } satisfies LlmEngine,
-  };
 }
 
 describe('таблица redSetCase → PrecheckResult (§19/§20 п.1 — все классы)', () => {
@@ -262,24 +245,37 @@ describe('вопросы о состоянии — разграничение п
   });
 });
 
-describe('Spy: при гарантированном ответе LlmEngine не участвует (§9/§20 п.6)', () => {
-  it('refusal: complete/ensureModel не вызваны — ответ готов без модели', () => {
-    const engine = engineSpy();
-    const { svc } = service();
-    const result = svc.check('Какие таблетки мне принять?', ctxOf(SUFFICIENT));
-    expect(result).toMatchObject({ kind: 'refusal', refusalClass: 'treatment' });
-    expect(engine.complete).not.toHaveBeenCalled();
-    expect(engine.ensureModel).not.toHaveBeenCalled();
+/**
+ * Guard эшелона 2 (§9/§20 п.6): префильтр обязан отвечать БЕЗ LLM. Ревью TASK-086:
+ * спай-вариант («engine.complete не вызван») таутологичен — PrecheckService не
+ * держит движок, отключённый спай не может вызвать nothing; фальсифицируемая
+ * форма — СТРУКТУРНЫЙ guard: исходник precheck-service.ts не содержит импорта
+ * llm-engine и идентификатора LlmEngine (появление зависимости = падение теста),
+ * плюс синхронность check() — результат готов при вызове, без промисов (§15
+ * «мгновенно»). Интеграционный спай оркестратора (refusal → complete не звался)
+ * — обязанность TASK-087 §5/§20.
+ */
+describe('структурный guard: гарантированный ответ без LLM (§9/§20 п.6)', () => {
+  const source = readFileSync(join(import.meta.dirname, 'precheck-service.ts'), 'utf8');
+  // Код без комментариев (guard — про импорты/идентификаторы, не про документацию).
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+
+  it('precheck-service.ts не импортирует llm-engine и не упоминает LlmEngine', () => {
+    expect(code).not.toMatch(/llm-engine/);
+    expect(code).not.toMatch(/LlmEngine/);
   });
 
-  it('emergency: complete/ensureModel не вызваны — текст срочности мгновенный', () => {
-    const engine = engineSpy();
+  it('check() синхронен: refusal/emergency — готовый результат, не промис (§15)', () => {
     const { svc } = service();
-    expect(svc.check('Мне 190/120 и болит голова, что делать?', ctxOf(SUFFICIENT))).toMatchObject({
-      kind: 'emergency',
-    });
-    expect(engine.complete).not.toHaveBeenCalled();
-    expect(engine.ensureModel).not.toHaveBeenCalled();
+    for (const [question, ctx] of [
+      ['Какие таблетки мне принять?', ctxOf(SUFFICIENT)],
+      ['Мне 190/120 и болит голова, что делать?', ctxOf(SUFFICIENT)],
+      ['Сравни с нормой', ctxOf(FEW)],
+    ] as const) {
+      const result = svc.check(question, ctx);
+      expect(result).toBeDefined();
+      expect(result).not.toHaveProperty('then');
+    }
   });
 });
 

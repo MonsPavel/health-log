@@ -102,7 +102,8 @@ export interface PrecheckServiceDeps {
  * PrecheckService (§2): check(вопрос, контекст-мета) → гарантированный ответ ИЛИ
  * undefined. Синхронный чистый вызов над готовой статистикой (§15); единственный
  * побочный эффект — лог §18. Движок LLM сервису НЕ принадлежит: refusal не может
- * его затронуть (спай-тест §20 п.6 — контракт для интеграции 087).
+ * его затронуть — guard §20 п.6 (ревью: структурный запрет импорта llm-engine в
+ * исходнике + синхронность check(); интеграционный спай оркестратора — TASK-087).
  */
 export class PrecheckService {
   private readonly refusalText: RefusalTextFactory;
