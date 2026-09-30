@@ -14,13 +14,19 @@ import { describe, expect, it } from 'vitest';
 import type { PeriodStatisticsDto, TrendResponse } from '@hl/contracts';
 import { FixedClock, Instant } from '@hl/kernel';
 import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
-import { buildPeriodStatistics, buildTrendResponse } from '../../analytics/index.js';
-
-import { PROMPT_TEMPLATE_VERSION as BUILDER_VERSION } from '../ai-context-builder.js';
+import { buildPeriodStatistics, buildTrendResponse } from '../../../analytics/index.js';
 import { DEFAULT_GUARDRAIL_POLICY, type RefusalClass } from '../../domain/guardrail-policy.js';
+import {
+  PROMPT_TEMPLATE_VERSION as BUILDER_VERSION,
+  AiContextBuilder,
+  type AiContextBuilderDeps,
+} from '../ai-context-builder.js';
 import type { ContextPoint, ContextPointsQuery } from '../ports/ai-context.js';
-import { AiContextBuilder, type AiContextBuilderDeps } from '../ai-context-builder.js';
-import { buildSystemPrompt, type PromptContextMeta } from './system-prompt.js';
+import {
+  buildSystemPrompt,
+  PROMPT_TEMPLATE_VERSION,
+  type PromptContextMeta,
+} from './system-prompt.js';
 
 /** Мета golden-снапшота (§7): период с разрывами, данных достаточно. */
 const GOLDEN_META: PromptContextMeta = {
@@ -43,7 +49,7 @@ describe('buildSystemPrompt — обязательные подстроки (§1
     ['диагнозы (§20 п.2)', 'Не ставь диагнозы'],
     ['лечение: не советовать (§20 п.2)', 'начинать, менять или прекращать приём лекарств'],
     ['лечение: отказ и врач (§20 п.2)', 'советуй обратиться к врачу'],
-    ['emergency (§20 п.2)', 'экстренной медицинской помощи'],
+    ['emergency (§20 п.2)', 'экстренной медицинской помощью'],
     ['малые данные: отказ от обобщений (§20 п.2)', 'не делай обобщений'],
     ['тон (§5)', 'Говори спокойно и простым языком'],
   ];
@@ -65,7 +71,7 @@ describe('buildSystemPrompt — запреты по классам полити�
     diagnosis: 'Не ставь диагнозы',
     treatment: 'начинать, менять или прекращать приём лекарств',
     dosage: 'не меняй дозы лекарств',
-    emergency: 'экстренной медицинской помощи',
+    emergency: 'экстренной медицинской помощью',
     insufficientData: 'не делай обобщений',
   };
   for (const cls of DEFAULT_GUARDRAIL_POLICY.refusals) {
@@ -78,28 +84,36 @@ describe('buildSystemPrompt — запреты по классам полити�
 describe('buildSystemPrompt — адаптивные секции по contextMeta (§7/§19)', () => {
   it('hasGaps=true → усиленная фраза про разрывы в ОБЯЗАТЕЛЬНО', () => {
     const text = buildSystemPrompt(DEFAULT_GUARDRAIL_POLICY, {
-      periodText: 'P', hasGaps: true, insufficientData: false,
+      periodText: 'P',
+      hasGaps: true,
+      insufficientData: false,
     });
     expect(text).toContain('назови эти разрывы явно');
   });
 
   it('hasGaps=false → усиленной фразы нет (адаптив по мете, §7)', () => {
     const text = buildSystemPrompt(DEFAULT_GUARDRAIL_POLICY, {
-      periodText: 'P', hasGaps: false, insufficientData: false,
+      periodText: 'P',
+      hasGaps: false,
+      insufficientData: false,
     });
     expect(text).not.toContain('назови эти разрывы явно');
   });
 
   it('insufficientData=true → прямое указание «сейчас данных меньше»', () => {
     const text = buildSystemPrompt(DEFAULT_GUARDRAIL_POLICY, {
-      periodText: 'P', hasGaps: false, insufficientData: true,
+      periodText: 'P',
+      hasGaps: false,
+      insufficientData: true,
     });
     expect(text).toContain('Сейчас измерений меньше необходимого порога');
   });
 
   it('insufficientData=false → условное правило без утверждения о нехватке (§7)', () => {
     const text = buildSystemPrompt(DEFAULT_GUARDRAIL_POLICY, {
-      periodText: 'P', hasGaps: false, insufficientData: false,
+      periodText: 'P',
+      hasGaps: false,
+      insufficientData: false,
     });
     expect(text).not.toContain('Сейчас измерений меньше');
     expect(text).toContain('Если измерений меньше необходимого порога');
