@@ -16,6 +16,7 @@ import {
   isWorkerRequest,
   isWorkerResponse,
   type ChatMessage,
+  type GenerationParams,
   type LlmFinishReason,
   type WorkerRequest,
   type WorkerResponse,
@@ -36,6 +37,23 @@ describe('WorkerRequest — формы запросов main → worker (§5)', 
     expectTypeOf<
       Extract<WorkerRequest, { type: 'complete' }>['maxTokens']
     >().toEqualTypeOf<number>();
+  });
+
+  it('params несёт опциональные temperature и seed (TASK-077 §7/§11 — повторяемость eval)', () => {
+    expectTypeOf<GenerationParams>().toEqualTypeOf<{
+      readonly temperature?: number;
+      readonly seed?: number;
+    }>();
+    // guard пропускает seed (число) — форма params не ограничена ключами
+    expect(
+      isWorkerRequest({
+        type: 'complete',
+        requestId: 'r1',
+        messages: [{ role: 'user', content: 'привет' }],
+        params: { temperature: 0.3, seed: 42 },
+        maxTokens: 256,
+      }),
+    ).toBe(true);
   });
 
   it('guard пропускает все четыре формы и отклоняет мусор', () => {
