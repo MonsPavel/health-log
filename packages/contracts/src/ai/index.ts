@@ -40,6 +40,21 @@ export {
   type ModelView,
 } from './models-channels.js';
 
+/**
+ * TASK-083 §5/§11: контракт канала превью ИИ-контекста — {profileId, period,
+ * includeNotes} → {text, sections, hash}; EN-идентификаторы секций — общий
+ * контракт сборщика и UI (§10/§17: маркеры EN, подписи RU).
+ */
+export {
+  AI_CONTEXT_PREVIEW_REQUEST_SCHEMA,
+  AI_CONTEXT_PREVIEW_RESPONSE_SCHEMA,
+  AI_CONTEXT_SECTION_IDS,
+  AI_CONTEXT_SECTION_SCHEMA,
+  type AiContextPreviewRequest,
+  type AiContextPreviewResponse,
+  type AiContextSectionId,
+} from './context-channels.js';
+
 export {
   KNOWN_WORKER_ERROR_CODES,
   isWorkerRequest,

@@ -147,6 +147,16 @@ import {
   AiModelsQueries,
   type TestModelInstallPort,
 } from './modules/ai-insight/application/models-queries.js';
+// TASK-083 §5/§11: AiContextBuilder — детерминированная проекция периода для ИИ
+// (арх. 07 §3); адаптеры точек/агрегатов/серий — над публичным API analytics и
+// measurement; хендлер канала превью.
+import {
+  ContextPointsAdapter,
+  ContextSeriesAdapter,
+  ContextStatsAdapter,
+} from './modules/ai-insight/adapters/context-sources.js';
+import { AiContextBuilder } from './modules/ai-insight/application/ai-context-builder.js';
+import { createAiContextPreviewHandler } from './ipc/handlers/ai-context.js';
 import {
   createAiModelsDownloadHandler,
   createAiModelsListHandler,
@@ -401,6 +411,11 @@ export interface Container {
    * ai/models/* (§11) и e2e §20-6.
    */
   readonly aiModels: AiModelsQueries;
+  /**
+   * AiContextBuilder (TASK-083 §2/§5): детерминированная проекция периода для ИИ
+   * (арх. 07 §3); потребитель — хендлер ai/context/preview (§11), далее 084/087.
+   */
+  readonly aiContext: AiContextBuilder;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
 }
@@ -833,6 +848,22 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       uiLanguage: () => APP_UI_LANGUAGE,
       testInstall: testModelInstall,
     });
+    //      TASK-083 §5/§11: AiContextBuilder — детерминированная проекция периода
+    //      (арх. 07 §3): точки С ЗАМЕТКАМИ — адаптер над журналом (§14: заметки в
+    //      текст только при includeNotes — решает сборщик); агрегаты — та же сборка
+    //      052/054, что у канала stats/period (ContextStatsAdapter над портом точек
+    //      и ScaleService); серии — buildTrendResponse 056 с ЯВНЫМ режимом (лимит
+    //      контекст-окна CONTEXT_MAX_DAYS решает сборщик, §5); шкала — ScaleService.
+    const contextPoints = new ContextPointsAdapter(measurementRepo);
+    const contextStats = new ContextStatsAdapter(measurementPoints, scaleService);
+    const contextSeries = new ContextSeriesAdapter(measurementPoints);
+    const aiContext = new AiContextBuilder({
+      points: contextPoints,
+      stats: contextStats,
+      series: contextSeries,
+      scales: scaleService,
+      clock,
+    });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -1022,6 +1053,17 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       CHANNEL_SCHEMAS['ai/models/select'],
       createAiModelsSelectHandler(aiModels),
     );
+    // TASK-083 §5/§11: ai/context/preview — AiContextBuilder; modelId — активная
+    // модель prefs ('' — не выбрана, §11); лог §18 без текста контекста (PHI, §14).
+    channels.register(
+      'ai/context/preview',
+      CHANNEL_SCHEMAS['ai/context/preview'],
+      createAiContextPreviewHandler(
+        aiContext,
+        async () => (await preferencesService.getPrefs()).aiSettings.modelId ?? '',
+        createLogger('ipc'),
+      ),
+    );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
@@ -1049,6 +1091,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       llm,
       llmEngine,
       aiModels,
+      aiContext,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op
