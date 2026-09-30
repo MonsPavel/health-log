@@ -8,6 +8,14 @@ import { z } from 'zod';
 import { BENCH_SEED_REQUEST_SCHEMA, BENCH_SEED_RESPONSE_SCHEMA } from './bench.js';
 import type { ChannelName } from './channels.js';
 import {
+  AI_MODELS_LIST_REQUEST_SCHEMA,
+  AI_MODELS_LIST_RESPONSE_SCHEMA,
+  AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
+  AI_MODELS_RESET_RESPONSE_SCHEMA,
+  AI_MODELS_SELECT_RESPONSE_SCHEMA,
+  AI_MODELS_STATUS_RESPONSE_SCHEMA,
+} from './ai/models-channels.js';
+import {
   BACKUP_CREATE_REQUEST_SCHEMA,
   BACKUP_CREATE_RESPONSE_SCHEMA,
   BACKUP_RESTORE_REQUEST_SCHEMA,
@@ -63,6 +71,37 @@ export const CHANNEL_SCHEMAS = {
   '__bench/seed': {
     request: BENCH_SEED_REQUEST_SCHEMA,
     response: BENCH_SEED_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-081 §5/§7/§11: витрина моделей (экран «Модель», /ai). list — одним
+   * вызовом всё для экрана (§7: витрины + ОЗУ машины + язык UI); download/
+   * resume — финал флоу загрузки (долгий ответ: ход — событиями ai:progress,
+   * §11), pause/reset — статус сразу; select — prefs.aiSettings.modelId
+   * (ensureModel лениво при генерации — 087, §9; быстрый UI).
+   */
+  'ai/models/list': {
+    request: AI_MODELS_LIST_REQUEST_SCHEMA,
+    response: AI_MODELS_LIST_RESPONSE_SCHEMA,
+  },
+  'ai/models/download': {
+    request: AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
+    response: AI_MODELS_STATUS_RESPONSE_SCHEMA,
+  },
+  'ai/models/pause': {
+    request: AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
+    response: AI_MODELS_STATUS_RESPONSE_SCHEMA,
+  },
+  'ai/models/resume': {
+    request: AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
+    response: AI_MODELS_STATUS_RESPONSE_SCHEMA,
+  },
+  'ai/models/reset': {
+    request: AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
+    response: AI_MODELS_RESET_RESPONSE_SCHEMA,
+  },
+  'ai/models/select': {
+    request: AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
+    response: AI_MODELS_SELECT_RESPONSE_SCHEMA,
   },
   'app/ping': {
     request: z.object({}).strict(),

@@ -6,6 +6,7 @@
 import type { z } from 'zod';
 
 import type {
+  AI_SETTINGS_SCHEMA,
   JOB_LAST_BACKUP_SCHEMA,
   JOB_STATE_SCHEMA,
   NET_CONSENTS_SCHEMA,
@@ -28,6 +29,9 @@ export type NetConsents = z.infer<typeof NET_CONSENTS_SCHEMA>;
 
 /** TASK-074 §5: состояние каркасных задач (JobScheduler) в документе prefs. */
 export type JobState = z.infer<typeof JOB_STATE_SCHEMA>;
+
+/** TASK-081 §5: настройки ИИ — выбранная модель (modelId) и «настроить позже» (dismissed). */
+export type AiSettings = z.infer<typeof AI_SETTINGS_SCHEMA>;
 
 /** TASK-074 §5: метаданные последней копии (путь/дата). */
 export type JobLastBackup = z.infer<typeof JOB_LAST_BACKUP_SCHEMA>;

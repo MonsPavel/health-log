@@ -38,7 +38,12 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * `app/reveal-path` {path} → null (shell.showItemInFolder, §11);
  * выбор файла копии `file/open-dialog` — TASK-073 §6/§9/§11 (схемы — file.ts:
  * запрос {filters} — путь выбирает open-диалог main, §14; ответ — та же union
- * {path} | {canceled: true}, §7/§23).
+ * {path} | {canceled: true}, §7/§23);
+ * витрина моделей `ai/models/*` — TASK-081 §5/§7/§11 (схемы — ai/models-channels.ts):
+ * list {} → {models: ModelView[], ramTotalGb, uiLanguage} одним вызовом (§7);
+ * download/pause/resume/reset {modelId} → форма статуса 080 (download/resume — финал
+ * флоу, пауза/сброс — статус после операции); select {modelId} → {modelId}
+ * (prefs.aiSettings.modelId, ensureModel — лениво при генерации 087, §9).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -48,6 +53,14 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  */
 export type ChannelName =
   | '__bench/seed'
+  // TASK-081 §5/§11: витрина моделей — list одним вызовом (§7), управление
+  // загрузкой и выбор активной модели (схемы — ai/models-channels.ts).
+  | 'ai/models/list'
+  | 'ai/models/download'
+  | 'ai/models/pause'
+  | 'ai/models/resume'
+  | 'ai/models/reset'
+  | 'ai/models/select'
   | 'app/ping'
   | 'app/log-client-error'
   | 'app/reveal-path'

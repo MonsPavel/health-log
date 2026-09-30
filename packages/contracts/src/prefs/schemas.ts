@@ -39,6 +39,23 @@ export const NET_CONSENTS_SCHEMA = z
 export const JOB_LAST_BACKUP_SCHEMA = z.object({ path: z.string(), at: z.number() }).strict();
 
 /**
+ * TASK-081 §5: настройки ИИ — выбор активной модели (prefs.aiSettings.modelId;
+ * ensureModel лениво при генерации — 087, не на select, §9) и решение «настроить
+ * позже» (dismissed — баннер «ИИ не настроен» скрыт НАВСЕГДА до явного «Настроить»
+ * из настроек; РЕШЕНИЕ спеки — просто). Объект заменяется ЦЕЛИКОМ (семантика
+ * netConsents/jobState — без deep-merge); писатель (use case select / UI) читает
+ * документ и возвращает обновлённый целиком.
+ */
+export const AI_SETTINGS_SCHEMA = z
+  .object({
+    /** Выбранная модель (id из манифеста); absent — не выбрана. */
+    modelId: z.string().min(1).optional(),
+    /** «Настроить позже»: баннер не возвращается до явной настройки (§5 РЕШЕНИЕ). */
+    dismissed: z.boolean().default(false),
+  })
+  .strict();
+
+/**
  * TASK-074 §5/§12: состояние каркасных задач (JobScheduler) — персистентно в prefs:
  * lastRun задач (jobs: имя → utcMs), дедупликация показа подсказок (shown:
  * kind → utcMs, «не чаще раза в неделю» §13) и метаданные последней копии.
@@ -70,6 +87,8 @@ export const PREFS_SCHEMA = z
     netConsents: NET_CONSENTS_SCHEMA.default({ updatesCheck: false, modelsDownload: false }),
     /** TASK-074 §5: состояние задач планировщика (последний запуск, показы, копия). */
     jobState: JOB_STATE_SCHEMA.default({ jobs: {}, shown: {} }),
+    /** TASK-081 §5: настройки ИИ — выбранная модель + «настроить позже». */
+    aiSettings: AI_SETTINGS_SCHEMA.default({ dismissed: false }),
   })
   .strict();
 
@@ -85,6 +104,8 @@ export const PREFS_PATCH_SCHEMA = z.object({
   netConsents: NET_CONSENTS_SCHEMA.optional(),
   // TASK-074 §5/§12: jobState пишут use case'ы/планировщик main (объектом целиком).
   jobState: JOB_STATE_SCHEMA.optional(),
+  // TASK-081 §5: aiSettings пишет use case select и UI «настроить позже» (целиком).
+  aiSettings: AI_SETTINGS_SCHEMA.optional(),
 });
 
 /** §11: запрос prefs/get — полный документ без параметров. */

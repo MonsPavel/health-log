@@ -32,6 +32,8 @@ const DEFAULT_PREFS: Prefs = {
   // TASK-075: modelsDownload — новое согласие схемы (дефолт false).
   netConsents: { updatesCheck: false, modelsDownload: false },
   jobState: { jobs: {}, shown: {} },
+  // TASK-081: aiSettings — выбранной модели нет, «настроить позже» не нажат.
+  aiSettings: { dismissed: false },
 };
 
 const OK_ENVELOPE = (data: unknown) => ({ v: 1, ok: true, data });

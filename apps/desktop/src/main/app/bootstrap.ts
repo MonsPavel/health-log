@@ -9,7 +9,13 @@ import { createWindow, focusExistingWindow } from './create-window.js';
 import { installGlobalErrorHandlers } from './global-errors.js';
 import { createSecondInstanceHandler, ensureSingleInstance } from './single-instance.js';
 import { resolveUserDataPath } from './user-data-override.js';
-import { buildContainer, fakeLlmEnabled, type Container } from '../container.js';
+import {
+  buildContainer,
+  fakeLlmEnabled,
+  HL_TEST_MODEL_FILE_ENV,
+  testModelFileEnabled,
+  type Container,
+} from '../container.js';
 import { benchChannelsEnabled, createBenchSeedHandler } from '../ipc/handlers/bench-seed.js';
 import { installChannelBridge } from '../ipc/register-channel.js';
 import { createLogger, initFileLogging } from '../shared/logger/logger.js';
@@ -109,6 +115,13 @@ if (gotSingleInstanceLock) {
       // TASK-062). Контейнер сам env не читает — параметром (§19, тесты без
       // env-мутаций); выбор движка и его лог — в buildContainer (§18).
       useFakeLlm: fakeLlmEnabled(process.env, app.isPackaged),
+      // TASK-081 §22/§14: TEST-ONLY установка модели мимо сети — env
+      // HL_TEST_MODEL_FILE (путь файла-источника), только не-packaged (гард
+      // testModelFileEnabled — тот же паттерн); e2e §20-6 (dev-модель с
+      // PLACEHOLDER-URL манифеста 079 сетевой путь 080 не проходит).
+      testModelFilePath: testModelFileEnabled(process.env, app.isPackaged)
+        ? process.env[HL_TEST_MODEL_FILE_ENV]
+        : undefined,
     });
     // TASK-008 §5: мост `hl:invoke` ставится один раз до создания окна; каналы
     // зарегистрированы в реестре контейнера (TASK-027 §11).

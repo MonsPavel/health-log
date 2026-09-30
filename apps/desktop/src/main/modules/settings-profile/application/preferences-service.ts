@@ -117,6 +117,7 @@ export class PreferencesService {
     // 2. Merge с текущими (§9): документ читается заново — атомарность чтения (§5).
     //    TASK-074: jobState (состояние задач JobScheduler) — объектом ЦЕЛИКОМ
     //    (семантика netConsents, §5 schemas: писатель возвращает обновлённый объект).
+    //    TASK-081: aiSettings (выбор модели + «настроить позже») — тем же способом.
     const current = await this.getPrefs();
     const merged: Prefs = {
       theme: validPatch.theme ?? current.theme,
@@ -125,6 +126,7 @@ export class PreferencesService {
       advancedMode: validPatch.advancedMode ?? current.advancedMode,
       netConsents: validPatch.netConsents ?? current.netConsents,
       jobState: validPatch.jobState ?? current.jobState,
+      aiSettings: validPatch.aiSettings ?? current.aiSettings,
     };
 
     // 3. Валидация результата (§9): инвариант, defensive-ветка (APP/INTERNAL).

@@ -26,6 +26,7 @@ const VALID_PREFS = {
   advancedMode: false,
   netConsents: { updatesCheck: false, modelsDownload: false },
   jobState: { jobs: {}, shown: {} },
+  aiSettings: { dismissed: false },
 } as const;
 
 describe('PREFS_SCHEMA — документ настроек (§5)', () => {
@@ -89,6 +90,34 @@ describe('PREFS_SCHEMA — jobState (TASK-074 §5: состояние задач
   });
 });
 
+describe('PREFS_SCHEMA — aiSettings (TASK-081 §5: выбор модели и «настроить позже»)', () => {
+  it('дефолт: aiSettings {dismissed: false} без modelId (модель не выбрана)', () => {
+    expect(PREFS_SCHEMA.parse({}).aiSettings).toEqual({ dismissed: false });
+  });
+
+  it('парсит полный aiSettings: modelId + dismissed=true («настроить позже»)', () => {
+    expect(
+      PREFS_SCHEMA.parse({ ...VALID_PREFS, aiSettings: { modelId: 'dev-ru', dismissed: true } })
+        .aiSettings,
+    ).toEqual({
+      modelId: 'dev-ru',
+      dismissed: true,
+    });
+  });
+
+  it('мусор отклоняется (strict): пустой modelId, чужое поле, не-boolean dismissed', () => {
+    expect(PREFS_SCHEMA.safeParse({ ...VALID_PREFS, aiSettings: { modelId: '' } }).success).toBe(
+      false,
+    );
+    expect(PREFS_SCHEMA.safeParse({ ...VALID_PREFS, aiSettings: { stranger: 1 } }).success).toBe(
+      false,
+    );
+    expect(
+      PREFS_SCHEMA.safeParse({ ...VALID_PREFS, aiSettings: { dismissed: 'yes' } }).success,
+    ).toBe(false);
+  });
+});
+
 describe('PREFS_PATCH_SCHEMA — patch set (§7/§11)', () => {
   it('пустой patch валиден (частичное обновление)', () => {
     expect(PREFS_PATCH_SCHEMA.parse({})).toEqual({});
@@ -130,6 +159,16 @@ describe('PREFS_PATCH_SCHEMA — patch set (§7/§11)', () => {
     });
     expect(PREFS_PATCH_SCHEMA.safeParse({ jobState: { stranger: 1 } }).success).toBe(false);
     expect(PREFS_PATCH_SCHEMA.safeParse({ jobState: { jobs: 5 } }).success).toBe(false);
+  });
+
+  it('aiSettings — объектом целиком (без deep-merge, семантика netConsents; TASK-081 §5: select пишет {modelId}, «позже» — {dismissed})', () => {
+    expect(PREFS_PATCH_SCHEMA.parse({ aiSettings: { modelId: 'dev-ru' } })).toEqual({
+      aiSettings: { modelId: 'dev-ru', dismissed: false },
+    });
+    expect(PREFS_PATCH_SCHEMA.parse({ aiSettings: { dismissed: true } })).toEqual({
+      aiSettings: { dismissed: true },
+    });
+    expect(PREFS_PATCH_SCHEMA.safeParse({ aiSettings: { modelId: 5 } }).success).toBe(false);
   });
 });
 
