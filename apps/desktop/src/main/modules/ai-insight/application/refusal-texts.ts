@@ -28,10 +28,7 @@
  */
 import type { PeriodStatisticsDto } from '@hl/contracts';
 
-import {
-  CRITICAL_THRESHOLD_HIGH,
-  criticalHighText,
-} from '../../../shared/critical-texts.js';
+import { CRITICAL_THRESHOLD_HIGH, criticalHighText } from '../../../shared/critical-texts.js';
 import type { RefusalClass } from '../domain/guardrail-policy.js';
 import { daysWord } from './context-format.js';
 

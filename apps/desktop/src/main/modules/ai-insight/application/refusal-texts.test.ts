@@ -103,7 +103,10 @@ describe('классы без фактуры — базовые тексты с�
   });
 
   it('diagnosis при пустом периоде — честное «в периоде пока нет измерений»', () => {
-    const text = refusalText('diagnosis', { stats: statsOf(0, 0, undefined, undefined), locale: RU });
+    const text = refusalText('diagnosis', {
+      stats: statsOf(0, 0, undefined, undefined),
+      locale: RU,
+    });
     expect(text).toContain('в периоде пока нет измерений');
     expect(text).toContain('Обратитесь к врачу для оценки.');
   });
@@ -135,7 +138,9 @@ describe('treatment == dosage — один шаблон (§5)', () => {
 describe('фактура — только числа, без интерпретаций (§13)', () => {
   it('фактура содержит count/дни/средние/пульс и больше ничего оценочного', () => {
     const text = refusalText('diagnosis', { stats: WITH_DATA, locale: RU });
-    expect(text).toContain('Вот что видно в данных: 12 измерений за 6 дней, среднее СДА 144.6, ДДА 91.3, пульс 71.5.');
+    expect(text).toContain(
+      'Вот что видно в данных: 12 измерений за 6 дней, среднее СДА 144.6, ДДА 91.3, пульс 71.5.',
+    );
   });
 
   it('пульс не измерен — факт «пульс» отсутствует (не выдумывается)', () => {
@@ -145,9 +150,9 @@ describe('фактура — только числа, без интерпрет�
   });
 
   it('множественные формы RU: 1 измерение за 1 день, 3 измерения за 2 дня', () => {
-    expect(refusalText('insufficientData', { stats: statsOf(1, 1, 130, 85), locale: RU })).toContain(
-      '(1 измерение за 1 день)',
-    );
+    expect(
+      refusalText('insufficientData', { stats: statsOf(1, 1, 130, 85), locale: RU }),
+    ).toContain('(1 измерение за 1 день)');
     expect(refusalText('insufficientData', { stats: FEW, locale: RU })).toContain(
       '(3 измерения за 2 дня)',
     );

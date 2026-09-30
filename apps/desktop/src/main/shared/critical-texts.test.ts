@@ -120,7 +120,8 @@ describe('сборка текста срочности criticalHighText — ба
     return [
       interpolate(CATALOG.panel.high.intro, { pressure }),
       CATALOG.panel.high.symptomsLead,
-      ...[CATALOG.panel.high.symptomHeadache,
+      ...[
+        CATALOG.panel.high.symptomHeadache,
         CATALOG.panel.high.symptomChestPain,
         CATALOG.panel.high.symptomBreathlessness,
         CATALOG.panel.high.symptomSpeechOrVision,
@@ -136,7 +137,9 @@ describe('сборка текста срочности criticalHighText — ба
   });
 
   it('en-US: номера «911», остальной текст — тот же (каталог RU — тестовый стенд 041)', () => {
-    expect(criticalHighText('≥180/120', 'en-US')).toBe(panelHighLines('≥180/120', 'en-US').join('\n'));
+    expect(criticalHighText('≥180/120', 'en-US')).toBe(
+      panelHighLines('≥180/120', 'en-US').join('\n'),
+    );
     expect(criticalHighText('≥180/120', 'en-US')).toContain('911');
     expect(criticalHighText('≥180/120', 'en-US')).not.toContain('103');
   });

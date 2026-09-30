@@ -125,13 +125,20 @@ export class PrecheckService {
       return this.finish(
         textClass === 'emergency'
           ? { kind: 'emergency', text: this.refusalText('emergency', { locale: ctx.locale }) }
-          : { kind: 'refusal', text: this.refusalText(textClass, { stats: ctx.stats, locale: ctx.locale }), refusalClass: textClass },
+          : {
+              kind: 'refusal',
+              text: this.refusalText(textClass, { stats: ctx.stats, locale: ctx.locale }),
+              refusalClass: textClass,
+            },
       );
     }
     // Решение §19: криз в ПЕРИОДЕ эскалирует только вопросы о состоянии; §13:
     // раньше insufficientData («emergency, не insufficient» при малых данных).
     if (ctx.stats.critical.high && isStateQuestion(question)) {
-      return this.finish({ kind: 'emergency', text: this.refusalText('emergency', { locale: ctx.locale }) });
+      return this.finish({
+        kind: 'emergency',
+        text: this.refusalText('emergency', { locale: ctx.locale }),
+      });
     }
     const insufficient = ctx.stats.insufficientData;
     if (insufficient.tooFewMeasurements || insufficient.tooFewDays) {

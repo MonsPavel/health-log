@@ -23,8 +23,7 @@
  */
 
 /** Интро high-варианта: значение записи либо порог SRS «≥180/120» ({{pressure}}). */
-export const CRITICAL_HIGH_INTRO =
-  'Давление {{pressure}} может указывать на гипертонический криз.';
+export const CRITICAL_HIGH_INTRO = 'Давление {{pressure}} может указывать на гипертонический криз.';
 
 /** Ведение списка симптомов. */
 export const CRITICAL_SYMPTOMS_LEAD = 'При симптомах:';

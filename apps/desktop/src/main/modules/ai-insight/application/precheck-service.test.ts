@@ -10,9 +10,15 @@ import type { PeriodStatisticsDto } from '@hl/contracts';
 import { Instant } from '@hl/kernel';
 import { buildPeriodStatistics, type MeasurementPoint } from '../../analytics/index.js';
 
-import { RED_SET_CASES, type RedSetCase } from '../domain/red-set.js';
+import { RED_SET_CASES } from '../domain/red-set.js';
+import type { RedSetCase } from '../domain/guardrail-policy.js';
 import { refusalText } from './refusal-texts.js';
-import type { LlmEngine, LlmEngineChunk, LlmEngineRequest, EngineStatus } from './ports/llm-engine.js';
+import type {
+  LlmEngine,
+  LlmEngineChunk,
+  LlmEngineRequest,
+  EngineStatus,
+} from './ports/llm-engine.js';
 import { PrecheckService, isStateQuestion, type PrecheckContext } from './precheck-service.js';
 
 /** Точка периода (та же механика, что в golden-фикстурах 052; пояс +03:00 без DST). */
@@ -49,14 +55,18 @@ function regularPoints(
   for (let d = 0; d < days; d += 1) {
     const dayIso = `2026-03-${String(2 + d).padStart(2, '0')}`;
     for (let s = 0; s < perDay; s += 1) {
-      points.push(point(dayIso, s === 0 ? '07:00' : '20:00', opts.sys, opts.dia, opts.pulse, opts.critical));
+      points.push(
+        point(dayIso, s === 0 ? '07:00' : '20:00', opts.sys, opts.dia, opts.pulse, opts.critical),
+      );
     }
   }
   return points;
 }
 
 /** СТАТИСТИКА ветвей (боевой read model 052 — один конструктор со списком точек). */
-const SUFFICIENT = buildPeriodStatistics(regularPoints('2026-03-02', 4, 2, { sys: 125, dia: 82, pulse: 62 }));
+const SUFFICIENT = buildPeriodStatistics(
+  regularPoints('2026-03-02', 4, 2, { sys: 125, dia: 82, pulse: 62 }),
+);
 const FEW = buildPeriodStatistics([
   point('2026-03-02', '07:00', 120, 80, 60),
   point('2026-03-02', '20:00', 130, 85, 70),
@@ -87,13 +97,19 @@ function service() {
   return { svc: new PrecheckService({ refusalText, logger }), logger };
 }
 
-/** Спай движка LLM (§20 п.6): полный порт, счётчики вызовов читает тест. */
-function engineSpy(): LlmEngine {
+/**
+ * Спай движка LLM (§20 п.6): полный порт, счётчики вызовов читает тест.
+ * vi.fn — отдельные значения (не обращения к методам типа — unbound-method).
+ */
+function engineSpy() {
+  const ensureModel = vi.fn<(modelId: string) => Promise<void>>();
+  const complete = vi.fn<(request: LlmEngineRequest) => AsyncIterable<LlmEngineChunk>>();
+  const cancel = vi.fn<() => void>();
+  const status = vi.fn<() => EngineStatus>();
   return {
-    ensureModel: vi.fn<(modelId: string) => Promise<void>>(),
-    complete: vi.fn<(request: LlmEngineRequest) => AsyncIterable<LlmEngineChunk>>(),
-    cancel: vi.fn<() => void>(),
-    status: vi.fn<() => EngineStatus>(),
+    complete,
+    ensureModel,
+    engine: { ensureModel, complete, cancel, status } satisfies LlmEngine,
   };
 }
 
@@ -144,8 +160,13 @@ describe('пороги 7/3 (§20 п.2 — честный отказ при ма�
 
   it('7 записей за 3 дня — ровно на пороге kernel → undefined (границы включительно)', () => {
     const onThreshold = buildPeriodStatistics([
-      ...regularPoints('2026-03-02', 2, 2, { sys: 125, dia: 82 }),
-      ...regularPoints('2026-03-04', 1, 3, { sys: 125, dia: 82 }),
+      point('2026-03-02', '07:00', 125, 82, 62),
+      point('2026-03-02', '20:00', 126, 83, 63),
+      point('2026-03-03', '07:00', 124, 81, 61),
+      point('2026-03-03', '20:00', 127, 84, undefined),
+      point('2026-03-04', '07:00', 125, 82, 62),
+      point('2026-03-04', '20:00', 126, 83, 64),
+      point('2026-03-04', '22:00', 125, 82, undefined),
     ]);
     expect(onThreshold.count).toBe(7);
     expect(onThreshold.daysWithMeasurements).toBe(3);
@@ -163,7 +184,10 @@ describe('приоритеты §13: emergency перекрывает всё', (
 
   it('криз-значения в вопросе перекрывают treatment-запрос («какие таблетки»)', () => {
     const { svc } = service();
-    const result = svc.check('Мне 190/120, болит голова. Какие таблетки принять?', ctxOf(SUFFICIENT));
+    const result = svc.check(
+      'Мне 190/120, болит голова. Какие таблетки принять?',
+      ctxOf(SUFFICIENT),
+    );
     expect(result).toMatchObject({ kind: 'emergency' });
   });
 });
