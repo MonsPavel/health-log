@@ -34,12 +34,7 @@ import { RED_SET_CASES } from './red-set.js';
  * 'emergency' — критические значения + симптомы (срочная помощь, FR-5.3/FR-7.4),
  * 'insufficientData' — отказ от обобщений при малых данных (FR-5.4, порог TASK-006).
  */
-export type RefusalClass =
-  | 'diagnosis'
-  | 'treatment'
-  | 'dosage'
-  | 'emergency'
-  | 'insufficientData';
+export type RefusalClass = 'diagnosis' | 'treatment' | 'dosage' | 'emergency' | 'insufficientData';
 
 /**
  * Обязательные элементы ответа ИИ (§5): дисклеймер и указание периода — всегда
