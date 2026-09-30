@@ -223,6 +223,17 @@ export default tseslint.config(
               to: [el('kernel'), el('module-root')],
               allow: [allowEl('kernel'), allowEl('module-root')],
             },
+            // TASK-086 §6: application импортирует общие константы main/shared
+            // (critical-texts — единый main-источник текста срочности FR-7.4).
+            // renderer в shared не ходит (arch. 03 §4: только @hl/contracts),
+            // связь с панелью 041 — тест-сверка critical-texts.test.ts.
+            {
+              from: el('application'),
+              to: el('shared'),
+              allow: [allowEl('shared')],
+              message:
+                'application импортирует константы main/shared только как данные (TASK-086: critical-texts)',
+            },
             {
               from: el('adapters'),
               to: ownModule('application'),
