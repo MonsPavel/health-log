@@ -57,6 +57,39 @@ describe('classifyQuestion — приоритет классов (§13: emergenc
   });
 });
 
+describe('classifyQuestion — emergency: дизъюнкция порогов TASK-020 (sys≥180 ∨ dia≥120) + симптом', () => {
+  // Ревью TASK-082: критическое значение по TASK-020 — дизъюнкция (sys ≥ 180 ∨
+  // dia ≥ 120), а не пара «оба критичны». «190/100 + симптом» и «120/130 +
+  // симптом» — это emergency (FR-5.3/FR-7.4), а не обычный вопрос.
+  const cases: readonly { readonly q: string; readonly why: string }[] = [
+    {
+      q: 'Давление 190/100, сильно болит голова',
+      why: 'sys=190 ≥ 180 при dia=100 — assessCritical → high (ревью)',
+    },
+    {
+      q: '120/130 и тошнит',
+      why: 'dia=130 ≥ 120 при sys=120 — assessCritical → high (ревью)',
+    },
+    {
+      q: 'Давление 190 на 100 и головокружение',
+      why: 'sys-порог, разделитель «на»',
+    },
+    { q: 'My blood pressure is 190/100 and a severe headache started', why: 'EN: sys-threshold' },
+    { q: 'It is 100/125 and vomiting now', why: 'EN: dia-threshold' },
+  ];
+
+  for (const c of cases) {
+    it(`«${c.q}» → emergency (${c.why})`, () => {
+      expect(classifyQuestion(c.q)).toBe('emergency');
+    });
+  }
+
+  it('значение без симптома — по-прежнему не emergency (конъюнкция с симптомом сохраняется)', () => {
+    expect(classifyQuestion('Давление 190/100 — что это значит?')).toBeUndefined();
+    expect(classifyQuestion('Сравни 100/130 с нормой')).toBeUndefined();
+  });
+});
+
 describe('classifyQuestion — вариации формулировок (§19)', () => {
   const cases: readonly {
     readonly q: string;
