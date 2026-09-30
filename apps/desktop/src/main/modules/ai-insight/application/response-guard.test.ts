@@ -253,6 +253,57 @@ describe('fail-safe: regex-сбой → замена, не pass (§14, AC §20 �
     expect(guard.check('Принимайте 5 мг утром.').action).toBe('replace');
   });
 
+  it('бросающее условное правило на тексте БЕЗ императива → replace, не pass (§14: сбой оценки ≠ отсутствие совпадения)', () => {
+    // Ревью TASK-085: после СБОЯ оценки условного правила гейт §13 применять
+    // нельзя — «сбой + нет императива» дал бы pass (fail-open). Сомнение = замена:
+    // правило сработавшее при сбое оценки считается БЕЗУСЛОВНО.
+    const rule: GuardRule = {
+      id: 'X-THROW-CTX-NO-IMPERATIVE',
+      pattern: THROWING_PATTERN,
+      action: 'replace',
+      refusalClass: 'dosage',
+      noteKey: 'test.throwing.ctx.no-imperative',
+      requireImperativeContext: true,
+    };
+    const guard = new ResponseGuard({ refusalText: TEST_REFUSAL_TEXT, rules: [rule] });
+    expect(guard.check('Ваше давление стабильно за период.')).toEqual({
+      action: 'replace',
+      text: TEST_REFUSAL_TEXT('dosage'),
+      ruleId: 'X-THROW-CTX-NO-IMPERATIVE',
+      refusalClass: 'dosage',
+    });
+  });
+
+  it('сбой оценки ПРЕДЛОЖЕНИЯ дозы (partial-throw паттерн) → replace, не pass (§14)', () => {
+    // Вторая точка сбоя (ревью TASK-085): оценка ВСЕГО ответа здорова, а оценка
+    // предложения бросает — здесь сбой тоже не может кончиться pass.
+    const THROWS_ON_SHORT = {
+      test: (input: string) => {
+        if (input.length <= 30) {
+          throw new Error('оценка предложения не удалась');
+        }
+        return true;
+      },
+    } as unknown as RegExp;
+    const rule: GuardRule = {
+      id: 'X-THROW-SENTENCE',
+      pattern: THROWS_ON_SHORT,
+      action: 'replace',
+      refusalClass: 'dosage',
+      noteKey: 'test.throwing.sentence',
+      requireImperativeContext: true,
+    };
+    const guard = new ResponseGuard({ refusalText: TEST_REFUSAL_TEXT, rules: [rule] });
+    // Полный ответ > 30 символов (оценка здорова → true), предложение «Давление
+    // стабильно.» ≤ 30 — его оценка бросает; императива/AUX в тексте нет.
+    expect(guard.check('Давление стабильно. Показатели ровные.')).toEqual({
+      action: 'replace',
+      text: TEST_REFUSAL_TEXT('dosage'),
+      ruleId: 'X-THROW-SENTENCE',
+      refusalClass: 'dosage',
+    });
+  });
+
   it('инъекция правил работает: пустой состав → всё pass (правила — данные, §5)', () => {
     const guard = new ResponseGuard({ refusalText: TEST_REFUSAL_TEXT, rules: [] });
     expect(guard.check('Принимайте 5 мг.')).toEqual({ action: 'pass' });
