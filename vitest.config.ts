@@ -44,12 +44,21 @@ export default defineConfig({
         'packages/scales-data/src/**/*.test.ts',
         'packages/scales-data/test/**/*.test.ts',
       ]),
-      testProject('desktop-main', ['apps/desktop/src/main/**/*.test.ts']),
+      // TASK-085 (гейт pnpm test): файлы последовательно — тяжёлые wall-clock
+      // ассерты (pdf.render 5k ≤30 с, TASK-067 §9/SRS 05 §15; ~22 с соло) иначе
+      // не выполняются под CPU-конкуренцией пулов других проектов. Подробнее —
+      // TestProjectOptions.fileParallelism (vitest.shared.ts).
+      testProject('desktop-main', ['apps/desktop/src/main/**/*.test.ts'], {
+        fileParallelism: false,
+      }),
       // desktop-renderer: jsdom-проект включён в TASK-009 — обязательный тест хука
       // useHlEvent (§19/§20/§24: отписка при unmount). Минимальная версия заготовки
       // TASK-013; полноценный web-пресет (css, алиасы рендерера) расширяется там.
+      // Файлы последовательно — 79 jsdom-окружений под конкуренцией будят первые
+      // findBy-монтирования (таймаут 1 с) до отказа (TASK-085, см. vitest.shared.ts).
       testProject('desktop-renderer', ['apps/desktop/src-renderer/**/*.test.ts'], {
         environment: 'jsdom',
+        fileParallelism: false,
       }),
       // TASK-034 §24: тест скрипта аудита размера packaged-артефактов (scripts .mjs,
       // чистые функции + прогон run() на tmp-dist).

@@ -44,6 +44,18 @@ export const sharedTestConfig: ProjectTestConfig = {
 export interface TestProjectOptions {
   /** TASK-009: jsdom для React-хуков (Testing Library); по умолчанию node (§13). */
   readonly environment?: 'node' | 'jsdom';
+  /**
+   * TASK-085 (гейт pnpm test): последовательное исполнение файлов проекта —
+   * для тяжёлых проектов, чьи wall-clock ассерты иначе не выполняются под
+   * CPU-конкуренцией пулов ДРУГИХ проектов (проектные конфиги НЕ наследуют
+   * pool-опции root — эксперимент: root maxWorkers:1 → 122 воркера
+   * desktop-main; кап в shared тоже недостаточен — пулы у проектов свои):
+   * desktop-main — pdf.render 5k ≤30 с (TASK-067 §9 = SRS 05 §15; ~22 с на
+   * простаивающей машине, workerpool pdf — отдельный процесс), desktop-renderer —
+   * 79 jsdom-окружений (~96 с суммарно) будят первые findBy-монтирования
+   * (таймаут 1 с). Ассерты и таймауты тестов при этом не менялись.
+   */
+  readonly fileParallelism?: boolean;
 }
 
 /** Фабрика тестового проекта: имя (для `vitest --project`) и include-паттерны поверх общих настроек. */
@@ -54,6 +66,14 @@ export function testProject(
 ): UserWorkspaceConfig {
   return {
     resolve: { alias: workspaceAliases },
-    test: { ...sharedTestConfig, name, include, environment: options.environment ?? 'node' },
+    test: {
+      ...sharedTestConfig,
+      name,
+      include,
+      environment: options.environment ?? 'node',
+      ...(options.fileParallelism === undefined
+        ? {}
+        : { fileParallelism: options.fileParallelism }),
+    },
   };
 }
