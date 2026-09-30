@@ -32,14 +32,15 @@ const SECTIONS = [
 /**
  * Маршруты-заглушки (журнал с TASK-031 — экран истории; настройки с TASK-047 —
  * реальный экран; динамика с TASK-057 — реальный экран; отчёты с TASK-073 —
- * реальная секция «Данные»).
+ * реальная секция «Данные»; ИИ с TASK-081 — витрина моделей).
  */
 const WIP_SECTIONS = SECTIONS.filter(
   (section) =>
     section.href !== '#/journal' &&
     section.href !== '#/settings' &&
     section.href !== '#/dashboard' &&
-    section.href !== '#/reports',
+    section.href !== '#/reports' &&
+    section.href !== '#/ai',
 );
 
 function renderRouterAt(hash: string): void {
@@ -51,13 +52,55 @@ function renderRouterAt(hash: string): void {
   );
 }
 
-/** Мост window.hl (прецедент App.test.ts, TASK-011): list → пустая страница. */
+/** Полный документ prefs (дефолты, TASK-047/081) — мосту prefs/get. */
+const MOCK_PREFS = {
+  theme: 'system',
+  textScale: '100',
+  dateFormat: 'auto',
+  advancedMode: false,
+  netConsents: { updatesCheck: false, modelsDownload: false },
+  jobState: { jobs: {}, shown: {} },
+  aiSettings: { dismissed: false },
+};
+
+/** Витрина моделей: единственная dev-модель манифеста, не установлена (TASK-081). */
+const MOCK_AI_MODELS_LIST = {
+  models: [
+    {
+      descriptor: {
+        id: 'dev-placeholder-ru',
+        name: 'Dev Placeholder Model',
+        version: '0.0.0-dev',
+        file: 'dev-placeholder.gguf',
+        url: 'https://PLACEHOLDER.invalid/models/dev-placeholder.gguf',
+        sha256: '0'.repeat(64),
+        sizeBytes: 1,
+        languages: ['ru', 'en'],
+        minRamGb: 8,
+        license: 'UNLICENSED-DEV-PLACEHOLDER',
+      },
+      state: 'not_installed',
+    },
+  ],
+  ramTotalGb: 31.3,
+  uiLanguage: 'ru',
+};
+
+/** Мост window.hl (прецедент App.test.ts, TASK-011): ответы по каналам. */
 function mockHlBridge(): void {
   Object.defineProperty(window, 'hl', {
     configurable: true,
     writable: true,
     value: {
-      invoke: vi.fn().mockResolvedValue({ v: 1, ok: true, data: { items: [], total: 0 } }),
+      invoke: vi.fn().mockImplementation((channel: string) => {
+        if (channel === 'prefs/get') {
+          return Promise.resolve({ v: 1, ok: true, data: MOCK_PREFS });
+        }
+        if (channel === 'ai/models/list') {
+          return Promise.resolve({ v: 1, ok: true, data: MOCK_AI_MODELS_LIST });
+        }
+        return Promise.resolve({ v: 1, ok: true, data: { items: [], total: 0 } });
+      }),
       on: vi.fn(() => () => undefined),
     },
   });
@@ -95,6 +138,19 @@ describe('AppRouter — маршруты (§5)', () => {
     expect(screen.getByTestId('data-backup-button').textContent).toBe('Создать копию');
     expect(screen.getByTestId('data-restore-button').textContent).toBe('Восстановить из копии');
     expect(screen.getByTestId('data-wipe-button').textContent).toBe('Удалить все данные');
+  });
+
+  it('#/ai: реальный экран моделей (TASK-081) — заголовок, баннер онбординга, карточка модели', async () => {
+    renderRouterAt('#/ai');
+
+    expect(await screen.findByRole('heading', { name: 'ИИ' })).not.toBeNull();
+    // §4/§5: баннер «ИИ не настроен» (не модальный) + витрина моделей на месте.
+    expect(await screen.findByTestId('model-name')).not.toBeNull();
+    expect(screen.getByTestId('ai-banner')).not.toBeNull();
+    expect(screen.getByTestId('ai-models-section')).not.toBeNull();
+    expect(screen.getByTestId('model-name').textContent).toBe('Dev Placeholder Model');
+    expect(screen.getByTestId('model-download').textContent).toBe('Скачать');
+    expect(screen.queryByText('Экран появится после настройки')).toBeNull();
   });
 
   it('#/journal: экран истории, «Добавить» открывает форму измерения (TASK-033 §4)', async () => {
