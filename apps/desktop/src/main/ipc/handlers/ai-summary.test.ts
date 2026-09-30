@@ -16,10 +16,22 @@ import { describe, expect, it } from 'vitest';
 
 import { AppError, type Clock } from '@hl/kernel';
 
-import { createAiSummaryCancelHandler, createAiSummaryGenerateHandler, createAiSummaryLatestHandler, AiSummaryRequestRegistry } from './ai-summary.js';
-import type { GenerateSummary, GenerateSummaryCommand, GenerateSummaryOutcome } from '../../modules/ai-insight/application/generate-summary.js';
+import {
+  createAiSummaryCancelHandler,
+  createAiSummaryGenerateHandler,
+  createAiSummaryLatestHandler,
+  AiSummaryRequestRegistry,
+} from './ai-summary.js';
+import type {
+  GenerateSummary,
+  GenerateSummaryCommand,
+  GenerateSummaryOutcome,
+} from '../../modules/ai-insight/application/generate-summary.js';
 import { AI_SUMMARY_DISCLAIMER_TEXT } from '../../modules/ai-insight/application/generate-summary.js';
-import type { InsightRepository, SummaryRecord } from '../../modules/ai-insight/application/ports/insight-repository.js';
+import type {
+  InsightRepository,
+  SummaryRecord,
+} from '../../modules/ai-insight/application/ports/insight-repository.js';
 
 const NOW_MS = 1_758_816_000_000;
 const CLOCK: Clock = { nowMs: () => NOW_MS, tzOffsetMin: () => 180 };
@@ -91,7 +103,10 @@ interface LogLine {
   readonly meta?: Record<string, unknown>;
 }
 
-function recordingLogger(): { lines: LogLine[]; logger: { warn(message: string, meta?: Record<string, unknown>): void } } {
+function recordingLogger(): {
+  lines: LogLine[];
+  logger: { warn(message: string, meta?: Record<string, unknown>): void };
+} {
   const lines: LogLine[] = [];
   return { lines, logger: { warn: (message, meta) => void lines.push({ message, meta }) } };
 }
@@ -141,7 +156,9 @@ describe('ai/summary/generate — хендлер (TASK-087 §11)', () => {
   it('(3) сбой фонового execute — хендлер не роняет main, код в логе без текста', async () => {
     const useCase = new StubGenerateSummary();
     // Контракт ошибок TASK-006: наружу из use case — только AppError.
-    useCase.failure = AppError.of('AI/WORKER_CRASHED', 'errors.AI_WORKER_CRASHED', { reason: 'test' });
+    useCase.failure = AppError.of('AI/WORKER_CRASHED', 'errors.AI_WORKER_CRASHED', {
+      reason: 'test',
+    });
     const { lines, logger } = recordingLogger();
     const handler = createAiSummaryGenerateHandler(useCase, new AiSummaryRequestRegistry(), logger);
 
@@ -182,9 +199,7 @@ describe('ai/summary/latest — хендлер стейлс-бейджа (TASK-0
     const repo = new FakeRepo();
     const handler = createAiSummaryLatestHandler(repo, CLOCK);
 
-    expect(
-      await handler({ profileId: PROFILE, period: '7d' }),
-    ).toBeUndefined();
+    expect(await handler({ profileId: PROFILE, period: '7d' })).toBeUndefined();
 
     repo.record = {
       id: 's-1',

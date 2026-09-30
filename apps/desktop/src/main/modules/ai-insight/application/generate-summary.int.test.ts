@@ -222,7 +222,10 @@ describe('GenerateSummary — интеграция tmp-БД + fake-engine (TASK-
     await harness.measurements.add(extra.value);
 
     // Бейдж через боевой мини-канал (§12): тот же resolveSummaryPeriod, что у use case.
-    const latest = await createAiSummaryLatestHandler(harness.repo, CLOCK)({
+    const latest = await createAiSummaryLatestHandler(
+      harness.repo,
+      CLOCK,
+    )({
       profileId: PROFILE,
       period: '30d',
     });

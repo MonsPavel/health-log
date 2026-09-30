@@ -142,7 +142,9 @@ describe('SqliteInsightRepository — ai_summary v6 (TASK-087 §19)', () => {
       },
       FIXED_CLOCK,
     );
-    expect(measurement.ok).toBe(true);
+    if (!measurement.ok) {
+      throw new Error('фикстура измерения невалидна');
+    }
     const added = await new SqliteBpMeasurementRepository(db).add(measurement.value);
     expect(added.ok).toBe(true);
     expect(await repo.currentDataVersion()).toBe(2);

@@ -17,7 +17,12 @@
  */
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import type { HlEventMap, PeriodStatisticsDto, StatsPeriodParam, TrendResponse } from '@hl/contracts';
+import type {
+  HlEventMap,
+  PeriodStatisticsDto,
+  StatsPeriodParam,
+  TrendResponse,
+} from '@hl/contracts';
 import { AppError, type Clock } from '@hl/kernel';
 
 import { UNSAFE_ANSWERS } from './__fixtures__/unsafe-answers.js';
@@ -29,7 +34,11 @@ import {
   GenerateSummary,
   type GenerateSummaryOutcome,
 } from './generate-summary.js';
-import type { InsightRepository, SummaryPeriod, SummaryRecord } from './ports/insight-repository.js';
+import type {
+  InsightRepository,
+  SummaryPeriod,
+  SummaryRecord,
+} from './ports/insight-repository.js';
 import {
   type EngineStatus,
   type LlmEngine,
@@ -103,10 +112,7 @@ class FakeInsightRepository implements InsightRepository {
   currentVersion = 1;
   saveCalls = 0;
 
-  findByContextHash(
-    profileId: string,
-    contextHash: string,
-  ): Promise<SummaryRecord | undefined> {
+  findByContextHash(profileId: string, contextHash: string): Promise<SummaryRecord | undefined> {
     for (const row of this.rows.values()) {
       if (row.profileId === profileId && row.contextHash === contextHash) {
         return Promise.resolve(row);
@@ -246,7 +252,10 @@ interface LogLine {
 }
 
 /** Логи (spy). */
-function recordingLogger(): { lines: LogLine[]; logger: { info(message: string, meta?: Record<string, unknown>): void } } {
+function recordingLogger(): {
+  lines: LogLine[];
+  logger: { info(message: string, meta?: Record<string, unknown>): void };
+} {
   const lines: LogLine[] = [];
   return { lines, logger: { info: (message, meta) => void lines.push({ message, meta }) } };
 }

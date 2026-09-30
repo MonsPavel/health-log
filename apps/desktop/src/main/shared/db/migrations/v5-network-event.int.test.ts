@@ -115,7 +115,9 @@ describe('миграция v5 — network_event (TASK-075 §19/§20)', () => {
     const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as {
       value: string;
     };
-    expect(version.value).toBe('5');
+    // TASK-087: реестр MIGRATIONS вырос до v6 — на свежей БД версия = максимум
+    // реестра (конвенция теста v3 §19 п. 1); v5 применена (таблица выше).
+    expect(version.value).toBe(String(MIGRATIONS.at(-1)?.version));
     db.close();
   });
 
@@ -189,7 +191,9 @@ describe('миграция v5 — network_event (TASK-075 §19/§20)', () => {
     const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as {
       value: string;
     };
-    expect(version.value).toBe('5');
+    // TASK-087: реестр вырос до v6 — версия = максимум реестра, no-op повторного
+    // применения её не меняет (конвенция теста v3 §19 п. 5).
+    expect(version.value).toBe(String(MIGRATIONS.at(-1)?.version));
     db.close();
   });
 
@@ -222,8 +226,8 @@ describe('миграция v5 — network_event (TASK-075 §19/§20)', () => {
     db.close();
   });
 
-  it('(6) реестр MIGRATIONS — версии [1, 2, 3, 4, 5]; V5_NETWORK_EVENT.version === 5 (§4/§5)', () => {
+  it('(6) реестр MIGRATIONS — версии [1, 2, 3, 4, 5, 6] (TASK-087: +v6); V5_NETWORK_EVENT.version === 5 (§4/§5)', () => {
     expect(V5_NETWORK_EVENT.version).toBe(5);
-    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4, 5]);
+    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 });

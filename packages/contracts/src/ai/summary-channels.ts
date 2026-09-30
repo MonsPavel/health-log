@@ -40,7 +40,9 @@ export const AI_SUMMARY_GENERATE_REQUEST_SCHEMA = z
   .strict();
 
 /** §5/§11: ответ generate — {requestId} (финал и стрим — событиями, арх. 05 §3). */
-export const AI_SUMMARY_GENERATE_RESPONSE_SCHEMA = z.object({ requestId: z.string().min(1) }).strict();
+export const AI_SUMMARY_GENERATE_RESPONSE_SCHEMA = z
+  .object({ requestId: z.string().min(1) })
+  .strict();
 
 /** Запрос generate (§11). */
 export type AiSummaryGenerateRequest = z.infer<typeof AI_SUMMARY_GENERATE_REQUEST_SCHEMA>;

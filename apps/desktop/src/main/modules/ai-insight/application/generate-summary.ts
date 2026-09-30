@@ -55,7 +55,11 @@ import { AppError, Instant, type Clock } from '@hl/kernel';
 import type { AiContext, AiContextInput } from './ai-context-builder.js';
 import { PROMPT_TEMPLATE_VERSION } from './ai-context-builder.js';
 import { DEFAULT_GUARDRAIL_POLICY } from '../domain/guardrail-policy.js';
-import type { InsightRepository, SummaryPeriod, SummaryRecord } from './ports/insight-repository.js';
+import type {
+  InsightRepository,
+  SummaryPeriod,
+  SummaryRecord,
+} from './ports/insight-repository.js';
 import { llmEngineBusyError, type LlmEngine } from './ports/llm-engine.js';
 import { buildSystemPrompt } from './prompts/system-prompt.js';
 import type { PrecheckService } from './precheck-service.js';
@@ -190,7 +194,10 @@ function wallDateOf(utcMs: number, tzOffsetMin: number): string {
  * сентинелы {0, now}. Подпись — RU-константа пресета либо диапазон настенных дат.
  * Чистая функция времени — переиспользуется latest-хендлером (§12, без дрейфа).
  */
-export function resolveSummaryPeriod(period: StatsPeriodParam, clock: Clock): ResolvedSummaryPeriod {
+export function resolveSummaryPeriod(
+  period: StatsPeriodParam,
+  clock: Clock,
+): ResolvedSummaryPeriod {
   const nowMs = clock.nowMs();
   if (period === 'all') {
     return { period: { fromUtcMs: 0, toUtcMs: nowMs }, periodText: ALL_PERIOD_LABEL };
@@ -227,7 +234,7 @@ export class GenerateSummary {
    * Свободен ли слот генерации (§9): хендлер вызывает ПЕРЕД ответом {requestId} —
    * второй generate получает AI/BUSY как отказ канала (ApiFailure), а не тишину
    * фонового потока. Гонки между isBusy и execute нет: обе синхронны в одном тике;
- * слот-гард execute остаётся задним страхом.
+   * слот-гард execute остаётся задним страхом.
    */
   isBusy(): boolean {
     return this.activeRequest !== undefined;

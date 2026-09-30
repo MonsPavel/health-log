@@ -23,7 +23,11 @@
 import { AppError } from '@hl/kernel';
 
 import type { EncryptedDatabase } from '../../../shared/db/sqlite.js';
-import type { InsightRepository, SummaryPeriod, SummaryRecord } from '../application/ports/insight-repository.js';
+import type {
+  InsightRepository,
+  SummaryPeriod,
+  SummaryRecord,
+} from '../application/ports/insight-repository.js';
 
 /**
  * Ключ i18n ошибки хранилища инсайтов (конвенция арх. 05 §29; тексты — TASK-101).
@@ -37,8 +41,8 @@ const READ_VERSION_SQL = "SELECT value FROM meta WHERE key = 'data_version'";
 
 /** kind — константа 'summary' (CHECK v6); порт её не носит — таблица допускает только резюме (§5). */
 const INSERT_SQL =
-  "INSERT INTO ai_summary (id, profile_id, kind, period_start_utc, period_end_utc, context_hash, " +
-  "model_id, model_version, data_version, content_md, disclaimer_text, period_text, created_at_utc) " +
+  'INSERT INTO ai_summary (id, profile_id, kind, period_start_utc, period_end_utc, context_hash, ' +
+  'model_id, model_version, data_version, content_md, disclaimer_text, period_text, created_at_utc) ' +
   "VALUES (?, ?, 'summary', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 const FIND_BY_HASH_SQL =
@@ -100,8 +104,7 @@ export class SqliteInsightRepository implements InsightRepository {
   findByContextHash(profileId: string, contextHash: string): Promise<SummaryRecord | undefined> {
     try {
       const row = this.db.prepare(FIND_BY_HASH_SQL).get(profileId, contextHash) as
-        | SummaryRow
-        | undefined;
+        SummaryRow | undefined;
       return Promise.resolve(row === undefined ? undefined : toRecord(row));
     } catch (cause) {
       // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006; прецедент llm-process-client)

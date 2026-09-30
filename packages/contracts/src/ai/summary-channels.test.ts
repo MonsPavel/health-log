@@ -36,9 +36,7 @@ describe('ai/summary/generate — контракт канала (TASK-087 §11)'
       }),
     ).toEqual({ profileId: 'p1', period: { fromUtcMs: 0, toUtcMs: 10 }, includeNotes: true });
     // strict: лишние поля отбраковываются (§14).
-    expect(
-      AI_SUMMARY_GENERATE_REQUEST_SCHEMA.safeParse({ ...ok, extra: 1 }).success,
-    ).toBe(false);
+    expect(AI_SUMMARY_GENERATE_REQUEST_SCHEMA.safeParse({ ...ok, extra: 1 }).success).toBe(false);
     // периода нет/чужой — отказ.
     expect(AI_SUMMARY_GENERATE_REQUEST_SCHEMA.safeParse({ ...ok, period: 'week' }).success).toBe(
       false,

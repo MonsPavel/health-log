@@ -19,12 +19,26 @@
  */
 import { performance } from 'node:perf_hooks';
 
-import type { AiCancelRequest, AiCancelResponse, AiSummaryDto, AiSummaryGenerateRequest, AiSummaryGenerateResponse, AiSummaryLatestRequest, AiSummaryLatestResponse } from '@hl/contracts';
+import type {
+  AiCancelRequest,
+  AiCancelResponse,
+  AiSummaryDto,
+  AiSummaryGenerateRequest,
+  AiSummaryGenerateResponse,
+  AiSummaryLatestRequest,
+  AiSummaryLatestResponse,
+} from '@hl/contracts';
 import { AppError, type Clock } from '@hl/kernel';
 
-import type { GenerateSummary, GenerateSummaryCommand } from '../../modules/ai-insight/application/generate-summary.js';
+import type {
+  GenerateSummary,
+  GenerateSummaryCommand,
+} from '../../modules/ai-insight/application/generate-summary.js';
 import { llmEngineBusyError } from '../../modules/ai-insight/application/ports/llm-engine.js';
-import type { InsightRepository, SummaryRecord } from '../../modules/ai-insight/application/ports/insight-repository.js';
+import type {
+  InsightRepository,
+  SummaryRecord,
+} from '../../modules/ai-insight/application/ports/insight-repository.js';
 import { resolveSummaryPeriod } from '../../modules/ai-insight/application/generate-summary.js';
 
 /** Минимальная поверхность логгера хендлеров (§18; HlLogger ей удовлетворяет). */

@@ -69,8 +69,7 @@ const tableColumns = (
 
 const tableExists = (db: EncryptedDatabase, name: string): boolean =>
   (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(name) as
-    | { name: string }
-    | undefined) !== undefined;
+    { name: string } | undefined) !== undefined;
 
 describe('миграция v6 — ai_summary (TASK-087 §19/§20)', () => {
   it('(1) v6 создаёт таблицу ai_summary и индекс (profile_id, created_at_utc desc); DDL поимённо; schema_version=6', async () => {
@@ -191,7 +190,21 @@ describe('миграция v6 — ai_summary (TASK-087 §19/§20)', () => {
 
     // CHECK (kind IN ('summary')) — чужой kind не проходит (§8: DDL арх. 04 §3).
     expect(() =>
-      insert.run('s-bad', 'seed-profile-0001', 'chat', 1, 2, 'b'.repeat(64), 'm', '1', 1, 'x', 'd', 'p', 1),
+      insert.run(
+        's-bad',
+        'seed-profile-0001',
+        'chat',
+        1,
+        2,
+        'b'.repeat(64),
+        'm',
+        '1',
+        1,
+        'x',
+        'd',
+        'p',
+        1,
+      ),
     ).toThrow();
     db.close();
   });
@@ -267,7 +280,21 @@ describe('миграция v6 — ai_summary (TASK-087 §19/§20)', () => {
       'INSERT INTO ai_summary (id, profile_id, kind, period_start_utc, period_end_utc, ' +
         'context_hash, model_id, model_version, data_version, content_md, disclaimer_text, ' +
         'period_text, created_at_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    ).run('s-1', 'seed-profile-0001', 'summary', 1, 2, 'a'.repeat(64), 'm', '1', 1, 'x', 'd', 'p', 1);
+    ).run(
+      's-1',
+      'seed-profile-0001',
+      'summary',
+      1,
+      2,
+      'a'.repeat(64),
+      'm',
+      '1',
+      1,
+      'x',
+      'd',
+      'p',
+      1,
+    );
 
     await new MigrationRunner({ migrations: [...MIGRATIONS] }).migrate(db);
 
