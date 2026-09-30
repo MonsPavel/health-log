@@ -24,6 +24,12 @@ export type HlLogLevel = 'debug' | 'info' | 'warn' | 'error';
  */
 export type AiWorkerState = 'starting' | 'ready' | 'busy' | 'restarting' | 'failed';
 
+// TASK-080 §6/§11: статус загрузки модели — из контрактов витрины моделей
+// (ai/models); import + re-export: локальное имя для payload ai:progress ниже
+// и единый импорт из '@hl/contracts' для потребителей.
+import type { ModelStatus } from './ai/models.js';
+export type { ModelStatus };
+
 /** Карта «имя события → payload» (§5): единый источник имён и форм для main и рендерера. */
 export interface HlEventMap {
   /** Данные изменились (импорт/правка): бейдж ИИ-резюме, инвалидация запросов (FR-5.7). */
@@ -60,6 +66,17 @@ export interface HlEventMap {
    * накопленный за интервал кусок, не разовый delta).
    */
   'ai:token': { readonly requestId: string; readonly text: string };
+  /**
+   * TASK-080 §5/§11: прогресс загрузки модели (ModelStore) — карточка модели
+   * (TASK-081). Byte-прогресс throttle 250 мс (§15: не флуд в IPC, ≤4/с);
+   * события смены состояния (verifying/installed/paused/error) — сразу.
+   */
+  'ai:progress': {
+    readonly modelId: string;
+    readonly downloadedBytes: number;
+    readonly totalBytes: number;
+    readonly state: ModelStatus;
+  };
   /** Технологическое событие журнала main (§18): только ключ сообщения, без PHI. */
   'app:log': { readonly level: HlLogLevel; readonly messageKey: string };
 }
@@ -77,6 +94,7 @@ export const HL_EVENT_PAYLOAD_KEYS = {
   'net:activity': ['kind', 'endpoint'],
   'ai:status': ['state', 'requestId'],
   'ai:token': ['requestId', 'text'],
+  'ai:progress': ['modelId', 'downloadedBytes', 'totalBytes', 'state'],
   'app:log': ['level', 'messageKey'],
 } as const satisfies {
   readonly [K in keyof HlEventMap]: readonly (keyof HlEventMap[K])[];

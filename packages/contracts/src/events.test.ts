@@ -15,6 +15,7 @@ import {
   type AiWorkerState,
   type HlEventMap,
   type HlLogLevel,
+  type ModelStatus,
 } from './events.js';
 
 describe('HlEventMap — начальный состав (§5, §20)', () => {
@@ -79,6 +80,7 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
   it('runtime-реестр HL_EVENT_PAYLOAD_KEYS покрывает карту без лишних имён', () => {
     expect(Object.keys(HL_EVENT_PAYLOAD_KEYS).sort()).toEqual(
       [
+        'ai:progress',
         'ai:status',
         'ai:token',
         'app:log',
@@ -89,6 +91,21 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
         'prefs:changed',
       ].sort(),
     );
+  });
+
+  it('содержит ai:progress с payload {modelId, downloadedBytes, totalBytes, state} — прогресс загрузки модели (TASK-080 §11)', () => {
+    expectTypeOf<HlEventMap['ai:progress']>().toEqualTypeOf<{
+      readonly modelId: string;
+      readonly downloadedBytes: number;
+      readonly totalBytes: number;
+      readonly state: ModelStatus;
+    }>();
+    expect(HL_EVENT_PAYLOAD_KEYS['ai:progress']).toEqual([
+      'modelId',
+      'downloadedBytes',
+      'totalBytes',
+      'state',
+    ]);
   });
 });
 
