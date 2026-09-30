@@ -223,6 +223,16 @@ export class GenerateSummary {
     this.deps = deps;
   }
 
+  /**
+   * Свободен ли слот генерации (§9): хендлер вызывает ПЕРЕД ответом {requestId} —
+   * второй generate получает AI/BUSY как отказ канала (ApiFailure), а не тишину
+   * фонового потока. Гонки между isBusy и execute нет: обе синхронны в одном тике;
+ * слот-гард execute остаётся задним страхом.
+   */
+  isBusy(): boolean {
+    return this.activeRequest !== undefined;
+  }
+
   /** Полный поток UC-03 (§5): порядок шагов — шапка; финал эмитится ровно один. */
   async execute(command: GenerateSummaryCommand): Promise<GenerateSummaryOutcome> {
     // §9 BUSY-гвардия: синхронная фиксация слота ДО первого await (гонки двух вызовов).

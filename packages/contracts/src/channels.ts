@@ -72,9 +72,11 @@ export type ChannelName =
   // нужен UI раньше резюме (§11 РЕШЕНИЕ: канал в объёме 083).
   | 'ai/context/preview'
   // TASK-087 §5/§11/§12: резюме периода — generate (стрим: ответ {requestId},
-  // данные событиями + финал 'ai/summary/result') и latest (стейлс-бейдж, §12).
+  // данные событиями + финал 'ai/summary/result') и latest (стейлс-бейдж, §12);
+  // `ai/cancel` — отмена генерации по requestId (§5 п.5, арх. 05 §3; чат 089 — тот же).
   | 'ai/summary/generate'
   | 'ai/summary/latest'
+  | 'ai/cancel'
   | 'app/ping'
   | 'app/log-client-error'
   | 'app/reveal-path'

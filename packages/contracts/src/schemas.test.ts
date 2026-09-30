@@ -114,6 +114,7 @@ describe('CHANNEL_SCHEMAS — дисциплина реестра (§5)', () => 
       'ai/context/preview',
       'ai/summary/generate',
       'ai/summary/latest',
+      'ai/cancel',
       'app/ping',
       'app/log-client-error',
       'app/reveal-path',

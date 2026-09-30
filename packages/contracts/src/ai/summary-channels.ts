@@ -100,3 +100,20 @@ export const AI_SUMMARY_LATEST_RESPONSE_SCHEMA = z.union([
 
 /** Ответ latest (§12). */
 export type AiSummaryLatestResponse = z.infer<typeof AI_SUMMARY_LATEST_RESPONSE_SCHEMA>;
+
+/**
+ * TASK-087 §5 п.5: отмена генерации по requestId (арх. 05 §3: `ai/cancel | req |
+ * отмена генерации по requestId | FR-5.7, EC-16`). requestId — из ответа generate;
+ * незнакомый/повторный — {cancelled: false} без ошибки (идемпотентность отмены,
+ * §13 076). Форма общая для резюме и чата (089 переиспользует).
+ */
+export const AI_CANCEL_REQUEST_SCHEMA = z.object({ requestId: z.string().min(1) }).strict();
+
+/** Ответ cancel (§5 п.5): нашёл ли активный запрос (abort уже отдан). */
+export const AI_CANCEL_RESPONSE_SCHEMA = z.object({ cancelled: z.boolean() }).strict();
+
+/** Запрос cancel (§5 п.5). */
+export type AiCancelRequest = z.infer<typeof AI_CANCEL_REQUEST_SCHEMA>;
+
+/** Ответ cancel (§5 п.5). */
+export type AiCancelResponse = z.infer<typeof AI_CANCEL_RESPONSE_SCHEMA>;

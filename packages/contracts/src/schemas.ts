@@ -20,6 +20,8 @@ import {
   AI_CONTEXT_PREVIEW_RESPONSE_SCHEMA,
 } from './ai/context-channels.js';
 import {
+  AI_CANCEL_REQUEST_SCHEMA,
+  AI_CANCEL_RESPONSE_SCHEMA,
   AI_SUMMARY_GENERATE_REQUEST_SCHEMA,
   AI_SUMMARY_GENERATE_RESPONSE_SCHEMA,
   AI_SUMMARY_LATEST_REQUEST_SCHEMA,
@@ -141,6 +143,15 @@ export const CHANNEL_SCHEMAS = {
   'ai/summary/latest': {
     request: AI_SUMMARY_LATEST_REQUEST_SCHEMA,
     response: AI_SUMMARY_LATEST_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-087 §5 п.5: отмена генерации по requestId (арх. 05 §3, EC-16) — abort
+   * сигнала активного запроса; незнакомый/повторный — {cancelled: false} без ошибки.
+   * Частичный ответ не сохраняется (решение §5), финал уходит событием.
+   */
+  'ai/cancel': {
+    request: AI_CANCEL_REQUEST_SCHEMA,
+    response: AI_CANCEL_RESPONSE_SCHEMA,
   },
   'app/ping': {
     request: z.object({}).strict(),
