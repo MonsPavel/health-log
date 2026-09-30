@@ -89,7 +89,7 @@
 | TASK-081 | done | | смержена |
 | TASK-082 | done | | смержена |
 | TASK-083 | done | | смержена |
-| TASK-084 | todo | | |
+| TASK-084 | done | | смержена |
 | TASK-085 | todo | | |
 | TASK-086 | todo | | |
 | TASK-087 | todo | | |

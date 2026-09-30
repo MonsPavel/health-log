@@ -16,10 +16,11 @@
  * точек) про график — про объём текста для LLM он ничего не знает.
  *
  * HASH (§2/§22): canonical-строка = JSON(period) + JSON({includeNotes}) + текст +
- * modelId + PROMPT_TEMPLATE_VERSION (плейсхолдер 'v1-template' — РЕШЕНИЕ §5:
- * шаблон промпта появится в TASK-084; ⚠️ СИНХРОНИЗАЦИЯ: экспорт 084 обязан
- * заменить значение и комментарий, смена версии честно помечает кэш резюме
- * устаревшим, §22). Полный текст в hash: любые данные/опции меняют текст — hash.
+ * modelId + PROMPT_TEMPLATE_VERSION (с TASK-084 — экспорт 084 из
+ * application/prompts/system-prompt.ts: смена текста шаблона = бамп версии =
+ * новая hash = честное устаревание кэша резюме, §22; контракт-тест 084 §20 п.5 —
+ * пересборка canonical-строки по экспорту). Полный текст в hash: любые
+ * данные/опции меняют текст — hash.
  *
  * §14: заметки включаются ТОЛЬКО при includeNotes (байт-тест §19); текст контекста
  * — PHI, логировать его запрещено (§18 канала — только агрегаты).
@@ -36,6 +37,7 @@ import type { Clock } from '@hl/kernel';
 import { Instant } from '@hl/kernel';
 
 import { renderAiContext, type ContextNoteLine, type Gap } from './context-format.js';
+import { PROMPT_TEMPLATE_VERSION } from './prompts/system-prompt.js';
 import type {
   ContextPoint,
   ContextPointsPort,
@@ -55,12 +57,15 @@ export type { Gap } from './context-format.js';
 export const CONTEXT_MAX_DAYS = 90;
 
 /**
- * ⚠️ ПЛЕЙСХОЛДЕР до TASK-084 (РЕШЕНИЕ §5): версия шаблона промпта, входящая в
- * contextHash. При появлении шаблона (TASK-084, application/prompts) константа
- * ЗАМЕНЯЕТСЯ экспортом 084 — коммент-синхронизация обязательна (§5): смена
- * значения = новая версия hash = честное устаревание кэша резюме (FR-5.7, §22).
+ * Версия шаблона system prompt (коммент-синхронизация TASK-084 §5/§13):
+ * единственный источник — экспорт application/prompts/system-prompt.ts (там же
+ * правило §13: правка текста шаблона → бамп версии); здесь ре-экспорт для
+ * потребителей канала (087). Версия входит в contextHash (§2): смена значения =
+ * новая версия hash = честное устаревание кэша резюме (FR-5.7, §22). Контракт
+ * «builder использует экспорт 084» закреплён пересборкой canonical-строки в
+ * system-prompt.test.ts (084 §20 п.5).
  */
-export const PROMPT_TEMPLATE_VERSION = 'v1-template';
+export { PROMPT_TEMPLATE_VERSION };
 
 /** Миллисекунды суток (спан периода и настенные дни разрывов). */
 const MS_PER_DAY = 86_400_000;

@@ -288,9 +288,9 @@ describe('AiContextBuilder — пометки в сериях (§5: критич
 });
 
 describe('AiContextBuilder — лимит объёма CONTEXT_MAX_DAYS (§5/§20)', () => {
-  it('константа = 90 (§5), PROMPT_TEMPLATE_VERSION = v1-template (плейсхолдер до TASK-084, §5)', () => {
+  it('константа = 90 (§5); PROMPT_TEMPLATE_VERSION = экспорт 084 (плейсхолдер заменён, §5/§20 п.5)', () => {
     expect(CONTEXT_MAX_DAYS).toBe(90);
-    expect(PROMPT_TEMPLATE_VERSION).toBe('v1-template');
+    expect(PROMPT_TEMPLATE_VERSION).toBe('1');
   });
 
   it('120-дневный период → агрегированные серии + пометка «Данные агрегированы» (§20)', async () => {
