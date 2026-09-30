@@ -46,11 +46,13 @@
  * зависимостях — деление на per-module секции-фабрики (§22).
  */
 import { existsSync } from 'node:fs';
+import { copyFile, mkdir } from 'node:fs/promises';
+import { totalmem } from 'node:os';
 import { basename, join } from 'node:path';
 
 import { CHANNEL_SCHEMAS } from '@hl/contracts';
 import type { BackupCreateRequest } from '@hl/contracts';
-import { AppError, SystemClock, type Clock, type Result } from '@hl/kernel';
+import { AppError, err, ok, SystemClock, type Clock, type Result } from '@hl/kernel';
 import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 
 import { createLogClientErrorHandler } from './app/global-errors.js';
@@ -137,6 +139,22 @@ import {
 // или FakeLlmEngine (dev/e2e без модели, env HL_FAKE_LLM=1).
 import { FakeLlmEngine } from './modules/ai-insight/adapters/fake-llm-engine.js';
 import { ProcessLlmEngine } from './modules/ai-insight/adapters/process-llm-engine.js';
+// TASK-081 §5/§9: ModelStore (080) — singleton графа (проводка здесь), реестр
+// манифеста 079 и use case витрины моделей; хендлеры ai/models/* (§11).
+import { ModelStore } from './modules/ai-insight/adapters/model-store.js';
+import { ModelsRegistry } from './modules/ai-insight/adapters/models-registry.js';
+import {
+  AiModelsQueries,
+  type TestModelInstallPort,
+} from './modules/ai-insight/application/models-queries.js';
+import {
+  createAiModelsDownloadHandler,
+  createAiModelsListHandler,
+  createAiModelsPauseHandler,
+  createAiModelsResetHandler,
+  createAiModelsResumeHandler,
+  createAiModelsSelectHandler,
+} from './ipc/handlers/ai-models.js';
 import type { LlmEngine } from './modules/ai-insight/application/ports/llm-engine.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
 import { DeleteMeasurementUseCase } from './modules/measurement/application/delete-measurement.js';
@@ -185,6 +203,24 @@ export function fakeLlmEnabled(
 }
 
 /**
+ * TASK-081 §22/§14: имя env-флага тестовой установки модели мимо сети (§22:
+ * реальный URL моделей появится после отбора — dev-модель с PLACEHOLDER-URL
+ * манифеста 079 сетевой путь 080 не проходит; e2e §20-6 нужен) и гард его
+ * применения: ТОЛЬКО не-packaged запуск (паттерн fakeLlmEnabled выше; строка —
+ * ПУТЬ локального файла-источника). Bootstrap передаёт путь параметром
+ * testModelFilePath — контейнер сам process.env не читает (§19).
+ */
+export const HL_TEST_MODEL_FILE_ENV = 'HL_TEST_MODEL_FILE';
+
+export function testModelFileEnabled(
+  env: Readonly<Record<string, string | undefined>>,
+  isPackaged: boolean,
+): boolean {
+  const value = env[HL_TEST_MODEL_FILE_ENV];
+  return typeof value === 'string' && value.length > 0 && !isPackaged;
+}
+
+/**
  * Профиль дневника (seed миграции v1; bench-seed.ts — тот же идентификатор):
  * счётчик записей задачи backup.reminder считается по нему (§13).
  */
@@ -192,6 +228,19 @@ const SEED_PROFILE_ID = 'seed-profile-0001';
 
 /** Каталог копий в userData (TASK-070 §7 — фикс): `<userData>/backups/`. */
 export const BACKUPS_DIRNAME = 'backups';
+
+/**
+ * Каталог установленных моделей (TASK-081 §5, арх. 07 §6): `<userData>/models` —
+ * тот же, что внутри ModelStore (080).
+ */
+export const MODELS_DIRNAME = 'models';
+
+/**
+ * TASK-081 §7/§17: язык интерфейса приложения — поле list-ответа для
+ * предупреждения FR-5.9 (язык модели ≠ язык UI). MVP — единственный каталог
+ * 'ru' (i18n §17: второй язык пост-MVP); константа — единственное место знания.
+ */
+const APP_UI_LANGUAGE = 'ru';
 
 /**
  * Файл-флаг страховки восстановления (TASK-071 §14) в userData: путь вводится в
@@ -271,6 +320,13 @@ export interface ContainerDeps {
    * не чтением env здесь — тесты без process.env-мутаций (§19).
    */
   readonly useFakeLlm?: boolean;
+  /**
+   * TASK-081 §22: TEST-ONLY путь локального файла «модели» для установки мимо
+   * сети (e2e §20-6; реальный URL моделей появится после отбора — §22). Bootstrap
+   * передаёт process.env[HL_TEST_MODEL_FILE_ENV] при гарде testModelFileEnabled
+   * (не-packaged, §14); undefined — боевой сетевой путь ModelStore.
+   */
+  readonly testModelFilePath?: string;
 }
 
 /**
@@ -339,6 +395,12 @@ export interface Container {
    * клиент не спавнится (ленивый) и потребителями не используется.
    */
   readonly llmEngine: LlmEngine;
+  /**
+   * Use case витрины моделей (TASK-081 §5/§9): list/download/pause/resume/reset/
+   * select над ModelStore (080) и реестром манифеста 079; потребители — хендлеры
+   * ai/models/* (§11) и e2e §20-6.
+   */
+  readonly aiModels: AiModelsQueries;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
 }
@@ -702,6 +764,75 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     } else {
       logger.info('llm engine: process llm-worker', { engine: 'process' });
     }
+    //      TASK-081 §5/§9: ModelStore (080) — singleton графа (проводка — здесь):
+    //      каталог моделей <userData>/models (арх. 07 §6), реестр манифеста 079
+    //      (ресурс комплекта — MODELS_MANIFEST_SCHEMA при каждом listModels),
+    //      сеть — ТОЛЬКО боевой EgressGateway выше (D11, op models.download),
+    //      прогресс ai:progress — боевой мост broadcastToWindows (§11), лог —
+    //      категория ai (§18). Реестр создан до store: тест-install (§22) тоже
+    //      резолвит имя файла по манифесту.
+    const modelsRegistry = new ModelsRegistry({ logger: createLogger('ai') });
+    const modelsDir = join(deps.userDataPath, MODELS_DIRNAME);
+    const modelStore = new ModelStore({
+      modelsDir,
+      registry: modelsRegistry,
+      egress,
+      notify: broadcastToWindows,
+      logger: createLogger('ai'),
+    });
+    //      TASK-081 §22: TEST-ONLY установка мимо сети — порт над node:fs,
+    //      собранный контейнером из deps.testModelFilePath (гард env/не-packaged —
+    //      bootstrap, §14): резолв имени файла по манифесту → copyFile в каталог
+    //      моделей. Верификации нет — это test-hook (§22), в packaged не попадает.
+    const testModelInstall: TestModelInstallPort | undefined =
+      deps.testModelFilePath === undefined
+        ? undefined
+        : {
+            isEnabled: () => true,
+            install: async (modelId) => {
+              try {
+                const descriptor = modelsRegistry
+                  .listModels()
+                  .find((model) => model.id === modelId);
+                if (descriptor === undefined) {
+                  return err(
+                    AppError.of('AI/MODEL_NOT_FOUND', 'errors.AI_MODEL_NOT_FOUND', {
+                      model: modelId,
+                    }),
+                  );
+                }
+                await mkdir(modelsDir, { recursive: true });
+                await copyFile(deps.testModelFilePath as string, join(modelsDir, descriptor.file));
+                logger.info('test model install: файл скопирован мимо сети', {
+                  modelId,
+                  file: descriptor.file,
+                });
+                return ok({ state: 'installed' });
+              } catch (cause) {
+                logger.warn('test model install: не удался', { modelId, cause });
+                return err(
+                  AppError.of(
+                    'APP/INTERNAL',
+                    'errors.internal',
+                    { reason: 'test-model-install' },
+                    cause,
+                  ),
+                );
+              }
+            },
+          };
+    //      Use case витрины (§5/§7): list — одним вызовом всё для экрана (ОЗУ
+    //      машины — os.totalmem main, одна десятая ГБ — честное сравнение с
+    //      minRamGb; язык UI — константа выше); select — prefs (ensureModel
+    //      лениво — 087, §9).
+    const aiModels = new AiModelsQueries({
+      store: modelStore,
+      registry: modelsRegistry,
+      prefs: preferencesService,
+      ramTotalGb: () => Math.round((totalmem() / 2 ** 30) * 10) / 10,
+      uiLanguage: () => APP_UI_LANGUAGE,
+      testInstall: testModelInstall,
+    });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -858,6 +989,39 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         });
       }),
     );
+    // TASK-081 §5/§11: витрина моделей — list одним вызовом (§7); download/resume —
+    // финал флоу 080 (ход — событиями ai:progress); pause/reset — статус сразу;
+    // select — prefs.aiSettings.modelId (ensureModel лениво — 087, §9).
+    channels.register(
+      'ai/models/list',
+      CHANNEL_SCHEMAS['ai/models/list'],
+      createAiModelsListHandler(aiModels),
+    );
+    channels.register(
+      'ai/models/download',
+      CHANNEL_SCHEMAS['ai/models/download'],
+      createAiModelsDownloadHandler(aiModels),
+    );
+    channels.register(
+      'ai/models/pause',
+      CHANNEL_SCHEMAS['ai/models/pause'],
+      createAiModelsPauseHandler(aiModels),
+    );
+    channels.register(
+      'ai/models/resume',
+      CHANNEL_SCHEMAS['ai/models/resume'],
+      createAiModelsResumeHandler(aiModels),
+    );
+    channels.register(
+      'ai/models/reset',
+      CHANNEL_SCHEMAS['ai/models/reset'],
+      createAiModelsResetHandler(aiModels),
+    );
+    channels.register(
+      'ai/models/select',
+      CHANNEL_SCHEMAS['ai/models/select'],
+      createAiModelsSelectHandler(aiModels),
+    );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
@@ -884,6 +1048,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       egress,
       llm,
       llmEngine,
+      aiModels,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op
