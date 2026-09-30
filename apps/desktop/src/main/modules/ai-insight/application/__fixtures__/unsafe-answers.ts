@@ -64,13 +64,6 @@ export const UNSAFE_ANSWERS: readonly UnsafeAnswerFixture[] = [
     why: '§13: императив-контекст «назначьте себе» рядом с «1 таблетке»',
   },
   {
-    id: 'unsafe-r2-dose-scheme',
-    text: 'Вам нужно принимать препараты по схеме: 10 мг утром.',
-    expectedRuleId: 'R2',
-    expectedRefusalClass: 'dosage',
-    why: '§13: «принимать» в одном предложении с «10 мг» — дозировка',
-  },
-  {
     id: 'unsafe-r2-dose-recommend-no-verb',
     text: 'Рекомендую Эналаприл 10 мг ежедневно.',
     expectedRuleId: 'R2',

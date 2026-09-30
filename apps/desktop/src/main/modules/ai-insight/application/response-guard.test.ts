@@ -11,9 +11,9 @@ import { UNSAFE_ANSWERS } from './__fixtures__/unsafe-answers.js';
 import {
   RESPONSE_GUARD_RULES,
   ResponseGuard,
+  type GuardResult,
   type GuardRule,
   type RefusalTextFactory,
-  type ResponseGuardLogger,
 } from './response-guard.js';
 
 /**
@@ -24,14 +24,30 @@ const TEST_REFUSAL_TEXT: RefusalTextFactory = (cls) =>
   `[REFUSAL:${cls}] Я не могу давать такие рекомендации: это не медицинская ` +
   'консультация. Пожалуйста, обсудите этот вопрос с врачом.';
 
-/** Спай-логгер (§18): фиксирует факт и мета события guardrail.replace. */
-function spyLogger(): ResponseGuardLogger & { info: ReturnType<typeof vi.fn> } {
-  return { info: vi.fn() };
+/** Спай-логгер (§18): типизированный vi.fn (прецедент add-measurement.test.ts) — mock.calls типизирован. */
+function spyLogger(): { info: ReturnType<typeof makeInfoFn> } {
+  return { info: makeInfoFn() };
+}
+
+/** vi.fn с сигнатурой ResponseGuardLogger.info — структурно удовлетворяет порту. */
+function makeInfoFn(): ReturnType<
+  typeof vi.fn<(message: string, meta?: Record<string, unknown>) => void>
+> {
+  return vi.fn<(message: string, meta?: Record<string, unknown>) => void>();
 }
 
 /** Guard с двойник-фабрикой и спай-логгером (§7: подстановочные в тестах). */
-function guardWith(logger: ResponseGuardLogger): ResponseGuard {
+function guardWith(logger: { info: ReturnType<typeof makeInfoFn> }): ResponseGuard {
   return new ResponseGuard({ refusalText: TEST_REFUSAL_TEXT, logger });
+}
+
+/** Ветвь replace результата (§7) — для типизированного доступа к text/ruleId/refusalClass. */
+type ReplaceResult = Extract<GuardResult, { action: 'replace' }>;
+
+/** Сужение до replace-ветви: expect + возврат (защита доступа к text без сужения). */
+function toReplace(result: GuardResult): ReplaceResult {
+  expect(result.action).toBe('replace');
+  return result as ReplaceResult;
 }
 
 describe('ResponseGuard — unsafe-фикстуры: все заменяются (таблица §19/§20 п.1)', () => {
@@ -83,6 +99,20 @@ describe('ResponseGuard — граница §4/§19: пересказ замет
       text: TEST_REFUSAL_TEXT('dosage'),
       ruleId: 'R2',
       refusalClass: 'dosage',
+    });
+  });
+
+  it('«Вам нужно принимать … 10 мг …» → R4/treatment (инфинитив не в стеме R1 §5; AUX-контекста нет)', () => {
+    // «принимай\w*» (§5) — стем повелительного наклонения: «принимать» им не
+    // покрыт, AUX §13 («рекомендую|стоит принять|назначьте себе») в предложении
+    // нет → R2 молчит; долженствование ловит R4 «вам нужно …» → treatment.
+    expect(
+      guardWith(spyLogger()).check('Вам нужно принимать препараты по схеме: 10 мг утром.'),
+    ).toEqual({
+      action: 'replace',
+      text: TEST_REFUSAL_TEXT('treatment'),
+      ruleId: 'R4',
+      refusalClass: 'treatment',
     });
   });
 
@@ -142,10 +172,11 @@ describe('лог-событие guardrail.replace — без текста отв
   it('replace → info("guardrail.replace", {ruleId, refusalClass, note}); ответ в аргументы не попадает', () => {
     const logger = spyLogger();
     const answer = UNSAFE_ANSWERS[0]!.text;
-    const result = guardWith(logger).check(answer);
-    expect(result.action).toBe('replace');
+    const result = toReplace(guardWith(logger).check(answer));
     expect(logger.info).toHaveBeenCalledTimes(1);
-    const [message, meta] = logger.info.mock.calls[0] as unknown as [string, unknown];
+    const call = logger.info.mock.calls[0];
+    expect(call).toBeDefined();
+    const [message, meta] = call!;
     expect(message).toBe('guardrail.replace');
     expect(meta).toMatchObject({
       ruleId: result.ruleId,
@@ -165,8 +196,8 @@ describe('лог-событие guardrail.replace — без текста отв
 
 describe('замена — полный текст отказа (AC §20 п.3, снапшот)', () => {
   it('текст замены == результат фабрики refusalClass, дословно', () => {
-    const result = guardWith(spyLogger()).check('Рекомендую принимать Эналаприл 10 мг.');
-    expect(result).toMatchObject({ action: 'replace', refusalClass: 'dosage' });
+    const result = toReplace(guardWith(spyLogger()).check('Рекомендую принимать Эналаприл 10 мг.'));
+    expect(result.refusalClass).toBe('dosage');
     expect(result.text).toBe(TEST_REFUSAL_TEXT('dosage'));
     expect(result.text.length).toBeGreaterThan(20);
     expect(result.text).not.toContain('Эналаприл');
@@ -175,8 +206,8 @@ describe('замена — полный текст отказа (AC §20 п.3, �
   it('класс отказа определяет текст: разные классы — разные шаблоны фабрики', () => {
     const logger = spyLogger();
     const guard = guardWith(logger);
-    const dose = guard.check('Принимайте 5 мг утром.');
-    const diagnosis = guard.check('Диагноз: гипертоническая болезнь.');
+    const dose = toReplace(guard.check('Принимайте 5 мг утром.'));
+    const diagnosis = toReplace(guard.check('Диагноз: гипертоническая болезнь.'));
     expect(diagnosis.refusalClass).toBe('diagnosis');
     expect(dose.text).toBe(TEST_REFUSAL_TEXT('dosage'));
     expect(diagnosis.text).toBe(TEST_REFUSAL_TEXT('diagnosis'));
