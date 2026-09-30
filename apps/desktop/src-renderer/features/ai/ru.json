@@ -10,8 +10,6 @@
     "loadError": "Не удалось прочитать список моделей. Попробуйте открыть раздел ещё раз.",
     "card": {
       "version": "версия {{version}}",
-      "sizeGb": "{{size}} ГБ",
-      "sizeMb": "{{size}} МБ",
       "ram": "Минимум ОЗУ: {{gb}} ГБ",
       "license": "Лицензия: {{license}}",
       "languages": "Языки: {{languages}}",

@@ -275,4 +275,39 @@ describe('check-i18n — сверка ключей с каталогом (§17)'
     expect(code).toBe(1);
     expect(stdout).toContain('critical.panel.unused');
   });
+
+  // --- TASK-081: feature-каталог ai (features/ai/ru.json) — namespace обязан быть
+  // в альтернации KEY_LITERAL_PATTERN (конвенция скрипта: новая группа = своё имя). ---
+
+  it('feature-каталог: использованный ключ ai.* найден — exit 0 (TASK-081: ревью check-i18n)', async () => {
+    const { srcDir, i18nDir } = await makeFixture(
+      {
+        'features/ai/ui/ModelsScreen.tsx': `const label = t('ai.models.title'); const other = t('common.wip');\n`,
+      },
+      { wip: 'Экран появится после настройки' },
+      { internal: '…' },
+      { ai: { models: { title: 'Модель' } } },
+    );
+
+    const { code, stdout } = await runScript(srcDir, i18nDir);
+
+    expect(code).toBe(0);
+    expect(stdout).toContain('OK');
+  });
+
+  it('feature-каталог: неиспользуемый ключ ai.* — exit 1 (мертвый текст, TASK-081)', async () => {
+    const { srcDir, i18nDir } = await makeFixture(
+      {
+        'features/ai/ui/ModelsScreen.tsx': `const label = t('ai.models.title');\n`,
+      },
+      { wip: 'Экран появится после настройки' },
+      { internal: '…' },
+      { ai: { models: { title: 'Модель', unused: 'Никто не ссылается' } } },
+    );
+
+    const { code, stdout } = await runScript(srcDir, i18nDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain('ai.models.unused');
+  });
 });
