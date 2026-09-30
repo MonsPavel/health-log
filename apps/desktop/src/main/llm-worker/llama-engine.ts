@@ -15,11 +15,15 @@
  * выгружает МОДЕЛЬ/контекст (RAM возвращается, §9), инстанс живёт для
  * быстрой перезагрузки.
  *
- * ГЕНЕРАЦИЯ (§5): LlamaChat.loadChatAndCompleteUserMessage — история chat-
- * сообщений протокола целиком, ответ — стрим onTextChunk → emit; отмена —
- * AbortSignal + stopOnAbortSignal (§13: частичный текст отбрасывается
- * клиентом по done(cancelled)); stopReason 'abort' → finishReason
- * 'cancelled', прочий (eogToken/maxTokens/stopTrigger) → 'stop'.
+ * ГЕНЕРАЦИЯ (§5): LlamaChat.generateResponse — история chat-сообщений протокола
+ * целиком, ответ — стрим onTextChunk → emit; отмена — AbortSignal +
+ * stopOnAbortSignal (§13: частичный текст отбрасывается клиентом по
+ * done(cancelled)); stopReason 'abort' → finishReason 'cancelled', прочий
+ * (eogToken/maxTokens/stopTrigger) → 'stop'. Выбор API: loadChatAndCompleteUserMessage
+ * НЕ подходит — текст для генерации он берёт из опции initialUserPrompt (по
+ * умолчанию ""), а не из последнего user-сообщения истории (поймано [model]-
+ * прогоном §20: полная история + пустой initialUserPrompt → мгновенный eogToken,
+ * 0 токенов при stopReason=stop).
  *
  * БЕЗОПАСНОСТЬ (§14): путь модели приходит из протокола (main валидирует
  * существование, движок — GGUF-magic до передачи сюда, §13); сети нет
@@ -170,21 +174,18 @@ function createSession(
         readonly signal: AbortSignal;
       }): Promise<LlmFinishReason> {
         try {
-          const response = await chat.loadChatAndCompleteUserMessage(
-            toChatHistory(request.messages),
-            {
-              temperature: request.temperature,
-              maxTokens: request.maxTokens,
-              ...(request.seed !== undefined ? { seed: request.seed } : {}),
-              onTextChunk: (chunk: string) => {
-                request.onToken(chunk);
-              },
-              signal: request.signal,
-              // §13: отмена завершает генерацию ответом (частичный текст
-              // отбрасывается клиентом по done(cancelled)), а не исключением.
-              stopOnAbortSignal: true,
+          const response = await chat.generateResponse(toChatHistory(request.messages), {
+            temperature: request.temperature,
+            maxTokens: request.maxTokens,
+            ...(request.seed !== undefined ? { seed: request.seed } : {}),
+            onTextChunk: (chunk: string) => {
+              request.onToken(chunk);
             },
-          );
+            signal: request.signal,
+            // §13: отмена завершает генерацию ответом (частичный текст
+            // отбрасывается клиентом по done(cancelled)), а не исключением.
+            stopOnAbortSignal: true,
+          });
           return response.metadata.stopReason === 'abort' ? 'cancelled' : 'stop';
         } catch (cause) {
           if (request.signal.aborted) {
