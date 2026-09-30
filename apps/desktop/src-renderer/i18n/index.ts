@@ -11,8 +11,8 @@
  * feature-каталоги (features/⟨фича⟩/ru.json —
  * первый measurement, TASK-031: ключи с префиксом имени фичи) и каталог общих
  * компонентов components/critical/ru.json (TASK-041, группа critical); settings —
- * TASK-047 (features/settings/ru.json). Один namespace
- * 'translation' с группами common./data./errors./export./measurement./settings./critical./dashboard.: ключи в коде совпадают со
+ * TASK-047 (features/settings/ru.json); ai — TASK-081 (features/ai/ru.json). Один namespace
+ * 'translation' с группами common./data./errors./export./measurement./settings./critical./dashboard./ai.: ключи в коде совпадают со
  * строками messageKey контрактов ('errors.renderer' — прецедент ErrorBoundary, TASK-011).
  *
  * escapeValue: false — экранирование делает React, ICU-подстановки включатся с
@@ -31,6 +31,9 @@ import measurement from '../features/measurement/ru.json';
 import settings from '../features/settings/ru.json';
 import critical from '../components/critical/ru.json';
 import dashboard from '../features/dashboard/ru.json';
+// TASK-081 §17: ключи ai.banner.* / ai.models.* — баннер «ИИ не настроен» и
+// витрина моделей (карточки, состояния, согласие, предупреждения, «позже»).
+import ai from '../features/ai/ru.json';
 
 const resources = {
   ru: {
@@ -44,6 +47,7 @@ const resources = {
       settings,
       critical,
       dashboard,
+      ai,
     },
   },
 } as const;
