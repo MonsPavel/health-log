@@ -87,8 +87,12 @@ function fullDate(wallDate: string): string {
   return `${wallDate.slice(8, 10)}.${wallDate.slice(5, 7)}.${wallDate.slice(0, 4)}`;
 }
 
-/** RU-множественное слово «день/дня/дней» (§13: «14 дней», «21 день»). */
-function daysWord(n: number): string {
+/**
+ * RU-множественное слово «день/дня/дней» (§13: «14 дней», «21 день»). Экспорт —
+ * TASK-086: фабрика отказ-текстов того же модуля печатает «N измерений за M дней»
+ * (§5) — одно правило множественного числа, без копии.
+ */
+export function daysWord(n: number): string {
   const mod100 = Math.abs(n) % 100;
   const mod10 = mod100 % 10;
   if (mod100 >= 12 && mod100 <= 14) {
