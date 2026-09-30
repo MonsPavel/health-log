@@ -25,8 +25,10 @@ export type HlLogLevel = 'debug' | 'info' | 'warn' | 'error';
 export type AiWorkerState = 'starting' | 'ready' | 'busy' | 'restarting' | 'failed';
 
 // TASK-080 §6/§11: статус загрузки модели — из контрактов витрины моделей
-// (ai/models); re-export ниже сохраняет единый импорт из '@hl/contracts'.
-export type { ModelStatus } from './ai/models.js';
+// (ai/models); import + re-export: локальное имя для payload ai:progress ниже
+// и единый импорт из '@hl/contracts' для потребителей.
+import type { ModelStatus } from './ai/models.js';
+export type { ModelStatus };
 
 /** Карта «имя события → payload» (§5): единый источник имён и форм для main и рендерера. */
 export interface HlEventMap {

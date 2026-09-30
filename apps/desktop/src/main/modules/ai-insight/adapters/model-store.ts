@@ -112,7 +112,7 @@ export interface ModelStoreOptions {
   /** Часы (throttle прогресса); по умолчанию SystemClock. */
   readonly clock?: Clock;
   /** Свободно байт на диске каталога (мок fs-статс в тестах, §19); дефолт — statfs. */
-  readonly freeDiskBytes?: (dir: string) => Promise<number>;
+  readonly freeDiskBytes?: (dir: string) => number | Promise<number>;
   /** Бэкофф ретраев, мс (§4: 1/5/25 с). */
   readonly retryBackoffMs?: readonly number[];
   /** Интервал throttle прогресса, мс (§15: 250). */
@@ -175,7 +175,7 @@ export class ModelStore {
   private readonly notify: LlmNotify;
   private readonly logger: LlmClientLogger;
   private readonly clock: Clock;
-  private readonly freeDiskBytes: (dir: string) => Promise<number>;
+  private readonly freeDiskBytes: (dir: string) => number | Promise<number>;
   private readonly retryBackoffMs: readonly number[];
   private readonly progressIntervalMs: number;
   private readonly stallTimeoutMs: number;
@@ -342,13 +342,20 @@ export class ModelStore {
       );
     }
     if (descriptor === undefined) {
-      return err(AppError.of('AI/MODEL_NOT_FOUND', 'errors.AI_MODEL_NOT_FOUND', { model: modelId }));
+      return err(
+        AppError.of('AI/MODEL_NOT_FOUND', 'errors.AI_MODEL_NOT_FOUND', { model: modelId }),
+      );
     }
     if (!MODEL_FILE_PATTERN.test(descriptor.file)) {
       // §14 path traversal: манифест-ресурс валиден по схеме 079, но имя файла —
       // последняя линия обороны перед join (коррупция ресурса = громкий отказ).
       return err(
-        AppError.of('APP/INTERNAL', 'errors.internal', { reason: 'model-file-name' }, descriptor.file),
+        AppError.of(
+          'APP/INTERNAL',
+          'errors.internal',
+          { reason: 'model-file-name' },
+          descriptor.file,
+        ),
       );
     }
     // active — до первого await: гонка двух стартов закрыта синхронным guard'ом.
@@ -380,6 +387,13 @@ export class ModelStore {
 
   /** Флоу §5 после guard'ов (active уже установлен). */
   private async run(descriptor: ModelDescriptor): Promise<Result<ModelStatusInfo>> {
+    // Локальная ссылка: сужение this.active слетает после await (свойство).
+    // Единственный владелец очистки this.active в этом флоу — сам run() и его
+    // хелперы (finalizePaused/verifyAndInstall) — объект живёт до финализации.
+    const active = this.active;
+    if (active === undefined) {
+      return err(AppError.of('APP/INTERNAL', 'errors.internal', { reason: 'model-store' }));
+    }
     const modelId = descriptor.id;
     const filePath = this.finalPath(descriptor.file);
     const partPath = this.partPath(descriptor.file);
@@ -395,7 +409,7 @@ export class ModelStore {
 
     // Хвост прошлой загрузки: валидная .part → докачка; чужая/битая → полный рестарт.
     let offset = this.readPartState(partPath, metaPath, descriptor);
-    this.active.bytesLoaded = offset;
+    active.bytesLoaded = offset;
 
     // Место ДО старта (§13): sizeBytes + запас, иначе AI/DISK_FULL (AC4).
     const freeBefore = await this.freeDiskBytes(this.modelsDir);
@@ -410,7 +424,7 @@ export class ModelStore {
     }
 
     // Состояние downloading + стартовый прогресс (UI видит старт сразу).
-    this.active.bytesLoaded = offset;
+    active.bytesLoaded = offset;
     this.emitState(modelId, offset, descriptor.sizeBytes, 'downloading');
 
     // Meta для докачки после перезапуска (§5): total — sizeBytes манифеста
@@ -432,20 +446,20 @@ export class ModelStore {
       return this.finalizePaused(partPath);
     }
     const rangeSupported = (head.headers.get('accept-ranges') ?? '').includes('bytes');
-    this.active.resumable = rangeSupported;
+    active.resumable = rangeSupported;
     if (offset > 0 && !rangeSupported) {
       // §13: сервер без Range → полный рестарт загрузки (хвост не притворяется докачкой).
       await rm(partPath, { force: true });
       await rm(metaPath, { force: true });
       offset = 0;
-      this.active.bytesLoaded = 0;
+      active.bytesLoaded = 0;
       this.logger.warn('model store: сервер без Range — полный рестарт', { modelId });
     } else if (offset > descriptor.sizeBytes) {
       // Хвост длиннее заявленного — порчен: рестарт.
       await rm(partPath, { force: true });
       await rm(metaPath, { force: true });
       offset = 0;
-      this.active.bytesLoaded = 0;
+      active.bytesLoaded = 0;
     }
 
     // Цикл Range-запросов (§5) с ретраями §4; полная .part — GET не нужен.
@@ -456,7 +470,7 @@ export class ModelStore {
           offset = await this.streamIntoPart(descriptor, partPath, offset);
           break;
         } catch (cause) {
-          if (this.active.pauseRequested || cause instanceof DownloadPausedError) {
+          if (active.pauseRequested || cause instanceof DownloadPausedError) {
             return this.finalizePaused(partPath);
           }
           attempt += 1;
@@ -472,7 +486,7 @@ export class ModelStore {
           }
           await sleep(this.backoffMs(attempt - 1));
           offset = existsSync(partPath) ? statSync(partPath).size : 0;
-          this.active.bytesLoaded = offset;
+          active.bytesLoaded = offset;
         }
       }
     }
@@ -586,8 +600,9 @@ export class ModelStore {
           throw new DownloadPausedError();
         }
         armStall();
-        await appendFile(partPath, chunk);
-        offset += chunk.byteLength;
+        const bytes = chunk as Uint8Array;
+        await appendFile(partPath, bytes);
+        offset += bytes.byteLength;
         active.bytesLoaded = offset;
         this.emitState(descriptor.id, offset, active.totalBytes, 'downloading');
       }
@@ -702,7 +717,8 @@ export class ModelStore {
     } catch {
       meta = undefined;
     }
-    const valid = meta !== undefined && meta.modelId === descriptor.id && meta.sha256 === descriptor.sha256;
+    const valid =
+      meta !== undefined && meta.modelId === descriptor.id && meta.sha256 === descriptor.sha256;
     if (!valid) {
       // Чужой/битый хвост: полный рестарт (недокачанное не притворяется докачкой).
       rmSync(partPath, { force: true });
@@ -746,6 +762,7 @@ export class ModelStore {
   /** §14: имя файла манифеста → безопасное имя или громкий APP/INTERNAL. */
   private safeFile(file: string): string {
     if (!MODEL_FILE_PATTERN.test(file)) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт ошибок TASK-006; прецедент llm-process-client/sqlite.ts)
       throw AppError.of('APP/INTERNAL', 'errors.internal', { reason: 'model-file-name' }, file);
     }
     return file;

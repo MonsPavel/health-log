@@ -33,6 +33,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+// eslint-disable-next-line no-restricted-imports -- TASK-080 §19: локальный http-сервер фикстур (обрывы/Range/mismatch) — тестовая loopback-петля, не сетевой путь приложения: ModelStore ходит только через EgressGateway-порт (§14), guard FR-7.2 (vitest.setup) сохранён
 import { createServer, request as httpRequest, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -43,7 +44,6 @@ import type { ModelDescriptor, ModelProgressPayload, NetConsents } from '@hl/con
 import { AppError, FixedClock, unsafeUnwrap, type Result } from '@hl/kernel';
 
 import { createBroadcastToWindows, type BroadcastTarget } from '../../../events/broadcast.js';
-import type { EventsLogger } from '../../../events/event-bus.js';
 import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite.js';
 import { MigrationRunner } from '../../../shared/db/migration-runner.js';
 import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
@@ -57,7 +57,8 @@ import { ModelStore } from './model-store.js';
 const makeContent = (total: number): Buffer =>
   Buffer.from(Array.from({ length: total }, (_, i) => (i * 7 + 11) % 256));
 
-const sha256Hex = (data: Buffer | string): string => createHash('sha256').update(data).digest('hex');
+const sha256Hex = (data: Buffer | string): string =>
+  createHash('sha256').update(data).digest('hex');
 
 /** Извлечение err-ветки Result с падением теста на ok. */
 const failOf = (result: Result<unknown, AppError>): AppError => {
@@ -307,7 +308,7 @@ interface Fixture {
   readonly fetchCalls: { endpoint: string; init?: RequestInit }[];
   descriptor(overrides?: Partial<ModelDescriptor>): ModelDescriptor;
   setManifest(models: ModelDescriptor[]): void;
-  setFreeDiskBytes(impl: (dir: string) => Promise<number>): void;
+  setFreeDiskBytes(impl: (dir: string) => number | Promise<number>): void;
   /** Новый store над тем же каталогом/манифестом — «перезапуск приложения» (AC6). */
   reopenStore(): ModelStore;
   partPath(): string;
@@ -320,7 +321,7 @@ const makeFixture = (
   options: {
     readonly supportRange?: boolean;
     readonly content?: Buffer;
-    readonly freeDiskBytes?: (dir: string) => Promise<number>;
+    readonly freeDiskBytes?: (dir: string) => number | Promise<number>;
   } = {},
 ): Promise<Fixture> => {
   const content = options.content ?? makeContent(2048);
@@ -355,62 +356,64 @@ const makeFixture = (
       createHash('sha256').update(root).digest('hex'),
     );
     dbs.push(db);
-    return new MigrationRunner({ migrations: MIGRATIONS })
-      .migrate(db)
-      .then((): Fixture => {
-        const consents: NetConsents = { updatesCheck: true, modelsDownload: true };
-        const fetchCalls: { endpoint: string; init?: RequestInit }[] = [];
-        const { target, envelopes } = makeFakeWindow();
-        const notify = createBroadcastToWindows({
-          getAllTargets: () => [target],
-          logger: silentLogger as EventsLogger,
-        });
-        let freeDisk = options.freeDiskBytes ?? (async () => Number.MAX_SAFE_INTEGER);
-        const gateway = new EgressGateway({
-          db,
-          clock: new FixedClock(1_758_816_000_000, 180),
-          logger: silentLogger,
-          consents: () => Promise.resolve(consents),
-          fetch: (endpoint, init) => {
-            fetchCalls.push({ endpoint, init });
-            return makeStreamingFetch(server.port)(endpoint, init);
-          },
-          notify,
-        });
-        const makeStore = (): ModelStore =>
-          new ModelStore({
-            modelsDir,
-            registry: new ModelsRegistry({ manifestPath }),
-            egress: gateway,
-            notify,
-            logger: silentLogger,
-            retryBackoffMs: [1, 1, 1],
-            stallTimeoutMs: 1_000, // обрыв/hold короче таймаута теста (см. шапку файла)
-            freeDiskBytes: (dir) => freeDisk(dir),
-          });
-        return {
-          modelsDir,
-          manifestPath,
-          store: makeStore(),
-          server,
-          gateway,
-          fetchCalls,
-          descriptor,
-          setManifest,
-          setFreeDiskBytes: (impl) => {
-            freeDisk = impl;
-          },
-          reopenStore: makeStore,
-          partPath: () => join(modelsDir, 'test-model.gguf.part'),
-          metaPath: () => join(modelsDir, 'test-model.gguf.part.meta.json'),
-          finalPath: () => join(modelsDir, 'test-model.gguf'),
-          progressPayloads: () =>
-            envelopes
-              .map((item) => ({ atMs: item.atMs, parsed: item.envelope as { name: string; payload: unknown } }))
-              .filter(({ parsed }) => parsed.name === 'ai:progress')
-              .map(({ atMs, parsed }) => ({ ...(parsed.payload as ModelProgressPayload), atMs })),
-        };
+    return new MigrationRunner({ migrations: MIGRATIONS }).migrate(db).then((): Fixture => {
+      const consents: NetConsents = { updatesCheck: true, modelsDownload: true };
+      const fetchCalls: { endpoint: string; init?: RequestInit }[] = [];
+      const { target, envelopes } = makeFakeWindow();
+      const notify = createBroadcastToWindows({
+        getAllTargets: () => [target],
+        logger: silentLogger,
       });
+      let freeDisk: (dir: string) => number | Promise<number> =
+        options.freeDiskBytes ?? (() => Number.MAX_SAFE_INTEGER);
+      const gateway = new EgressGateway({
+        db,
+        clock: new FixedClock(1_758_816_000_000, 180),
+        logger: silentLogger,
+        consents: () => Promise.resolve(consents),
+        fetch: (endpoint, init) => {
+          fetchCalls.push({ endpoint, init });
+          return makeStreamingFetch(server.port)(endpoint, init);
+        },
+        notify,
+      });
+      const makeStore = (): ModelStore =>
+        new ModelStore({
+          modelsDir,
+          registry: new ModelsRegistry({ manifestPath }),
+          egress: gateway,
+          notify,
+          logger: silentLogger,
+          retryBackoffMs: [1, 1, 1],
+          stallTimeoutMs: 1_000, // обрыв/hold короче таймаута теста (см. шапку файла)
+          freeDiskBytes: (dir) => freeDisk(dir),
+        });
+      return {
+        modelsDir,
+        manifestPath,
+        store: makeStore(),
+        server,
+        gateway,
+        fetchCalls,
+        descriptor,
+        setManifest,
+        setFreeDiskBytes: (impl) => {
+          freeDisk = impl;
+        },
+        reopenStore: makeStore,
+        partPath: () => join(modelsDir, 'test-model.gguf.part'),
+        metaPath: () => join(modelsDir, 'test-model.gguf.part.meta.json'),
+        finalPath: () => join(modelsDir, 'test-model.gguf'),
+        progressPayloads: () =>
+          envelopes
+            .map((item) => ({
+              atMs: item.atMs,
+              parsed: item.envelope as { name: string; payload: unknown },
+            }))
+            .filter(({ parsed }) => parsed.name === 'ai:progress')
+            .map(({ atMs, parsed }) => ({ ...(parsed.payload as ModelProgressPayload), atMs })),
+      };
+    });
   });
 };
 
@@ -522,7 +525,7 @@ describe('ModelStore — интеграция (TASK-080 §19/§20)', () => {
 
   it('(5) недостаток места до старта → AI/DISK_FULL, сети не было, статус not_installed (AC4)', async () => {
     const fx = await makeFixture({
-      freeDiskBytes: async () => 2048 + 100 * 1024 * 1024 - 1, // sizeBytes + 100 МБ запас − 1 байт
+      freeDiskBytes: () => 2048 + 100 * 1024 * 1024 - 1, // sizeBytes + 100 МБ запас − 1 байт
     });
 
     const result = await fx.store.download('test-model');
@@ -538,7 +541,7 @@ describe('ModelStore — интеграция (TASK-080 §19/§20)', () => {
     let calls = 0;
     const fx = await makeFixture({
       content,
-      freeDiskBytes: async () => {
+      freeDiskBytes: () => {
         calls += 1;
         return calls === 1 ? Number.MAX_SAFE_INTEGER : 0; // старт ок, перед rename — нет места
       },
@@ -553,7 +556,7 @@ describe('ModelStore — интеграция (TASK-080 §19/§20)', () => {
     });
     expect(existsSync(fx.partPath())).toBe(true); // .part сохранена — не скачивать заново
 
-    fx.setFreeDiskBytes(async () => Number.MAX_SAFE_INTEGER);
+    fx.setFreeDiskBytes(() => Number.MAX_SAFE_INTEGER);
     const resumed = await fx.store.resume('test-model');
     expect(unsafeUnwrap(resumed)).toMatchObject({ state: 'installed' });
     // Полная .part → GET не нужен: HEAD + verify + rename.
