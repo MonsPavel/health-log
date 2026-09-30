@@ -188,7 +188,7 @@ describe('ai/context/preview через контейнер — полный пу
       const before = await preview(container, { profileId: 'profile-1', period: 'all', includeNotes: false });
       const prefs = await container.channels.dispatch({
         channel: 'prefs/set',
-        payload: { aiSettings: { modelId: 'model-a' } },
+        payload: { patch: { aiSettings: { modelId: 'model-a' } } },
       });
       expect(prefs).toMatchObject({ ok: true });
       const after = await preview(container, { profileId: 'profile-1', period: 'all', includeNotes: false });
@@ -219,7 +219,8 @@ describe('ai/context/preview через контейнер — полный пу
       }
       const parsed = AI_CONTEXT_PREVIEW_RESPONSE_SCHEMA.parse(envelope.data);
       expect(parsed.sections).toContain('gaps');
-      expect(parsed.text).toContain('08.03–21.03 (14 дней)');
+      // Записи 01.03 и 22.03: дни без записей 02.03–21.03 = 20 (≥7 → разрыв, §13).
+      expect(parsed.text).toContain('02.03–21.03 (20 дней)');
     } finally {
       container.close();
       rmSync(dir, { recursive: true, force: true });
