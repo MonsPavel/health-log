@@ -54,8 +54,20 @@ export interface ModelCardProps {
   readonly uiLanguage: string;
   /** Модель выбрана (prefs.aiSettings.modelId) — бейдж вместо кнопки «Выбрать». */
   readonly selected: boolean;
-  /** Мутация в полёте — кнопки состояния отключены (двойной клик не двойнит). */
-  readonly busy?: boolean;
+  /**
+   * Мутации в полёте: блокируют ТОЛЬКО дублирующее действие своей кнопки (§13).
+   * Долгие download/resume (канал резолвится ФИНАЛОМ флоу 080 — минуты) НЕ
+   * блокируют паузу/продолжение — иначе пауза через UI недостижима (§5: downloading
+   * → «Пауза»); «Скачать» блокируется download.pending (дубль-старт), пауза —
+   * pause.pending и т.д.
+   */
+  readonly pending?: {
+    readonly download?: boolean;
+    readonly pause?: boolean;
+    readonly resume?: boolean;
+    readonly reset?: boolean;
+    readonly select?: boolean;
+  };
   readonly onDownload: () => void;
   readonly onPause: () => void;
   readonly onResume: () => void;
@@ -69,7 +81,7 @@ export function ModelCard({
   ramTotalGb,
   uiLanguage,
   selected,
-  busy = false,
+  pending,
   onDownload,
   onPause,
   onResume,
@@ -206,7 +218,7 @@ export function ModelCard({
           <button
             type="button"
             data-testid="model-download"
-            disabled={busy}
+            disabled={pending?.download === true}
             aria-label={t('ai.models.aria.download', { name: descriptor.name, size })}
             onClick={onDownload}
             className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
@@ -218,7 +230,7 @@ export function ModelCard({
           <button
             type="button"
             data-testid="model-pause"
-            disabled={busy}
+            disabled={pending?.pause === true}
             aria-label={t('ai.models.aria.pause', {
               name: descriptor.name,
               percent,
@@ -233,7 +245,7 @@ export function ModelCard({
           <button
             type="button"
             data-testid="model-resume"
-            disabled={busy}
+            disabled={pending?.resume === true}
             aria-label={t('ai.models.aria.resume', {
               name: descriptor.name,
               percent,
@@ -258,7 +270,7 @@ export function ModelCard({
           <button
             type="button"
             data-testid="model-reset"
-            disabled={busy}
+            disabled={pending?.reset === true}
             aria-label={t('ai.models.aria.reset', { name: descriptor.name })}
             onClick={onReset}
             className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-neutral-100 disabled:opacity-50 dark:hover:bg-neutral-800"
@@ -278,7 +290,7 @@ export function ModelCard({
             <button
               type="button"
               data-testid="model-select"
-              disabled={busy}
+              disabled={pending?.select === true}
               aria-label={t('ai.models.aria.select', { name: descriptor.name })}
               onClick={onSelect}
               className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
@@ -293,7 +305,7 @@ export function ModelCard({
           <button
             type="button"
             data-testid="model-select"
-            disabled={busy || selected}
+            disabled={pending?.select === true || selected}
             aria-label={t('ai.models.aria.select', { name: descriptor.name })}
             onClick={onSelect}
             className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-neutral-100 disabled:opacity-50 dark:hover:bg-neutral-800"

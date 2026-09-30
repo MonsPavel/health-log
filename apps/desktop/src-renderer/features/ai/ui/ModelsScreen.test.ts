@@ -174,6 +174,53 @@ describe('ModelsScreen — согласие до первой загрузки (
     await waitFor(() => expect(payloadsOf('ai/models/download')).toHaveLength(1));
     expect(screen.queryByTestId('consent-dialog')).toBeNull();
   });
+
+  // Ревью TASK-081 §5/§13: канал download резолвится ФИНАЛОМ флоу 080 (минуты) —
+  // пауза обязана оставаться доступной всё время загрузки.
+  it('пауза кликабельна, пока загрузка в полёте (download pending) — §5/§13', async () => {
+    let resolveDownload: (value: unknown) => void = () => undefined;
+    invoke.mockImplementation((channel: string): Promise<unknown> => {
+      if (channel === 'prefs/get') {
+        return Promise.resolve(
+          OK(PREFS({ netConsents: { updatesCheck: false, modelsDownload: true } })),
+        );
+      }
+      if (channel === 'ai/models/list') {
+        return Promise.resolve(OK(LIST));
+      }
+      if (channel === 'ai/models/download') {
+        // Долгий флоу: ответ придёт только по завершении (дизайн §9 080).
+        return new Promise((resolve) => {
+          resolveDownload = resolve;
+        });
+      }
+      if (channel === 'ai/models/pause') {
+        return Promise.resolve(OK({ state: 'paused', bytesLoaded: 858_993_459 }));
+      }
+      return Promise.resolve(OK({}));
+    });
+    renderScreen();
+
+    // Старт загрузки → карточка в downloading из события прогресса (§12).
+    fireEvent.click(await screen.findByTestId('model-download'));
+    const listener = eventListeners['ai:progress'];
+    listener?.({
+      modelId: 'dev-placeholder-ru',
+      downloadedBytes: 858_993_459,
+      totalBytes: 2_147_483_648,
+      state: 'downloading',
+    });
+
+    const pause = await screen.findByTestId('model-pause');
+    // Кнопка паузы НЕ заблокирована идущей загрузкой (§5: downloading → «Пауза»).
+    await waitFor(() => expect(pause.hasAttribute('disabled')).toBe(false));
+    fireEvent.click(pause);
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai/models/pause', { modelId: 'dev-placeholder-ru' }),
+    );
+    resolveDownload(OK({ state: 'paused', bytesLoaded: 858_993_459 }));
+  });
 });
 
 describe('ModelsScreen — прогресс из события ai:progress (§20 AC3, §12)', () => {

@@ -58,12 +58,15 @@ export function ModelsScreen(): JSX.Element {
     download.mutate(target.id);
   };
 
-  const busy =
-    download.isPending ||
-    pause.isPending ||
-    resume.isPending ||
-    reset.isPending ||
-    select.isPending;
+  // §13: pending-мутации блокируют ТОЛЬКО дублирующее действие своей кнопки —
+  // долгие download/resume (финал флоу 080, минуты) НЕ выключают паузу/продолжение.
+  const pending = {
+    download: download.isPending,
+    pause: pause.isPending,
+    resume: resume.isPending,
+    reset: reset.isPending,
+    select: select.isPending,
+  };
 
   return (
     <section data-testid="ai-models-section" aria-labelledby="ai-models-title" className="mt-4">
@@ -92,7 +95,7 @@ export function ModelsScreen(): JSX.Element {
           ramTotalGb={data.ramTotalGb}
           uiLanguage={data.uiLanguage}
           selected={view.descriptor.id === selectedId}
-          busy={busy}
+          pending={pending}
           onDownload={() => handleDownload(view.descriptor)}
           onPause={() => pause.mutate(view.descriptor.id)}
           onResume={() => resume.mutate(view.descriptor.id)}

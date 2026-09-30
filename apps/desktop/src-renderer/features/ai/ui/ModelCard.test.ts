@@ -41,7 +41,18 @@ interface Handlers {
 
 function renderCard(
   modelView: ModelView,
-  overrides: { ramTotalGb?: number; uiLanguage?: string; selected?: boolean; busy?: boolean } = {},
+  overrides: {
+    ramTotalGb?: number;
+    uiLanguage?: string;
+    selected?: boolean;
+    pending?: {
+      download?: boolean;
+      pause?: boolean;
+      resume?: boolean;
+      reset?: boolean;
+      select?: boolean;
+    };
+  } = {},
 ): Handlers {
   const handlers: Handlers = {
     onDownload: vi.fn<() => void>(),
@@ -56,7 +67,7 @@ function renderCard(
       ramTotalGb: overrides.ramTotalGb ?? 32,
       uiLanguage: overrides.uiLanguage ?? 'ru',
       selected: overrides.selected ?? false,
-      busy: overrides.busy ?? false,
+      pending: overrides.pending,
       onDownload: handlers.onDownload,
       onPause: handlers.onPause,
       onResume: handlers.onResume,
@@ -199,9 +210,40 @@ describe('ModelCard — aria-label кнопок полные (§16) и колб�
     expect(downloadCard.onDownload).toHaveBeenCalledTimes(1);
   });
 
-  it('busy (мутация в полёте) — кнопки состояния отключены', () => {
-    renderCard(view({ state: 'not_installed' }), { busy: true });
-
+  it('pending-мутация блокирует ТОЛЬКО дублирующее действие той же кнопки (ревью §13)', () => {
+    // download в полёте: «Скачать» задублировать нельзя…
+    const download = renderCard(view({ state: 'not_installed' }), { pending: { download: true } });
     expect(screen.getByTestId('model-download').hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByTestId('model-download'));
+    expect(download.onDownload).not.toHaveBeenCalled();
+
+    // …но карточка в downloading при том же pending.download — пауза доступна
+    // (§5/§13: канал download резолвится финалом флоу, минуты — пауза не ждёт).
+    cleanup();
+    const pauseWhileDownloading = renderCard(view({ state: 'downloading', bytesLoaded: 5 }), {
+      pending: { download: true },
+    });
+    const pause = screen.getByTestId('model-pause');
+    expect(pause.hasAttribute('disabled')).toBe(false);
+    fireEvent.click(pause);
+    expect(pauseWhileDownloading.onPause).toHaveBeenCalledTimes(1);
+
+    // Своя мутация в полёте дубликат блокирует: pause pending → пауза disabled.
+    cleanup();
+    renderCard(view({ state: 'downloading', bytesLoaded: 5 }), { pending: { pause: true } });
+    expect(screen.getByTestId('model-pause').hasAttribute('disabled')).toBe(true);
+
+    // resume pending → «Продолжить» disabled; download pending на паузе её не блокирует.
+    cleanup();
+    const pausedCard = renderCard(view({ state: 'paused', bytesLoaded: 5 }), {
+      pending: { download: true },
+    });
+    expect(screen.getByTestId('model-resume').hasAttribute('disabled')).toBe(false);
+    fireEvent.click(screen.getByTestId('model-resume'));
+    expect(pausedCard.onResume).toHaveBeenCalledTimes(1);
+
+    cleanup();
+    renderCard(view({ state: 'paused', bytesLoaded: 5 }), { pending: { resume: true } });
+    expect(screen.getByTestId('model-resume').hasAttribute('disabled')).toBe(true);
   });
 });
