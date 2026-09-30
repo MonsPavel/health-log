@@ -13,7 +13,11 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 
-import { AI_CONTEXT_SECTION_IDS, type TrendResponse } from '@hl/contracts';
+import {
+  AI_CONTEXT_SECTION_IDS,
+  type PeriodStatisticsDto,
+  type TrendResponse,
+} from '@hl/contracts';
 import { FixedClock, Instant, type Clock } from '@hl/kernel';
 import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 import {
@@ -73,19 +77,26 @@ class FakePoints implements ContextPointsPort {
 }
 
 /** Зависимости сборщика над боевыми read models 052/054/056 и одной точкой правды. */
-function makeDeps(points: ContextPoint[], clock: Clock = new FixedClock(NOW_MS, TZ)): AiContextBuilderDeps {
+function makeDeps(
+  points: ContextPoint[],
+  clock: Clock = new FixedClock(NOW_MS, TZ),
+): AiContextBuilderDeps {
   const scale = BP_OFFICE_ESC2018;
   return {
     points: new FakePoints(points),
     stats: {
-      getStatistics: async (q) => {
+      getStatistics: (q) => {
         const selected: MeasurementPoint[] = filterByQuery(points, q);
-        return JSON.parse(JSON.stringify(buildPeriodStatistics(selected, scale)));
+        // toDto 054: JSON round-trip — undefined-части исчезают, форма = провод.
+        const stats = JSON.parse(
+          JSON.stringify(buildPeriodStatistics(selected, scale)),
+        ) as PeriodStatisticsDto;
+        return Promise.resolve(stats);
       },
     },
     series: {
-      getSeries: async (q, mode): Promise<TrendResponse> =>
-        buildTrendResponse(filterByQuery(points, q), mode),
+      getSeries: (q, mode): Promise<TrendResponse> =>
+        Promise.resolve(buildTrendResponse(filterByQuery(points, q), mode)),
     },
     scales: { getActiveScale: () => Promise.resolve(scale) },
     clock,
@@ -156,8 +167,12 @@ describe('AiContextBuilder — детерминизм (§13)', () => {
 
   it('одинаковый custom-период в разные дни календаря → идентичный text и hash (§13)', async () => {
     const points = [ctxPoint('2026-03-02', '07:30', 118, 76, 58)];
-    const march = new AiContextBuilder(makeDeps(points, new FixedClock(Instant.fromIso('2026-03-15T09:00:00.000+03:00').utcMs, TZ)));
-    const december = new AiContextBuilder(makeDeps(points, new FixedClock(Instant.fromIso('2026-12-15T09:00:00.000+03:00').utcMs, TZ)));
+    const march = new AiContextBuilder(
+      makeDeps(points, new FixedClock(Instant.fromIso('2026-03-15T09:00:00.000+03:00').utcMs, TZ)),
+    );
+    const december = new AiContextBuilder(
+      makeDeps(points, new FixedClock(Instant.fromIso('2026-12-15T09:00:00.000+03:00').utcMs, TZ)),
+    );
     const a = await march.build(INPUT);
     const b = await december.build(INPUT);
     expect(b.text).toBe(a.text);
@@ -166,7 +181,9 @@ describe('AiContextBuilder — детерминизм (§13)', () => {
 
   it('в тексте нет дат «сейчас»: период в тексте — только сам период (§4/§9)', async () => {
     const points = [ctxPoint('2026-03-02', '07:30', 118, 76, 58)];
-    const ctx = await new AiContextBuilder(makeDeps(points, new FixedClock(Instant.fromIso('2027-06-01T00:00:00.000+03:00').utcMs, TZ))).build(INPUT);
+    const ctx = await new AiContextBuilder(
+      makeDeps(points, new FixedClock(Instant.fromIso('2027-06-01T00:00:00.000+03:00').utcMs, TZ)),
+    ).build(INPUT);
     expect(ctx.text).toContain('Диапазон: 01.03.2026–31.03.2026');
     expect(ctx.text).not.toContain('2027');
   });
@@ -190,7 +207,9 @@ describe('AiContextBuilder — разрывы ≥7 дней (§5/§7/§13, EC-08
       ctxPoint('2026-03-09', '08:00', 122, 82), // пропущено 02.03–08.03 = 7 дней
     ];
     const ctxSeven = await new AiContextBuilder(makeDeps(seven)).build(INPUT);
-    expect(ctxSeven.gaps).toEqual([{ fromWallDate: '2026-03-02', toWallDate: '2026-03-08', days: 7 }]);
+    expect(ctxSeven.gaps).toEqual([
+      { fromWallDate: '2026-03-02', toWallDate: '2026-03-08', days: 7 },
+    ]);
 
     const six = [
       ctxPoint('2026-03-01', '08:00', 120, 80),
@@ -206,7 +225,10 @@ describe('AiContextBuilder — разрывы ≥7 дней (§5/§7/§13, EC-08
     expect(ctx.gaps).toEqual([{ fromWallDate: '2026-03-01', toWallDate: '2026-03-09', days: 9 }]);
     expect(ctx.text).toContain('01.03–09.03 (9 дней)');
 
-    const allCtx = await new AiContextBuilder(makeDeps(points)).build({ ...INPUT, period: 'all' as const });
+    const allCtx = await new AiContextBuilder(makeDeps(points)).build({
+      ...INPUT,
+      period: 'all' as const,
+    });
     expect(allCtx.gaps).toEqual([]);
   });
 });
@@ -214,7 +236,10 @@ describe('AiContextBuilder — разрывы ≥7 дней (§5/§7/§13, EC-08
 describe('AiContextBuilder — заметки и includeNotes (§5/§14/§20)', () => {
   const noted = [
     ctxPoint('2026-03-02', '07:30', 118, 76, 58, { note: 'измерил после подъёма' }),
-    ctxPoint('2026-03-03', '20:10', 134, 86, 72, { note: 'забыл таблетку\nутром', irregular: true }),
+    ctxPoint('2026-03-03', '20:10', 134, 86, 72, {
+      note: 'забыл таблетку\nутром',
+      irregular: true,
+    }),
     ctxPoint('2026-03-04', '07:30', 122, 80, 64),
   ];
 
@@ -229,7 +254,10 @@ describe('AiContextBuilder — заметки и includeNotes (§5/§14/§20)', 
 
   it('excludeNotes: секции «Заметки» нет в text, ни байта заметок (§14/§20 байт-тест)', async () => {
     const withNotes = await new AiContextBuilder(makeDeps(noted)).build(INPUT);
-    const without = await new AiContextBuilder(makeDeps(noted)).build({ ...INPUT, includeNotes: false });
+    const without = await new AiContextBuilder(makeDeps(noted)).build({
+      ...INPUT,
+      includeNotes: false,
+    });
     expect(without.sections).not.toContain('notes');
     expect(without.text).not.toContain('[notes]');
     expect(without.text).not.toContain('измерил после подъёма');
@@ -282,7 +310,9 @@ describe('AiContextBuilder — лимит объёма CONTEXT_MAX_DAYS (§5/§2
     const ctx = await new AiContextBuilder(makeDeps(points)).build({ ...INPUT, period });
     expect(ctx.series.mode).toBe('daily');
     expect(ctx.text).toContain('Данные агрегированы по дням');
-    expect(ctx.text).toContain('01.01 — СДА 120 (120–120), ДДА 80 (80–80), утро 120, пульс 60, n=1');
+    expect(ctx.text).toContain(
+      '01.01 — СДА 120 (120–120), ДДА 80 (80–80), утро 120, пульс 60, n=1',
+    );
   });
 
   it('90-дневный период — на границе лимита: детальные серии без пометки (§5 «> эквивалента»)', async () => {
@@ -321,7 +351,10 @@ describe('AiContextBuilder — состав contextHash (§2/§5)', () => {
 
     const otherPeriod = await builder.build({
       ...INPUT,
-      period: { fromUtcMs: INPUT.period.fromUtcMs, toUtcMs: Instant.fromIso('2026-03-09T23:59:00.000+03:00').utcMs },
+      period: {
+        fromUtcMs: INPUT.period.fromUtcMs,
+        toUtcMs: Instant.fromIso('2026-03-09T23:59:00.000+03:00').utcMs,
+      },
     });
     expect(otherPeriod.contextHash).not.toBe(base.contextHash);
   });
@@ -367,8 +400,22 @@ describe('AiContextBuilder — края и бюджет (§11/§15)', () => {
     for (let i = 0; i < 90; i += 1) {
       const day = start + i * 86_400_000;
       points.push(
-        { id: `m-${i}`, sys: 120 + (i % 5), dia: 80 + (i % 4), pulse: 60 + (i % 7), takenAt: { utcMs: day, tzOffsetMin: TZ }, critical: undefined },
-        { id: `e-${i}`, sys: 122 + (i % 5), dia: 82 + (i % 4), pulse: undefined, takenAt: { utcMs: day + 43_200_000, tzOffsetMin: TZ }, critical: undefined },
+        {
+          id: `m-${i}`,
+          sys: 120 + (i % 5),
+          dia: 80 + (i % 4),
+          pulse: 60 + (i % 7),
+          takenAt: { utcMs: day, tzOffsetMin: TZ },
+          critical: undefined,
+        },
+        {
+          id: `e-${i}`,
+          sys: 122 + (i % 5),
+          dia: 82 + (i % 4),
+          pulse: undefined,
+          takenAt: { utcMs: day + 43_200_000, tzOffsetMin: TZ },
+          critical: undefined,
+        },
       );
     }
     const builder = new AiContextBuilder(makeDeps(points));
@@ -380,7 +427,11 @@ describe('AiContextBuilder — края и бюджет (§11/§15)', () => {
 });
 
 /** Дни подряд от даты: помощник gap-фикстур (2026 — не високосный). */
-function daysFrom(startIso: string, count: number, make: (dayIso: string) => ContextPoint): ContextPoint[] {
+function daysFrom(
+  startIso: string,
+  count: number,
+  make: (dayIso: string) => ContextPoint,
+): ContextPoint[] {
   const base = Instant.fromIso(`${startIso}T08:00:00.000+03:00`).utcMs;
   return Array.from({ length: count }, (_, i) => {
     const day = Instant.toIso({ utcMs: base + i * 86_400_000, tzOffsetMin: TZ }).slice(0, 10);

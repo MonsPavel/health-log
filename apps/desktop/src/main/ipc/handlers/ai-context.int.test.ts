@@ -171,8 +171,16 @@ describe('ai/context/preview через контейнер — полный пу
     const container = await makeContainer(dir);
     try {
       await addMeasurement(container, '2026-03-02', '07:30');
-      const first = await preview(container, { profileId: 'profile-1', period: 'all', includeNotes: false });
-      const second = await preview(container, { profileId: 'profile-1', period: 'all', includeNotes: false });
+      const first = await preview(container, {
+        profileId: 'profile-1',
+        period: 'all',
+        includeNotes: false,
+      });
+      const second = await preview(container, {
+        profileId: 'profile-1',
+        period: 'all',
+        includeNotes: false,
+      });
       expect(second).toEqual(first);
     } finally {
       container.close();
@@ -185,21 +193,29 @@ describe('ai/context/preview через контейнер — полный пу
     const container = await makeContainer(dir);
     try {
       await addMeasurement(container, '2026-03-02', '07:30');
-      const before = await preview(container, { profileId: 'profile-1', period: 'all', includeNotes: false });
+      const before = await preview(container, {
+        profileId: 'profile-1',
+        period: 'all',
+        includeNotes: false,
+      });
       const prefs = await container.channels.dispatch({
         channel: 'prefs/set',
         payload: { patch: { aiSettings: { modelId: 'model-a' } } },
       });
       expect(prefs).toMatchObject({ ok: true });
-      const after = await preview(container, { profileId: 'profile-1', period: 'all', includeNotes: false });
+      const after = await preview(container, {
+        profileId: 'profile-1',
+        period: 'all',
+        includeNotes: false,
+      });
       expect(before).toMatchObject({ ok: true });
       expect(after).toMatchObject({ ok: true });
       if (!before.ok || !after.ok) {
         return;
       }
-      expect(
-        (after.data as { hash: string }).hash,
-      ).not.toBe((before.data as { hash: string }).hash);
+      expect((after.data as { hash: string }).hash).not.toBe(
+        (before.data as { hash: string }).hash,
+      );
     } finally {
       container.close();
       rmSync(dir, { recursive: true, force: true });
@@ -212,7 +228,11 @@ describe('ai/context/preview через контейнер — полный пу
     try {
       await addMeasurement(container, '2026-03-01', '08:00');
       await addMeasurement(container, '2026-03-22', '08:00');
-      const envelope = await preview(container, { profileId: 'profile-1', period: 'all', includeNotes: false });
+      const envelope = await preview(container, {
+        profileId: 'profile-1',
+        period: 'all',
+        includeNotes: false,
+      });
       expect(envelope).toMatchObject({ ok: true });
       if (!envelope.ok) {
         return;
@@ -256,10 +276,16 @@ describe('ai/context/preview через контейнер — полный пу
       await addMeasurement(container, '2026-03-02', '07:30', 'секретная заметка');
       // Хендлер напрямую со шпион-логгером: форма записи §18 без PHI (§14).
       const calls: Array<[string, Record<string, unknown> | undefined]> = [];
-      const spyLogger = { info: (message: string, meta?: Record<string, unknown>) => {
-        calls.push([message, meta]);
-      } };
-      const handler = createAiContextPreviewHandler(container.aiContext, async () => 'test-model', spyLogger);
+      const spyLogger = {
+        info: (message: string, meta?: Record<string, unknown>) => {
+          calls.push([message, meta]);
+        },
+      };
+      const handler = createAiContextPreviewHandler(
+        container.aiContext,
+        () => Promise.resolve('test-model'),
+        spyLogger,
+      );
       const response = await handler({
         profileId: 'profile-1',
         period: 'all',

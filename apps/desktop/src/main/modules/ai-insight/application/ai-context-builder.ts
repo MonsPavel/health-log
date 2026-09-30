@@ -211,7 +211,10 @@ function collectNotes(points: readonly ContextPoint[]): ContextNoteLine[] {
 }
 
 /** Границы периода (§9 054): пресет — от Clock, custom — как есть, 'all' — без границ. */
-function periodBoundsOf(period: StatsPeriodParam, nowUtcMs: number): {
+function periodBoundsOf(
+  period: StatsPeriodParam,
+  nowUtcMs: number,
+): {
   fromUtcMs?: number;
   toUtcMs?: number;
 } {
@@ -229,7 +232,7 @@ function periodBoundsOf(period: StatsPeriodParam, nowUtcMs: number): {
  * custom — целые сутки вверх (90 дней ровно — raw, 90 дней + 1 мс — daily);
  * 'all' — от первой до последней записи. Определяет режим серий (§5/§20).
  */
-function periodSpanDays(period: StatsPeriodParam, bounds: { fromUtcMs?: number; toUtcMs?: number }, sorted: readonly ContextPoint[]): number {
+function periodSpanDays(period: StatsPeriodParam, sorted: readonly ContextPoint[]): number {
   if (period === 'all') {
     if (sorted.length === 0) {
       return 0;
@@ -289,7 +292,7 @@ export class AiContextBuilder {
 
     // Лимит контекст-окна (§5): спан > CONTEXT_MAX_DAYS → агрегированные серии.
     const mode: ContextSeriesMode =
-      periodSpanDays(input.period, bounds, sorted) > CONTEXT_MAX_DAYS ? 'daily' : 'raw';
+      periodSpanDays(input.period, sorted) > CONTEXT_MAX_DAYS ? 'daily' : 'raw';
     const series = await this.series.getSeries(query, mode);
 
     const gaps = detectGaps(sorted, bounds.fromUtcMs, boundsTzOffsetMin);

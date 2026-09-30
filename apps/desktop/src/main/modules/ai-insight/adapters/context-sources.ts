@@ -94,7 +94,9 @@ export class ContextStatsAdapter implements ContextStatsPort {
     };
     const selected: MeasurementPoint[] = await this.points.listByPeriod(scope);
     // toDto (§7 054): JSON round-trip — undefined-части исчезают, форма = провод канала.
-    return JSON.parse(JSON.stringify(buildPeriodStatistics(selected, scale))) as PeriodStatisticsDto;
+    return JSON.parse(
+      JSON.stringify(buildPeriodStatistics(selected, scale)),
+    ) as PeriodStatisticsDto;
   }
 }
 

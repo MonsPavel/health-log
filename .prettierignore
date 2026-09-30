@@ -8,3 +8,8 @@ docs/
 pnpm-lock.yaml
 *.tsbuildinfo
 apps/desktop/release/
+
+# TASK-083 §6/§20: golden-снапшот ИИ-контекста — байт-точный артефакт вывода
+# AiContextBuilder (байт-тест снапшота); markdown-форматирование меняет байты
+# и семантику строк (сдвиг «Примечание» в элемент списка).
+apps/desktop/src/main/modules/ai-insight/application/__fixtures__/context-golden.md

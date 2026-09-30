@@ -118,7 +118,10 @@ function scaleRange(range: { readonly min: number | null; readonly max: number |
 }
 
 /** Агрегаты канала построчно: пропущенные части — часть строки отсутствует (§7). */
-function valueStatsLine(label: string, stats: { avg?: number; min?: number; max?: number; sd?: number }): string {
+function valueStatsLine(
+  label: string,
+  stats: { avg?: number; min?: number; max?: number; sd?: number },
+): string {
   if (stats.avg === undefined) {
     return `${label}: нет данных`;
   }
@@ -136,7 +139,10 @@ function valueStatsLine(label: string, stats: { avg?: number; min?: number; max?
 }
 
 /** Средняя части суток: `СДА 121, ДДА 81` + пульс, если в части измерен (§13 052). */
-function partAverages(label: string, part: { count: number; sys: { avg?: number }; dia: { avg?: number }; pulse?: { avg?: number } }): string {
+function partAverages(
+  label: string,
+  part: { count: number; sys: { avg?: number }; dia: { avg?: number }; pulse?: { avg?: number } },
+): string {
   const parts: string[] = [];
   if (part.sys.avg !== undefined) {
     parts.push(`СДА ${num(part.sys.avg)}`);
@@ -204,7 +210,9 @@ function seriesLines(series: TrendResponse): string[] {
       marks.push('[неровный пульс]');
     }
     if (point.critical !== undefined) {
-      marks.push(point.critical === 'high' ? '[КРИТИЧЕСКОЕ: высокое]' : '[КРИТИЧЕСКОЕ: пониженное]');
+      marks.push(
+        point.critical === 'high' ? '[КРИТИЧЕСКОЕ: высокое]' : '[КРИТИЧЕСКОЕ: пониженное]',
+      );
     }
     const annotation = marks.length > 0 ? ` ${marks.join(' ')}` : '';
     return `${moment} — ${values.join(', ')}${annotation}`;
@@ -217,7 +225,8 @@ function gapLines(gaps: readonly Gap[]): string[] {
     return ['Разрывов не обнаружено'];
   }
   return gaps.map(
-    (gap) => `${dayMonth(gap.fromWallDate)}–${dayMonth(gap.toWallDate)} (${num(gap.days)} ${daysWord(gap.days)})`,
+    (gap) =>
+      `${dayMonth(gap.fromWallDate)}–${dayMonth(gap.toWallDate)} (${num(gap.days)} ${daysWord(gap.days)})`,
   );
 }
 
@@ -227,7 +236,8 @@ function scaleLines(scale: ActiveScale, stats: PeriodStatisticsDto): string[] {
     `Справочная шкала: ${scale.sourceLabel} (версия ${scale.version})`,
     'Категории (СДА / ДДА, мм рт. ст.):',
     ...scale.categories.map(
-      (category) => `- ${category.label}: СДА ${scaleRange(category.sysRange)}, ДДА ${scaleRange(category.diaRange)}`,
+      (category) =>
+        `- ${category.label}: СДА ${scaleRange(category.sysRange)}, ДДА ${scaleRange(category.diaRange)}`,
     ),
   ];
   const classification = stats.classification;
@@ -255,7 +265,8 @@ export function renderAiContext(input: AiContextRenderInput): {
   const { stats } = input;
   const blocks: Array<{ id: AiContextSectionId; lines: string[] }> = [];
 
-  const insufficient = stats.insufficientData.tooFewMeasurements || stats.insufficientData.tooFewDays;
+  const insufficient =
+    stats.insufficientData.tooFewMeasurements || stats.insufficientData.tooFewDays;
   const aggregates: string[] = [
     valueStatsLine('СДА (систолическое)', stats.sys),
     valueStatsLine('ДДА (диастолическое)', stats.dia),
@@ -274,7 +285,9 @@ export function renderAiContext(input: AiContextRenderInput): {
     aggregates.push(partAverages('Другое', stats.other));
   }
   if (stats.delta !== undefined) {
-    aggregates.push(`Разница вечер−утро: СДА ${signed(stats.delta.sys)}, ДДА ${signed(stats.delta.dia)}`);
+    aggregates.push(
+      `Разница вечер−утро: СДА ${signed(stats.delta.sys)}, ДДА ${signed(stats.delta.dia)}`,
+    );
   }
   const criticalKinds = [
     ...(stats.critical.high ? ['высокое'] : []),
@@ -285,7 +298,14 @@ export function renderAiContext(input: AiContextRenderInput): {
       ? `Критические значения: ЕСТЬ — ${criticalKinds.join(', ')}`
       : 'Критические значения: нет',
   );
-  blocks.push({ id: 'period', lines: [periodRangeLine(input), `Измерений: ${num(stats.count)}`, `Дней с измерениями: ${num(stats.daysWithMeasurements)}`] });
+  blocks.push({
+    id: 'period',
+    lines: [
+      periodRangeLine(input),
+      `Измерений: ${num(stats.count)}`,
+      `Дней с измерениями: ${num(stats.daysWithMeasurements)}`,
+    ],
+  });
   blocks.push({ id: 'aggregates', lines: aggregates });
 
   const daily: string[] = [];
@@ -298,7 +318,10 @@ export function renderAiContext(input: AiContextRenderInput): {
   if (input.includeNotes) {
     blocks.push({
       id: 'notes',
-      lines: input.notes.length > 0 ? input.notes.map((note) => `${note.wallDate} — ${note.text}`) : ['Нет заметок в периоде'],
+      lines:
+        input.notes.length > 0
+          ? input.notes.map((note) => `${note.wallDate} — ${note.text}`)
+          : ['Нет заметок в периоде'],
     });
   }
   blocks.push({ id: 'scale', lines: scaleLines(input.scale, stats) });

@@ -3,21 +3,24 @@
 // Любое изменение формата проекции ломает этот тест НАМЕРЕННО (§20: обновление
 // снапшота — осознанный коммит с обоснованием: формат входит в contextHash, его
 // смена честно помечает кэш резюме устаревшим — §22). Файл читается as-is
-// (байт-сравнение); .gitattributes фиксирует LF.
+// (байт-сравнение); .gitattributes фиксирует LF, .prettierignore исключает файл
+// из форматтера (markdown-форматирование меняло бы байты снапшота).
+//
+// Вход зафиксирован ИНЛАЙН (те же значения, что фикстура (b) 052): чужие
+// __fixtures__ — не публичный API модуля (module-public-api TASK-005), а
+// снапшот-дисциплина и требует собственного входа — правка фикстур 052 не должна
+// молча менять golden-контекст (это осознанный коммит, §20).
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import type { PeriodStatisticsDto } from '@hl/contracts';
 import { FixedClock, Instant } from '@hl/kernel';
 import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
-import {
-  buildPeriodStatistics,
-  buildTrendResponse,
-} from '../../analytics/index.js';
-import { GOLDEN_FIXTURES } from '../../analytics/application/__fixtures__/periods.js';
+import { buildPeriodStatistics, buildTrendResponse } from '../../analytics/index.js';
 
-import type { ContextPoint, ContextPointsPort, ContextPointsQuery } from './ports/ai-context.js';
+import type { ContextPoint, ContextPointsQuery } from './ports/ai-context.js';
 import { AiContextBuilder, type AiContextBuilderDeps } from './ai-context-builder.js';
 
 /** «Сейчас» FixedClock — после фикстурных дат (детерминизм, NFR-10). */
@@ -31,64 +34,51 @@ const PERIOD = {
   toUtcMs: Instant.fromIso('2026-03-08T23:59:00.000+03:00').utcMs,
 } as const;
 
-/** Фикстура (b) по префиксу имени (без non-null assertion — явный throw). */
-function onlyMorningFixture() {
-  const found = GOLDEN_FIXTURES.find((f) => f.name.startsWith('onlyMorning'));
-  if (found === undefined) {
-    throw new Error('golden-фикстура onlyMorning не найдена');
-  }
-  return found;
-}
-
-/** Точки фикстуры 052 → точки контекста (без заметок — как из журнала без них). */
+/**
+ * Фикстура (b) onlyMorning — 5 утренних записей (2026-03-02..06, 07:30, UTC+03):
+ * те же значения, что в golden-фикстурах TASK-052 §19 (sys/dia — прогрессия с
+ * шагом 2, пульс 58/«нет»/64/«нет»/68, критических нет).
+ */
 function toContextPoints(): ContextPoint[] {
-  return onlyMorningFixture()
-    .points()
-    .map((point, i) => ({
-      id: `golden-${i}`,
-      sys: point.sys,
-      dia: point.dia,
-      pulse: point.pulse,
-      takenAt: point.takenAt,
-      critical: point.critical,
-    }));
-}
-
-/** Подстановочный порт точек (§19). */
-class FixturePoints implements ContextPointsPort {
-  listByPeriod(q: ContextPointsQuery): Promise<ContextPoint[]> {
-    return Promise.resolve(
-      toContextPoints().filter(
-        (p) =>
-          (q.fromUtcMs === undefined || p.takenAt.utcMs >= q.fromUtcMs) &&
-          (q.toUtcMs === undefined || p.takenAt.utcMs <= q.toUtcMs),
-      ),
-    );
-  }
+  const days = [
+    { day: '2026-03-02', sys: 118, dia: 76, pulse: 58 as number | undefined },
+    { day: '2026-03-03', sys: 120, dia: 78, pulse: undefined },
+    { day: '2026-03-04', sys: 122, dia: 80, pulse: 64 as number | undefined },
+    { day: '2026-03-05', sys: 124, dia: 82, pulse: undefined },
+    { day: '2026-03-06', sys: 126, dia: 84, pulse: 68 as number | undefined },
+  ];
+  return days.map((row, i) => ({
+    id: `golden-${i}`,
+    sys: row.sys,
+    dia: row.dia,
+    pulse: row.pulse,
+    takenAt: Instant.fromIso(`${row.day}T07:30:00.000+03:00`),
+    critical: undefined,
+  }));
 }
 
 function makeDeps(): AiContextBuilderDeps {
+  const filter = (q: ContextPointsQuery): ContextPoint[] =>
+    toContextPoints().filter(
+      (p) =>
+        (q.fromUtcMs === undefined || p.takenAt.utcMs >= q.fromUtcMs) &&
+        (q.toUtcMs === undefined || p.takenAt.utcMs <= q.toUtcMs),
+    );
   return {
-    points: new FixturePoints(),
+    points: {
+      listByPeriod: (q) => Promise.resolve(filter(q)),
+    },
     stats: {
-      getStatistics: async (q) => {
-        const selected = toContextPoints().filter(
-          (p) =>
-            (q.fromUtcMs === undefined || p.takenAt.utcMs >= q.fromUtcMs) &&
-            (q.toUtcMs === undefined || p.takenAt.utcMs <= q.toUtcMs),
-        );
-        return JSON.parse(JSON.stringify(buildPeriodStatistics(selected, BP_OFFICE_ESC2018)));
+      getStatistics: (q) => {
+        // toDto 054: JSON round-trip — undefined-части исчезают, форма = провод.
+        const stats = JSON.parse(
+          JSON.stringify(buildPeriodStatistics(filter(q), BP_OFFICE_ESC2018)),
+        ) as PeriodStatisticsDto;
+        return Promise.resolve(stats);
       },
     },
     series: {
-      getSeries: async (q, mode) => {
-        const selected = toContextPoints().filter(
-          (p) =>
-            (q.fromUtcMs === undefined || p.takenAt.utcMs >= q.fromUtcMs) &&
-            (q.toUtcMs === undefined || p.takenAt.utcMs <= q.toUtcMs),
-        );
-        return buildTrendResponse(selected, mode);
-      },
+      getSeries: (q, mode) => Promise.resolve(buildTrendResponse(filter(q), mode)),
     },
     scales: { getActiveScale: () => Promise.resolve(BP_OFFICE_ESC2018) },
     clock: new FixedClock(NOW_MS, TZ),
