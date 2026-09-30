@@ -5,6 +5,7 @@
  * реестр CHANNEL_SCHEMAS и PREFS_PATCH_SCHEMA сервиса.
  */
 export {
+  AI_SETTINGS_SCHEMA,
   DATE_FORMAT_SCHEMA,
   JOB_LAST_BACKUP_SCHEMA,
   JOB_STATE_SCHEMA,
@@ -19,6 +20,7 @@ export {
   THEME_SCHEMA,
 } from './schemas.js';
 export type {
+  AiSettings,
   JobLastBackup,
   JobState,
   NetConsents,

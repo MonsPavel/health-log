@@ -17,6 +17,27 @@ export {
   type ModelStatusInfo,
 } from './models.js';
 
+/**
+ * TASK-081 §5/§7/§11: контракты каналов витрины моделей ai/models/* — экран
+ * «Модель» (/ai): list одним вызовом (ModelView + ramTotalGb + uiLanguage),
+ * download/pause/resume/reset {modelId} → статус, select {modelId} → prefs.
+ */
+export {
+  AI_MODELS_DOWNLOAD_REQUEST_SCHEMA,
+  AI_MODELS_LIST_REQUEST_SCHEMA,
+  AI_MODELS_LIST_RESPONSE_SCHEMA,
+  AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
+  AI_MODELS_PAUSE_RESPONSE_SCHEMA,
+  AI_MODELS_RESET_RESPONSE_SCHEMA,
+  AI_MODELS_SELECT_RESPONSE_SCHEMA,
+  AI_MODELS_RESUME_RESPONSE_SCHEMA,
+  AI_MODELS_STATUS_RESPONSE_SCHEMA,
+  MODEL_VIEW_SCHEMA,
+  type AiModelsListResponse,
+  type AiModelsSelectResponse,
+  type ModelView,
+} from './models-channels.js';
+
 export {
   KNOWN_WORKER_ERROR_CODES,
   isWorkerRequest,
