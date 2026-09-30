@@ -17,6 +17,7 @@ import type { ApiResult, AppErrorDto, AiModelsListResponse, ModelStatusInfo } fr
 
 import { call } from '../../../src/lib/ipc';
 import { useHlEvent } from '../../../lib/events';
+import { PREFS_QUERY_KEY } from '../../settings/model/use-preferences';
 
 /** Ключ запроса витрины (§12); инвалидация — завершение мутаций. */
 export const AI_MODELS_QUERY_KEY = ['ai', 'models'] as const;
@@ -92,6 +93,15 @@ export function useAiModels() {
     void queryClient.invalidateQueries({ queryKey: AI_MODELS_QUERY_KEY });
   };
 
+  /**
+   * §12: select пишет prefs.aiSettings в main — кэш ['prefs'] рендерера устарел.
+   * Инвалидация здесь (а не по prefs:changed): канал select отвечает {modelId},
+   * а не документом prefs, как prefs/set (у того кэш обновляет onSuccess).
+   */
+  const invalidatePrefs = (): void => {
+    void queryClient.invalidateQueries({ queryKey: PREFS_QUERY_KEY });
+  };
+
   const download = useMutation({
     mutationFn: (modelId: string) => modelAction('ai/models/download', modelId),
     onSuccess: invalidate,
@@ -112,7 +122,10 @@ export function useAiModels() {
   });
   const select = useMutation({
     mutationFn: (modelId: string) => modelAction('ai/models/select', modelId),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      invalidatePrefs();
+    },
   });
 
   return {
