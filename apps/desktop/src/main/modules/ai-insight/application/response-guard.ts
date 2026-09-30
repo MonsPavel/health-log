@@ -228,21 +228,31 @@ export class ResponseGuard {
   }
 
   /**
-   * Первое сработавшее правило или undefined. Сбй .test → правило считается
+   * Первое сработавшее правило или undefined. Сбой .test → правило считается
    * СРАБОТАВШИМ (§14: regex-катастрофа → replace, не pass; сомнение = замена).
+   * Для условного правила (requireImperativeContext, R2) гейт §13 применяется
+   * ТОЛЬКО при здоровой оценке (ревью TASK-085): после сбоя оценка не имеет
+   * исхода «нет совпадения», и «сбой + нет императива» не может кончиться pass —
+   * правило срабатывает безусловно.
    */
   private matchedRule(answer: string): GuardRule | undefined {
     for (const rule of this.rules) {
       let hit: boolean;
+      let evaluationFailed = false;
       try {
         hit = rule.pattern.test(answer);
       } catch {
         hit = true; // §14 FAIL-SAFE: сомнение = замена
+        evaluationFailed = true;
       }
       if (!hit) {
         continue;
       }
-      if (rule.requireImperativeContext === true && !this.hasImperativeContext(answer, rule)) {
+      if (
+        rule.requireImperativeContext === true &&
+        !evaluationFailed &&
+        !this.hasImperativeContext(answer, rule)
+      ) {
         continue;
       }
       return rule;
@@ -253,7 +263,10 @@ export class ResponseGuard {
   /**
    * Императив-контекст дозы (§13): в предложении, где нашлась доза, есть императив
    * R1 ИЛИ AUX («рекомендую|стоит принять|назначьте себе»). Пересказ заметок без
-   * императива («вы отметили приём 5 мг», «врач назначил 5 мг») → false → pass.
+   * императива («вы отметили приём 5 мг», «врач назначил 5 мг») → false → pass —
+   * только при ЗДОРОВОЙ оценке. Сбой оценки предложения — не «доза есть, контекста
+   * нет», а неопределённый исход: немедленно true (правило сработало; §14 —
+   * иначе сбой на тексте без императива дал бы fail-open pass, ревью TASK-085).
    */
   private hasImperativeContext(answer: string, rule: GuardRule): boolean {
     for (const sentence of sentencesOf(answer)) {
@@ -261,7 +274,7 @@ export class ResponseGuard {
       try {
         hasDose = rule.pattern.test(sentence);
       } catch {
-        hasDose = true; // §14 FAIL-SAFE: сомнение = замена — пусть решит контекст
+        return true; // §14 FAIL-SAFE: сомнение = замена (сбой оценки ≠ «нет контекста»)
       }
       if (hasDose && (IMPERATIVE_PATTERN.test(sentence) || AUX_IMPERATIVE_PATTERN.test(sentence))) {
         return true;
