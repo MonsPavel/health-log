@@ -11,9 +11,8 @@
 //  3. latestForPeriod: новейшая по (created_at_utc DESC, id DESC) среди совпавших
 //     границ периода; чужой период/пустая таблица — undefined;
 //  4. deleteAll очищает таблицу (кнопка «Очистить разборы», §8);
-//  5. currentDataVersion читает meta.data_version (v1 сеет '1'); мутация измерений
-//     через боевой SqliteBpMeasurementRepository bump'ит тот же счётчик — порт видит
-//     рост (основа stale-расчёта §7);
+//  5. currentDataVersion читает meta.data_version (v1 сеет '1'); изменение строки
+//     meta (bump мутаций данных) порт видит — основа stale-расчёта §7;
 //  6. порт асинхронный — методы возвращают Promise (контракт порта, §19 051).
 import { randomBytes } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -21,23 +20,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { type Clock } from '@hl/kernel';
-
-import { BpMeasurement } from '../../measurement/domain/bp-measurement.js';
 import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
 import { MigrationRunner } from '../../../shared/db/migration-runner.js';
 import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite.js';
-import { SqliteBpMeasurementRepository } from '../../measurement/adapters/sqlite-measurement-repository.js';
 import { SqliteInsightRepository } from './sqlite-insight-repository.js';
 import type { SummaryRecord } from '../application/ports/insight-repository.js';
-
-/** Фиксированное «сейчас» для боевой мутации (§19: детерминизм времени). */
-const NOW_MS = 1_758_816_000_000;
-
-const FIXED_CLOCK: Clock = {
-  nowMs: () => NOW_MS,
-  tzOffsetMin: () => 180,
-};
 
 /** tmp-каталоги этой сессии — удаляются в afterAll (§14). */
 const dirs: string[] = [];
@@ -125,28 +112,14 @@ describe('SqliteInsightRepository — ai_summary v6 (TASK-087 §19)', () => {
     db.close();
   });
 
-  it('(5) currentDataVersion читает meta.data_version; мутация измерений bump-ит общий счётчик', async () => {
+  it('(5) currentDataVersion читает meta.data_version; мутация данных bump-ит общий счётчик', async () => {
     const { db, repo } = await makeRepo('insight-version.sqlite');
     expect(await repo.currentDataVersion()).toBe(1); // v1 сеет '1' (TASK-025 §8)
 
-    // Боевая мутация данных — атомарный bump того же meta.data_version (§13).
-    const measurement = BpMeasurement.create(
-      {
-        profileId: PROFILE,
-        sys: 120,
-        dia: 80,
-        pulse: 60,
-        irregularPulse: false,
-        arm: 'left',
-        takenAt: { utcMs: NOW_MS - 60_000, tzOffsetMin: 180 },
-      },
-      FIXED_CLOCK,
-    );
-    if (!measurement.ok) {
-      throw new Error('фикстура измерения невалидна');
-    }
-    const added = await new SqliteBpMeasurementRepository(db).add(measurement.value);
-    expect(added.ok).toBe(true);
+    // Мутация данных двигает ТОТ ЖЕ счётчик meta.data_version (атомарно с записью —
+    // §13; сам bump мутаций — адаптер измерений, сквозной add-тест — full-cycle int
+    // в корне main). Здесь — чтение порта после изменения строки meta.
+    db.prepare("UPDATE meta SET value = '2' WHERE key = 'data_version'").run();
     expect(await repo.currentDataVersion()).toBe(2);
     db.close();
   });

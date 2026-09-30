@@ -1,9 +1,13 @@
 // TASK-087 §19/§20: интеграционный полный цикл UC-03 на tmp-БД (§5 «интеграционные
-// (tmp-БД)»): реальный SQLCipher-стек (openEncrypted → MigrationRunner с полным
-// реестром MIGRATIONS до v6), боевые адаптеры (SqliteInsightRepository,
-// SqliteBpMeasurementRepository, ContextPoints/Stats/SeriesAdapter + ScaleService с
-// боевой шкалой), РЕАЛЬНЫЕ AiContextBuilder/PrecheckService/ResponseGuard и
-// FakeLlmEngine (детерминированный, мс — §3/§15).
+// (tmp-БД)»). Файл живёт в КОРНЕ main-слоя (прецедент container-*.int.test.ts):
+// тест собирает межмодульный граф (measurement + analytics + ai-insight) — изнутри
+// модуля такие импорты запрещены depcruise (module-public-api, арх. 03 §4), здесь —
+// это и есть проводка уровня контейнера. Реальный SQLCipher-стек (openEncrypted →
+// MigrationRunner с полным реестром MIGRATIONS до v6), боевые адаптеры
+// (SqliteInsightRepository, SqliteBpMeasurementRepository,
+// ContextPoints/Stats/SeriesAdapter + ScaleService с боевой шкалой), РЕАЛЬНЫЕ
+// AiContextBuilder/PrecheckService/ResponseGuard и FakeLlmEngine
+// (детерминированный, мс — §3/§15).
 //
 // Матрица:
 //  1. miss-цикл: сидинг данных → generate → сохранена ровно одна строка v6 со всеми
@@ -24,29 +28,31 @@ import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 import type { HlEventMap } from '@hl/contracts';
 import { FixedClock, type Clock } from '@hl/kernel';
 
-import { MeasurementPointsAdapter } from '../../analytics/adapters/measurement-points-adapter.js';
-import { SqliteScaleRepository } from '../../analytics/adapters/sqlite-scale-repository.js';
-import { ScaleService } from '../../analytics/application/scale-service.js';
-import { ContextPointsAdapter } from '../adapters/context-sources.js';
-import { ContextSeriesAdapter } from '../adapters/context-sources.js';
-import { ContextStatsAdapter } from '../adapters/context-sources.js';
-import { FakeLlmEngine } from '../adapters/fake-llm-engine.js';
-import { SqliteBpMeasurementRepository } from '../../measurement/adapters/sqlite-measurement-repository.js';
-import { BpMeasurement } from '../../measurement/domain/bp-measurement.js';
-import { AiContextBuilder } from './ai-context-builder.js';
+import { createAiSummaryLatestHandler } from './ipc/handlers/ai-summary.js';
+import { MeasurementPointsAdapter } from './modules/analytics/adapters/measurement-points-adapter.js';
+import { SqliteScaleRepository } from './modules/analytics/adapters/sqlite-scale-repository.js';
+import { ScaleService } from './modules/analytics/application/scale-service.js';
+import {
+  ContextPointsAdapter,
+  ContextSeriesAdapter,
+  ContextStatsAdapter,
+} from './modules/ai-insight/adapters/context-sources.js';
+import { FakeLlmEngine } from './modules/ai-insight/adapters/fake-llm-engine.js';
+import { SqliteInsightRepository } from './modules/ai-insight/adapters/sqlite-insight-repository.js';
+import { AiContextBuilder } from './modules/ai-insight/application/ai-context-builder.js';
 import {
   AI_SUMMARY_DISCLAIMER_TEXT,
   GenerateSummary,
   type GenerateSummaryOutcome,
-} from './generate-summary.js';
-import { PrecheckService } from './precheck-service.js';
-import { refusalText } from './refusal-texts.js';
-import { ResponseGuard } from './response-guard.js';
-import { SqliteInsightRepository } from '../adapters/sqlite-insight-repository.js';
-import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
-import { MigrationRunner } from '../../../shared/db/migration-runner.js';
-import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite.js';
-import { createAiSummaryLatestHandler } from '../../../ipc/handlers/ai-summary.js';
+} from './modules/ai-insight/application/generate-summary.js';
+import { PrecheckService } from './modules/ai-insight/application/precheck-service.js';
+import { refusalText } from './modules/ai-insight/application/refusal-texts.js';
+import { ResponseGuard } from './modules/ai-insight/application/response-guard.js';
+import { SqliteBpMeasurementRepository } from './modules/measurement/adapters/sqlite-measurement-repository.js';
+import { BpMeasurement } from './modules/measurement/domain/bp-measurement.js';
+import { MIGRATIONS } from './shared/db/migrations/index.js';
+import { MigrationRunner } from './shared/db/migration-runner.js';
+import { openEncrypted, type EncryptedDatabase } from './shared/db/sqlite.js';
 
 const NOW_MS = 1_758_816_000_000;
 const DAY = 86_400_000;
