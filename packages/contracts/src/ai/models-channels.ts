@@ -54,6 +54,9 @@ export type ModelView = z.infer<typeof MODEL_VIEW_SCHEMA>;
 /** Запрос list (§11): {} — параметров нет. */
 export const AI_MODELS_LIST_REQUEST_SCHEMA = z.object({}).strict();
 
+/** Запрос list (§11). */
+export type AiModelsListRequest = z.infer<typeof AI_MODELS_LIST_REQUEST_SCHEMA>;
+
 /**
  * Ответ list (§7/§11): одним вызовом всё для экрана — витрины, ОЗУ машины
  * (os.totalmem main, дробные ГБ — честное сравнение с minRamGb) и язык
@@ -74,17 +77,16 @@ export type AiModelsListResponse = z.infer<typeof AI_MODELS_LIST_RESPONSE_SCHEMA
  * Общий запрос каналов действия {modelId} (§5/§11): download/pause/resume/reset/
  * select — одинаковая форма (прецедент общих схем report/export-*).
  */
-export const AI_MODELS_MODEL_ID_REQUEST_SCHEMA = z
-  .object({ modelId: z.string().min(1) })
-  .strict();
+export const AI_MODELS_MODEL_ID_REQUEST_SCHEMA = z.object({ modelId: z.string().min(1) }).strict();
+
+/** Общий запрос каналов действия (§11). */
+export type AiModelsModelIdRequest = z.infer<typeof AI_MODELS_MODEL_ID_REQUEST_SCHEMA>;
 
 /** Запрос download (§5/§11) — алиас общей формы (разные каналы, одна форма). */
 export const AI_MODELS_DOWNLOAD_REQUEST_SCHEMA = AI_MODELS_MODEL_ID_REQUEST_SCHEMA;
 
 /** Ответ select (§5/§9/§11): эхо выбранного id (prefs пишет use case main). */
-export const AI_MODELS_SELECT_RESPONSE_SCHEMA = z
-  .object({ modelId: z.string().min(1) })
-  .strict();
+export const AI_MODELS_SELECT_RESPONSE_SCHEMA = z.object({ modelId: z.string().min(1) }).strict();
 
 /** Ответ select. */
 export type AiModelsSelectResponse = z.infer<typeof AI_MODELS_SELECT_RESPONSE_SCHEMA>;

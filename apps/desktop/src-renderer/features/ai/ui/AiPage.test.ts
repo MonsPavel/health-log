@@ -15,7 +15,10 @@ import '../../../i18n';
 import { createQueryClient } from '../../../lib/query-client';
 import { AiPage } from './AiPage';
 
-let invoke: ReturnType<typeof vi.fn>;
+/** Типизированный мок моста: канал → Promise (no-misused-promises, §19). */
+type InvokeMock = ReturnType<typeof vi.fn<(channel: string) => Promise<unknown>>>;
+
+let invoke: InvokeMock;
 let eventListeners: Partial<Record<keyof HlEventMap, (payload: unknown) => void>>;
 
 const OK = (data: unknown) => ({ v: 1, ok: true, data });
@@ -56,7 +59,7 @@ const LIST_INSTALLED = {
 
 const LIST_NOT_INSTALLED = {
   ...LIST_INSTALLED,
-  models: [{ ...LIST_INSTALLED.models[0] as object, state: 'not_installed' }],
+  models: [{ ...(LIST_INSTALLED.models[0] as object), state: 'not_installed' }],
 };
 
 function renderPage(): void {
@@ -66,7 +69,7 @@ function renderPage(): void {
 }
 
 beforeEach(() => {
-  invoke = vi.fn().mockImplementation((channel: string) => {
+  invoke = vi.fn<(channel: string) => Promise<unknown>>().mockImplementation((channel: string) => {
     if (channel === 'ai/models/list') {
       return Promise.resolve(OK(LIST_NOT_INSTALLED));
     }
@@ -115,7 +118,7 @@ describe('AiPage — баннер «ИИ не настроен» (TASK-081 §20 
   });
 
   it('«позже» не навязывается: dismissed=true → баннера нет; экран моделей доступен', async () => {
-    invoke.mockImplementation((channel: string) => {
+    invoke.mockImplementation((channel: string): Promise<unknown> => {
       if (channel === 'ai/models/list') {
         return Promise.resolve(OK(LIST_NOT_INSTALLED));
       }
@@ -133,7 +136,7 @@ describe('AiPage — баннер «ИИ не настроен» (TASK-081 §20 
   });
 
   it('выбранная модель установлена — баннер не показывается (ИИ настроен, §5)', async () => {
-    invoke.mockImplementation((channel: string) => {
+    invoke.mockImplementation((channel: string): Promise<unknown> => {
       if (channel === 'ai/models/list') {
         return Promise.resolve(OK(LIST_INSTALLED));
       }
@@ -152,7 +155,7 @@ describe('AiPage — баннер «ИИ не настроен» (TASK-081 §20 
 
   it('пока prefs не загружены — баннера нет (без вспышки), потом появляется', async () => {
     let resolvePrefs: (value: unknown) => void = () => undefined;
-    invoke.mockImplementation((channel: string) => {
+    invoke.mockImplementation((channel: string): Promise<unknown> => {
       if (channel === 'prefs/get') {
         return new Promise((resolve) => {
           resolvePrefs = resolve;

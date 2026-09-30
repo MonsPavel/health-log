@@ -39,6 +39,14 @@ export interface LaunchAppOptions {
    * §3: без 2–3 ГБ модели в CI).
    */
   readonly fakeLlm?: boolean;
+  /**
+   * TASK-081 §22/§20 (AC6): TEST-ONLY путь файла «модели» — запуск с env
+   * HL_TEST_MODEL_FILE: bootstrap передаёт путь в контейнер (гард
+   * testModelFileEnabled — только не-packaged, §14), ai/models/download ставит
+   * файл мимо сети (§22: dev-модель с PLACEHOLDER-URL манифеста 079 сетевой
+   * путь 080 не проходит). Без опции — обычный запуск.
+   */
+  readonly testModelFile?: string;
 }
 
 /** TASK-062 §10: зеркало результата measureChannel preload.cts (§5 шаг 3). */
@@ -74,7 +82,8 @@ export function mainProcessLogsDir(): string {
  * ELECTRON_RENDERER_URL удаляется — окно грузит собранный dist-renderer (§13
  * create-window: без него открылись бы dev-сервер и DevTools). bench:true —
  * добавляется HL_BENCH=1 (§6 TASK-062), fakeLlm:true — HL_FAKE_LLM=1 (§5
- * TASK-078; поверхности — см. LaunchAppOptions).
+ * TASK-078), testModelFile — HL_TEST_MODEL_FILE (§22 TASK-081; поверхности —
+ * см. LaunchAppOptions).
  */
 export async function launchApp(options: LaunchAppOptions): Promise<ElectronApplication> {
   const env: NodeJS.ProcessEnv = { ...process.env };
@@ -84,6 +93,9 @@ export async function launchApp(options: LaunchAppOptions): Promise<ElectronAppl
   }
   if (options.fakeLlm === true) {
     env['HL_FAKE_LLM'] = '1';
+  }
+  if (options.testModelFile !== undefined) {
+    env['HL_TEST_MODEL_FILE'] = options.testModelFile;
   }
   delete env['ELECTRON_RENDERER_URL'];
 

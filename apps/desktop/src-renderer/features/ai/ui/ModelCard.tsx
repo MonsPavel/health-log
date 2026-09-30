@@ -98,7 +98,9 @@ export function ModelCard({
         <h3 data-testid="model-name" className="text-lg font-semibold text-text">
           {descriptor.name}
         </h3>
-        <p className="text-sm text-accent">{t('ai.models.card.version', { version: descriptor.version })}</p>
+        <p className="text-sm text-accent">
+          {t('ai.models.card.version', { version: descriptor.version })}
+        </p>
       </div>
 
       <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm text-neutral-700 sm:grid-cols-2 dark:text-neutral-300">
@@ -115,7 +117,9 @@ export function ModelCard({
           <dd data-testid="model-size">{size}</dd>
         </div>
         <div className="flex gap-2">
-          <dt className="sr-only">{t('ai.models.card.license', { license: descriptor.license })}</dt>
+          <dt className="sr-only">
+            {t('ai.models.card.license', { license: descriptor.license })}
+          </dt>
           <dd data-testid="model-license">
             {t('ai.models.card.license', { license: descriptor.license })}
           </dd>
@@ -157,7 +161,9 @@ export function ModelCard({
             <div className="h-full bg-accent" style={{ width: `${String(percent)}%` }} />
           </div>
           <p className="mt-1 text-sm text-accent">
-            <span data-testid="model-progress-percent">{t('ai.models.progress.percent', { percent })}</span>
+            <span data-testid="model-progress-percent">
+              {t('ai.models.progress.percent', { percent })}
+            </span>
             {state === 'downloading' && view.bytesLoaded !== undefined ? (
               <>
                 {' · '}

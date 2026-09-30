@@ -126,11 +126,13 @@ describe('buildContainer — витрина моделей в реестре к�
   });
 
   it('select через dispatch → prefs/get отражает aiSettings.modelId (§5/§9)', async () => {
-    baseContainer = baseContainer ?? (await buildContainer({
-      userDataPath: baseDir,
-      clock: testClock(),
-      vault: () => new MockVault(),
-    }));
+    baseContainer =
+      baseContainer ??
+      (await buildContainer({
+        userDataPath: baseDir,
+        clock: testClock(),
+        vault: () => new MockVault(),
+      }));
 
     const selected = await call<{ modelId: string }>(baseContainer, 'ai/models/select', {
       modelId: 'dev-placeholder-ru',
@@ -147,11 +149,13 @@ describe('buildContainer — витрина моделей в реестре к�
   });
 
   it('select чужого id → ApiFailure AI/MODEL_NOT_FOUND (§13)', async () => {
-    baseContainer = baseContainer ?? (await buildContainer({
-      userDataPath: baseDir,
-      clock: testClock(),
-      vault: () => new MockVault(),
-    }));
+    baseContainer =
+      baseContainer ??
+      (await buildContainer({
+        userDataPath: baseDir,
+        clock: testClock(),
+        vault: () => new MockVault(),
+      }));
 
     const envelope = await call(baseContainer, 'ai/models/select', { modelId: 'no-such' });
     expect(envelope.ok).toBe(false);
@@ -179,7 +183,9 @@ describe('buildContainer — витрина моделей в реестре к�
     const listEnvelope = await call<{
       models: { descriptor: { id: string }; state: string }[];
     }>(testInstallContainer, 'ai/models/list', {});
-    const installed = listEnvelope.data?.models.find((m) => m.descriptor.id === 'dev-placeholder-ru');
+    const installed = listEnvelope.data?.models.find(
+      (m) => m.descriptor.id === 'dev-placeholder-ru',
+    );
     expect(installed?.state).toBe('installed');
   });
 });

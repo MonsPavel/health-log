@@ -33,7 +33,9 @@ export {
   AI_MODELS_RESUME_RESPONSE_SCHEMA,
   AI_MODELS_STATUS_RESPONSE_SCHEMA,
   MODEL_VIEW_SCHEMA,
+  type AiModelsListRequest,
   type AiModelsListResponse,
+  type AiModelsModelIdRequest,
   type AiModelsSelectResponse,
   type ModelView,
 } from './models-channels.js';

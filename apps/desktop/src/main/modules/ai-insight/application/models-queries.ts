@@ -96,17 +96,18 @@ export class AiModelsQueries {
    * Список моделей для экрана (§7): дескрипторы манифеста + статус store на
    * каждый; ОЗУ машины и язык UI — из портов. Битый манифест → err (AppError
    * реестра 079; хендлер вернёт ApiFailure, экран покажет состояние ошибки).
+   * Не async (await нет) — форма Promise, как getPrefs (прецедент 047).
    */
-  async list(): Promise<Result<AiModelsListResponse>> {
+  list(): Promise<Result<AiModelsListResponse>> {
     let descriptors: ModelDescriptor[];
     try {
       descriptors = this.registry.listModels();
     } catch (cause) {
-      return err(
+      const failure =
         cause instanceof AppError
           ? cause
-          : AppError.of('APP/INTERNAL', 'errors.internal', { reason: 'models-manifest' }, cause),
-      );
+          : AppError.of('APP/INTERNAL', 'errors.internal', { reason: 'models-manifest' }, cause);
+      return Promise.resolve(err(failure));
     }
     const models: ModelView[] = descriptors.map((descriptor) => {
       const status = this.store.status(descriptor.id);
@@ -119,7 +120,9 @@ export class AiModelsQueries {
       }
       return view;
     });
-    return ok({ models, ramTotalGb: this.ramTotalGb(), uiLanguage: this.uiLanguage() });
+    return Promise.resolve(
+      ok({ models, ramTotalGb: this.ramTotalGb(), uiLanguage: this.uiLanguage() }),
+    );
   }
 
   /**
@@ -140,15 +143,15 @@ export class AiModelsQueries {
   }
 
   /** Пауза (§5): abort попытки store + статус после (paused + bytesLoaded). */
-  async pause(modelId: string): Promise<Result<ModelStatusInfo>> {
+  pause(modelId: string): Promise<Result<ModelStatusInfo>> {
     this.store.pause(modelId);
-    return ok(this.store.status(modelId));
+    return Promise.resolve(ok(this.store.status(modelId)));
   }
 
   /** Сброс терминальной ошибки (§7 080): error → not_installed, хвосты удалены. */
-  async reset(modelId: string): Promise<Result<ModelStatusInfo>> {
+  reset(modelId: string): Promise<Result<ModelStatusInfo>> {
     this.store.reset(modelId);
-    return ok(this.store.status(modelId));
+    return Promise.resolve(ok(this.store.status(modelId)));
   }
 
   /**

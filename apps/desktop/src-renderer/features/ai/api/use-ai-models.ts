@@ -13,7 +13,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { AppErrorDto, AiModelsListResponse, ModelStatusInfo } from '@hl/contracts';
+import type { ApiResult, AppErrorDto, AiModelsListResponse, ModelStatusInfo } from '@hl/contracts';
 
 import { call } from '../../../src/lib/ipc';
 import { useHlEvent } from '../../../lib/events';
@@ -43,11 +43,21 @@ async function loadAiModels(): Promise<AiModelsListResponse> {
 }
 
 /** Вызов канала действия {modelId} (§11); разворот конверта, failure → AiModelsIpcError. */
-async function modelAction<C extends 'ai/models/download' | 'ai/models/pause' | 'ai/models/resume' | 'ai/models/reset' | 'ai/models/select'>(
-  channel: C,
+async function modelAction(
+  channel:
+    | 'ai/models/download'
+    | 'ai/models/pause'
+    | 'ai/models/resume'
+    | 'ai/models/reset'
+    | 'ai/models/select',
   modelId: string,
 ): Promise<ModelStatusInfo | { modelId: string }> {
-  const result = await call(channel, { modelId });
+  // Формы запросов пяти каналов идентичны ({modelId}, контракты 081): дженерик call
+  // не распределяет union — сужаем к одной форме; union ответа восстанавливаем
+  // приведением (форма каждого ответа валидна схемой реестра каркаса).
+  const result = (await call(channel as 'ai/models/download', { modelId })) as ApiResult<
+    ModelStatusInfo | { modelId: string }
+  >;
   if (!result.ok) {
     throw new AiModelsIpcError(result.error);
   }

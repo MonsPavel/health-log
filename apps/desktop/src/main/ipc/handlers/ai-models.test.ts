@@ -51,10 +51,10 @@ function fakeStore(status: ModelStatusInfo = { state: 'not_installed' }): ModelS
   pauseSpy: ReturnType<typeof vi.fn>;
   resetSpy: ReturnType<typeof vi.fn>;
 } {
-  const downloadSpy = vi.fn((_id: string) => Promise.resolve(ok({ state: 'installed' as const })));
-  const resumeSpy = vi.fn((_id: string) => Promise.resolve(ok({ state: 'paused' as const })));
-  const pauseSpy = vi.fn((_id: string) => undefined);
-  const resetSpy = vi.fn((_id: string) => undefined);
+  const downloadSpy = vi.fn(() => Promise.resolve(ok({ state: 'installed' as const })));
+  const resumeSpy = vi.fn(() => Promise.resolve(ok({ state: 'paused' as const })));
+  const pauseSpy = vi.fn(() => undefined);
+  const resetSpy = vi.fn(() => undefined);
   return {
     download: downloadSpy,
     resume: resumeSpy,
@@ -89,11 +89,13 @@ function fakePrefs(doc?: Partial<Prefs>): ModelsPrefsPort & { setSpy: ReturnType
 }
 
 /** Use case на подстановочных зависимостях (прецедент measurements.test.ts). */
-function build(overrides: {
-  store?: ReturnType<typeof fakeStore>;
-  registry?: ModelsCatalogPort;
-  prefs?: ReturnType<typeof fakePrefs>;
-} = {}): { queries: AiModelsQueries; store: ReturnType<typeof fakeStore> } {
+function build(
+  overrides: {
+    store?: ReturnType<typeof fakeStore>;
+    registry?: ModelsCatalogPort;
+    prefs?: ReturnType<typeof fakePrefs>;
+  } = {},
+): { queries: AiModelsQueries; store: ReturnType<typeof fakeStore> } {
   const store = overrides.store ?? fakeStore();
   const queries = new AiModelsQueries({
     store,
@@ -122,7 +124,14 @@ describe('createAiModelsListHandler — {} → витрина экрана (§7/
 
   it('битый манифест → AppError APP/INTERNAL наружу (каркас вернёт ApiFailure)', async () => {
     const boom = AppError.of('APP/INTERNAL', 'errors.internal', { reason: 'models-manifest' });
-    const { queries } = build({ registry: { listModels: () => { throw boom; } } });
+    const { queries } = build({
+      registry: {
+        listModels: () => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error -- AppError по построению (kernel-класс не наследует Error, прецедент 076/sqlite)
+          throw boom;
+        },
+      },
+    });
     const handler = createAiModelsListHandler(queries);
 
     await expect(handler({})).rejects.toBe(boom);
@@ -148,7 +157,9 @@ describe('createAiModelsDownloadHandler/Resume — {modelId} → финал фл
     const { queries } = build({ store });
     const handler = createAiModelsDownloadHandler(queries);
 
-    await expect(handler({ modelId: 'dev-ru' })).rejects.toMatchObject({ code: 'AI/DOWNLOAD_BUSY' });
+    await expect(handler({ modelId: 'dev-ru' })).rejects.toMatchObject({
+      code: 'AI/DOWNLOAD_BUSY',
+    });
   });
 
   it('resume делегирует store.resume', async () => {

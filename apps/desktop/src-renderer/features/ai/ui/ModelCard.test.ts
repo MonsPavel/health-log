@@ -8,13 +8,13 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ModelView } from '@hl/contracts';
+import type { ModelDescriptor, ModelView } from '@hl/contracts';
 
 import '../../../i18n';
 import { ModelCard } from './ModelCard';
 
-/** Базовый дескриптор (2 ГБ, ru+en, 16 ГБ ОЗУ). */
-const DESCRIPTOR = {
+/** Базовый дескриптор (2 ГБ, ru+en, 16 ГБ ОЗУ) — форма манифеста 079. */
+const DESCRIPTOR: ModelDescriptor = {
   id: 'dev-ru',
   name: 'Dev Model',
   version: '1.0.0',
@@ -25,18 +25,18 @@ const DESCRIPTOR = {
   languages: ['ru', 'en'],
   minRamGb: 16,
   license: 'Apache-2.0',
-} as const;
+};
 
 function view(overrides: Partial<ModelView> = {}): ModelView {
   return { descriptor: DESCRIPTOR, state: 'not_installed', ...overrides };
 }
 
 interface Handlers {
-  onDownload: ReturnType<typeof vi.fn>;
-  onPause: ReturnType<typeof vi.fn>;
-  onResume: ReturnType<typeof vi.fn>;
-  onReset: ReturnType<typeof vi.fn>;
-  onSelect: ReturnType<typeof vi.fn>;
+  onDownload: ReturnType<typeof vi.fn<() => void>>;
+  onPause: ReturnType<typeof vi.fn<() => void>>;
+  onResume: ReturnType<typeof vi.fn<() => void>>;
+  onReset: ReturnType<typeof vi.fn<() => void>>;
+  onSelect: ReturnType<typeof vi.fn<() => void>>;
 }
 
 function renderCard(
@@ -44,11 +44,11 @@ function renderCard(
   overrides: { ramTotalGb?: number; uiLanguage?: string; selected?: boolean; busy?: boolean } = {},
 ): Handlers {
   const handlers: Handlers = {
-    onDownload: vi.fn(),
-    onPause: vi.fn(),
-    onResume: vi.fn(),
-    onReset: vi.fn(),
-    onSelect: vi.fn(),
+    onDownload: vi.fn<() => void>(),
+    onPause: vi.fn<() => void>(),
+    onResume: vi.fn<() => void>(),
+    onReset: vi.fn<() => void>(),
+    onSelect: vi.fn<() => void>(),
   };
   render(
     createElement(ModelCard, {

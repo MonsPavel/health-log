@@ -45,10 +45,10 @@ function descriptor(overrides: Partial<ModelDescriptor> = {}): ModelDescriptor {
 
 /** Store-порт с настраиваемым статусом и spy-делегированием (§19). */
 class FakeStore {
-  readonly downloadSpy = vi.fn((modelId: string) => Promise.resolve(ok({ state: 'installed' as const })));
-  readonly resumeSpy = vi.fn((modelId: string) => Promise.resolve(ok({ state: 'paused' as const })));
-  readonly pauseSpy = vi.fn((modelId: string) => undefined);
-  readonly resetSpy = vi.fn((modelId: string) => undefined);
+  readonly downloadSpy = vi.fn(() => Promise.resolve(ok({ state: 'installed' as const })));
+  readonly resumeSpy = vi.fn(() => Promise.resolve(ok({ state: 'paused' as const })));
+  readonly pauseSpy = vi.fn(() => undefined);
+  readonly resetSpy = vi.fn(() => undefined);
 
   constructor(public statusResult: ModelStatusInfo = { state: 'not_installed' }) {}
 
@@ -64,7 +64,7 @@ class FakeStore {
   reset(modelId: string): void {
     this.resetSpy(modelId);
   }
-  status(_modelId: string): ModelStatusInfo {
+  status(): ModelStatusInfo {
     return this.statusResult;
   }
 }
@@ -78,6 +78,7 @@ class FakeRegistry implements ModelsCatalogPort {
 
   listModels(): ModelDescriptor[] {
     if (this.failure !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт реестра 079; прецедент 076/sqlite — kernel-класс не наследует Error)
       throw this.failure;
     }
     return this.models;
@@ -110,7 +111,7 @@ class FakePrefs {
 
 /** Test-install порт (§22): включаемость + spy установки мимо сети. */
 class FakeTestInstall {
-  readonly installSpy = vi.fn((_modelId: string) => Promise.resolve(ok({ state: 'installed' as const })));
+  readonly installSpy = vi.fn(() => Promise.resolve(ok({ state: 'installed' as const })));
 
   constructor(public enabled = false) {}
 

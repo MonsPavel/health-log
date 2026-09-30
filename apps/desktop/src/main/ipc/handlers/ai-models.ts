@@ -21,7 +21,6 @@ import type { AiModelsQueries } from '../../modules/ai-insight/application/model
 /** Распаковка Result use case: err → AppError наружу (прецедент data-care.ts). */
 function unwrap<T>(result: { ok: boolean; value?: T; error?: unknown }): T {
   if (isErr(result as never)) {
-    // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (каркас → ApiFailure(toDto), прецедент report.ts)
     throw (result as { error: unknown }).error;
   }
   return (result as { value: T }).value;

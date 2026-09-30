@@ -19,11 +19,18 @@ import '../../../i18n';
 import { createQueryClient } from '../../../lib/query-client';
 import { ModelsScreen } from './ModelsScreen';
 
-let invoke: ReturnType<typeof vi.fn>;
+/** Типизированный мок моста: канал → Promise (no-misused-promises, §19). */
+type InvokeMock = ReturnType<typeof vi.fn<(channel: string) => Promise<unknown>>>;
+
+let invoke: InvokeMock;
 let eventListeners: Partial<Record<keyof HlEventMap, (payload: unknown) => void>>;
 
 const OK = (data: unknown) => ({ v: 1, ok: true, data });
-const FAIL = (code: string, messageKey: string) => ({ v: 1, ok: false, error: { code, messageKey } });
+const FAIL = (code: string, messageKey: string) => ({
+  v: 1,
+  ok: false,
+  error: { code, messageKey },
+});
 
 const PREFS = (over: Record<string, unknown> = {}) => ({
   theme: 'system',
@@ -70,7 +77,7 @@ function renderScreen(): void {
 }
 
 beforeEach(() => {
-  invoke = vi.fn().mockImplementation((channel: string) => {
+  invoke = vi.fn<(channel: string) => Promise<unknown>>().mockImplementation((channel: string) => {
     if (channel === 'ai/models/list') {
       return Promise.resolve(OK(LIST));
     }
@@ -105,8 +112,11 @@ afterEach(() => {
   localStorage.clear();
 });
 
-const downloadCalls = (): unknown[][] =>
-  invoke.mock.calls.filter((call) => call[0] === 'ai/models/download');
+/** Вызовы канала моста: [channel, payload] (типизированный мок — один аргумент). */
+const payloadsOf = (channel: string): unknown[] =>
+  invoke.mock.calls
+    .filter((call) => call[0] === channel)
+    .map((call) => (call as unknown as unknown[])[1]);
 
 describe('ModelsScreen — согласие до первой загрузки (TASK-081 §20 AC2, §14)', () => {
   it('первый «Скачать» без согласия → диалог с размером и host; download НЕ вызван', async () => {
@@ -119,7 +129,7 @@ describe('ModelsScreen — согласие до первой загрузки (
     // §14: host в тексте согласия — из URL манифеста (реальный домен, каноничные
     // строчные — как показывает браузер), не «интернет».
     expect(dialog.textContent).toContain('placeholder.invalid');
-    expect(downloadCalls()).toHaveLength(0);
+    expect(payloadsOf('ai/models/download')).toHaveLength(0);
   });
 
   it('отказ («Отмена») → диалога нет, сети не было (spy download пуст)', async () => {
@@ -128,7 +138,7 @@ describe('ModelsScreen — согласие до первой загрузки (
     fireEvent.click(await screen.findByTestId('consent-cancel'));
 
     await waitFor(() => expect(screen.queryByTestId('consent-dialog')).toBeNull());
-    expect(downloadCalls()).toHaveLength(0);
+    expect(payloadsOf('ai/models/download')).toHaveLength(0);
   });
 
   it('подтверждение → prefs/set согласия (целиком) и затем download (§13)', async () => {
@@ -136,17 +146,17 @@ describe('ModelsScreen — согласие до первой загрузки (
     fireEvent.click(await screen.findByTestId('model-download'));
     fireEvent.click(await screen.findByTestId('consent-confirm'));
 
-    await waitFor(() => expect(downloadCalls()).toHaveLength(1));
-    expect(downloadCalls()[0]?.[1]).toEqual({ modelId: 'dev-placeholder-ru' });
-    const setCalls = invoke.mock.calls.filter((call) => call[0] === 'prefs/set');
-    expect(setCalls).toHaveLength(1);
-    expect(setCalls[0]?.[1]).toEqual({
+    await waitFor(() => expect(payloadsOf('ai/models/download')).toHaveLength(1));
+    expect(payloadsOf('ai/models/download')[0]).toEqual({ modelId: 'dev-placeholder-ru' });
+    const setPayloads = payloadsOf('prefs/set');
+    expect(setPayloads).toHaveLength(1);
+    expect(setPayloads[0]).toEqual({
       patch: { netConsents: { updatesCheck: false, modelsDownload: true } },
     });
   });
 
   it('согласие уже выдано — диалога нет, download сразу (§13)', async () => {
-    invoke.mockImplementation((channel: string) => {
+    invoke.mockImplementation((channel: string): Promise<unknown> => {
       if (channel === 'prefs/get') {
         return Promise.resolve(
           OK(PREFS({ netConsents: { updatesCheck: false, modelsDownload: true } })),
@@ -161,7 +171,7 @@ describe('ModelsScreen — согласие до первой загрузки (
 
     fireEvent.click(await screen.findByTestId('model-download'));
 
-    await waitFor(() => expect(downloadCalls()).toHaveLength(1));
+    await waitFor(() => expect(payloadsOf('ai/models/download')).toHaveLength(1));
     expect(screen.queryByTestId('consent-dialog')).toBeNull();
   });
 });
@@ -178,7 +188,7 @@ describe('ModelsScreen — прогресс из события ai:progress (§2
       downloadedBytes: 858_993_459,
       totalBytes: 2_147_483_648,
       state: 'downloading',
-    } as HlEventMap['ai:progress']);
+    });
 
     await waitFor(() =>
       expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('40'),
@@ -189,7 +199,7 @@ describe('ModelsScreen — прогресс из события ai:progress (§2
 
 describe('ModelsScreen — выбор модели и состояния экрана (§5/§9/§13)', () => {
   it('installed-карточка: «Выбрать» → ai/models/select {modelId}', async () => {
-    invoke.mockImplementation((channel: string) => {
+    invoke.mockImplementation((channel: string): Promise<unknown> => {
       if (channel === 'ai/models/list') {
         return Promise.resolve(
           OK({ ...LIST, models: [{ ...LIST.models[0], state: 'installed' }] }),
@@ -210,7 +220,7 @@ describe('ModelsScreen — выбор модели и состояния экр�
   });
 
   it('отказ list (битый манифест) → состояние ошибки, не краш (§13)', async () => {
-    invoke.mockImplementation((channel: string) => {
+    invoke.mockImplementation((channel: string): Promise<unknown> => {
       if (channel === 'ai/models/list') {
         return Promise.resolve(FAIL('APP/INTERNAL', 'errors.internal'));
       }

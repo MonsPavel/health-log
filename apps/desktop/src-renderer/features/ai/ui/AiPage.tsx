@@ -25,12 +25,17 @@ export function AiPage(): JSX.Element {
   // ИИ настроен: выбранная модель установлена (баннер не нужен, §5).
   const selectedInstalled =
     aiSettings?.modelId !== undefined &&
-    (data?.models.some((model) => model.descriptor.id === aiSettings.modelId && model.state === 'installed') ?? false);
+    (data?.models.some(
+      (model) => model.descriptor.id === aiSettings.modelId && model.state === 'installed',
+    ) ??
+      false);
   const showBanner = prefs !== undefined && aiSettings?.dismissed !== true && !selectedInstalled;
 
   /** §5 РЕШЕНИЕ: «позже» — навсегда (объект aiSettings целиком, modelId не трогаем). */
   const handleLater = (): void => {
-    setPreferences.mutate({ aiSettings: { ...(aiSettings ?? { dismissed: false }), dismissed: true } });
+    setPreferences.mutate({
+      aiSettings: { ...(aiSettings ?? { dismissed: false }), dismissed: true },
+    });
   };
 
   return (

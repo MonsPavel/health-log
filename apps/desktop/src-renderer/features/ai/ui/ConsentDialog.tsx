@@ -28,11 +28,7 @@ export interface ConsentDialogProps {
 }
 
 /** Диалог согласия на загрузку модели (§14). */
-export function ConsentDialog({
-  target,
-  onConfirm,
-  onClose,
-}: ConsentDialogProps): JSX.Element {
+export function ConsentDialog({ target, onConfirm, onClose }: ConsentDialogProps): JSX.Element {
   const { t } = useTranslation();
 
   return (

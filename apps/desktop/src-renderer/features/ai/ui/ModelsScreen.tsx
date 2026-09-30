@@ -59,7 +59,11 @@ export function ModelsScreen(): JSX.Element {
   };
 
   const busy =
-    download.isPending || pause.isPending || resume.isPending || reset.isPending || select.isPending;
+    download.isPending ||
+    pause.isPending ||
+    resume.isPending ||
+    reset.isPending ||
+    select.isPending;
 
   return (
     <section data-testid="ai-models-section" aria-labelledby="ai-models-title" className="mt-4">
@@ -73,7 +77,10 @@ export function ModelsScreen(): JSX.Element {
         </p>
       ) : null}
       {isError ? (
-        <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-text dark:border-red-500/40 dark:bg-red-500/10">
+        <p
+          role="alert"
+          className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-text dark:border-red-500/40 dark:bg-red-500/10"
+        >
           {t('ai.models.loadError')}
         </p>
       ) : null}

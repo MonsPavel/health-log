@@ -96,19 +96,22 @@ describe('PREFS_SCHEMA — aiSettings (TASK-081 §5: выбор модели и 
   });
 
   it('парсит полный aiSettings: modelId + dismissed=true («настроить позже»)', () => {
-    expect(PREFS_SCHEMA.parse({ ...VALID_PREFS, aiSettings: { modelId: 'dev-ru', dismissed: true } }).aiSettings).toEqual({
+    expect(
+      PREFS_SCHEMA.parse({ ...VALID_PREFS, aiSettings: { modelId: 'dev-ru', dismissed: true } })
+        .aiSettings,
+    ).toEqual({
       modelId: 'dev-ru',
       dismissed: true,
     });
   });
 
   it('мусор отклоняется (strict): пустой modelId, чужое поле, не-boolean dismissed', () => {
-    expect(
-      PREFS_SCHEMA.safeParse({ ...VALID_PREFS, aiSettings: { modelId: '' } }).success,
-    ).toBe(false);
-    expect(
-      PREFS_SCHEMA.safeParse({ ...VALID_PREFS, aiSettings: { stranger: 1 } }).success,
-    ).toBe(false);
+    expect(PREFS_SCHEMA.safeParse({ ...VALID_PREFS, aiSettings: { modelId: '' } }).success).toBe(
+      false,
+    );
+    expect(PREFS_SCHEMA.safeParse({ ...VALID_PREFS, aiSettings: { stranger: 1 } }).success).toBe(
+      false,
+    );
     expect(
       PREFS_SCHEMA.safeParse({ ...VALID_PREFS, aiSettings: { dismissed: 'yes' } }).success,
     ).toBe(false);
