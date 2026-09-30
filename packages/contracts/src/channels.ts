@@ -43,7 +43,10 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * list {} → {models: ModelView[], ramTotalGb, uiLanguage} одним вызовом (§7);
  * download/pause/resume/reset {modelId} → форма статуса 080 (download/resume — финал
  * флоу, пауза/сброс — статус после операции); select {modelId} → {modelId}
- * (prefs.aiSettings.modelId, ensureModel — лениво при генерации 087, §9).
+ * (prefs.aiSettings.modelId, ensureModel — лениво при генерации 087, §9);
+ * превью ИИ-контекста `ai/context/preview` — TASK-083 §5/§11 (схемы —
+ * ai/context-channels.ts): {profileId, period, includeNotes} → {text, sections,
+ * hash} (modelId резолвит main из prefs; text — PHI, в лог не пишется, §14).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -61,6 +64,9 @@ export type ChannelName =
   | 'ai/models/resume'
   | 'ai/models/reset'
   | 'ai/models/select'
+  // TASK-083 §5/§11: превью ИИ-контекста (схемы — ai/context-channels.ts) —
+  // нужен UI раньше резюме (§11 РЕШЕНИЕ: канал в объёме 083).
+  | 'ai/context/preview'
   | 'app/ping'
   | 'app/log-client-error'
   | 'app/reveal-path'

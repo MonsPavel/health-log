@@ -16,6 +16,10 @@ import {
   AI_MODELS_STATUS_RESPONSE_SCHEMA,
 } from './ai/models-channels.js';
 import {
+  AI_CONTEXT_PREVIEW_REQUEST_SCHEMA,
+  AI_CONTEXT_PREVIEW_RESPONSE_SCHEMA,
+} from './ai/context-channels.js';
+import {
   BACKUP_CREATE_REQUEST_SCHEMA,
   BACKUP_CREATE_RESPONSE_SCHEMA,
   BACKUP_RESTORE_REQUEST_SCHEMA,
@@ -102,6 +106,16 @@ export const CHANNEL_SCHEMAS = {
   'ai/models/select': {
     request: AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
     response: AI_MODELS_SELECT_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-083 §5/§11: превью ИИ-контекста — {profileId, period, includeNotes} →
+   * {text, sections, hash}. modelId в запрос не входит — main резолвит активную
+   * модель из prefs (§5); text — PHI: в лог не пишется (§14). Период — та же
+   * схема, что stats/trend (§23 054: переиспользование обязательно).
+   */
+  'ai/context/preview': {
+    request: AI_CONTEXT_PREVIEW_REQUEST_SCHEMA,
+    response: AI_CONTEXT_PREVIEW_RESPONSE_SCHEMA,
   },
   'app/ping': {
     request: z.object({}).strict(),
