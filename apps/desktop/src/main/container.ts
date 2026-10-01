@@ -157,6 +157,24 @@ import {
 } from './modules/ai-insight/adapters/context-sources.js';
 import { AiContextBuilder } from './modules/ai-insight/application/ai-context-builder.js';
 import { createAiContextPreviewHandler } from './ipc/handlers/ai-context.js';
+// TASK-087 §5/§9/§11/§12: полный поток UC-03 — кэш резюме (адаптер над v6),
+// префильтр 086, пост-фильтр 085, use case GenerateSummary и хендлеры
+// ai/summary/generate|latest + ai/cancel (отмена по requestId, §5 п.5).
+import { SqliteInsightRepository } from './modules/ai-insight/adapters/sqlite-insight-repository.js';
+import { PrecheckService } from './modules/ai-insight/application/precheck-service.js';
+import { refusalText } from './modules/ai-insight/application/refusal-texts.js';
+import { ResponseGuard } from './modules/ai-insight/application/response-guard.js';
+import {
+  GenerateSummary,
+  type SummaryModelMeta,
+} from './modules/ai-insight/application/generate-summary.js';
+import type { InsightRepository } from './modules/ai-insight/application/ports/insight-repository.js';
+import {
+  AiSummaryRequestRegistry,
+  createAiSummaryCancelHandler,
+  createAiSummaryGenerateHandler,
+  createAiSummaryLatestHandler,
+} from './ipc/handlers/ai-summary.js';
 import {
   createAiModelsDownloadHandler,
   createAiModelsListHandler,
@@ -416,6 +434,17 @@ export interface Container {
    * (арх. 07 §3); потребитель — хендлер ai/context/preview (§11), далее 084/087.
    */
   readonly aiContext: AiContextBuilder;
+  /**
+   * Хранилище резюме (TASK-087 §5): адаптер над ai_summary v6; потребители —
+   * GenerateSummary (кэш/сохранение) и хендлер ai/summary/latest (бейдж §12);
+   * deleteAll — кнопка «Очистить разборы» (UI 088).
+   */
+  readonly insightRepo: InsightRepository;
+  /**
+   * Use case GenerateSummary (TASK-087 §2/§5): полный поток UC-03; потребитель —
+   * хендлер ai/summary/generate (§11).
+   */
+  readonly generateSummary: GenerateSummary;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
 }
@@ -864,6 +893,33 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       scales: scaleService,
       clock,
     });
+    //      TASK-087 §5/§9: полный поток UC-03 — хранилище резюме (v6), guardrails
+    //      (префильтр 086 + пост-фильтр 085 — тот же refusalText 086: единый тон
+    //      отказов), use case GenerateSummary. Мета модели — prefs + реестр
+    //      манифеста 079 (версия фиксируется в каждом резюме — арх. 07 §6);
+    //      engine — движок графа выше (fake в dev/e2e). Лог — категория ai (§18).
+    const insightRepo = new SqliteInsightRepository(db);
+    const responseGuard = new ResponseGuard({ refusalText, logger: createLogger('ai') });
+    const modelMeta = async (): Promise<SummaryModelMeta> => {
+      const modelId = (await preferencesService.getPrefs()).aiSettings.modelId ?? '';
+      const descriptor =
+        modelId === ''
+          ? undefined
+          : modelsRegistry.listModels().find((model) => model.id === modelId);
+      return { modelId, modelVersion: descriptor?.version ?? '' };
+    };
+    const generateSummary = new GenerateSummary({
+      context: aiContext,
+      precheck: new PrecheckService({ refusalText, logger: createLogger('ai') }),
+      guard: responseGuard,
+      engine: llmEngine,
+      repo: insightRepo,
+      modelMeta,
+      notify: broadcastToWindows,
+      clock,
+      logger: createLogger('ai'),
+      locale: APP_UI_LANGUAGE,
+    });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -1064,6 +1120,26 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         createLogger('ipc'),
       ),
     );
+    // TASK-087 §5/§11/§12: ai/summary/generate — {requestId} мгновенно (генерация в
+    // фоне: стрим ai:token + финал 'ai/summary/result', BUSY — отказ канала §9);
+    // ai/cancel — abort активного requestId (реестр общий с generate); ai/summary/latest
+    // — бейдж стейлса {summary, stale}|undefined (§12; границы — resolveSummaryPeriod).
+    const aiSummaryRequests = new AiSummaryRequestRegistry();
+    channels.register(
+      'ai/summary/generate',
+      CHANNEL_SCHEMAS['ai/summary/generate'],
+      createAiSummaryGenerateHandler(generateSummary, aiSummaryRequests, createLogger('ai')),
+    );
+    channels.register(
+      'ai/summary/latest',
+      CHANNEL_SCHEMAS['ai/summary/latest'],
+      createAiSummaryLatestHandler(insightRepo),
+    );
+    channels.register(
+      'ai/cancel',
+      CHANNEL_SCHEMAS['ai/cancel'],
+      createAiSummaryCancelHandler(aiSummaryRequests),
+    );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
@@ -1092,6 +1168,8 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       llmEngine,
       aiModels,
       aiContext,
+      insightRepo,
+      generateSummary,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op

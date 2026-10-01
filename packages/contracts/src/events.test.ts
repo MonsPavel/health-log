@@ -83,6 +83,7 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
         'ai:progress',
         'ai:status',
         'ai:token',
+        'ai/summary/result',
         'app:log',
         'data:versionBumped',
         'job:backup-reminder',
@@ -91,6 +92,21 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
         'prefs:changed',
       ].sort(),
     );
+  });
+
+  it('содержит ai/summary/result с payload {requestId, summaryId?, cached, stale} — финал резюме (TASK-087 §11)', () => {
+    expectTypeOf<HlEventMap['ai/summary/result']>().toEqualTypeOf<{
+      readonly requestId: string;
+      readonly summaryId?: string;
+      readonly cached: boolean;
+      readonly stale: boolean;
+    }>();
+    expect(HL_EVENT_PAYLOAD_KEYS['ai/summary/result']).toEqual([
+      'requestId',
+      'summaryId',
+      'cached',
+      'stale',
+    ]);
   });
 
   it('содержит ai:progress с payload {modelId, downloadedBytes, totalBytes, state} — прогресс загрузки модели (TASK-080 §11)', () => {

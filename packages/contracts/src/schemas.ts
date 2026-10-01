@@ -20,6 +20,14 @@ import {
   AI_CONTEXT_PREVIEW_RESPONSE_SCHEMA,
 } from './ai/context-channels.js';
 import {
+  AI_CANCEL_REQUEST_SCHEMA,
+  AI_CANCEL_RESPONSE_SCHEMA,
+  AI_SUMMARY_GENERATE_REQUEST_SCHEMA,
+  AI_SUMMARY_GENERATE_RESPONSE_SCHEMA,
+  AI_SUMMARY_LATEST_REQUEST_SCHEMA,
+  AI_SUMMARY_LATEST_RESPONSE_SCHEMA,
+} from './ai/summary-channels.js';
+import {
   BACKUP_CREATE_REQUEST_SCHEMA,
   BACKUP_CREATE_RESPONSE_SCHEMA,
   BACKUP_RESTORE_REQUEST_SCHEMA,
@@ -116,6 +124,34 @@ export const CHANNEL_SCHEMAS = {
   'ai/context/preview': {
     request: AI_CONTEXT_PREVIEW_REQUEST_SCHEMA,
     response: AI_CONTEXT_PREVIEW_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-087 §5/§11: генерация резюме (UC-03) — {profileId, period, includeNotes} →
+   * {requestId} (стрим: данные — событиями ai:token/ai:status, финал — событие
+   * 'ai/summary/result', арх. 05 §3 «стриминг»; modelId резолвит main из prefs).
+   * contentMd — PHI: в лог не пишется, наружу только владельцу (§14).
+   */
+  'ai/summary/generate': {
+    request: AI_SUMMARY_GENERATE_REQUEST_SCHEMA,
+    response: AI_SUMMARY_GENERATE_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-087 §12: мини-канал стейлс-бейджа — {profileId, period} → {summary, stale}|
+   * undefined (готовый флаг data_version записи против текущего — §7; undefined —
+   * резюме с такими границами нет, валидный ответ).
+   */
+  'ai/summary/latest': {
+    request: AI_SUMMARY_LATEST_REQUEST_SCHEMA,
+    response: AI_SUMMARY_LATEST_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-087 §5 п.5: отмена генерации по requestId (арх. 05 §3, EC-16) — abort
+   * сигнала активного запроса; незнакомый/повторный — {cancelled: false} без ошибки.
+   * Частичный ответ не сохраняется (решение §5), финал уходит событием.
+   */
+  'ai/cancel': {
+    request: AI_CANCEL_REQUEST_SCHEMA,
+    response: AI_CANCEL_RESPONSE_SCHEMA,
   },
   'app/ping': {
     request: z.object({}).strict(),

@@ -46,7 +46,11 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * (prefs.aiSettings.modelId, ensureModel — лениво при генерации 087, §9);
  * превью ИИ-контекста `ai/context/preview` — TASK-083 §5/§11 (схемы —
  * ai/context-channels.ts): {profileId, period, includeNotes} → {text, sections,
- * hash} (modelId резолвит main из prefs; text — PHI, в лог не пишется, §14).
+ * hash} (modelId резолвит main из prefs; text — PHI, в лог не пишется, §14);
+ * резюме периода `ai/summary/generate` (стрим: ответ {requestId}, данные —
+ * событиями ai:token + финал 'ai/summary/result') и `ai/summary/latest` (стейлс-
+ * бейдж §12: {profileId, period} → {summary, stale}|undefined) — TASK-087 §5/§11/§12
+ * (схемы — ai/summary-channels.ts).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -67,6 +71,12 @@ export type ChannelName =
   // TASK-083 §5/§11: превью ИИ-контекста (схемы — ai/context-channels.ts) —
   // нужен UI раньше резюме (§11 РЕШЕНИЕ: канал в объёме 083).
   | 'ai/context/preview'
+  // TASK-087 §5/§11/§12: резюме периода — generate (стрим: ответ {requestId},
+  // данные событиями + финал 'ai/summary/result') и latest (стейлс-бейдж, §12);
+  // `ai/cancel` — отмена генерации по requestId (§5 п.5, арх. 05 §3; чат 089 — тот же).
+  | 'ai/summary/generate'
+  | 'ai/summary/latest'
+  | 'ai/cancel'
   | 'app/ping'
   | 'app/log-client-error'
   | 'app/reveal-path'
