@@ -63,7 +63,15 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * EgressGateway.checkPermission, §4; без согласия — отказ
  * NET/BLOCKED_BY_POLICY); download {} → та же форма статуса (ход — событиями
  * update:progress, финал — update:ready); install {} → {restarting: true}
- * (только по кнопке UI 097; без скачанного обновления — отказ UPD/NOT_READY).
+ * (только по кнопке UI 097; без скачанного обновления — отказ UPD/NOT_READY);
+ * локальный вход `vault/status|unlock|lock|set-passphrase` — TASK-094 §5/§11
+ * (схемы — vault.ts): статус {mode, locked, backoffSec?}; unlock {pass} →
+ * {ok: true} (неудача — конверт отказа: VAULT/WRONG_PASSPHRASE / в окне backoff
+ * VAULT/RATE_LIMITED с params {backoffSec}, §17); lock {} → {locked} (БД
+ * закрывается — checkpoint+close); set-passphrase — union по action
+ * {set, pass}|{change, old, new}|{remove, old} → {mode}. Каналы vault/* НЕ
+ * secure — доступны в locked (иначе вход невозможен); БД-каналы помечены
+ * secure: true — гвардия requireUnlocked каркаса (§7/§11, AC5).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -122,7 +130,13 @@ export type ChannelName =
   // updates.ts; ручной режим electron-updater за согласием, NFR-11).
   | 'updates/check'
   | 'updates/download'
-  | 'updates/install';
+  | 'updates/install'
+  // TASK-094 §5/§11: локальный вход — статус/разблокировка/блокировка/пароль
+  // (схемы — vault.ts; VaultService main; НЕ secure — доступны при locked).
+  | 'vault/status'
+  | 'vault/unlock'
+  | 'vault/lock'
+  | 'vault/set-passphrase';
 
 /** Транспортный канал каркаса: не прикладной, в CHANNEL_SCHEMAS не входит. */
 export const HL_INVOKE_CHANNEL = 'hl:invoke';

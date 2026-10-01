@@ -4,7 +4,8 @@
 // (единая обёртка, §7/§11) отклоняет вызовы в locked-состоянии кодом VAULT/LOCKED.
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { CHANNEL_SCHEMAS, type ChannelName, type ChannelRequest, type ChannelResponse } from './channels.js';
+import type { ChannelName, ChannelRequest, ChannelResponse } from './channels.js';
+import { CHANNEL_SCHEMAS } from './schemas.js';
 import {
   VAULT_LOCKED_ERROR,
   VAULT_LOCKED_MESSAGE_KEY,

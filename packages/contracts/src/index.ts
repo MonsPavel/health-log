@@ -49,3 +49,4 @@ export * from './scales.js';
 export * from './stats/index.js';
 export * from './trends.js';
 export * from './updates.js';
+export * from './vault.js';

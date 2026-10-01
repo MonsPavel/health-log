@@ -25,12 +25,15 @@ import { AppError, type Result } from '@hl/kernel';
 /**
  * Ключи i18n-каталога по конвенции арх. 05 §29 (`errors.<КОД_С_ПОДЧЁРКИВАНИЯМИ>`);
  * тексты — TASK-095/101 (§16–17: коды стабильны с этого момента).
+ * VAULT_LOCKED_MESSAGE_KEY с TASK-094 живёт в contracts (vault.ts — единый источник
+ * для гвардии requireUnlocked каркаса, §7/§11) и отсюда реэкспортируется.
  */
 export const VAULT_KEY_MISSING_MESSAGE_KEY = 'errors.VAULT_KEY_MISSING';
 export const VAULT_KEY_CORRUPT_MESSAGE_KEY = 'errors.VAULT_KEY_CORRUPT';
 export const VAULT_UNAVAILABLE_MESSAGE_KEY = 'errors.VAULT_UNAVAILABLE';
 export const VAULT_WRONG_PASSPHRASE_MESSAGE_KEY = 'errors.VAULT_WRONG_PASSPHRASE';
-export const VAULT_LOCKED_MESSAGE_KEY = 'errors.VAULT_LOCKED';
+import { VAULT_LOCKED_MESSAGE_KEY } from '@hl/contracts';
+export { VAULT_LOCKED_MESSAGE_KEY };
 
 /**
  * Режим vault-а для потребителя порта (TASK-093 §7: getMode(): 'none'|'passphrase'):

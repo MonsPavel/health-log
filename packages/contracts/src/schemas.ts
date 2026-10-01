@@ -82,11 +82,32 @@ import {
   UPDATES_INSTALL_RESPONSE_SCHEMA,
   UPDATES_STATUS_RESPONSE_SCHEMA,
 } from './updates.js';
+// TASK-094 §5/§11: каналы локального входа (VaultService main; НЕ secure —
+// доступны при locked, иначе вход невозможен).
+import {
+  VAULT_LOCK_REQUEST_SCHEMA,
+  VAULT_LOCK_RESPONSE_SCHEMA,
+  VAULT_SET_PASSPHRASE_REQUEST_SCHEMA,
+  VAULT_SET_PASSPHRASE_RESPONSE_SCHEMA,
+  VAULT_STATUS_REQUEST_SCHEMA,
+  VAULT_STATUS_RESPONSE_SCHEMA,
+  VAULT_UNLOCK_REQUEST_SCHEMA,
+  VAULT_UNLOCK_RESPONSE_SCHEMA,
+} from './vault.js';
 
-/** Пара схем канала: запрос валидируется в main до handler, ответ — контракт хендлера. */
+/**
+ * Пара схем канала: запрос валидируется в main до handler, ответ — контракт хендлера.
+ *
+ * TASK-094 §7/§11: secure: true помечает БД-канал — каркас main (register-channel,
+ * ЕДИНАЯ обёртка requireUnlocked) отклоняет вызов в locked-состоянии конвертом
+ * VAULT/LOCKED ДО вызова хендлера (инвариант §7: при locked repository-операции
+ * недоступны; инвентарь-тест vault.test.ts ловит канал без решения о secure — AC5).
+ */
 export interface ChannelSchemas<TRequest = unknown, TResponse = unknown> {
   readonly request: z.ZodType<TRequest>;
   readonly response: z.ZodType<TResponse>;
+  /** БД-канал: при locked вызов отклоняется гвардией каркаса (VAULT/LOCKED, §7/§11). */
+  readonly secure?: boolean;
 }
 
 /**
@@ -102,6 +123,8 @@ export const CHANNEL_SCHEMAS = {
   '__bench/seed': {
     request: BENCH_SEED_REQUEST_SCHEMA,
     response: BENCH_SEED_RESPONSE_SCHEMA,
+    // TASK-094 §11: канал пишет в БД (сидинг) — secure (TEST-ONLY регистрация).
+    secure: true,
   },
   /**
    * TASK-081 §5/§7/§11: витрина моделей (экран «Модель», /ai). list — одним
@@ -113,26 +136,35 @@ export const CHANNEL_SCHEMAS = {
   'ai/models/list': {
     request: AI_MODELS_LIST_REQUEST_SCHEMA,
     response: AI_MODELS_LIST_RESPONSE_SCHEMA,
+    // TASK-094 §11: ai-каналы — secure (§11 «все … ai … каналы»).
+    secure: true,
   },
   'ai/models/download': {
     request: AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
     response: AI_MODELS_STATUS_RESPONSE_SCHEMA,
+    // TASK-094 §11: журнал сети gateway пишет в network_event (БД) — secure.
+    secure: true,
   },
   'ai/models/pause': {
     request: AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
     response: AI_MODELS_STATUS_RESPONSE_SCHEMA,
+    secure: true,
   },
   'ai/models/resume': {
     request: AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
     response: AI_MODELS_STATUS_RESPONSE_SCHEMA,
+    secure: true,
   },
   'ai/models/reset': {
     request: AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
     response: AI_MODELS_RESET_RESPONSE_SCHEMA,
+    secure: true,
   },
   'ai/models/select': {
     request: AI_MODELS_MODEL_ID_REQUEST_SCHEMA,
     response: AI_MODELS_SELECT_RESPONSE_SCHEMA,
+    // select пишет prefs (app_setting, БД) — secure (§7).
+    secure: true,
   },
   /**
    * TASK-083 §5/§11: превью ИИ-контекста — {profileId, period, includeNotes} →
@@ -143,6 +175,7 @@ export const CHANNEL_SCHEMAS = {
   'ai/context/preview': {
     request: AI_CONTEXT_PREVIEW_REQUEST_SCHEMA,
     response: AI_CONTEXT_PREVIEW_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-087 §5/§11: генерация резюме (UC-03) — {profileId, period, includeNotes} →
@@ -153,6 +186,7 @@ export const CHANNEL_SCHEMAS = {
   'ai/summary/generate': {
     request: AI_SUMMARY_GENERATE_REQUEST_SCHEMA,
     response: AI_SUMMARY_GENERATE_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-087 §12: мини-канал стейлс-бейджа — {profileId, period} → {summary, stale}|
@@ -162,6 +196,7 @@ export const CHANNEL_SCHEMAS = {
   'ai/summary/latest': {
     request: AI_SUMMARY_LATEST_REQUEST_SCHEMA,
     response: AI_SUMMARY_LATEST_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-088 §5: «Очистить разборы» — {} → null (вызов порта deleteAll 087:
@@ -172,6 +207,7 @@ export const CHANNEL_SCHEMAS = {
   'ai/summary/delete-all': {
     request: AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA,
     response: AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-089 §5/§11: чат поверх данных (US-19) — send {profileId, question,
@@ -184,14 +220,17 @@ export const CHANNEL_SCHEMAS = {
   'ai/chat/send': {
     request: AI_CHAT_SEND_REQUEST_SCHEMA,
     response: AI_CHAT_SEND_RESPONSE_SCHEMA,
+    secure: true,
   },
   'ai/chat/clear': {
     request: AI_CHAT_CLEAR_REQUEST_SCHEMA,
     response: AI_CHAT_CLEAR_RESPONSE_SCHEMA,
+    secure: true,
   },
   'ai/chat/list': {
     request: AI_CHAT_LIST_REQUEST_SCHEMA,
     response: AI_CHAT_LIST_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-087 §5 п.5: отмена генерации по requestId (арх. 05 §3, EC-16) — abort
@@ -201,6 +240,8 @@ export const CHANNEL_SCHEMAS = {
   'ai/cancel': {
     request: AI_CANCEL_REQUEST_SCHEMA,
     response: AI_CANCEL_RESPONSE_SCHEMA,
+    // TASK-094 §11: ai-домен целиком secure (при locked отменять нечего).
+    secure: true,
   },
   'app/ping': {
     request: z.object({}).strict(),
@@ -240,6 +281,7 @@ export const CHANNEL_SCHEMAS = {
   'backup/create': {
     request: BACKUP_CREATE_REQUEST_SCHEMA,
     response: BACKUP_CREATE_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-071 §6/§11: восстановление из копии (Data Care) — двухфазный канал:
@@ -250,6 +292,7 @@ export const CHANNEL_SCHEMAS = {
   'backup/restore': {
     request: BACKUP_RESTORE_REQUEST_SCHEMA,
     response: BACKUP_RESTORE_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-072 §5/§11: полное удаление данных (Data Care) — двухфазный канал по
@@ -262,6 +305,7 @@ export const CHANNEL_SCHEMAS = {
   'data/wipe': {
     request: DATA_WIPE_REQUEST_SCHEMA,
     response: DATA_WIPE_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-073 §6/§9/§11: выбор файла копии для восстановления — {filters} →
@@ -281,18 +325,22 @@ export const CHANNEL_SCHEMAS = {
   'measurements/add': {
     request: MEASUREMENT_ADD_REQUEST_SCHEMA,
     response: MEASUREMENT_ADD_RESPONSE_SCHEMA,
+    secure: true,
   },
   'measurements/list': {
     request: MEASUREMENT_LIST_REQUEST_SCHEMA,
     response: MEASUREMENT_LIST_RESPONSE_SCHEMA,
+    secure: true,
   },
   'measurements/update': {
     request: MEASUREMENT_UPDATE_REQUEST_SCHEMA,
     response: MEASUREMENT_UPDATE_RESPONSE_SCHEMA,
+    secure: true,
   },
   'measurements/delete': {
     request: MEASUREMENT_DELETE_REQUEST_SCHEMA,
     response: MEASUREMENT_DELETE_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-045 §5/§11: FTS-поиск заметок (арх. 05 §3, FR-2.2). Хендлер — use case
@@ -301,6 +349,8 @@ export const CHANNEL_SCHEMAS = {
   'notes/search': {
     request: NOTES_SEARCH_REQUEST_SCHEMA,
     response: NOTES_SEARCH_RESPONSE_SCHEMA,
+    // TASK-094 §7: FTS-индекс в БД — secure.
+    secure: true,
   },
   /**
    * TASK-047 §5/§11: настройки — prefs/get (полный документ) и prefs/set
@@ -310,10 +360,13 @@ export const CHANNEL_SCHEMAS = {
   'prefs/get': {
     request: PREFS_GET_REQUEST_SCHEMA,
     response: PREFS_GET_RESPONSE_SCHEMA,
+    // TASK-094 §7: prefs живут в app_setting (БД) — при locked читаются из закрытой БД.
+    secure: true,
   },
   'prefs/set': {
     request: PREFS_SET_REQUEST_SCHEMA,
     response: PREFS_SET_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-065 §5/§11: экспорт CSV/JSON (US-27) — {profileId} → {path} | {canceled: true}.
@@ -323,10 +376,12 @@ export const CHANNEL_SCHEMAS = {
   'report/export-csv': {
     request: REPORT_EXPORT_REQUEST_SCHEMA,
     response: REPORT_EXPORT_RESPONSE_SCHEMA,
+    secure: true,
   },
   'report/export-json': {
     request: REPORT_EXPORT_REQUEST_SCHEMA,
     response: REPORT_EXPORT_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-068 §5/§11: сборка+сохранение PDF-отчёта (UC-05) — {profileId, period,
@@ -336,6 +391,7 @@ export const CHANNEL_SCHEMAS = {
   'report/pdf': {
     request: REPORT_PDF_REQUEST_SCHEMA,
     response: REPORT_PDF_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-051 §5/§11: активная справочная шкала — {} → полная форма ActiveScale
@@ -345,6 +401,8 @@ export const CHANNEL_SCHEMAS = {
   'scales/active': {
     request: SCALES_ACTIVE_REQUEST_SCHEMA,
     response: SCALES_ACTIVE_RESPONSE_SCHEMA,
+    // TASK-094 §7: reference_scale в БД — secure.
+    secure: true,
   },
   /**
    * TASK-054 §5/§11: статистика периода поверх read models 052/053 —
@@ -356,6 +414,7 @@ export const CHANNEL_SCHEMAS = {
   'stats/period': {
     request: STATS_REQUEST_SCHEMA,
     response: STATS_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-056 §5/§11: серии точек для графика динамики — {profileId, period} →
@@ -367,6 +426,7 @@ export const CHANNEL_SCHEMAS = {
   'trend/series': {
     request: TREND_REQUEST_SCHEMA,
     response: TREND_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-096 §5/§11: обновления приложения (ручной режим electron-updater).
@@ -380,13 +440,38 @@ export const CHANNEL_SCHEMAS = {
   'updates/check': {
     request: UPDATES_CHECK_REQUEST_SCHEMA,
     response: UPDATES_STATUS_RESPONSE_SCHEMA,
+    // TASK-094 §7: журнал разрешения/проверки gateway пишет в network_event (БД).
+    secure: true,
   },
   'updates/download': {
     request: UPDATES_DOWNLOAD_REQUEST_SCHEMA,
     response: UPDATES_STATUS_RESPONSE_SCHEMA,
+    secure: true,
   },
   'updates/install': {
     request: UPDATES_INSTALL_REQUEST_SCHEMA,
     response: UPDATES_INSTALL_RESPONSE_SCHEMA,
+    secure: true,
+  },
+  /**
+   * TASK-094 §5/§11: локальный вход (эпик 6.1) — статус/разблокировка/блокировка/
+   * управление паролем. НЕ secure: это единственные каналы, доступные при locked
+   * (vault/unlock и есть выход из lock, §5 «повторный unlock открывает»).
+   */
+  'vault/status': {
+    request: VAULT_STATUS_REQUEST_SCHEMA,
+    response: VAULT_STATUS_RESPONSE_SCHEMA,
+  },
+  'vault/unlock': {
+    request: VAULT_UNLOCK_REQUEST_SCHEMA,
+    response: VAULT_UNLOCK_RESPONSE_SCHEMA,
+  },
+  'vault/lock': {
+    request: VAULT_LOCK_REQUEST_SCHEMA,
+    response: VAULT_LOCK_RESPONSE_SCHEMA,
+  },
+  'vault/set-passphrase': {
+    request: VAULT_SET_PASSPHRASE_REQUEST_SCHEMA,
+    response: VAULT_SET_PASSPHRASE_RESPONSE_SCHEMA,
   },
 } satisfies Record<ChannelName, ChannelSchemas>;

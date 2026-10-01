@@ -24,6 +24,19 @@ export const TEXT_SCALE_SCHEMA = z.enum(['100', '112.5', '125']);
 export const DATE_FORMAT_SCHEMA = z.enum(['auto', 'dmy', 'mdy']);
 
 /**
+ * TASK-094 §5: порог автоблока по простою, минуты — 5|15|60 или 0 (выкл, §22
+ * «раздражает при длинном чтении»). Дефолт 5 — заголовок §5 «автоблок по простою
+ * (5/15/60 мин/выкл)»; в mode=none (пароль не включён) значение инертно —
+ * автоблок без пароля не имеет смысла (заблокированное нельзя открыть).
+ */
+export const AUTO_LOCK_MIN_SCHEMA = z.union([
+  z.literal(0),
+  z.literal(5),
+  z.literal(15),
+  z.literal(60),
+]);
+
+/**
  * §5/§14: сетевые согласия. Поле схемы уже здесь; UI-редактор — TASK-099, читает
  * только EgressGateway (TASK-075). Объектом целиком — без deep-merge (см. шапку).
  * TASK-075 §5: + modelsDownload (загрузка моделей, согласие запрашивается в
@@ -95,6 +108,8 @@ export const PREFS_SCHEMA = z
     jobState: JOB_STATE_SCHEMA.default({ jobs: {}, shown: {} }),
     /** TASK-081 §5: настройки ИИ — выбранная модель + «настроить позже». */
     aiSettings: AI_SETTINGS_SCHEMA.default({ dismissed: false, includeNotes: false }),
+    /** TASK-094 §5: порог автоблока по простою, минуты (0 — выкл; дефолт 5). */
+    autoLockMin: AUTO_LOCK_MIN_SCHEMA.default(5),
   })
   .strict();
 
@@ -112,6 +127,8 @@ export const PREFS_PATCH_SCHEMA = z.object({
   jobState: JOB_STATE_SCHEMA.optional(),
   // TASK-081 §5: aiSettings пишет use case select и UI «настроить позже» (целиком).
   aiSettings: AI_SETTINGS_SCHEMA.optional(),
+  // TASK-094 §5: порог автоблока — UI настроек защиты (095).
+  autoLockMin: AUTO_LOCK_MIN_SCHEMA.optional(),
 });
 
 /** §11: запрос prefs/get — полный документ без параметров. */

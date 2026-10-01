@@ -116,6 +116,18 @@ export interface HlEventMap {
   'update:progress': { readonly percent: number };
   /** TASK-096 §5/§11: обновление скачано и готово к установке (установка — по кнопке, §5). */
   'update:ready': Record<string, never>;
+  /**
+   * TASK-094 §5 (арх. 05 §4): сессия заблокирована — БД ЗАКРЫТА (checkpoint+close,
+   * честная защита §5); рендерер показывает экран блокировки (оверлей, 095).
+   * Payload пуст — имя события несёт смысл.
+   */
+  'lock:engaged': Record<string, never>;
+  /**
+   * TASK-094 §5 (арх. 05 §4): приложение стартует заблокированным (mode=passphrase,
+   * БД не открывалась) — рендерер показывает экран блокировки до unlock; актуальное
+   * состояние — vault/status при старте (§12).
+   */
+  'lock:required': Record<string, never>;
   /** Технологическое событие журнала main (§18): только ключ сообщения, без PHI. */
   'app:log': { readonly level: HlLogLevel; readonly messageKey: string };
 }
@@ -139,6 +151,8 @@ export const HL_EVENT_PAYLOAD_KEYS = {
   'update:available': ['version'],
   'update:progress': ['percent'],
   'update:ready': [],
+  'lock:engaged': [],
+  'lock:required': [],
   'app:log': ['level', 'messageKey'],
 } as const satisfies {
   readonly [K in keyof HlEventMap]: readonly (keyof HlEventMap[K])[];
