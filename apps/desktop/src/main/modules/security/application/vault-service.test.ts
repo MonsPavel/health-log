@@ -80,6 +80,9 @@ const makeVault = (initialMode: VaultMode) => {
   return { impl, vault: impl as unknown as KeyVault };
 };
 
+/** Шпион с типом зависимости: вызываем по контракту + методы vi.fn (mockClear, §19). */
+type MockFn<T> = T & ReturnType<typeof vi.fn>;
+
 /** Сборка сервиса с подстановками (§19); возвращает шпионы для ассертов. */
 const makeService = (
   vaultMode: VaultMode,
@@ -91,11 +94,14 @@ const makeService = (
   } = {},
 ) => {
   const { vault, impl } = makeVault(vaultMode);
-  const openDatabase = overrides.openDatabase ?? vi.fn(() => Promise.resolve(ok(undefined)));
-  const closeDatabase = overrides.closeDatabase ?? vi.fn();
-  const notify: VaultNotify = vi.fn();
+  const openDatabase = (
+    overrides.openDatabase ?? vi.fn(() => Promise.resolve(ok(undefined)))
+  ) as MockFn<() => Promise<Result<void, AppError>>>;
+  const closeDatabase = (overrides.closeDatabase ?? vi.fn()) as MockFn<() => void>;
+  const notify = vi.fn() as unknown as MockFn<VaultNotify>;
   const logger = makeLogger();
-  const getAutoLockMin = overrides.getAutoLockMin ?? vi.fn(() => Promise.resolve(5));
+  const getAutoLockMin = (overrides.getAutoLockMin ??
+    vi.fn(() => Promise.resolve(5))) as MockFn<() => Promise<number>>;
   const service = new VaultService({
     vault,
     openDatabase,

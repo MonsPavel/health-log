@@ -100,6 +100,8 @@ class FakePrefs {
     netConsents: { updatesCheck: false, modelsDownload: false },
     jobState: { jobs: {}, shown: {} },
     aiSettings: { dismissed: false, includeNotes: false },
+    // TASK-094: порог автоблока — новое поле документа (дефолт схемы 5).
+    autoLockMin: 5,
   };
   readonly setSpy = vi.fn((patch: PrefsPatch) => {
     this.document = { ...this.document, ...patch };

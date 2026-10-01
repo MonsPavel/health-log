@@ -87,6 +87,8 @@ describe('PreferencesService — getPrefs (§5/§8/§19)', () => {
       jobState: { jobs: {}, shown: {} },
       // TASK-081/088: aiSettings — модели нет, «позже» не нажат, заметки выключены.
       aiSettings: { dismissed: false, includeNotes: false },
+      // TASK-094: порог автоблока — новое поле документа (дефолт схемы 5).
+      autoLockMin: 5,
     });
     expect(store.setCalls).toHaveLength(0);
   });
@@ -114,6 +116,8 @@ describe('PreferencesService — getPrefs (§5/§8/§19)', () => {
       jobState: { jobs: {}, shown: {} },
       // Усечённый документ (до TASK-088) — aiSettings из zod-дефолта (§22).
       aiSettings: { dismissed: false, includeNotes: false },
+      // Усечённый документ (до TASK-094) — autoLockMin из zod-дефолта (§22).
+      autoLockMin: 5,
     });
   });
 
@@ -151,6 +155,8 @@ describe('PreferencesService — setPrefs (§7/§9/§11/§20)', () => {
       aiSettings: { dismissed: false, includeNotes: false },
       netConsents: { updatesCheck: true, modelsDownload: false },
       jobState: { jobs: {}, shown: {} },
+      // TASK-094: autoLockMin — дефолт схемы для усечённого документа.
+      autoLockMin: 5,
     });
   });
 

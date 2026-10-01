@@ -154,7 +154,19 @@ export class VaultService {
     if (this.locked) {
       // Старт заблокированным (§5/§12): сигнал экрану блокировки; статус дублирует
       // vault/status — доставка at-most-once, ранняя рассылка может не доехать.
-      this.notify('lock:required', {});
+      this.safeNotify('lock:required');
+    }
+  }
+
+  /**
+   * Доставка события lock:* — fire-and-forget (§5): сбой моста (окна ещё нет,
+   * среда без Electron) НЕ должен ломать саму сессию входа — предупреждение в лог.
+   */
+  private safeNotify(name: 'lock:engaged' | 'lock:required'): void {
+    try {
+      this.notify(name, {});
+    } catch (cause) {
+      this.logger.warn('vault: доставка события не удалась', { event: name, cause });
     }
   }
 
@@ -235,7 +247,7 @@ export class VaultService {
     this.locked = true;
     this.lastActivityUtcMs = this.clock.nowMs(); // свежее окно автоблока на новую сессию
     this.logger.info('vault lock engaged', { reason });
-    this.notify('lock:engaged', {});
+    this.safeNotify('lock:engaged');
     return { locked: true };
   }
 

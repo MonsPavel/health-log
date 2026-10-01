@@ -43,10 +43,17 @@
  * TASK-093 §9 (двойная обёртка ключа, passphrase): при mode=passphrase контейнер
  * собирается БЕЗ открытия БД — `db` это прокси, любой доступ до unlock даёт
  * синхронный VAULT/LOCKED; миграции и активация шкалы перенесены в openDatabase()
- * («unlock → ensureKey → открытие БД»; снятие locked-состояния — TASK-094). При
- * mode=none старт не изменён (eager). Фоновый тик планировщика (bootstrap §9) при
- * locked упрётся в LOCKED и изолируется scheduler'ом — уважение locked-состояния
- * планировщиком входит в объём TASK-094.
+ * («unlock → ensureKey → открытие БД»). При mode=none старт не изменён (eager).
+ *
+ * TASK-094 §5/§8 (локальный вход): VaultService управляет сессией — unlock(pass)
+ * (backoff-экспонента, AC1/AC2) → openDatabase; lock → closeDatabase
+ * (checkpoint+close, AC3) + события lock:engaged/lock:required (боевой мост
+ * broadcastToWindows); гвардия requireUnlocked и idle-трекер — в каркасе
+ * registerChannel (isUnlocked/onActivity — единый патч §7/§9/§11); задача
+ * session.autolock — в scheduler (живой таймер 30 с — bootstrap). ПРОКСИ `db` —
+ * ВСЕГДА (и в mode=none): lazy-statement'ы пере-резолвятся при смене соединения,
+ * поэтому после lock→unlock statements адаптеров уходят в НОВОЕ соединение
+ * (путь повторного открытия, §8), а закрытое — недоступно (VAULT/LOCKED).
  *
  * БУДУЩАЯ РАБОТА (§23): здесь же включатся use case'ы 029+ (место помечено —
  * секция «прикладные use case'ы» ниже), SettingsStore (047), ScaleService (051),
@@ -221,6 +228,18 @@ import {
   createUpdatesDownloadHandler,
   createUpdatesInstallHandler,
 } from './ipc/handlers/updates.js';
+// TASK-094 §5/§11: хендлеры локального входа vault/* (§11) и VaultService (§5/§7)
+// — сессия locked/unlocked, backoff, автоблок, события lock:*.
+import {
+  createVaultLockHandler,
+  createVaultSetPassphraseHandler,
+  createVaultStatusHandler,
+  createVaultUnlockHandler,
+} from './ipc/handlers/vault.js';
+import {
+  createAutolockJob,
+  VaultService,
+} from './modules/security/application/vault-service.js';
 import type { LlmEngine } from './modules/ai-insight/application/ports/llm-engine.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
 import { DeleteMeasurementUseCase } from './modules/measurement/application/delete-measurement.js';
@@ -567,6 +586,14 @@ export interface Container {
    * потребители — каналы updates/* (§11) и UI 097.
    */
   readonly updates: UpdatesService;
+  /**
+   * VaultService (TASK-094 §5/§7): сессия локального входа — unlock/lock/set-
+   * passphrase, backoff неудач (§4), автоблок по простою (порог prefs.autoLockMin),
+   * события lock:engaged/lock:required (мост broadcastToWindows). Гвардия
+   * requireUnlocked/idle-трекер реестра каналов замкнуты на него; живой таймер
+   * проверки 30 с — bootstrap (§9). Потребители — каналы vault/* (§11), UI 095.
+   */
+  readonly vaultService: VaultService;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
   /**
@@ -596,14 +623,17 @@ function readSchemaVersionForLog(db: EncryptedDatabase): number {
 }
 
 /**
- * TASK-093 §9: ленивое соединение для режима passphrase — контейнер собирается ДО
- * unlock, а конструкторы адаптеров вызывают `db.prepare(sql)`/`db.transaction(fn)`
- * при сборке (прецедент TASK-026/045/047/051). Поэтому в locked-состоянии:
+ * TASK-093 §9 + TASK-094 §5/§8: ленивое соединение — контейнер всегда отдаёт графу
+ * прокси (и в mode=passphrase до unlock, и в mode=none), а конструкторы адаптеров
+ * вызывают `db.prepare(sql)`/`db.transaction(fn)` при сборке (прецедент
+ * TASK-026/045/047/051). Поведение:
  *  - `prepare(sql)` отдаёт placeholder-statement: любое ИСПОЛЬЗОВАНИЕ (get/run/all)
- *    после открытия пересылается реальному statement (компиляция отложена до unlock —
- *    prepare закрытой БД всё равно невозможен); использование до открытия — LOCKED;
+ *    пересылается реальному statement ТЕКУЩЕГО соединения (компиляция отложена);
+ *    до открытия — LOCKED. TASK-094: при смене соединения (lock → close, unlock →
+ *    переоткрытие) statement компилируется ЗАНОВО — кэшированные адаптерами
+ *    placeholder'ы не держатся за закрытый дескриптор (путь повторного открытия §8);
  *  - `transaction(fn)` отдаёт отложенную обёртку: тело исполняется в транзакции
- *    реального соединения при вызове (после открытия);
+ *    реального соединения при вызове (текущего);
  *  - любой другой доступ до открытия — синхронный VAULT/LOCKED (§9: БД не открывается).
  * После успешного openDatabase() все обращения пересылаются реальному соединению.
  */
@@ -623,17 +653,26 @@ function createLockedDatabaseProxy(
       : value;
   };
 
-  /** Placeholder-statement: компиляция и forward — при первом использовании (после открытия). */
+  /**
+   * Placeholder-statement: компиляция и forward — при первом использовании (после
+   * открытия). TASK-094 §8: statement привязывается к СВОЕМУ соединению; смена
+   * соединения (lock→unlock) — перевыпуск.
+   */
   const lazyStatement = (sql: string): unknown => {
     let statement: object | undefined;
+    let boundConnection: EncryptedDatabase | undefined;
     const resolve = (): object => {
-      if (statement !== undefined) {
-        return statement;
+      const connection = getOpened();
+      if (connection === undefined) {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error -- контракт §9 (см. realMember)
+        throw AppError.of('VAULT/LOCKED', VAULT_LOCKED_MESSAGE_KEY);
       }
-      const prepare = realMember('prepare') as (s: string) => object;
-      const prepared = prepare(sql);
-      statement = prepared;
-      return prepared;
+      if (statement === undefined || boundConnection !== connection) {
+        const prepare = realMember('prepare') as (s: string) => object;
+        statement = prepare(sql);
+        boundConnection = connection;
+      }
+      return statement;
     };
     return new Proxy(
       {},
@@ -737,8 +776,8 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
   if (locked) {
     // TASK-093 §9: ленивое открытие — граф собирается по прокси (репозитории готовят
     // statements лениво); доступ до unlock — синхронный VAULT/LOCKED.
-    db = createLockedDatabaseProxy(() => openedDb);
     logger.info('container locked: БД не открывается до unlock', { mode: vaultMode });
+    db = createLockedDatabaseProxy(() => openedDb);
   } else {
     const ensured = await vault.ensureKey(dbExists);
     if (!ensured.ok) {
@@ -750,7 +789,9 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     keyCreated = ensured.value.created;
     // 4. БД (§5: openEncrypted(dbPath, keyHex) — единственная точка открытия, TASK-022).
     openedDb = openEncrypted(dbPath, keyHex);
-    db = openedDb;
+    // TASK-094 §5/§8: прокси — ВСЕГДА (в т.ч. mode=none): пере-резолв statements при
+    // смене соединения делает безопасным путь lock → unlock (повторное открытие).
+    db = createLockedDatabaseProxy(() => openedDb);
   }
   try {
     // 4.5. Data Care (TASK-070 §5): use case CreateBackup — ДО миграций: hook
@@ -779,6 +820,29 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     const closeCurrentDb = (): void => {
       db.pragma('wal_checkpoint(TRUNCATE)');
       db.close();
+    };
+    //    TASK-094 §5/§8/AC3: закрытие при блокировке — checkpoint(TRUNCATE)+close,
+    //    после чего `openedDb` сбрасывается: прокси снова LOCKED (доступ через граф
+    //    невозможен), а повторный unlock проходит по существующему openDatabase()
+    //    (ensureKey из кэша vault → открытие + миграции «уже актуальны»). Файлы
+    //    -wal/-shm исчезают (AC3, тест ФС). Соединение может быть уже закрыто
+    //    data-care-операцией — ошибки глушатся (прецедент close в will-quit).
+    const lockCloseDatabase = (): void => {
+      const connection = openedDb;
+      if (connection === undefined) {
+        return; // БД не открыта (locked) — закрывать нечего
+      }
+      try {
+        connection.pragma('wal_checkpoint(TRUNCATE)');
+      } catch {
+        // соединение закрыто под контейнером (restore/wipe) — чекпоинт не нужен
+      }
+      try {
+        connection.close();
+      } catch {
+        // уже закрыто — не важно для lock
+      }
+      openedDb = undefined;
     };
     const restoreBackup = new RestoreBackupUseCase({
       currentDb: db,
@@ -1274,6 +1338,28 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       }
     };
 
+    //    TASK-094 §5/§7: VaultService — сессия локального входа: unlock (backoff,
+    //    §4/AC1-2), lock → closeDatabase (checkpoint+close, AC3) + события
+    //    lock:engaged (старт заблокированным — lock:required) боевым мостом
+    //    broadcastToWindows (§11, прецедент net:activity 075); порог автоблока —
+    //    prefs.autoLockMin через PreferencesService (сервис сам БД не читает:
+    //    при locked prefs недоступны, checkAutolock no-op — §3/§9).
+    const vaultService = new VaultService({
+      vault,
+      openDatabase,
+      closeDatabase: lockCloseDatabase,
+      notify: broadcastToWindows,
+      clock,
+      logger,
+      getAutoLockMin: async () => (await preferencesService.getPrefs()).autoLockMin,
+    });
+    //    TASK-094 §5/§9: задача автоблока session.autolock (порог из ctx.prefs,
+    //    locked → no-op) — оценивает простой на каждом тике планировщика (старт);
+    //    живой таймер проверки 30 с — bootstrap (см. vault-service.ts — почему
+    //    не через tick: запись jobState в prefs каждые 30 с будила бы
+    //    prefs:changed → перечитывание → IPC → активность → простой не копился).
+    scheduler.register(createAutolockJob({ service: vaultService }));
+
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
     //    (детерминизм тестов, NFR-10); app/log-client-error (TASK-011) — прикладной
@@ -1281,7 +1367,13 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //    measurements/list (TASK-030) — use case listMeasurements; measurements/delete
     //    (TASK-032) — use case deleteMeasurement; measurements/update (TASK-037) —
     //    use case updateMeasurement (сводная регистрация всех 4 каналов журнала).
-    const channels = createChannelRegistry(createLogger('ipc'));
+    //    TASK-094 §7/§9/§11: реестр получает гвардию requireUnlocked (isUnlocked —
+    //    состояние VaultService; secure-каналы при locked → VAULT/LOCKED) и
+    //    idle-трекер (onActivity — любой вызов hl.* продлевает окно автоблока).
+    const channels = createChannelRegistry(createLogger('ipc'), {
+      isUnlocked: () => vaultService.isUnlocked(),
+      onActivity: () => vaultService.touchActivity(),
+    });
     channels.register('app/ping', CHANNEL_SCHEMAS['app/ping'], createPingHandler(clock));
     channels.register(
       'app/log-client-error',
@@ -1538,6 +1630,30 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       CHANNEL_SCHEMAS['updates/install'],
       createUpdatesInstallHandler(updates),
     );
+    // TASK-094 §5/§11: локальный вход — статус/разблокировка (backoff — AppError
+    // конвертом отказа, §17)/блокировка/пароль (set|change|remove, консистентность
+    // с 093). vault/* — НЕ secure: единственные каналы, доступные при locked
+    // (vault/unlock и есть выход, §5 «повторный unlock открывает»).
+    channels.register(
+      'vault/status',
+      CHANNEL_SCHEMAS['vault/status'],
+      createVaultStatusHandler(vaultService),
+    );
+    channels.register(
+      'vault/unlock',
+      CHANNEL_SCHEMAS['vault/unlock'],
+      createVaultUnlockHandler(vaultService),
+    );
+    channels.register(
+      'vault/lock',
+      CHANNEL_SCHEMAS['vault/lock'],
+      createVaultLockHandler(vaultService),
+    );
+    channels.register(
+      'vault/set-passphrase',
+      CHANNEL_SCHEMAS['vault/set-passphrase'],
+      createVaultSetPassphraseHandler(vaultService),
+    );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
@@ -1572,6 +1688,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       askChat,
       clearChat,
       updates,
+      vaultService,
       openDatabase,
       close(): void {
         if (closed) {
