@@ -66,7 +66,13 @@ export default defineConfig({
       // TASK-036 §19: тест скрипта аудита размера установщика (tools/scripts .mjs,
       // чистые расчёты + прогон run()/CLI на tmp-фикстурах). TASK-062 §6/§19: + юниты
       // bench-либа (tools/scripts/lib/*.ts — форматтер/гейты отчёта).
-      testProject('tools-scripts', ['tools/scripts/**/*.test.mjs', 'tools/scripts/**/*.test.ts']),
+      testProject('tools-scripts', [
+        'tools/scripts/**/*.test.mjs',
+        'tools/scripts/**/*.test.ts',
+        // TASK-091 §19: юнит-тесты предикатов/кейсов/отчёта и smoke-механика
+        // eval-runner'а на fake-engine (node-окружение, tmp-каталоги — §8).
+        'tools/eval/**/*.test.ts',
+      ]),
       // TASK-035 §19: юнит-тесты helpers E2E-слоя (node-окружение: fs/tmp — те же
       // конвенции colocated-тестов, что и в src/main).
       testProject('desktop-e2e', ['apps/desktop/tests/e2e/**/*.test.ts']),

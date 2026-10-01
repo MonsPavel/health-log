@@ -16,6 +16,7 @@
     "apps/desktop/src/main/**/*.test.ts",
     "apps/desktop/playwright.config.ts",
     "apps/desktop/tests/e2e/**/*.ts",
-    "tools/scripts/**/*.ts"
+    "tools/scripts/**/*.ts",
+    "tools/eval/**/*.ts"
   ]
 }
