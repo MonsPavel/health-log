@@ -76,6 +76,30 @@ export {
   type AiSummaryLatestResponse,
 } from './summary-channels.js';
 
+/**
+ * TASK-089 §5/§11: контракты каналов чата ai/chat/* — send (стрим ai:token +
+ * финал 'ai/chat/result'), list (инициализация UI §12), clear (необратимая
+ * очистка истории, идемпотентна §13).
+ */
+export {
+  AI_CHAT_CLEAR_REQUEST_SCHEMA,
+  AI_CHAT_CLEAR_RESPONSE_SCHEMA,
+  AI_CHAT_LIST_REQUEST_SCHEMA,
+  AI_CHAT_LIST_RESPONSE_SCHEMA,
+  AI_CHAT_SEND_REQUEST_SCHEMA,
+  AI_CHAT_SEND_RESPONSE_SCHEMA,
+  CHAT_MESSAGE_DTO_SCHEMA,
+  CHAT_REFUSAL_CLASSES,
+  type AiChatClearRequest,
+  type AiChatClearResponse,
+  type AiChatListRequest,
+  type AiChatListResponse,
+  type AiChatSendRequest,
+  type AiChatSendResponse,
+  type ChatMessageDto,
+  type ChatRefusalClass,
+} from './chat-channels.js';
+
 export {
   KNOWN_WORKER_ERROR_CODES,
   isWorkerRequest,

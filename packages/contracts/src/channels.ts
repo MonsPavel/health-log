@@ -51,7 +51,12 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * событиями ai:token + финал 'ai/summary/result') и `ai/summary/latest` (стейлс-
  * бейдж §12: {profileId, period} → {summary, stale}|undefined) — TASK-087 §5/§11/§12
  * (схемы — ai/summary-channels.ts); `ai/summary/delete-all` — «Очистить разборы»
- * (TASK-088 §5: {} → null — вызов порта deleteAll 087, подтверждение — в UI).
+ * (TASK-088 §5: {} → null — вызов порта deleteAll 087, подтверждение — в UI);
+ * чат `ai/chat/send` (стрим: ответ {requestId}, данные — событиями ai:token +
+ * финал 'ai/chat/result'), `ai/chat/list` (инициализация UI §12: {profileId,
+ * limit} → {messages}) и `ai/chat/clear` (необратимая очистка истории §13:
+ * {} → {cleared: true}, идемпотентен) — TASK-089 §5/§11 (схемы —
+ * ai/chat-channels.ts; отмена хода — тот же `ai/cancel` по requestId).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -79,6 +84,12 @@ export type ChannelName =
   | 'ai/summary/generate'
   | 'ai/summary/latest'
   | 'ai/summary/delete-all'
+  // TASK-089 §5/§11: чат поверх данных (US-19) — send (стрим: ответ {requestId},
+  // данные событиями ai:token + финал 'ai/chat/result'; вопрос ≥2 ≤500, §13/§14),
+  // list (инициализация UI §12) и clear (необратимая очистка истории, §13).
+  | 'ai/chat/send'
+  | 'ai/chat/clear'
+  | 'ai/chat/list'
   | 'ai/cancel'
   | 'app/ping'
   | 'app/log-client-error'

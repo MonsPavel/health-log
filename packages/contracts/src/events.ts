@@ -91,6 +91,18 @@ export interface HlEventMap {
     readonly cached: boolean;
     readonly stale: boolean;
   };
+  /**
+   * TASK-089 §5/§11: ФИНАЛ хода чата (US-19) — ровно один на requestId:
+   * {messageId} есть — пара вопрос/ответ сохранена (happy/refusal/guard-replace);
+   * messageId нет — ход не сохранён (отмена — частичный ответ не пишется, §5
+   * прецедент 087). Имя — дословно §11; стрим-данные идут отдельно событиями
+   * ai:token (арх. 05 §3). Renderer по финалу инвалидирует ['chat', pid] (§12).
+   * messageId — id, текста в payload нет (PHI, §14).
+   */
+  'ai/chat/result': {
+    readonly requestId: string;
+    readonly messageId?: string;
+  };
   /** Технологическое событие журнала main (§18): только ключ сообщения, без PHI. */
   'app:log': { readonly level: HlLogLevel; readonly messageKey: string };
 }
@@ -110,6 +122,7 @@ export const HL_EVENT_PAYLOAD_KEYS = {
   'ai:token': ['requestId', 'text'],
   'ai:progress': ['modelId', 'downloadedBytes', 'totalBytes', 'state'],
   'ai/summary/result': ['requestId', 'summaryId', 'cached', 'stale'],
+  'ai/chat/result': ['requestId', 'messageId'],
   'app:log': ['level', 'messageKey'],
 } as const satisfies {
   readonly [K in keyof HlEventMap]: readonly (keyof HlEventMap[K])[];

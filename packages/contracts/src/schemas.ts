@@ -30,6 +30,14 @@ import {
   AI_SUMMARY_LATEST_RESPONSE_SCHEMA,
 } from './ai/summary-channels.js';
 import {
+  AI_CHAT_CLEAR_REQUEST_SCHEMA,
+  AI_CHAT_CLEAR_RESPONSE_SCHEMA,
+  AI_CHAT_LIST_REQUEST_SCHEMA,
+  AI_CHAT_LIST_RESPONSE_SCHEMA,
+  AI_CHAT_SEND_REQUEST_SCHEMA,
+  AI_CHAT_SEND_RESPONSE_SCHEMA,
+} from './ai/chat-channels.js';
+import {
   BACKUP_CREATE_REQUEST_SCHEMA,
   BACKUP_CREATE_RESPONSE_SCHEMA,
   BACKUP_RESTORE_REQUEST_SCHEMA,
@@ -155,6 +163,26 @@ export const CHANNEL_SCHEMAS = {
   'ai/summary/delete-all': {
     request: AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA,
     response: AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-089 §5/§11: чат поверх данных (US-19) — send {profileId, question,
+   * period} → {requestId} (стрим: данные — событиями ai:token, финал — событие
+   * 'ai/chat/result', арх. 05 §3 «стриминг»; modelId резолвит main из prefs);
+   * list {profileId, limit} → {messages} — инициализация UI (§12); clear {} →
+   * {cleared: true} — необратимая очистка истории (§13: идемпотентна).
+   * content сообщений — PHI: в лог не пишется, наружу только владельцу (§14).
+   */
+  'ai/chat/send': {
+    request: AI_CHAT_SEND_REQUEST_SCHEMA,
+    response: AI_CHAT_SEND_RESPONSE_SCHEMA,
+  },
+  'ai/chat/clear': {
+    request: AI_CHAT_CLEAR_REQUEST_SCHEMA,
+    response: AI_CHAT_CLEAR_RESPONSE_SCHEMA,
+  },
+  'ai/chat/list': {
+    request: AI_CHAT_LIST_REQUEST_SCHEMA,
+    response: AI_CHAT_LIST_RESPONSE_SCHEMA,
   },
   /**
    * TASK-087 §5 п.5: отмена генерации по requestId (арх. 05 §3, EC-16) — abort
