@@ -99,7 +99,7 @@
 | TASK-091 | done | | смержена вручную 01.10 после квота-остановки прогона 13 на фазе приёмки: ревью дифа выполнено основным агентом, gate — typecheck + pnpm test 267 файлов/2843 passed (+4 [model]-skip); AC5 — отчёт docs/dev/eval-reports (1B, 22/22 passed, exit 0) |
 | TASK-092 | done | | смержена вручную 01.10 после блокировки приёмки (§20.1/20.2 — dispatch+кэш требуют workflow на ветке по умолчанию, физически пост-мердж): gate typecheck + pnpm test 270ф/2859+4skip в worktree. ЖИВАЯ приёмка ПРОЙДЕНА 01.10: первый прогон зелёный — модель по --id, sha256 манифеста сошёлся, eval 22/22 passed, артефакт eval-report + Job Summary; второй прогон — cache hit model-1b-v1, «скачивание пропущено», sha256 кэша перепроверен. НАХОДКА живого прогона: плейсхолдер манифеста 079 ловился первым → фикс 731c2c5: реальная запись llama-3.2-1b (bartowski, sha256 локальных копий) + детерминированный --id в workflow |
 | TASK-093 | done | | смержена вручную 01.10: интегратор прогона 14 отчитался «смержена», но checkout/merge не выполнились (main reflog чист, push не прошёл) — merge доделан основным агентом; impl 37М токенов, приёмка 2 раунда зелёные; ветка task/TASK-093 (8 коммитов: kernel-коды VAULT/WRONG_PASSPHRASE|LOCKED, passphrase-crypto Argon2id+AES-256-GCM, vault-format v2+миграция, SafeStorageKeyVault v2, ленивое открытие БД) |
-| TASK-094 | todo | | |
+| TASK-094 | done | | смержена |
 | TASK-095 | todo | | |
 | TASK-096 | done | | смержена |
 | TASK-097 | todo | | |
