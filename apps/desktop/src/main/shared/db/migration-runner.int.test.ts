@@ -231,7 +231,7 @@ describe('MigrationRunner (TASK-024 §19/§20)', () => {
     const trace: string[] = [];
     const [m1, m2] = twoMigrations(trace);
 
-    await new MigrationRunner({ migrations: [m2, m1] }).migrate(db);
+    await new MigrationRunner({ migrations: [m2!, m1!] }).migrate(db);
 
     expect(readSchemaVersion(db)).toBe('2');
     expect(trace).toEqual(['ddl:1', 'ddl:2']);

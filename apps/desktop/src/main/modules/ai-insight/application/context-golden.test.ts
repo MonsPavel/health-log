@@ -80,7 +80,11 @@ function makeDeps(): AiContextBuilderDeps {
     series: {
       getSeries: (q, mode) => Promise.resolve(buildTrendResponse(filter(q), mode)),
     },
-    scales: { getActiveScale: () => Promise.resolve(BP_OFFICE_ESC2018) },
+    // Проекция шкалы без readonly (деп scale ожидает мутабельный массив категорий).
+    scales: {
+      getActiveScale: () =>
+        Promise.resolve({ ...BP_OFFICE_ESC2018, categories: [...BP_OFFICE_ESC2018.categories] }),
+    },
     clock: new FixedClock(NOW_MS, TZ),
   };
 }

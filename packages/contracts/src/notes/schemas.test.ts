@@ -81,15 +81,8 @@ describe('реестр каналов — notes/search (§11)', () => {
   });
 
   it("ChannelName включает 'notes/search'", () => {
-    expectTypeOf<ChannelName>().toEqualTypeOf<
-      | 'app/ping'
-      | 'app/log-client-error'
-      | 'measurements/add'
-      | 'measurements/list'
-      | 'measurements/update'
-      | 'measurements/delete'
-      | 'notes/search'
-    >();
+    // Полный union пинится в channels.test.ts (единое место); здесь — только вхождение.
+    expectTypeOf<'notes/search'>().toExtend<ChannelName>();
   });
 
   it('типы запроса/ответа выводятся из схем (§23: без ручной синхронизации)', () => {

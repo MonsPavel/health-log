@@ -56,7 +56,7 @@ const dirs: string[] = [];
 beforeEach(() => {
   vi.mocked(broadcastToWindows).mockClear();
   dirs.push(mkdtempSync(join(tmpdir(), 'hl-event-bridge-int-')));
-  dir = dirs[dirs.length - 1];
+  dir = dirs[dirs.length - 1]!;
 });
 
 /** Свежий tmp-userData на каждый тест (данные изолированы, §14). */

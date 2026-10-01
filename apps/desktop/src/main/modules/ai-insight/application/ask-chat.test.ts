@@ -176,7 +176,7 @@ class ControlledEngine implements LlmEngine {
           throw next.error;
         }
         yield next.chunk;
-        if (next.chunk.done !== undefined) {
+        if (!('delta' in next.chunk)) {
           return;
         }
         continue;

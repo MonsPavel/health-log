@@ -92,7 +92,12 @@ export function mainProcessLogsDir(): string {
  * см. LaunchAppOptions).
  */
 export async function launchApp(options: LaunchAppOptions): Promise<ElectronApplication> {
-  const env: NodeJS.ProcessEnv = { ...process.env };
+  // launch() ждёт {[key: string]: string} — undefined-значения process.env отсекаются.
+  const env: Record<string, string> = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
+  );
   env['HL_TEST_USER_DATA'] = options.userData;
   if (options.bench === true) {
     env['HL_BENCH'] = '1';

@@ -178,7 +178,11 @@ describe('PROMPT_TEMPLATE_VERSION и контракт с 083 (§20 п.5)', () =>
         getSeries: (q, mode): Promise<TrendResponse> =>
           Promise.resolve(buildTrendResponse(filter(q), mode)),
       },
-      scales: { getActiveScale: () => Promise.resolve(BP_OFFICE_ESC2018) },
+      // Проекция шкалы без readonly (деп scale ожидает мутабельный массив категорий).
+      scales: {
+        getActiveScale: () =>
+          Promise.resolve({ ...BP_OFFICE_ESC2018, categories: [...BP_OFFICE_ESC2018.categories] }),
+      },
       clock: new FixedClock(Instant.fromIso('2026-03-31T12:00:00.000+03:00').utcMs, 180),
     };
 

@@ -4,7 +4,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { isErr, isOk, type Result } from '@hl/kernel';
+import { isErr, isOk } from '@hl/kernel';
 
 import { BloodPressure } from './blood-pressure.js';
 import { BP_LIMITS } from './constants.js';
@@ -106,7 +106,8 @@ describe('BloodPressure.create — INVALID_RANGE (§7: params {field, value, min
   });
 
   it('messageKey по конвенции арх. 05 §29: errors.MEASUREMENT_INVALID_RANGE', () => {
-    const result: Result<BloodPressure, unknown> = BloodPressure.create(49, 80);
+    // Без аннотации: isErr сужает error до AppError (unknown не имеет messageKey).
+    const result = BloodPressure.create(49, 80);
 
     expect(isErr(result) && result.error.messageKey).toBe('errors.MEASUREMENT_INVALID_RANGE');
   });

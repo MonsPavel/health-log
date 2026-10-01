@@ -61,7 +61,7 @@ class MockVault implements KeyVault {
 const makeDeps = (dir: string, clock: Clock) => ({
   userDataPath: dir,
   clock,
-  vault: () => new MockVault(KEY_HEX),
+  vault: () => new MockVault(),
 });
 
 describe('container + EgressGateway (TASK-075 §9/§19/§20)', () => {

@@ -78,7 +78,7 @@ function fakePrefs(doc?: Partial<Prefs>): ModelsPrefsPort & { setSpy: ReturnType
     advancedMode: false,
     netConsents: { updatesCheck: false, modelsDownload: false },
     jobState: { jobs: {}, shown: {} },
-    aiSettings: { dismissed: false },
+    aiSettings: { dismissed: false, includeNotes: false },
     ...doc,
   };
   const setSpy = vi.fn((patch: PrefsPatch) => {
@@ -208,7 +208,7 @@ describe('createAiModelsSelectHandler — {modelId} → prefs.aiSettings (§9)',
     expect(AI_MODELS_SELECT_RESPONSE_SCHEMA.safeParse(response).success).toBe(true);
     expect(response).toEqual({ modelId: 'dev-ru' });
     expect(prefs.setSpy).toHaveBeenCalledWith({
-      aiSettings: { dismissed: false, modelId: 'dev-ru' },
+      aiSettings: { dismissed: false, includeNotes: false, modelId: 'dev-ru' },
     });
   });
 

@@ -38,6 +38,9 @@ const measurement = (): BpMeasurement =>
   }) as unknown as BpMeasurement;
 
 describe('JsonSnapshotSource — адаптер источника слепка (TASK-065 §8)', () => {
+  /** Поверхность зависимостей адаптера (класс — не функция, поэтому ConstructorParameters). */
+  type SourceDeps = ConstructorParameters<typeof JsonSnapshotSource>[0];
+
   it('getProfile: строка profile-таблицы → {id, name, createdAtUtc}; нет строки → undefined (§9)', async () => {
     const rows = new Map<string, { id: string; name: string; created_at_utc: number }>([
       [PROFILE, { id: PROFILE, name: 'Тест', created_at_utc: 42 }],
@@ -46,7 +49,7 @@ describe('JsonSnapshotSource — адаптер источника слепка 
       get: (id: string) => rows.get(id),
     }));
     const source = new JsonSnapshotSource({
-      db: { prepare } as unknown as Parameters<typeof JsonSnapshotSource>[0]['db'],
+      db: { prepare } as unknown as SourceDeps['db'],
       repo: { listByPeriod: vi.fn() },
     });
 
@@ -66,9 +69,10 @@ describe('JsonSnapshotSource — адаптер источника слепка 
     const m = measurement();
     const listByPeriod = vi.fn(() => Promise.resolve([m]));
     const source = new JsonSnapshotSource({
-      // Заглушка prepare структурно удовлетворяет ProfileReader (Pick от БД) —
-      // каста не требуется (типобезопасно: вызов getProfile в тесте не происходит).
-      db: { prepare: vi.fn() },
+      // Заглушка prepare структурно удовлетворяет ProfileReader (Pick от БД);
+      // Mock без сигнатуры better-sqlite3 Statement не выводится — cast на границе
+      // стаба (вызовов prepare в этом тесте нет — см. скоуп-проверку ниже).
+      db: { prepare: vi.fn(() => undefined) } as unknown as SourceDeps['db'],
       repo: { listByPeriod },
     });
 

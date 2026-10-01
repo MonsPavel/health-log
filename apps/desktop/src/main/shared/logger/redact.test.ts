@@ -111,7 +111,7 @@ describe('redactPhi — точное совпадение ключа (§7: «п�
 
   it('Error-экземпляры — листья: проходят как есть (pino зовёт formatters.log ДО сериализатора — опустошённый Error лишит err-сериализатор стека)', () => {
     const error = new Error('boom', { cause: { note: 'x' } });
-    expect(redactPhi({ err: error })['err']).toBe(error);
+    expect((redactPhi({ err: error }) as { err: unknown })['err']).toBe(error);
   });
 });
 

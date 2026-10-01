@@ -2,6 +2,8 @@
 // (арх. 05 §2): ошибка приходит как данные {ok:false,error}, никогда как исключение.
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
+import type { ErrorCode } from '@hl/kernel';
+
 import {
   API_ENVELOPE_VERSION,
   apiFailure,
@@ -61,9 +63,9 @@ describe('ApiEnvelope — типизация', () => {
     if (envelope.ok) {
       expectTypeOf(envelope.data).toEqualTypeOf<number>();
     } else {
-      expectTypeOf(envelope.error.code).toEqualTypeOf<
-        'APP/INTERNAL' | 'APP/NOT_IMPLEMENTED' | 'VALIDATION/FAILED'
-      >();
+      // Полный union ErrorCode (дрейфит вместе с реестром кодов — интриинки-список
+      // из трёх кодов устарел к TASK-072).
+      expectTypeOf(envelope.error.code).toEqualTypeOf<ErrorCode>();
     }
   });
 });

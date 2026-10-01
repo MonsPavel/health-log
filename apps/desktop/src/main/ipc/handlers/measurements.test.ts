@@ -219,7 +219,7 @@ describe('createListMeasurementHandler — чтение журнала (TASK-030
     const { handler, repo } = makeListHandler();
     await repo.add(listRecord(NOW_MS - MINUTE_MS, { sys: 125, dia: 82, pulse: 66, note: 'утром' }));
 
-    const response = await handler({ profileId: 'profile-1' });
+    const response = await handler({ profileId: 'profile-1', limit: 100, offset: 0 });
 
     // Строгая .strict()-схема канала принимает ответ — контракт §11 TASK-028 доказан.
     expect(MEASUREMENT_LIST_RESPONSE_SCHEMA.parse(response)).toEqual(response);
@@ -231,7 +231,7 @@ describe('createListMeasurementHandler — чтение журнала (TASK-030
   it('пустой период → {items: [], total: 0} — не ошибка (§20 п. 2)', async () => {
     const { handler } = makeListHandler();
 
-    const response = await handler({ profileId: 'profile-1' });
+    const response = await handler({ profileId: 'profile-1', limit: 100, offset: 0 });
 
     expect(response).toEqual({ items: [], total: 0 });
   });
@@ -242,7 +242,7 @@ describe('createListMeasurementHandler — чтение журнала (TASK-030
       await repo.add(listRecord(NOW_MS - (61 + i) * MINUTE_MS));
     }
 
-    const response = await handler({ profileId: 'profile-1', limit: 9999 });
+    const response = await handler({ profileId: 'profile-1', limit: 9999, offset: 0 });
 
     expect(MEASUREMENT_LIST_RESPONSE_SCHEMA.parse(response)).toEqual(response);
     expect(response.items.length).toBeLessThanOrEqual(500);

@@ -175,10 +175,10 @@ describe('trend/series через контейнер — полный путь (
         dia: 125,
         irregular: true,
       });
-      expect('critical' in points[1]).toBe(false);
-      expect('pulse' in points[1]).toBe(false);
-      expect('irregular' in points[1]).toBe(false);
-      expect('irregular' in points[2]).toBe(false);
+      expect('critical' in points[1]!).toBe(false);
+      expect('pulse' in points[1]!).toBe(false);
+      expect('irregular' in points[1]!).toBe(false);
+      expect('irregular' in points[2]!).toBe(false);
       // arm — TASK-059 §5: рука записи сквозно (measurements/add → адаптер порта →
       // read model) — колонка «Рука» таблицы-альтернативы строится из этого провода.
       expect(points[0]?.arm).toBe('left');

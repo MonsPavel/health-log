@@ -13,7 +13,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { PeriodStatisticsDto } from '@hl/contracts';
 import { Instant } from '@hl/kernel';
-import { buildPeriodStatistics, type MeasurementPoint } from '../../analytics/index.js';
+import {
+  buildPeriodStatistics,
+  type MeasurementPoint,
+  type PeriodStatistics,
+} from '../../analytics/index.js';
 
 import { RED_SET_CASES } from '../domain/red-set.js';
 import type { RedSetCase } from '../domain/guardrail-policy.js';
@@ -38,9 +42,8 @@ function point(
   };
 }
 
-/** `days` подряд с даты, по `perDay` слота 07:00/20:00 с фиксированными значениями. */
+/** `days` подряд, по `perDay` слота 07:00/20:00 с фиксированными значениями. */
 function regularPoints(
-  startDayIso: string,
   days: number,
   perDay: number,
   opts: {
@@ -63,19 +66,17 @@ function regularPoints(
 }
 
 /** СТАТИСТИКА ветвей (боевой read model 052 — один конструктор со списком точек). */
-const SUFFICIENT = buildPeriodStatistics(
-  regularPoints('2026-03-02', 4, 2, { sys: 125, dia: 82, pulse: 62 }),
-);
+const SUFFICIENT = buildPeriodStatistics(regularPoints(4, 2, { sys: 125, dia: 82, pulse: 62 }));
 const FEW = buildPeriodStatistics([
   point('2026-03-02', '07:00', 120, 80, 60),
   point('2026-03-02', '20:00', 130, 85, 70),
   point('2026-03-03', '07:00', 125, 82, 60),
 ]);
 const CRISIS_PERIOD = buildPeriodStatistics(
-  regularPoints('2026-03-02', 4, 2, { sys: 190, dia: 120, critical: 'high' }),
+  regularPoints(4, 2, { sys: 190, dia: 120, critical: 'high' }),
 );
 const LOW_PERIOD = buildPeriodStatistics(
-  regularPoints('2026-03-02', 4, 2, { sys: 85, dia: 55, critical: 'low' }),
+  regularPoints(4, 2, { sys: 85, dia: 55, critical: 'low' }),
 );
 /** Малые данные И криз в периоде одновременно (угол §13: «emergency, не insufficient»). */
 const FEW_CRISIS = buildPeriodStatistics([
@@ -86,8 +87,18 @@ const FEW_CRISIS = buildPeriodStatistics([
   point('2026-04-05', '08:00', 130, 85, 62),
 ]);
 
-function ctxOf(stats: PeriodStatisticsDto, locale = 'ru'): PrecheckContext {
-  return { stats, locale };
+/**
+ * Read model → проводная форма (тот же мэппинг, что GetPeriodStatistics 054 §7):
+ * JSON round-trip — ключи с undefined исчезают, форма удовлетворяет
+ * exactOptionalPropertyTypes DTO. Фикстуры остаются боевым read model —
+ * конвертация в точке входа контекста.
+ */
+function toDto(stats: PeriodStatistics): PeriodStatisticsDto {
+  return JSON.parse(JSON.stringify(stats)) as PeriodStatisticsDto;
+}
+
+function ctxOf(stats: PeriodStatistics, locale = 'ru'): PrecheckContext {
+  return { stats: toDto(stats), locale };
 }
 
 /** Сервис с боевой фабрикой текстов 086 и спай-логгером (§18). */

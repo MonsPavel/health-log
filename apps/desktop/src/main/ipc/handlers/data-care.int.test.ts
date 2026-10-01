@@ -85,7 +85,7 @@ describe('data-care хендлеры через каркас (TASK-073 §19)', (
   const fileSaver: BackupFileSaver = {
     save: () => Promise.resolve(containerTarget),
   };
-  const clock = new FixedClock(NOW_MS);
+  const clock = new FixedClock(NOW_MS, 180);
 
   // restore: шпионы точек контейнера (§19).
   const closeCurrentDb = vi.fn(() => undefined);

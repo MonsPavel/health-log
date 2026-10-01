@@ -177,8 +177,8 @@ describe('buildDayPoints — агрегация настенного дня (§4
         count: 1,
       },
     ]);
-    expect('morningSysAvg' in days[1]).toBe(false);
-    expect('eveningSysAvg' in days[1]).toBe(false);
+    expect('morningSysAvg' in days[1]!).toBe(false);
+    expect('eveningSysAvg' in days[1]!).toBe(false);
   });
 
   // TASK-058 §5/§13: день без измеренного пульса — pulse-агрегатов нет (§7: поля
@@ -191,8 +191,8 @@ describe('buildDayPoints — агрегация настенного дня (§4
       point('2026-03-06', '12:00', 124, 84, undefined),
       point('2026-03-06', '20:00', 128, 88, 68),
     ]);
-    expect('pulseAvg' in days[0]).toBe(false);
-    expect('pulseCount' in days[0]).toBe(false);
+    expect('pulseAvg' in days[0]!).toBe(false);
+    expect('pulseCount' in days[0]!).toBe(false);
     expect(days[1]?.pulseAvg).toBe(63);
     expect(days[1]?.pulseCount).toBe(2);
     expect(days[1]?.count).toBe(3);
@@ -289,8 +289,8 @@ describe('TrendSeries.getTrendSeries — сырые точки: сортиров
       part: 'morning',
       critical: 'high',
     });
-    expect('critical' in plain).toBe(false);
-    expect('pulse' in plain).toBe(false);
+    expect('critical' in plain!).toBe(false);
+    expect('pulse' in plain!).toBe(false);
   });
 
   it('точка несёт свой offset записи (EC-06), а не пояс профиля', async () => {
@@ -317,7 +317,7 @@ describe('TrendSeries.getTrendSeries — сырые точки: сортиров
     ]).getTrendSeries('profile-1', 'all');
     const [withId, withoutId] = response.points ?? [];
     expect(withId?.id).toBe('rec-1');
-    expect('id' in withoutId).toBe(false);
+    expect('id' in withoutId!).toBe(false);
   });
 
   // TASK-058 §7/§9 (EC-10): флаг записи «неровный пульс» прокидывается в сырую
@@ -329,7 +329,7 @@ describe('TrendSeries.getTrendSeries — сырые точки: сортиров
     ]).getTrendSeries('profile-1', 'all');
     const [irregular, plain] = response.points ?? [];
     expect(irregular).toMatchObject({ pulse: 75, irregular: true });
-    expect('irregular' in plain).toBe(false);
+    expect('irregular' in plain!).toBe(false);
   });
 
   // TASK-059 §5 (прецедент irregular TASK-058): рука измерения прокидывается в

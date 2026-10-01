@@ -72,8 +72,9 @@ function firstMessage(
 
 /** Копия payload без указанного поля — для кейсов «обязательное поле отсутствует» и strict. */
 function copyWithout<T extends object>(payload: T, key: keyof T): Record<string, unknown> {
-  const copy: Record<string, unknown> = { ...payload };
-  delete copy[key];
+  // T — конкретный тип без индексной сигнатуры; форма значения — плоский JSON-объект.
+  const copy = { ...payload } as Record<string, unknown>;
+  delete copy[key as string];
   return copy;
 }
 

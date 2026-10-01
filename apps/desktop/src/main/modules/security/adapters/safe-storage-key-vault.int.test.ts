@@ -212,7 +212,8 @@ describe('SafeStorageKeyVault — кейсы §13 на моке safeStorage (TAS
 
   it('кейс 3в: файл не JSON и схема не {v:1, wrapped: string, createdUtc: number} → VAULT/KEY_CORRUPT (§13)', async () => {
     const { logger } = makeLogger();
-    const invalidPayloads: unknown[] = [
+    // Содержимое файла всегда строка (utf8); «мусор» — в структуре JSON, не в типе.
+    const invalidPayloads: string[] = [
       'not-json{',
       JSON.stringify({ v: 2, wrapped: 'aaa', createdUtc: 1 }),
       JSON.stringify({ v: 1, wrapped: 42, createdUtc: 1 }),

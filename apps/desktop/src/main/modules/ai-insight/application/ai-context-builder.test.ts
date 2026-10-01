@@ -30,7 +30,7 @@ import { assessCritical } from '../../measurement/index.js';
 import type { ContextPoint, ContextPointsPort, ContextPointsQuery } from './ports/ai-context.js';
 import {
   AiContextBuilder,
-  AiContextBuilderDeps,
+  type AiContextBuilderDeps,
   CONTEXT_MAX_DAYS,
   PROMPT_TEMPLATE_VERSION,
 } from './ai-context-builder.js';
@@ -98,7 +98,10 @@ function makeDeps(
       getSeries: (q, mode): Promise<TrendResponse> =>
         Promise.resolve(buildTrendResponse(filterByQuery(points, q), mode)),
     },
-    scales: { getActiveScale: () => Promise.resolve(scale) },
+    // Проекция шкалы без readonly (деп scale ожидает мутабельный массив категорий).
+    scales: {
+      getActiveScale: () => Promise.resolve({ ...scale, categories: [...scale.categories] }),
+    },
     clock,
   };
 }

@@ -70,7 +70,9 @@ const prefs: Prefs = {
   textScale: '100',
   dateFormat: 'dmy',
   advancedMode: false,
-  netConsents: { updatesCheck: false },
+  netConsents: { updatesCheck: false, modelsDownload: false },
+  jobState: { jobs: {}, shown: {} },
+  aiSettings: { dismissed: false, includeNotes: false },
 };
 
 /**

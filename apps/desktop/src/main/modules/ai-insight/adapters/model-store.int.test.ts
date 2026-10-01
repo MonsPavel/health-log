@@ -584,7 +584,7 @@ describe('ModelStore — интеграция (TASK-080 §19/§20)', () => {
     expect(downloading.length).toBeLessThan(15);
     // throttle 250 мс: между byte-событиями пауза ≥250 мс (допуск 10 мс на часы).
     for (let i = 1; i < downloading.length; i += 1) {
-      expect(downloading[i] - downloading[i - 1]).toBeGreaterThanOrEqual(240);
+      expect(downloading[i]! - downloading[i - 1]!).toBeGreaterThanOrEqual(240);
     }
     // ≤4/сек: в любом окне 1000 мс не больше 4 downloading-событий.
     for (const at of downloading) {

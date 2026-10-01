@@ -45,10 +45,15 @@ function descriptor(overrides: Partial<ModelDescriptor> = {}): ModelDescriptor {
 
 /** Store-порт с настраиваемым статусом и spy-делегированием (§19). */
 class FakeStore {
-  readonly downloadSpy = vi.fn(() => Promise.resolve(ok({ state: 'installed' as const })));
-  readonly resumeSpy = vi.fn(() => Promise.resolve(ok({ state: 'paused' as const })));
-  readonly pauseSpy = vi.fn(() => undefined);
-  readonly resetSpy = vi.fn(() => undefined);
+  /** Тип шпиона несёт параметр порта, реализация его не использует — без unused. */
+  readonly downloadSpy = vi.fn<(modelId: string) => Promise<Result<ModelStatusInfo>>>(() =>
+    Promise.resolve(ok({ state: 'installed' })),
+  );
+  readonly resumeSpy = vi.fn<(modelId: string) => Promise<Result<ModelStatusInfo>>>(() =>
+    Promise.resolve(ok({ state: 'paused' })),
+  );
+  readonly pauseSpy = vi.fn<(modelId: string) => void>(() => undefined);
+  readonly resetSpy = vi.fn<(modelId: string) => void>(() => undefined);
 
   constructor(public statusResult: ModelStatusInfo = { state: 'not_installed' }) {}
 
@@ -94,7 +99,7 @@ class FakePrefs {
     advancedMode: false,
     netConsents: { updatesCheck: false, modelsDownload: false },
     jobState: { jobs: {}, shown: {} },
-    aiSettings: { dismissed: false },
+    aiSettings: { dismissed: false, includeNotes: false },
   };
   readonly setSpy = vi.fn((patch: PrefsPatch) => {
     this.document = { ...this.document, ...patch };
@@ -111,7 +116,9 @@ class FakePrefs {
 
 /** Test-install порт (§22): включаемость + spy установки мимо сети. */
 class FakeTestInstall {
-  readonly installSpy = vi.fn(() => Promise.resolve(ok({ state: 'installed' as const })));
+  readonly installSpy = vi.fn<(modelId: string) => Promise<Result<ModelStatusInfo>>>(() =>
+    Promise.resolve(ok({ state: 'installed' })),
+  );
 
   constructor(public enabled = false) {}
 
@@ -255,13 +262,13 @@ describe('AiModelsQueries.select — prefs.aiSettings.modelId (§5/§9/§13)', (
     const prefs = new FakePrefs();
     prefs.document = {
       ...prefs.document,
-      aiSettings: { dismissed: true },
+      aiSettings: { dismissed: true, includeNotes: false },
     };
 
     const result = await build({ prefs }).select('dev-ru');
 
     expect(prefs.setSpy).toHaveBeenCalledWith({
-      aiSettings: { dismissed: true, modelId: 'dev-ru' },
+      aiSettings: { dismissed: true, includeNotes: false, modelId: 'dev-ru' },
     });
     const data = (result as { ok: true; value: AiModelsSelectResponse }).value;
     expect(data.modelId).toBe('dev-ru');

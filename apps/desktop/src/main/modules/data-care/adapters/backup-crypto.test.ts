@@ -94,7 +94,7 @@ describe('createBackupCipher / decryptBackupPayload (TASK-070 §5: AES-256-GCM)'
       cipher.transform.final(),
     ]);
     const tampered = Buffer.from(ciphertext);
-    tampered[0] ^= 0xff;
+    tampered[0]! ^= 0xff;
 
     expect(() =>
       decryptBackupPayload({
@@ -114,7 +114,7 @@ describe('createBackupCipher / decryptBackupPayload (TASK-070 §5: AES-256-GCM)'
       cipher.transform.final(),
     ]);
     const tamperedAad = Buffer.from(aad);
-    tamperedAad[2] ^= 0x01;
+    tamperedAad[2]! ^= 0x01;
 
     expect(() =>
       decryptBackupPayload({
@@ -134,7 +134,7 @@ describe('createBackupCipher / decryptBackupPayload (TASK-070 §5: AES-256-GCM)'
       cipher.transform.final(),
     ]);
     const tamperedTag = Buffer.from(cipher.authTag());
-    tamperedTag[15] ^= 0xff;
+    tamperedTag[15]! ^= 0xff;
 
     expect(() =>
       decryptBackupPayload({ contentKey: key, iv: cipher.iv, aad, tag: tamperedTag, ciphertext }),
