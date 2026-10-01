@@ -22,6 +22,8 @@ import {
 import {
   AI_CANCEL_REQUEST_SCHEMA,
   AI_CANCEL_RESPONSE_SCHEMA,
+  AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA,
+  AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA,
   AI_SUMMARY_GENERATE_REQUEST_SCHEMA,
   AI_SUMMARY_GENERATE_RESPONSE_SCHEMA,
   AI_SUMMARY_LATEST_REQUEST_SCHEMA,
@@ -143,6 +145,16 @@ export const CHANNEL_SCHEMAS = {
   'ai/summary/latest': {
     request: AI_SUMMARY_LATEST_REQUEST_SCHEMA,
     response: AI_SUMMARY_LATEST_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-088 §5: «Очистить разборы» — {} → null (вызов порта deleteAll 087:
+   * необратимая очистка КЭША резюме, дневник не трогается; подтверждение —
+   * диалог UI перед вызовом). Ответ null — fire-and-forget (прецедент
+   * app/reveal-path).
+   */
+  'ai/summary/delete-all': {
+    request: AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA,
+    response: AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA,
   },
   /**
    * TASK-087 §5 п.5: отмена генерации по requestId (арх. 05 §3, EC-16) — abort

@@ -7,6 +7,8 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
+  AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA,
+  AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA,
   AI_SUMMARY_DTO_SCHEMA,
   AI_SUMMARY_GENERATE_REQUEST_SCHEMA,
   AI_SUMMARY_GENERATE_RESPONSE_SCHEMA,
@@ -137,5 +139,18 @@ describe('ai/summary/latest — контракт мини-канала стей�
     expectTypeOf<AiSummaryLatestResponse>().toEqualTypeOf<
       { summary: AiSummaryDto; stale: boolean } | undefined
     >();
+  });
+});
+
+describe('ai/summary/delete-all — контракт кнопки «Очистить разборы» (TASK-088 §5)', () => {
+  it('запрос {} — strict (без параметров: очистка ВСЕХ резюме, скоуп не нужен)', () => {
+    expect(AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA.parse({})).toEqual({});
+    // strict §14: даже profileId лишний — порт deleteAll() параметров не принимает.
+    expect(AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA.safeParse({ profileId: 'p1' }).success).toBe(false);
+  });
+
+  it('ответ null — fire-and-forget (прецедент app/reveal-path): очистка не возвращает данных', () => {
+    expect(AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA.parse(null)).toBeNull();
+    expect(AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA.safeParse({}).success).toBe(false);
   });
 });
