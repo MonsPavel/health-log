@@ -95,7 +95,7 @@
 | TASK-087 | done | | смержена |
 | TASK-088 | done | | смержена вручную 01.10 после квота-остановки прогона 11 на фазе ревью: ревью дифа выполнено основным агентом, gate — typecheck + pnpm test 253 файла/2707 passed (+4 [model]-skip) + e2e зелёные (ai-summary fake-happy §20, visual-scales с обновлёнными базлайнами) |
 | TASK-089 | done | | смержена |
-| TASK-090 | todo | | |
+| TASK-090 | done | | смержена |
 | TASK-091 | todo | | |
 | TASK-092 | todo | | |
 | TASK-093 | todo | | |
