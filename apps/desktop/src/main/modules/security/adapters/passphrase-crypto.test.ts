@@ -139,7 +139,7 @@ describe('calibrate — подбор iterations под бюджет (TASK-093 §
   }
 
   /** Fake-hash: мгновенный — длительность создаёт StepClock шагом. */
-  const fakeHash = async (): Promise<Buffer> => Buffer.alloc(KEK_BYTES);
+  const fakeHash = (): Promise<Buffer> => Promise.resolve(Buffer.alloc(KEK_BYTES));
 
   it('детерминизм: budget 500 / 100 мс-итерация → 5 итераций, повторный вызов — тот же результат', async () => {
     const first = await calibrate({ hashFn: fakeHash, clock: new StepClock(100) });

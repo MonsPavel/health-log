@@ -77,14 +77,13 @@ const silentLogger: VaultLogger = { info: () => undefined, warn: () => undefined
  * (Argon2id + GCM), быстрая калибровка; путь файла — из контекста контейнера.
  */
 const makeRealVaultFactory =
-  () =>
-  (context: { vaultFilePath: string; clock: Clock; logger: VaultLogger }) =>
+  () => (context: { vaultFilePath: string; clock: Clock; logger: VaultLogger }) =>
     new SafeStorageKeyVault({
       vaultFilePath: context.vaultFilePath,
       safeStorage: new FakeSafeStorage(),
       clock: context.clock,
       logger: context.logger,
-      calibrate: async () => FAST_PARAMS,
+      calibrate: () => Promise.resolve(FAST_PARAMS),
     });
 
 /** Готовит tmp-userData с vault-файлом mode=passphrase (пароль включён заранее). */
@@ -94,7 +93,7 @@ const setupPassphraseUserData = async (dir: string): Promise<void> => {
     safeStorage: new FakeSafeStorage(),
     clock: new FixedClock(NOW_MS, TZ),
     logger: silentLogger,
-    calibrate: async () => FAST_PARAMS,
+    calibrate: () => Promise.resolve(FAST_PARAMS),
   });
   unsafeUnwrap(await vault.ensureKey(false));
   unsafeUnwrap(await vault.setPassphrase(PASS));

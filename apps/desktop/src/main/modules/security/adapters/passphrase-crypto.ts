@@ -162,7 +162,8 @@ export async function calibrate(options: CalibrateOptions = {}): Promise<Argon2P
   await hashFn('hl-calibrate', probeSalt, probeParams);
   const iterationMs = Math.max(clock.nowMs() - startedMs, 0);
 
-  const estimated = iterationMs === 0 ? ARGON2ID_MAX_ITERATIONS : Math.round(targetMs / iterationMs);
+  const estimated =
+    iterationMs === 0 ? ARGON2ID_MAX_ITERATIONS : Math.round(targetMs / iterationMs);
   const iterations = Math.min(
     Math.max(estimated, ARGON2ID_MIN_ITERATIONS),
     ARGON2ID_MAX_ITERATIONS,

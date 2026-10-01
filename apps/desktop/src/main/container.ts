@@ -571,11 +571,7 @@ function createLockedDatabaseProxy(
       // eslint-disable-next-line @typescript-eslint/only-throw-error -- контракт §9: AppError в потребителя (репозитории/каналы), прецедент sqlite.ts TASK-022
       throw AppError.of('VAULT/LOCKED', VAULT_LOCKED_MESSAGE_KEY);
     }
-    const value = Reflect.get(
-      connection as unknown as object,
-      prop,
-      connection as unknown as object,
-    ) as unknown;
+    const value = Reflect.get(connection, prop, connection) as unknown;
     return typeof value === 'function'
       ? (value as (...args: unknown[]) => unknown).bind(connection)
       : value;
@@ -585,19 +581,27 @@ function createLockedDatabaseProxy(
   const lazyStatement = (sql: string): unknown => {
     let statement: object | undefined;
     const resolve = (): object => {
-      statement ??= (realMember('prepare') as (s: string) => object)(sql);
-      return statement;
+      if (statement !== undefined) {
+        return statement;
+      }
+      const prepare = realMember('prepare') as (s: string) => object;
+      const prepared = prepare(sql);
+      statement = prepared;
+      return prepared;
     };
-    return new Proxy({} as object, {
-      get: (_target, prop) => {
-        const real = resolve();
-        const value = Reflect.get(real, prop, real) as unknown;
-        // Методы statement требуют this = statement — связываем при выдаче.
-        return typeof value === 'function'
-          ? (value as (...args: unknown[]) => unknown).bind(real)
-          : value;
+    return new Proxy(
+      {},
+      {
+        get: (_target, prop) => {
+          const real = resolve();
+          const value: unknown = Reflect.get(real, prop, real);
+          // Методы statement требуют this = statement — связываем при выдаче.
+          return typeof value === 'function'
+            ? (value as (...args: unknown[]) => unknown).bind(real)
+            : value;
+        },
       },
-    });
+    );
   };
 
   return new Proxy({} as EncryptedDatabase, {
@@ -1191,9 +1195,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
           if (error instanceof AppError) {
             return err(error); // STORAGE/* из openEncrypted/runner (контракт §9)
           }
-          return err(
-            AppError.of('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error),
-          );
+          return err(AppError.of('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error));
         }
       })();
       try {

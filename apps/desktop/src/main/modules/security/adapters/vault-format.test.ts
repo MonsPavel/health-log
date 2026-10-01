@@ -126,7 +126,7 @@ describe('migrateV1ToV2/serializeV2 — переупаковка без поте
 
   it('downgrade запрещён: сериализация всегда пишет v=2 — v1-ридер видит KEY_CORRUPT (§13)', () => {
     const legacy = { wrapped: WRAPPED_B64, createdUtc: 1 };
-    const roundtrip = parseV1(serializeV2(migrateV1ToV2(legacy)) as string);
+    const roundtrip = parseV1(serializeV2(migrateV1ToV2(legacy)));
     expect(roundtrip).toBeUndefined(); // v1-схема v2-файл больше не принимает
   });
 });

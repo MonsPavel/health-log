@@ -215,7 +215,7 @@ export class SafeStorageKeyVault implements KeyVault {
         reason: 'passphrase-already-set',
       });
     }
-    const key = await this.resolveCurrentKey(state.file);
+    const key = this.resolveCurrentKey(state.file);
     if (!key.ok) {
       return key;
     }
@@ -446,7 +446,7 @@ export class SafeStorageKeyVault implements KeyVault {
   }
 
   /** Кейсы 2/3 (§13): safeStorage-расшифровка v2-файла; любой сбой — VAULT/KEY_CORRUPT. */
-  private async unwrapSafeStorageKey(file: VaultKeyFileV2): Promise<Result<EnsuredKey, AppError>> {
+  private unwrapSafeStorageKey(file: VaultKeyFileV2): Result<EnsuredKey, AppError> {
     if (!this.safeStorage.isEncryptionAvailable()) {
       return this.fail('VAULT/UNAVAILABLE', VAULT_UNAVAILABLE_MESSAGE_KEY, {
         platform: process.platform,
@@ -476,11 +476,11 @@ export class SafeStorageKeyVault implements KeyVault {
    * Ключ текущей установки для setPassphrase (§13 «при открытой БД — мгновенно»):
    * из кэша сессии (боевой поток: ensureKey уже отработал) или safeStorage-расшифровкой.
    */
-  private async resolveCurrentKey(file: VaultKeyFileV2): Promise<Result<string, AppError>> {
+  private resolveCurrentKey(file: VaultKeyFileV2): Result<string, AppError> {
     if (this.cached?.ok === true) {
       return ok(this.cached.value.keyHex);
     }
-    const unwrapped = await this.unwrapSafeStorageKey(file);
+    const unwrapped = this.unwrapSafeStorageKey(file);
     if (unwrapped.ok) {
       this.cached = unwrapped; // сессия имела право на ключ — кэшируем (§13)
       return ok(unwrapped.value.keyHex);

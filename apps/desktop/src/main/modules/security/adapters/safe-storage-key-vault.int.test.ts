@@ -151,7 +151,7 @@ describe('SafeStorageKeyVault — режим safeStorage, кейсы §13 TASK-0
       clock: new FixedClock(NOW_MS, 180),
       logger,
       // §19: калибровка подставляется — быстрые параметры (миллисекунды).
-      calibrate: async () => FAST_PARAMS,
+      calibrate: () => Promise.resolve(FAST_PARAMS),
     });
 
   /** Путь файла ключа в каталоге (читаемость тестов). */
@@ -501,7 +501,7 @@ describe('SafeStorageKeyVault — двойная обёртка (TASK-093 §19: 
       safeStorage,
       clock: new FixedClock(NOW_MS, 180),
       logger,
-      calibrate: async () => FAST_PARAMS,
+      calibrate: () => Promise.resolve(FAST_PARAMS),
     });
 
   /** Сценарий «первая установка без пароля»: ключ создан, mode=none. */
@@ -564,10 +564,7 @@ describe('SafeStorageKeyVault — двойная обёртка (TASK-093 §19: 
     const noSalt = newDir();
     await setupUnprotected(noSalt);
     unsafeUnwrap(await makeVault(noSalt).setPassphrase(PASS));
-    const noSaltBlob = JSON.parse(readFileSync(keyFile(noSalt), 'utf8')) as Record<
-      string,
-      unknown
-    >;
+    const noSaltBlob = JSON.parse(readFileSync(keyFile(noSalt), 'utf8')) as Record<string, unknown>;
     delete noSaltBlob.saltB64;
     writeFileSync(keyFile(noSalt), JSON.stringify(noSaltBlob), 'utf8');
     expect(errOf(await makeVault(noSalt).unlock(PASS)).code).toBe('VAULT/KEY_CORRUPT');

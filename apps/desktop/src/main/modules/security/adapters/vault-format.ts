@@ -124,9 +124,7 @@ function checkCommon(
   version: number,
 ): file is Record<string, unknown> & { createdUtc: number } {
   return (
-    file.v === version &&
-    typeof file.createdUtc === 'number' &&
-    Number.isFinite(file.createdUtc)
+    file.v === version && typeof file.createdUtc === 'number' && Number.isFinite(file.createdUtc)
   );
 }
 
