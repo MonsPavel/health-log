@@ -22,7 +22,10 @@
  */
 import type { GenerationParams } from '@hl/contracts';
 
-import { GENERATION_DEFAULTS, createManagedLlamaEngine } from '../../apps/desktop/src/main/llm-worker/engine.js';
+import {
+  GENERATION_DEFAULTS,
+  createManagedLlamaEngine,
+} from '../../apps/desktop/src/main/llm-worker/engine.js';
 import { createNodeLlamaBackend } from '../../apps/desktop/src/main/llm-worker/llama-engine.js';
 import type {
   EngineStatus,

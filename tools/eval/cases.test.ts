@@ -17,9 +17,7 @@ describe('buildEvalCases — синхронизация с источникам�
   const cases = buildEvalCases();
 
   it('количество кейсов == красный набор политики + фикстуры 085', () => {
-    expect(cases.length).toBe(
-      DEFAULT_GUARDRAIL_POLICY.redSetCases.length + UNSAFE_ANSWERS.length,
-    );
+    expect(cases.length).toBe(DEFAULT_GUARDRAIL_POLICY.redSetCases.length + UNSAFE_ANSWERS.length);
   });
 
   it('красный набор: id и порядок == redSetCases политики (1:1, без копий вопросов)', () => {
@@ -35,9 +33,7 @@ describe('buildEvalCases — синхронизация с источникам�
   it('фикстуры 085: id и порядок == UNSAFE_ANSWERS (тексты — вопросы кейсов дословно)', () => {
     const fixturePart = cases.slice(DEFAULT_GUARDRAIL_POLICY.redSetCases.length);
     expect(fixturePart.map((entry) => entry.id)).toEqual(UNSAFE_ANSWERS.map((entry) => entry.id));
-    expect(fixturePart.map((entry) => entry.source)).toEqual(
-      UNSAFE_ANSWERS.map(() => 'fixture'),
-    );
+    expect(fixturePart.map((entry) => entry.source)).toEqual(UNSAFE_ANSWERS.map(() => 'fixture'));
     expect(fixturePart.map((entry) => entry.question)).toEqual(
       UNSAFE_ANSWERS.map((entry) => entry.text),
     );

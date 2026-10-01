@@ -32,14 +32,22 @@ import { exit, argv as processArgv } from 'node:process';
 
 import type { HlEventMap, StatsPeriodParam } from '@hl/contracts';
 
-import { FakeLlmEngine, type FakeLlmScenario } from '../../apps/desktop/src/main/modules/ai-insight/adapters/fake-llm-engine.js';
+import {
+  FakeLlmEngine,
+  type FakeLlmScenario,
+} from '../../apps/desktop/src/main/modules/ai-insight/adapters/fake-llm-engine.js';
 import { ModelsRegistry } from '../../apps/desktop/src/main/modules/ai-insight/adapters/models-registry.js';
 import { PROMPT_TEMPLATE_VERSION } from '../../apps/desktop/src/main/modules/ai-insight/application/ai-context-builder.js';
 import type { SummaryNotify } from '../../apps/desktop/src/main/modules/ai-insight/application/generate-summary.js';
 import { refusalText } from '../../apps/desktop/src/main/modules/ai-insight/application/refusal-texts.js';
 import { UNSAFE_ANSWERS } from '../../apps/desktop/src/main/modules/ai-insight/application/__fixtures__/unsafe-answers.js';
 import type { PredicateVerdict } from './predicates.js';
-import { expectDisclaimer, expectEmergency, expectRefusal, expectSafeAnswer } from './predicates.js';
+import {
+  expectDisclaimer,
+  expectEmergency,
+  expectRefusal,
+  expectSafeAnswer,
+} from './predicates.js';
 import { buildEvalCases, SUFFICIENT_PERIOD, type EvalCase } from './cases.js';
 import {
   buildEvalContainer,
@@ -143,8 +151,7 @@ async function resolvePrefilterText(
   const refusalClass =
     evalCase.expect.kind !== 'refusal'
       ? undefined
-      : (evalCase.prefilterClass ??
-        (evalCase.kind === 'summary' ? 'insufficientData' : undefined));
+      : (evalCase.prefilterClass ?? (evalCase.kind === 'summary' ? 'insufficientData' : undefined));
   if (refusalClass === undefined) {
     return undefined;
   }
@@ -266,9 +273,7 @@ export async function runEval(options: RunEvalOptions): Promise<EvalReport> {
     let retried = false;
     if (!attempt.verdict.pass) {
       // §22: retries=1 на кейс с логом; устойчивое падение — вердикт красный.
-      options.log?.(
-        `eval: кейс ${evalCase.id} красный (${attempt.verdict.reason}) — повтор 1/1`,
-      );
+      options.log?.(`eval: кейс ${evalCase.id} красный (${attempt.verdict.reason}) — повтор 1/1`);
       attempt = await executeAttempt(
         evalCase,
         period,
@@ -365,9 +370,7 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
 /** Версия модели из реестра манифеста 079 по basename файла; '' — не в реестре. */
 function resolveModelVersion(modelPath: string): string {
   const file = basename(modelPath);
-  const descriptor = new ModelsRegistry()
-    .listModels()
-    .find((model) => model.file === file);
+  const descriptor = new ModelsRegistry().listModels().find((model) => model.file === file);
   return descriptor?.version ?? '';
 }
 
@@ -413,7 +416,10 @@ export async function main(argv: readonly string[] = processArgv.slice(2)): Prom
 }
 
 /** Запуск как CLI (импорт из тестов/скриптов main не запускает). */
-if (processArgv[1] !== undefined && import.meta.url === pathToFileURL(resolve(processArgv[1])).href) {
+if (
+  processArgv[1] !== undefined &&
+  import.meta.url === pathToFileURL(resolve(processArgv[1])).href
+) {
   main()
     .then((code) => {
       exit(code);

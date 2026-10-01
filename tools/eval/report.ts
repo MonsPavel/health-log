@@ -63,7 +63,11 @@ export function truncateFact(answer: string, maxLength = 120): string {
  */
 export function reportFileName(report: EvalReport): string {
   const date = report.dateUtc.slice(0, 10);
-  const base = report.modelId.replaceAll(/[/\\:]/g, '/').split('/').at(-1) ?? '';
+  const base =
+    report.modelId
+      .replaceAll(/[/\\:]/g, '/')
+      .split('/')
+      .at(-1) ?? '';
   const slug = base.length > 0 ? base.replaceAll(/[^\w.\-]+/g, '-') : 'fake';
   return `${date}-${slug}.md`;
 }

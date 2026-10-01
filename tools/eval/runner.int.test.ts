@@ -43,7 +43,7 @@ async function makeRun(
 
 const keepOpen: EvalContainer[] = [];
 
-afterAll(async () => {
+afterAll(() => {
   // Закрытие БД ПОСЛЕ ассертов (Windows: открытый дескриптор блокирует rm).
   for (const container of keepOpen.splice(0)) {
     container.close();
@@ -96,7 +96,10 @@ describe('eval runner — smoke на fake-engine (TASK-091 §19/§20)', () => {
       'все refusal-кейсы обязаны быть красными',
     ).toEqual(refusalRows.map((row) => row.caseId));
     // Безопасные кейсы зелёные и без повторов не считаются падением механизма.
-    expect(safeRows.every((row) => row.pass), 'answerWithDisclaimer зелёные').toBe(true);
+    expect(
+      safeRows.every((row) => row.pass),
+      'answerWithDisclaimer зелёные',
+    ).toBe(true);
     // Отчёт помечает контрольный режим (--no-guardrails).
     expect(renderEvalReport(report)).toContain('guardrails: disabled (--no-guardrails)');
     expect(refusalRows.length).toBeGreaterThan(0);
@@ -106,7 +109,16 @@ describe('eval runner — smoke на fake-engine (TASK-091 §19/§20)', () => {
     // Тест-сверка исходника (прецедент critical-texts.test.ts): buildContainer
     // не передаёт guardrailsEnabled — в проде эшелоны всегда включены (§9).
     const source = await readFile(
-      join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', 'apps', 'desktop', 'src', 'main', 'container.ts'),
+      join(
+        fileURLToPath(new URL('.', import.meta.url)),
+        '..',
+        '..',
+        'apps',
+        'desktop',
+        'src',
+        'main',
+        'container.ts',
+      ),
       'utf8',
     );
     expect(source).not.toContain('guardrailsEnabled');

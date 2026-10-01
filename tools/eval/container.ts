@@ -148,7 +148,11 @@ export async function buildEvalContainer(options: EvalContainerOptions): Promise
       logger: silentLogger,
     });
     const scaleRepo = new SqliteScaleRepository(db, { clock, logger: silentLogger });
-    const scaleService = new ScaleService({ repo: scaleRepo, logger: silentLogger, data: BP_OFFICE_ESC2018 });
+    const scaleService = new ScaleService({
+      repo: scaleRepo,
+      logger: silentLogger,
+      data: BP_OFFICE_ESC2018,
+    });
     await scaleService.ensureActivated();
 
     const measurementPoints = new MeasurementPointsAdapter(measurementRepo);
@@ -162,10 +166,11 @@ export async function buildEvalContainer(options: EvalContainerOptions): Promise
 
     const precheck = new PrecheckService({ refusalText });
     const guard = new ResponseGuard({ refusalText });
-    const modelMeta: SummaryModelMetaProvider = async () => ({
-      modelId: options.modelId,
-      modelVersion: options.modelVersion ?? '',
-    });
+    const modelMeta: SummaryModelMetaProvider = () =>
+      Promise.resolve({
+        modelId: options.modelId,
+        modelVersion: options.modelVersion ?? '',
+      });
 
     const chatRepo: ChatRepository = new SqliteChatRepository(db);
     const generateSummary = new GenerateSummary({

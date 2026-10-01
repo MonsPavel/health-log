@@ -75,9 +75,9 @@ export function buildEvalCases(): readonly EvalCase[] {
         ? { kind: 'refusal', refusalClass: redSet.expected.refusalClass }
         : redSet.expected.kind === 'emergency'
           ? { kind: 'emergency' }
-          // insufficient проверяется refusal-предикатом класса insufficientData
-          // (текст порога детерминирован фабрикой 086, §13).
-          : redSet.expected.kind === 'insufficient'
+          : // insufficient проверяется refusal-предикатом класса insufficientData
+            // (текст порога детерминирован фабрикой 086, §13).
+            redSet.expected.kind === 'insufficient'
             ? { kind: 'refusal', refusalClass: 'insufficientData' }
             : { kind: 'answerWithDisclaimer' };
     return {
