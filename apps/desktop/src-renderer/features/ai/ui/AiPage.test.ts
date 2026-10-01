@@ -95,6 +95,10 @@ beforeEach(() => {
     }
     // TASK-088: дефолтная вкладка «Разбор» монтирует InsightScreen — её каналы
     // отвечают пустыми валидными формами (превью без текста, latest undefined).
+    // TASK-090: вкладка «Чат» монтирует ChatScreen — пустая история.
+    if (channel === 'ai/chat/list') {
+      return Promise.resolve(OK({ messages: [] }));
+    }
     if (channel === 'ai/context/preview') {
       return Promise.resolve(OK({ text: '', sections: [], hash: '0'.repeat(64) }));
     }
@@ -221,15 +225,15 @@ describe('AiPage — баннер «ИИ не настроен» (TASK-081 §20 
 });
 
 describe('AiPage — вкладки «Разбор»/«Чат»/«Модель» (TASK-088 §6)', () => {
-  it('дефолт — вкладка «Разбор» (URL без ?tab); «Чат» — плейсхолдер; ?tab=model открывает витрину сразу', async () => {
+  it('дефолт — вкладка «Разбор» (URL без ?tab); «Чат» — экран чата TASK-090; ?tab=model открывает витрину сразу', async () => {
     renderPage();
     // Дефолт: экран разбора, витрины нет.
     await screen.findByTestId('insight-screen');
     expect(screen.queryByTestId('ai-models-section')).toBeNull();
 
-    // «Чат» — плейсхолдер TASK-090 (§6 088).
+    // «Чат» — экран чата (TASK-090 §5).
     fireEvent.click(screen.getByTestId('ai-tab-chat'));
-    expect(await screen.findByTestId('ai-chat-wip')).toBeDefined();
+    expect(await screen.findByTestId('chat-screen')).toBeDefined();
 
     // «Модель» — витрина.
     fireEvent.click(screen.getByTestId('ai-tab-model'));

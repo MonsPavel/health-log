@@ -245,6 +245,33 @@ export function fakeLlmEnabled(
 }
 
 /**
+ * TASK-090 §19/§20: имя env-параметра задержки fake-движка между «словами»
+ * (мс) и гард его применения: действует ТОЛЬКО вместе с HL_FAKE_LLM=1 в
+ * не-packaged запуске и только при валидном целом > 0 (мусор/0/отрицательное —
+ * delay нет, дефолт движка). Нужен e2e-эмуляции BUSY (§20: «генерация резюме
+ * в другой вкладке → тост»): с нулевой задержкой стрим завершается за
+ * микротаски — окно занятости движка не наблюдаемо из рендерера, сценарий
+ * гоночен. Bootstrap передаёт число параметром useFakeLlmDelayMs — контейнер
+ * сам process.env не читает (§19, прецедент useFakeLlm выше).
+ */
+export const HL_FAKE_LLM_DELAY_MS_ENV = 'HL_FAKE_LLM_DELAY_MS';
+
+export function fakeLlmDelayMs(
+  env: Readonly<Record<string, string | undefined>>,
+  isPackaged: boolean,
+): number | undefined {
+  if (!fakeLlmEnabled(env, isPackaged)) {
+    return undefined;
+  }
+  const raw = env[HL_FAKE_LLM_DELAY_MS_ENV];
+  if (raw === undefined || !/^\d+$/.test(raw)) {
+    return undefined;
+  }
+  const value = Number.parseInt(raw, 10);
+  return value > 0 ? value : undefined;
+}
+
+/**
  * TASK-081 §22/§14: имя env-флага тестовой установки модели мимо сети (§22:
  * реальный URL моделей появится после отбора — dev-модель с PLACEHOLDER-URL
  * манифеста 079 сетевой путь 080 не проходит; e2e §20-6 нужен) и гард его
@@ -362,6 +389,13 @@ export interface ContainerDeps {
    * не чтением env здесь — тесты без process.env-мутаций (§19).
    */
   readonly useFakeLlm?: boolean;
+  /**
+   * TASK-090 §19/§20: задержка fake-движка между «словами», мс (e2e-эмуляция
+   * BUSY — окно занятости движка наблюдаемо из рендерера). Bootstrap передаёт
+   * fakeLlmDelayMs(process.env, app.isPackaged) (env HL_FAKE_LLM_DELAY_MS,
+   * только с HL_FAKE_LLM=1 и не-packaged — §14); undefined — дефолт движка (0).
+   */
+  readonly useFakeLlmDelayMs?: number;
   /**
    * TASK-081 §22: TEST-ONLY путь локального файла «модели» для установки мимо
    * сети (e2e §20-6; реальный URL моделей появится после отбора — §22). Bootstrap
@@ -838,7 +872,9 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //      потребителями не используется; dispose в close() — безопасный no-op.
     const useFakeLlm = deps.useFakeLlm ?? false;
     const llmEngine: LlmEngine = useFakeLlm
-      ? new FakeLlmEngine()
+      ? new FakeLlmEngine(
+          deps.useFakeLlmDelayMs === undefined ? undefined : { delayMs: deps.useFakeLlmDelayMs },
+        )
       : new ProcessLlmEngine({ client: llm });
     //      Телеметрия выбора движка (§18); предупреждение при fake — риск §22
     //      («fake-ответы уйдут в продакшн-скриншоты»; строка «FAKE» в «О приложении»

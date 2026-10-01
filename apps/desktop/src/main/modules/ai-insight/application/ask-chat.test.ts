@@ -10,6 +10,9 @@
  *  4. BUSY: генерация резюме идёт (общий движок — одна генерация на приложение,
  *     §9) → чат-вопрос → AI/BUSY ДО префильтра, история не тронута;
  *  5. BUSY: второй чат-вопрос при идущем чате → AI/BUSY (свой слот);
+ *  5b. isBusy() учитывает статус ОБЩЕГО движка (резюме идёт) — хендлер откажет
+ *      AI/BUSY ДО ответа {requestId} (контракт UI 090: BUSY-тост, не молчаливый
+ *      фоновый отказ);
  *  6. history-глубина 6: 7-й ход вытесняет старейший из контекста (сборка-тест,
  *     §20 п.4) — глубина считается в СООБЩЕНИЯХ (§4: «последние 6 сообщений»);
  *  7. guard-replace → сохранена отказ-пара (текст фабрики 085 + класс правила),
@@ -446,6 +449,30 @@ describe('AskChat — полный поток US-19 (TASK-089 §19)', () => {
     const outcome = await first;
     expect(outcome.messageId).toBeDefined();
     expect(repo.rows).toHaveLength(2);
+  });
+
+  it('(5b) isBusy() учитывает статус ОБЩЕГО движка: резюме идёт → BUSY ДО ответа {requestId} (§9, контракт UI 090)', async () => {
+    // Хендлер 089 отвечает {requestId} только если isBusy()=false; при занятом
+    // резюме движке isBusy обязан быть true при свободном чат-слоте — иначе
+    // хендлер отвечает ok, execute отклоняется в фоне БЕЗ событий (UI зависает
+    // в стриме вместо BUSY-тоста §13 090; execute-гард остаётся задним страхом).
+    const engine = new FakeLlmEngine({ delayMs: 20 });
+    const { useCase } = makeUseCase({ engine });
+    const summary = makeSummaryUseCase(engine);
+    const summaryDone = summary.execute({
+      profileId: PROFILE,
+      period: '30d',
+      includeNotes: false,
+      requestId: 'sum-1',
+    });
+    await vi.waitFor(() => expect(engine.status().busy).toBe(true));
+
+    expect(useCase.isBusy()).toBe(true);
+
+    // После освобождения движка чат-слот снова свободен.
+    engine.cancel();
+    await summaryDone;
+    expect(useCase.isBusy()).toBe(false);
   });
 
   it('(6) history-глубина 6 (§20 п.4): 7-й ход вытесняет старейший — в промпт последние 6', async () => {
