@@ -226,8 +226,8 @@ describe('миграция v5 — network_event (TASK-075 §19/§20)', () => {
     db.close();
   });
 
-  it('(6) реестр MIGRATIONS — версии [1, 2, 3, 4, 5, 6] (TASK-087: +v6); V5_NETWORK_EVENT.version === 5 (§4/§5)', () => {
+  it('(6) реестр MIGRATIONS — версии [1, 2, 3, 4, 5, 6, 7] (TASK-087: +v6, TASK-089: +v7); V5_NETWORK_EVENT.version === 5 (§4/§5)', () => {
     expect(V5_NETWORK_EVENT.version).toBe(5);
-    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });

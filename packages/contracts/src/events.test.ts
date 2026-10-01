@@ -83,6 +83,7 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
         'ai:progress',
         'ai:status',
         'ai:token',
+        'ai/chat/result',
         'ai/summary/result',
         'app:log',
         'data:versionBumped',
@@ -92,6 +93,14 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
         'prefs:changed',
       ].sort(),
     );
+  });
+
+  it('содержит ai/chat/result с payload {requestId, messageId?} — финал хода чата (TASK-089 §11)', () => {
+    expectTypeOf<HlEventMap['ai/chat/result']>().toEqualTypeOf<{
+      readonly requestId: string;
+      readonly messageId?: string;
+    }>();
+    expect(HL_EVENT_PAYLOAD_KEYS['ai/chat/result']).toEqual(['requestId', 'messageId']);
   });
 
   it('содержит ai/summary/result с payload {requestId, summaryId?, cached, stale} — финал резюме (TASK-087 §11)', () => {
