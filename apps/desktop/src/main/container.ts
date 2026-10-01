@@ -236,6 +236,8 @@ import {
   createVaultStatusHandler,
   createVaultUnlockHandler,
 } from './ipc/handlers/vault.js';
+// TASK-095 §9/§11: хендлер heartbeat активности (сигнал автоблока, НЕ secure).
+import { createHeartbeatHandler } from './ipc/handlers/heartbeat.js';
 import { createAutolockJob, VaultService } from './modules/security/application/vault-service.js';
 import type { LlmEngine } from './modules/ai-insight/application/ports/llm-engine.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
@@ -1652,6 +1654,14 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       'vault/set-passphrase',
       CHANNEL_SCHEMAS['vault/set-passphrase'],
       createVaultSetPassphraseHandler(vaultService),
+    );
+    // TASK-095 §5/§9/§11: heartbeat активности рендерера (pointerdown/keydown,
+    // троттл 30 с в UI) — продлевает окно автоблока (touchActivity); НЕ secure —
+    // активность продлевает сессию и в locked.
+    channels.register(
+      'app/heartbeat',
+      CHANNEL_SCHEMAS['app/heartbeat'],
+      createHeartbeatHandler(vaultService),
     );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).

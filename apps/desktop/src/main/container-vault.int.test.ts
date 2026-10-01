@@ -322,6 +322,38 @@ describe('buildContainer — локальный вход через каналы
       'lock:engaged',
     );
   });
+
+  // TASK-095 §9/AC4: heartbeat-канал — активность без данных (пустой payload):
+  // доступен и в locked (НЕ secure — иначе «тихий» простой в locked нельзя
+  // различить), продлевает окно автоблока как обычный IPC-вызов (§9).
+  it('app/heartbeat: {} → null в locked (НЕ secure) и продлевает окно автоблока в открытой сессии (TASK-095)', async () => {
+    const dir = dirs[dirs.length - 1] as string;
+    await setupPassphraseUserData(dir);
+    const clock = new MutableClock(BASE_MS);
+    const container = track(
+      await buildContainer({ userDataPath: dir, clock, vault: makeVaultFactory() }),
+    );
+    const dispatch = (channel: string, payload: unknown) =>
+      container.channels.dispatch({ channel, payload });
+
+    // В locked: канал зарегистрирован, без гвардии — конверт успеха с null.
+    expect(await dispatch('app/heartbeat', {})).toEqual({ v: 1, ok: true, data: null });
+
+    // В открытой сессии: unlock (активность на BASE_MS) → тишина 4:59 →
+    // heartbeat на 4:59 → ещё 4:59 простоя (суммарно 9:58 от unlock) —
+    // окно продлено, автоблок не сработал (без heartbeat сработал бы на 5:00).
+    expect(await dispatch('vault/unlock', { pass: PASS })).toEqual({
+      v: 1,
+      ok: true,
+      data: { ok: true },
+    });
+    expect((await dispatch('prefs/set', { patch: { autoLockMin: 5 } })).ok).toBe(true);
+    clock.advance(4 * 60_000 + 59_000);
+    expect(await dispatch('app/heartbeat', {})).toEqual({ v: 1, ok: true, data: null });
+    clock.advance(4 * 60_000 + 59_000);
+    await container.vaultService.checkAutolock();
+    expect(container.vaultService.getStatus()).toMatchObject({ locked: false });
+  });
 });
 
 /** Фабрика боевого vault-адаптера над моком safeStorage (§19; см. шапку). */
