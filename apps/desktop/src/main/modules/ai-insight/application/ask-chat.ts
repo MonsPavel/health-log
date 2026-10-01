@@ -113,6 +113,13 @@ export interface AskChatDeps {
    * боевой — insightRepo.currentDataVersion; нет — кэш по входу (тесты).
    */
   readonly dataVersion?: () => Promise<number>;
+  /**
+   * TASK-091 §9: TEST-ONLY отключение эшелонов 2/3 (префильтр 086 + пост-фильтр
+   * 085) для контрольного режима eval (--no-guardrails — проверка чувствительности
+   * механизма). Дефолт true; боевой контейнер опцию не передаёт и не экспонирует
+   * (§14 091: в проде guardrails всегда включены).
+   */
+  readonly guardrailsEnabled?: boolean;
 }
 
 /** Поверхность сборщика контекста (структурно AiContextBuilder — §19 подмены). */
@@ -138,6 +145,12 @@ const FOOTER_TEXT = `\n\n${AI_SUMMARY_DISCLAIMER_TEXT}`;
 export class AskChat {
   private readonly deps: AskChatDeps;
 
+  /**
+   * Эшелоны 2/3 включены (TASK-091 §9): false — только eval-процесс; боевой
+   * контейнер дефолт не переопределяет.
+   */
+  private readonly guardrailsEnabled: boolean;
+
   /** Слот хода (§9): undefined — свободен; второй execute до финала → AI/BUSY. */
   private activeRequest: string | undefined;
 
@@ -146,6 +159,7 @@ export class AskChat {
 
   constructor(deps: AskChatDeps) {
     this.deps = deps;
+    this.guardrailsEnabled = deps.guardrailsEnabled ?? true;
   }
 
   /**
@@ -188,10 +202,13 @@ export class AskChat {
       });
 
       // (2) Префильтр 086: классификация САМОГО вопроса + эскалация криза.
-      const precheck = this.deps.precheck.check(command.question, {
-        stats: context.stats,
-        locale: this.deps.locale,
-      });
+      // TASK-091 §9: guardrailsEnabled=false — эшелон пропускается (только eval).
+      const precheck = this.guardrailsEnabled
+        ? this.deps.precheck.check(command.question, {
+            stats: context.stats,
+            locale: this.deps.locale,
+          })
+        : undefined;
       if (precheck !== undefined) {
         const refusalClass =
           precheck.kind === 'refusal' ? precheck.refusalClass : ('emergency' as const);
@@ -271,7 +288,10 @@ export class AskChat {
       }
 
       // (6) Пост-фильтр 085 (§14: guard на КАЖДЫЙ ответ; вызов один после стрима).
-      const guardResult = this.deps.guard.check(answer);
+      // TASK-091 §9: guardrailsEnabled=false — эшелон пропускается (только eval).
+      const guardResult = this.guardrailsEnabled
+        ? this.deps.guard.check(answer)
+        : ({ action: 'pass' } as const);
       const refusalClass = guardResult.action === 'replace' ? guardResult.refusalClass : undefined;
       const answerText = guardResult.action === 'replace' ? guardResult.text : answer;
 

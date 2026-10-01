@@ -270,6 +270,8 @@ interface HarnessOptions {
   readonly modelId?: string;
   readonly modelVersion?: string;
   readonly engine?: LlmEngine;
+  /** TASK-091 §9: test-hook отключения эшелонов 2/3 (eval). */
+  readonly guardrailsEnabled?: boolean;
 }
 
 /** Сборка use case с fake-зависимостями + ручки наблюдения. */
@@ -303,6 +305,7 @@ function makeUseCase(options: HarnessOptions = {}): {
     clock: CLOCK,
     logger,
     locale: 'ru',
+    guardrailsEnabled: options.guardrailsEnabled,
   });
   return { useCase, repo, engine, context, events, guardLog, logs };
 }
@@ -670,7 +673,9 @@ describe('GenerateSummary — test-hook guardrailsEnabled (TASK-091 §9)', () =>
     const outcome = await useCase.execute(BASE_COMMAND);
 
     expect(outcome.summaryId).toBeDefined();
-    expect(onlyRecord(repo).contentMd).toBe(unsafe.text);
+    // Fake-движок ставит обязательный префикс [FAKE] (§16–17 078) — за ним текст
+    // фикстуры дословно; пост-фильтр выключен, замены нет.
+    expect(onlyRecord(repo).contentMd).toBe(`${FAKE_LLM_PREFIX} ${unsafe.text}`);
   });
 
   it('по умолчанию (опции нет) guardrails включены: малые данные → отказ-шаблон, движок чист', async () => {

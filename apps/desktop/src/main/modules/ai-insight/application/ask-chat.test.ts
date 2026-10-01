@@ -224,6 +224,8 @@ interface HarnessOptions {
   readonly stats?: PeriodStatisticsDto;
   readonly modelId?: string;
   readonly engine?: LlmEngine;
+  /** TASK-091 §9: test-hook отключения эшелонов 2/3 (eval). */
+  readonly guardrailsEnabled?: boolean;
 }
 
 /** Сборка use case с fake-зависимостями + ручки наблюдения. */
@@ -260,6 +262,7 @@ function makeUseCase(options: HarnessOptions = {}): {
     logger,
     locale: 'ru',
     dataVersion: () => Promise.resolve(dataVersion.value),
+    guardrailsEnabled: options.guardrailsEnabled,
   });
   return { useCase, repo, engine, context, events, guardLog, logs, dataVersion };
 }
