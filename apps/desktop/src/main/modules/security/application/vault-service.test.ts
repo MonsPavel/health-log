@@ -221,24 +221,52 @@ describe('VaultService — unlock (§13: успех → сброс; §9: unlock 
     expect(logged).not.toContain('секрет-пароль');
   });
 
+  it('сброс счётчика успешным unlock наблюдаем: после успеха+lock неудачи снова с начала (AC2)', async () => {
+    const clock = new AdvanceClock(1_000);
+    const { service, vault, logger } = makeService('passphrase', clock);
+    vault.unlock.mockReturnValue(Promise.resolve(err(WRONG)));
+    await service.unlock('x');
+    await service.unlock('x'); // attempts=2
+    vault.unlock.mockReturnValue(Promise.resolve(ok(undefined)));
+    await service.unlock('верный'); // сброс → attempts=0
+    service.lock('manual'); // lock счётчик не трогает — сброс сделал только успех
+    vault.unlock.mockReturnValue(Promise.resolve(err(WRONG)));
+    await service.unlock('x'); // если бы сброса не было — attempts=3 и backoff 1 с
+    expect(logger.warn).toHaveBeenLastCalledWith('vault unlock failed', {
+      attempts: 1,
+      backoffSec: 0,
+    });
+  });
+
   it('успех: сброс attempts/backoff (AC2), открытие БД, info-лог', async () => {
     const clock = new AdvanceClock(1_000);
     const { service, vault, openDatabase, logger } = makeService('passphrase', clock);
-    vault.unlock
-      .mockReturnValueOnce(Promise.resolve(err(WRONG)))
-      .mockReturnValueOnce(Promise.resolve(err(WRONG)))
-      .mockReturnValueOnce(Promise.resolve(err(WRONG))) // attempts=3, backoff 1 с
-      .mockReturnValue(Promise.resolve(ok(undefined)));
+    vault.unlock.mockReturnValue(Promise.resolve(err(WRONG)));
+    await service.unlock('x');
+    await service.unlock('x');
+    await service.unlock('x'); // attempts=3, backoff 1 с
 
     clock.advance(1_000); // окно истекло
+    vault.unlock.mockReturnValue(Promise.resolve(ok(undefined)));
     const result = await service.unlock('верный');
     expect(result).toEqual(ok({ ok: true as const }));
     expect(openDatabase).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledWith('vault unlock ok');
-    // Сброс: следующая неудача — снова начало таблицы (без backoff).
+    // Сброс: окно backoff очищено немедленно (AC2).
+    expect(service.getStatus().backoffSec).toBeUndefined();
+  });
+
+  it('сброс счётчика успешным unlock наблюдаем: после успеха+lock неудачи снова с начала (AC2)', async () => {
+    const clock = new AdvanceClock(1_000);
+    const { service, vault, logger } = makeService('passphrase', clock);
     vault.unlock.mockReturnValue(Promise.resolve(err(WRONG)));
     await service.unlock('x');
-    expect(service.getStatus().backoffSec).toBeUndefined();
+    await service.unlock('x'); // attempts=2
+    vault.unlock.mockReturnValue(Promise.resolve(ok(undefined)));
+    await service.unlock('верный'); // сброс → attempts=0
+    service.lock('manual'); // lock счётчик не трогает — сброс сделал только успех
+    vault.unlock.mockReturnValue(Promise.resolve(err(WRONG)));
+    await service.unlock('x'); // если бы сброса не было — attempts=3 и backoff 1 с
     expect(logger.warn).toHaveBeenLastCalledWith('vault unlock failed', {
       attempts: 1,
       backoffSec: 0,
@@ -275,10 +303,10 @@ describe('VaultService — unlock (§13: успех → сброс; §9: unlock 
 });
 
 describe('VaultService — lock (§5: БД закрывается checkpoint+close; события)', () => {
-  it('ручной lock: closeDatabase, событие lock:engaged, лог с причиной manual (§18)', () => {
+  it('ручной lock: closeDatabase, событие lock:engaged, лог с причиной manual (§18)', async () => {
     const clock = new AdvanceClock(1_000);
     const { service, closeDatabase, notify, logger } = makeService('passphrase', clock);
-    void service.unlock('пароль');
+    await service.unlock('пароль');
     closeDatabase.mockClear();
     notify.mockClear();
 
@@ -288,29 +316,30 @@ describe('VaultService — lock (§5: БД закрывается checkpoint+clo
     expect(logger.info).toHaveBeenCalledWith('vault lock engaged', { reason: 'manual' });
   });
 
-  it('повторный lock идемпотентен (closeDatabase один раз)', () => {
+  it('повторный lock идемпотентен (closeDatabase один раз)', async () => {
     const clock = new AdvanceClock(1_000);
     const { service, closeDatabase } = makeService('passphrase', clock);
-    void service.unlock('пароль');
+    await service.unlock('пароль');
     service.lock('manual');
     service.lock('manual');
     expect(closeDatabase).toHaveBeenCalledTimes(1);
   });
 
-  it('lock сбрасывает attempts/backoff (свежая сессия входа)', async () => {
+  it('lock не сбрасывает окно backoff — перебор остаётся замедленным и в locked (§5)', async () => {
     const clock = new AdvanceClock(1_000);
     const { service, vault } = makeService('passphrase', clock);
     vault.unlock.mockReturnValue(Promise.resolve(err(WRONG)));
     await service.unlock('x');
     await service.unlock('x');
-    await service.unlock('x'); // backoff 1 с
-    clock.advance(1_000);
-    vault.unlock.mockReturnValue(Promise.resolve(ok(undefined)));
-    void service.unlock('верный');
-    service.lock('manual');
-    vault.unlock.mockReturnValue(Promise.resolve(err(WRONG)));
-    await service.unlock('x'); // сразу после lock — backoff нет
-    expect(service.getStatus().backoffSec).toBeUndefined();
+    await service.unlock('x'); // attempts=3, backoff 1 с
+    service.lock('manual'); // БД закрывается, окно backoff сохраняется
+    clock.advance(200);
+    expect(service.getStatus().backoffSec).toBe(1);
+    const refused = await service.unlock('x'); // попытка в окне — отказ и без БД
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) {
+      expect(refused.error.code).toBe('VAULT/RATE_LIMITED');
+    }
   });
 
   it('mode=none: lock — no-op (закрывать нечего, события нет)', () => {
@@ -326,7 +355,7 @@ describe('VaultService — автоблок (§9/AC4: порог из prefs, а�
   it('порог 5 мин: 4:59 — нет блокировки, 5:00 — lock (closeDatabase + событие + лог autolock)', async () => {
     const clock = new AdvanceClock(0);
     const { service, closeDatabase, notify, logger } = makeService('passphrase', clock);
-    void service.unlock('пароль');
+    await service.unlock('пароль');
     closeDatabase.mockClear();
     notify.mockClear();
 
@@ -344,7 +373,7 @@ describe('VaultService — автоблок (§9/AC4: порог из prefs, а�
   it('активность продлевает: touchActivity на 4:59 сдвигает порог (AC4)', async () => {
     const clock = new AdvanceClock(0);
     const { service } = makeService('passphrase', clock);
-    void service.unlock('пароль');
+    await service.unlock('пароль');
 
     clock.advance(4 * MIN + 59_000);
     service.touchActivity(); // активность на 4:59
@@ -365,7 +394,7 @@ describe('VaultService — автоблок (§9/AC4: порог из prefs, а�
     const { service } = makeService('passphrase', clock, {
       getAutoLockMin: vi.fn(() => Promise.resolve(threshold)),
     });
-    void service.unlock('пароль');
+    await service.unlock('пароль');
 
     clock.advance(before * MIN);
     await service.checkAutolock();
@@ -380,7 +409,7 @@ describe('VaultService — автоблок (§9/AC4: порог из prefs, а�
     const { service, closeDatabase } = makeService('passphrase', clock, {
       getAutoLockMin: vi.fn(() => Promise.resolve(0)),
     });
-    void service.unlock('пароль');
+    await service.unlock('пароль');
     clock.advance(10 * 60 * MIN);
     await service.checkAutolock();
     expect(closeDatabase).not.toHaveBeenCalled();
@@ -409,7 +438,7 @@ describe('VaultService — автоблок (§9/AC4: порог из prefs, а�
     const { service, closeDatabase } = makeService('passphrase', clock, {
       getAutoLockMin: vi.fn(() => Promise.reject(new Error('prefs недоступны'))),
     });
-    void service.unlock('пароль');
+    await service.unlock('пароль');
     clock.advance(10 * 60 * MIN);
     await expect(service.checkAutolock()).resolves.toBeUndefined();
     expect(closeDatabase).not.toHaveBeenCalled();
@@ -425,19 +454,19 @@ describe('createAutolockJob (§5: JobScheduler-задача session.autolock)', 
     expect(AUTOLOCK_CHECK_INTERVAL_MS).toBe(30_000);
   });
 
-  it('run делегирует lockIfIdle(now, autoLockMin из ctx.prefs) и не возвращает действия', async () => {
+  it('run делегирует lockIfIdle(now, autoLockMin из ctx.prefs) и не возвращает действия', () => {
     const lockIfIdle = vi.fn();
     const job = createAutolockJob({ service: { lockIfIdle } });
     const now = { utcMs: 1_758_816_000_000, tzOffsetMin: 180 };
-    await expect(job.run({ prefs: prefsWith(15), now })).resolves.toBeNull();
+    expect(job.run({ prefs: prefsWith(15), now })).toBeNull();
     expect(lockIfIdle).toHaveBeenCalledWith(now.utcMs, 15);
   });
 
-  it('run при autoLockMin=0 молчит (выкл, §22)', async () => {
+  it('run при autoLockMin=0 молчит (выкл, §22)', () => {
     const lockIfIdle = vi.fn();
     const job = createAutolockJob({ service: { lockIfIdle } });
     const now = { utcMs: 1_758_816_000_000, tzOffsetMin: 180 };
-    await expect(job.run({ prefs: prefsWith(0), now })).resolves.toBeNull();
+    expect(job.run({ prefs: prefsWith(0), now })).toBeNull();
     expect(lockIfIdle).not.toHaveBeenCalled();
   });
 });
