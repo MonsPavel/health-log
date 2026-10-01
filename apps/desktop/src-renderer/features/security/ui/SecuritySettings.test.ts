@@ -21,10 +21,17 @@ type InvokeMock = ReturnType<typeof vi.fn>;
 let invoke: InvokeMock;
 
 const OK = (data: unknown) => ({ v: 1, ok: true, data });
-const FAIL = (code: string, messageKey: string) => ({ v: 1, ok: false, error: { code, messageKey } });
+const FAIL = (code: string, messageKey: string) => ({
+  v: 1,
+  ok: false,
+  error: { code, messageKey },
+});
 
 /** Состояние мока: режим защиты и порог автоблока (prefs — источник, §12). */
-function makeHl(initialMode: 'none' | 'passphrase'): { setMode: (m: 'none' | 'passphrase') => void; setPassError: (code: string | null) => void } {
+function makeHl(initialMode: 'none' | 'passphrase'): {
+  setMode: (m: 'none' | 'passphrase') => void;
+  setPassError: (code: string | null) => void;
+} {
   let mode: 'none' | 'passphrase' = initialMode;
   let autoLockMin = 5;
   let passErrorCode: string | null = null;
@@ -102,9 +109,7 @@ describe('SecuritySettings — выключено: включение парол
 
     const dialog = await screen.findByTestId('security-dialog');
     expect(dialog.textContent).toContain('невосстановим');
-    expect(
-      screen.getByLabelText('Я понимаю, что без пароля данные не восстановить'),
-    ).toBeDefined();
+    expect(screen.getByLabelText('Я понимаю, что без пароля данные не восстановить')).toBeDefined();
   });
 
   it('без чекбокса кнопка сохранения мертва; пароли не совпадают — инлайн-ошибка (AC-1)', async () => {
@@ -173,7 +178,8 @@ describe('SecuritySettings — включено: смена/снятие/авт�
     fireEvent.click(screen.getByTestId('security-dialog-submit'));
 
     await waitFor(() => expect(screen.queryByTestId('security-dialog')).toBeNull());
-    expect(invoke).toHaveBeenLastCalledWith('vault/set-passphrase', {
+    // Последний вызов мутации — смене; после неё идёт refetch vault/status (§12).
+    expect(invoke).toHaveBeenCalledWith('vault/set-passphrase', {
       action: 'change',
       old: 'верный',
       new: 'новый-095',
@@ -202,7 +208,7 @@ describe('SecuritySettings — включено: смена/снятие/авт�
     makeHl('passphrase');
     renderSection();
 
-    const select = (await screen.findByLabelText('Автоблокировка')) as HTMLSelectElement;
+    const select = await screen.findByLabelText<HTMLSelectElement>('Автоблокировка');
     await waitFor(() => expect(select.value).toBe('5'));
 
     fireEvent.change(select, { target: { value: '15' } });

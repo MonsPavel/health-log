@@ -20,9 +20,9 @@ let listeners: Map<string, (payload: unknown) => void>;
 const OK = (data: unknown) => ({ v: 1, ok: true, data });
 
 /** Мост: статус по каналу; события lock:* — через captured-слушатели useHlEvent. */
-function mockHl(statusData: unknown | Promise<unknown>): void {
+function mockHl(statusData: unknown): void {
   listeners = new Map();
-  invoke = vi.fn((_channel: string, _payload: unknown) => Promise.resolve(OK(statusData)));
+  invoke = vi.fn(() => Promise.resolve(OK(statusData)));
   Object.defineProperty(window, 'hl', {
     configurable: true,
     writable: true,
@@ -91,7 +91,7 @@ describe('useLockGate — фазы гейта (TASK-095 §5/§12/§13)', () => {
     expect(result.current.phase).toBe('locked');
   });
 
-  it('событие lock:required (старт заблокированным) → locked (§5)', async () => {
+  it('событие lock:required (старт заблокированным) → locked (§5)', () => {
     mockHl(new Promise<never>(() => undefined));
     const { result } = renderGate();
     expect(result.current.phase).toBe('loading');

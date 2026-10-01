@@ -4,7 +4,7 @@
  * pointerdown/keydown на window в capture-фазе; отписка при unmount; сбой канала
  * глушится — heartbeat не должен ронять UI, §9 прецедент logClientError).
  */
-import { act, cleanup, fireEvent, render, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -64,25 +64,26 @@ describe('useHeartbeat — слушатели активности (§5)', () =>
     fireEvent.pointerDown(document.body);
     fireEvent.keyDown(document.body, { key: 'A' });
 
-    await waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
+    // Канал вызывается синхронно из обработчика (троттл — leading edge, §5).
+    expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke).toHaveBeenCalledWith('app/heartbeat', {});
 
     // Всплеск в окне троттла — второй вызов не уходит.
     await act(async () => {
-      vi.advanceTimersByTime(HEARTBEAT_THROTTLE_MS - 1_000);
+      await vi.advanceTimersByTimeAsync(HEARTBEAT_THROTTLE_MS - 1_000);
     });
     fireEvent.pointerDown(document.body);
     expect(invoke).toHaveBeenCalledTimes(1);
 
     // Окно истекло — активность шлёт снова (продление окна автоблока).
     await act(async () => {
-      vi.advanceTimersByTime(1_000);
+      await vi.advanceTimersByTimeAsync(1_000);
     });
     fireEvent.keyDown(document.body, { key: 'B' });
-    await waitFor(() => expect(invoke).toHaveBeenCalledTimes(2));
+    expect(invoke).toHaveBeenCalledTimes(2);
   });
 
-  it('отписка при unmount: активность после размонтирования не шлёт канал (§10)', async () => {
+  it('отписка при unmount: активность после размонтирования не шлёт канал (§10)', () => {
     const { unmount } = renderHook(() => useHeartbeat());
     unmount();
 
@@ -98,7 +99,7 @@ describe('useHeartbeat — слушатели активности (§5)', () =>
     fireEvent.pointerDown(document.body);
 
     await act(async () => {
-      vi.runAllTimersAsync();
+      await vi.runAllTimersAsync();
     });
     expect(invoke).toHaveBeenCalledTimes(1);
   });

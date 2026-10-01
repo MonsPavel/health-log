@@ -43,7 +43,8 @@ describe('App — корневой boundary и тосты (§5/§10)', () => {
 
     // Провайдеры темы/i18n/Query + HashRouter: домашний экран-сводка TASK-061
     // (мост-мок отвечает пустой БД → приветственное состояние сводки).
-    expect(screen.getByRole('navigation', { name: 'Разделы' })).toBeDefined();
+    // TASK-095: каркас появляется после vault/status гейта блокировки — асинхронно.
+    expect(await screen.findByRole('navigation', { name: 'Разделы' })).toBeDefined();
     expect(await screen.findByRole('heading', { name: 'Сводка' })).toBeDefined();
     expect(screen.queryByRole('alert')).toBeNull();
   });

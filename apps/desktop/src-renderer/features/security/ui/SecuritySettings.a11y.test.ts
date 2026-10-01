@@ -58,7 +58,9 @@ describe('SecuritySettings — axe: без critical-нарушений (§20)', 
     mockHl('none');
     const container = renderSection();
 
-    await waitFor(() => expect(container.querySelector('[data-testid="security-section"]')).not.toBeNull());
+    await waitFor(() =>
+      expect(container.querySelector('[data-testid="security-section"]')).not.toBeNull(),
+    );
     await waitFor(() =>
       expect(container.querySelector('[data-testid="security-enable"]')).not.toBeNull(),
     );

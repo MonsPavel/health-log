@@ -7,10 +7,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import type { ChannelName, ChannelRequest, ChannelResponse } from './channels.js';
 import { CHANNEL_SCHEMAS } from './schemas.js';
-import {
-  HEARTBEAT_REQUEST_SCHEMA,
-  HEARTBEAT_RESPONSE_SCHEMA,
-} from './heartbeat.js';
+import { HEARTBEAT_REQUEST_SCHEMA, HEARTBEAT_RESPONSE_SCHEMA } from './heartbeat.js';
 
 describe('канал app/heartbeat — форма payload (TASK-095 §11)', () => {
   it('запрос {} strict — без параметров; лишние поля отклонены (§14)', () => {

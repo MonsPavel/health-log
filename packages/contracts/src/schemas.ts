@@ -47,10 +47,7 @@ import {
 } from './data-care/schemas.js';
 import { FILE_OPEN_DIALOG_REQUEST_SCHEMA, FILE_OPEN_DIALOG_RESPONSE_SCHEMA } from './file.js';
 // TASK-095 §5/§11: канал heartbeat активности (сигнал автоблока; НЕ secure).
-import {
-  HEARTBEAT_REQUEST_SCHEMA,
-  HEARTBEAT_RESPONSE_SCHEMA,
-} from './heartbeat.js';
+import { HEARTBEAT_REQUEST_SCHEMA, HEARTBEAT_RESPONSE_SCHEMA } from './heartbeat.js';
 import {
   MEASUREMENT_ADD_REQUEST_SCHEMA,
   MEASUREMENT_ADD_RESPONSE_SCHEMA,

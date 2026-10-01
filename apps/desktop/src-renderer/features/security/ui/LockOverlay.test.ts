@@ -20,7 +20,7 @@ import '../../../i18n';
 type InvokeMock = ReturnType<typeof vi.fn>;
 
 let invoke: InvokeMock;
-let onUnlocked: ReturnType<typeof vi.fn>;
+let onUnlocked: () => void;
 
 const OK = (data: unknown) => ({ v: 1, ok: true, data });
 const FAIL = (code: string, messageKey: string, params?: Record<string, unknown>) => ({
@@ -49,7 +49,7 @@ function renderOverlay(): void {
 }
 
 beforeEach(() => {
-  onUnlocked = vi.fn();
+  onUnlocked = vi.fn(() => undefined);
 });
 
 afterEach(() => {
@@ -143,25 +143,37 @@ describe('LockOverlay — backoff-отсчёт (TASK-095 §13/§16)', () => {
         : FAIL('VAULT/RATE_LIMITED', 'errors.VAULT_RATE_LIMITED', { backoffSec: 3 }),
     );
     renderOverlay();
-    const input = await screen.findByLabelText('Пароль');
+    // Фейковые таймеры: flush микрозадач загрузки, затем sync-запросы (RTL waitFor
+    // не продвигает vi-таймеры — прецедент §10 useHlEvent).
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    const input = screen.getByLabelText('Пароль');
 
     fireEvent.change(input, { target: { value: 'неверный' } });
     fireEvent.click(screen.getByRole('button', { name: 'Разблокировать' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // flush отказа → окно backoff
+    });
 
-    const waitRegion = await screen.findByTestId('lock-wait');
-    expect(waitRegion.getAttribute('aria-live')).toBe('polite');
+    expect(screen.getByTestId('lock-wait').getAttribute('aria-live')).toBe('polite');
     const assertWaiting = (sec: number): void => {
       expect(screen.getByTestId('lock-wait').textContent).toBe(`Подождите ${sec} с`);
       const button = screen.getByRole('button', { name: `Подождите ${sec} с` });
       expect(button.hasAttribute('disabled')).toBe(true);
     };
     assertWaiting(3);
+    // Отсчёт тикает по секунде (эффект перепланирует таймер после каждого тика).
     await act(async () => {
-      vi.advanceTimersByTime(1_000);
+      await vi.advanceTimersByTimeAsync(1_000);
     });
     assertWaiting(2);
     await act(async () => {
-      vi.advanceTimersByTime(2_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    assertWaiting(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
     });
     expect(screen.queryByTestId('lock-wait')).toBeNull();
     expect(screen.getByRole('button', { name: 'Разблокировать' }).hasAttribute('disabled')).toBe(
@@ -172,11 +184,14 @@ describe('LockOverlay — backoff-отсчёт (TASK-095 §13/§16)', () => {
   it('перезапуск в окне backoff: начальный backoffSec из vault/status — сразу disabled (§12)', async () => {
     mockHl(() => OK({ ...STATUS_LOCKED, backoffSec: 2 }));
     renderOverlay();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
 
-    await screen.findByRole('heading', { name: 'Приложение заблокировано' });
+    expect(screen.getByRole('heading', { name: 'Приложение заблокировано' })).toBeDefined();
     expect(screen.getByTestId('lock-wait').textContent).toBe('Подождите 2 с');
-    expect(
-      screen.getByRole('button', { name: 'Подождите 2 с' }).hasAttribute('disabled'),
-    ).toBe(true);
+    expect(screen.getByRole('button', { name: 'Подождите 2 с' }).hasAttribute('disabled')).toBe(
+      true,
+    );
   });
 });

@@ -6,7 +6,7 @@
  *  - mode=none → каркас как раньше (§24: откат — оверлей не появляется);
  *  - lock:engaged в открытой сессии → оверлей, контент выгружен (§5/§13).
  */
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -66,10 +66,15 @@ describe('App — гейт блокировки (TASK-095 §13/§14/§20)', () =
     expect(screen.queryByRole('navigation', { name: 'Разделы' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Сводка' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Настройки' })).toBeNull();
-    // §15: показ оверлея — без запросов прикладных данных (только статус/сервисные).
+    // §15: показ оверлея — без запросов прикладных данных. prefs/get — каркасный
+    // вызов провайдера темы (при locked отвечает гвардия VAULT/LOCKED — §7 094),
+    // данных не приносит; vault/status — сам источник гейта; heartbeat — сигнал.
     const dataChannels = invoke.mock.calls
-      .map((call) => call[0])
-      .filter((channel) => channel !== 'vault/status' && channel !== 'app/heartbeat');
+      .map((call) => String(call[0]))
+      .filter(
+        (channel) =>
+          channel !== 'vault/status' && channel !== 'app/heartbeat' && channel !== 'prefs/get',
+      );
     expect(dataChannels).toEqual([]);
   });
 
