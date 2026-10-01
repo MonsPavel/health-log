@@ -172,6 +172,7 @@ import type { InsightRepository } from './modules/ai-insight/application/ports/i
 import {
   AiSummaryRequestRegistry,
   createAiSummaryCancelHandler,
+  createAiSummaryDeleteAllHandler,
   createAiSummaryGenerateHandler,
   createAiSummaryLatestHandler,
 } from './ipc/handlers/ai-summary.js';
@@ -1134,6 +1135,13 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       'ai/summary/latest',
       CHANNEL_SCHEMAS['ai/summary/latest'],
       createAiSummaryLatestHandler(insightRepo),
+    );
+    // TASK-088 §5: ai/summary/delete-all — «Очистить разборы» (подтверждение в UI,
+    // §5; очистка кэша резюме — deleteAll порта, дневник не трогается).
+    channels.register(
+      'ai/summary/delete-all',
+      CHANNEL_SCHEMAS['ai/summary/delete-all'],
+      createAiSummaryDeleteAllHandler(insightRepo),
     );
     channels.register(
       'ai/cancel',
