@@ -176,6 +176,19 @@ import {
   createAiSummaryGenerateHandler,
   createAiSummaryLatestHandler,
 } from './ipc/handlers/ai-summary.js';
+// TASK-089 §5/§9/§11: чат поверх данных (US-19) — хранилище истории (адаптер над
+// v7 chat_message), use cases AskChat/ClearChat (BUSY-гвардия общая с резюме через
+// ЕДИНЫЙ движок §9) и хендлеры ai/chat/send|clear|list (отмена хода — общий с
+// резюме реестр ai/cancel).
+import { SqliteChatRepository } from './modules/ai-insight/adapters/sqlite-chat-repository.js';
+import { AskChat } from './modules/ai-insight/application/ask-chat.js';
+import { ClearChat } from './modules/ai-insight/application/clear-chat.js';
+import type { ChatRepository } from './modules/ai-insight/application/ports/chat-repository.js';
+import {
+  createAiChatClearHandler,
+  createAiChatListHandler,
+  createAiChatSendHandler,
+} from './ipc/handlers/ai-chat.js';
 import {
   createAiModelsDownloadHandler,
   createAiModelsListHandler,
@@ -446,6 +459,22 @@ export interface Container {
    * хендлер ai/summary/generate (§11).
    */
   readonly generateSummary: GenerateSummary;
+  /**
+   * Хранилище истории чата (TASK-089 §5): адаптер над chat_message v7; потребители —
+   * AskChat (история 6 / append пары) и хендлер ai/chat/list (инициализация UI §12);
+   * clearAll — очистка истории (UI 090).
+   */
+  readonly chatRepo: ChatRepository;
+  /**
+   * Use case AskChat (TASK-089 §2/§5): полный поток US-19; BUSY-гвардия общая с
+   * резюме через ЕДИНЫЙ движок llmEngine (§9); потребитель — хендлер ai/chat/send.
+   */
+  readonly askChat: AskChat;
+  /**
+   * Use case ClearChat (TASK-089 §2/§5): необратимая очистка истории (идемпотентен,
+   * §13); потребитель — хендлер ai/chat/clear (диалог подтверждения — UI 090).
+   */
+  readonly clearChat: ClearChat;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
 }
@@ -911,7 +940,9 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //      отказов), use case GenerateSummary. Мета модели — prefs + реестр
     //      манифеста 079 (версия фиксируется в каждом резюме — арх. 07 §6);
     //      engine — движок графа выше (fake в dev/e2e). Лог — категория ai (§18).
+    //      Префильтр 086 — ОДИН на оба use case'а (087/089): сервис без состояния.
     const insightRepo = new SqliteInsightRepository(db);
+    const precheck = new PrecheckService({ refusalText, logger: createLogger('ai') });
     const responseGuard = new ResponseGuard({ refusalText, logger: createLogger('ai') });
     const modelMeta = async (): Promise<SummaryModelMeta> => {
       const modelId = (await preferencesService.getPrefs()).aiSettings.modelId ?? '';
@@ -923,7 +954,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     };
     const generateSummary = new GenerateSummary({
       context: aiContext,
-      precheck: new PrecheckService({ refusalText, logger: createLogger('ai') }),
+      precheck,
       guard: responseGuard,
       engine: llmEngine,
       repo: insightRepo,
@@ -933,6 +964,26 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       logger: createLogger('ai'),
       locale: APP_UI_LANGUAGE,
     });
+    //      TASK-089 §5/§9: чат поверх данных (US-19) — хранилище истории (v7),
+    //      use cases AskChat/ClearChat. ЕДИНЫЙ движок llmEngine — общая BUSY-гвардия
+    //      с резюме (одна генерация на приложение, §9); guard/префильтр/мета/лог —
+    //      те же графы, что у резюме (единый тон отказов 086/085). Кэш сборки
+    //      контекста AskChat-guarded data_version'ом insightRepo (§5). Лог — ai (§18).
+    const chatRepo = new SqliteChatRepository(db);
+    const askChat = new AskChat({
+      context: aiContext,
+      precheck,
+      guard: responseGuard,
+      engine: llmEngine,
+      repo: chatRepo,
+      modelMeta,
+      notify: broadcastToWindows,
+      clock,
+      logger: createLogger('ai'),
+      locale: APP_UI_LANGUAGE,
+      dataVersion: () => insightRepo.currentDataVersion(),
+    });
+    const clearChat = new ClearChat({ repo: chatRepo });
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -1160,6 +1211,26 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       CHANNEL_SCHEMAS['ai/cancel'],
       createAiSummaryCancelHandler(aiSummaryRequests),
     );
+    // TASK-089 §5/§11: ai/chat/send — {requestId} мгновенно (ход в фоне: стрим
+    // ai:token + финал 'ai/chat/result', BUSY — отказ канала §9); реестр запросов —
+    // ОБЩИЙ с резюме, ai/cancel отменяет и ходы чата (§5 087 «чат 089 — тот же»);
+    // ai/chat/clear — необратимая очистка истории (§13: идемпотентна, диалог — UI);
+    // ai/chat/list — инициализация UI (§12: ключ ['chat', pid], invalidate по финалу).
+    channels.register(
+      'ai/chat/send',
+      CHANNEL_SCHEMAS['ai/chat/send'],
+      createAiChatSendHandler(askChat, aiSummaryRequests, createLogger('ai')),
+    );
+    channels.register(
+      'ai/chat/clear',
+      CHANNEL_SCHEMAS['ai/chat/clear'],
+      createAiChatClearHandler(clearChat),
+    );
+    channels.register(
+      'ai/chat/list',
+      CHANNEL_SCHEMAS['ai/chat/list'],
+      createAiChatListHandler(chatRepo),
+    );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
@@ -1190,6 +1261,9 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       aiContext,
       insightRepo,
       generateSummary,
+      chatRepo,
+      askChat,
+      clearChat,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op
