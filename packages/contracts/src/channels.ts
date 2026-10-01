@@ -56,7 +56,14 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * финал 'ai/chat/result'), `ai/chat/list` (инициализация UI §12: {profileId,
  * limit} → {messages}) и `ai/chat/clear` (необратимая очистка истории §13:
  * {} → {cleared: true}, идемпотентен) — TASK-089 §5/§11 (схемы —
- * ai/chat-channels.ts; отмена хода — тот же `ai/cancel` по requestId).
+ * ai/chat-channels.ts; отмена хода — тот же `ai/cancel` по requestId);
+ * обновления приложения `updates/check|download|install` — TASK-096 §5/§11
+ * (схемы — updates.ts): check {} → {status, version?} (проверка ТОЛЬКО по
+ * согласию prefs.netConsents.updatesCheck — разрешение/журнал через
+ * EgressGateway.checkPermission, §4; без согласия — отказ
+ * NET/BLOCKED_BY_POLICY); download {} → та же форма статуса (ход — событиями
+ * update:progress, финал — update:ready); install {} → {restarting: true}
+ * (только по кнопке UI 097; без скачанного обновления — отказ UPD/NOT_READY).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -110,7 +117,12 @@ export type ChannelName =
   | 'report/pdf'
   | 'scales/active'
   | 'stats/period'
-  | 'trend/series';
+  | 'trend/series'
+  // TASK-096 §5/§11: обновления приложения — check/download/install (схемы —
+  // updates.ts; ручной режим electron-updater за согласием, NFR-11).
+  | 'updates/check'
+  | 'updates/download'
+  | 'updates/install';
 
 /** Транспортный канал каркаса: не прикладной, в CHANNEL_SCHEMAS не входит. */
 export const HL_INVOKE_CHANNEL = 'hl:invoke';

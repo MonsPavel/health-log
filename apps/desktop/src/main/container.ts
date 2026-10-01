@@ -138,6 +138,15 @@ import {
   createDefaultEgressFetch,
   EgressGateway,
 } from './modules/platform-services/egress/egress-gateway.js';
+// TASK-096 §5/§9: UpdatesService — electron-updater за согласием (NFR-11):
+// разрешение/журнал через egress.checkPermission, задача авто-проверки — scheduler;
+// боевой адаптер ленивый (§19 — сборка графа в node-vitest безопасна).
+import {
+  UpdatesService,
+  createDefaultUpdatesAdapter,
+  createUpdatesCheckJob,
+  type UpdatesAdapter,
+} from './modules/platform-services/updates/updates-service.js';
 // TASK-076 §5/§9: LlmProcessClient — main-side клиент llm-worker (UtilityProcess).
 import {
   createDefaultLlmWorkerSpawn,
@@ -205,6 +214,13 @@ import {
   createAiModelsResumeHandler,
   createAiModelsSelectHandler,
 } from './ipc/handlers/ai-models.js';
+// TASK-096 §5/§11: хендлеры обновлений — check/download за согласием (отказ
+// NET/BLOCKED_BY_POLICY — конверт отказа), install — только по кнопке (§13).
+import {
+  createUpdatesCheckHandler,
+  createUpdatesDownloadHandler,
+  createUpdatesInstallHandler,
+} from './ipc/handlers/updates.js';
 import type { LlmEngine } from './modules/ai-insight/application/ports/llm-engine.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
 import { DeleteMeasurementUseCase } from './modules/measurement/application/delete-measurement.js';
@@ -432,6 +448,12 @@ export interface ContainerDeps {
    * (не-packaged, §14); undefined — боевой сетевой путь ModelStore.
    */
   readonly testModelFilePath?: string;
+  /**
+   * TASK-096 §5/§19: адаптер обновлений (обёртка electron-updater); по умолчанию —
+   * боевой ленивый createDefaultUpdatesAdapter (импорт при первом использовании —
+   * сборка в node-vitest безопасна); тесты подставляют мок (§19).
+   */
+  readonly updatesAdapter?: UpdatesAdapter;
 }
 
 /**
@@ -534,10 +556,17 @@ export interface Container {
    */
   readonly askChat: AskChat;
   /**
-   * Use case ClearChat (TASK-089 §2/§5): необратимая очистка истории (идемпотентен,
+   * Use case ClearChat (TASK-089 §5/§9): необратимая очистка истории (идемпотентен,
    * §13); потребитель — хендлер ai/chat/clear (диалог подтверждения — UI 090).
    */
   readonly clearChat: ClearChat;
+  /**
+   * UpdatesService (TASK-096 §5/§9): electron-updater в ручном режиме за согласием
+   * prefs.netConsents.updatesCheck (NFR-11) — разрешение и журнал через
+   * egress.checkPermission (§4); задача авто-проверки 24 ч — в scheduler;
+   * потребители — каналы updates/* (§11) и UI 097.
+   */
+  readonly updates: UpdatesService;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
   /**
@@ -997,6 +1026,29 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       fetch: egressFetch,
       notify: broadcastToWindows,
     });
+    //      TASK-096 §5/§9: UpdatesService — electron-updater за согласием (NFR-11).
+    //      Сеть updater'а через request() не провести — разрешение и журнал идут
+    //      через egress.checkPermission('updates.check') (§4: честная модель —
+    //      инициируем и журналируем мы; байты NULL, §22). Боевой адаптер — ленивая
+    //      обёртка electron-updater (autoDownload=false, disableWebInstaller=true —
+    //      никаких фоновых загрузок, §14/AC3; тесты подставляют deps.updatesAdapter).
+    //      События update:* — боевой мост broadcastToWindows (§11); задача
+    //      авто-проверки updates.check (24 ч, молчит без согласия) — в scheduler
+    //      ниже (после его создания — регистрация задачи здесь же, §5).
+    const updatesAdapter = deps.updatesAdapter ?? createDefaultUpdatesAdapter(createLogger('net'));
+    const updates = new UpdatesService({
+      adapter: updatesAdapter,
+      gateway: egress,
+      clock,
+      logger: createLogger('net'),
+      notify: broadcastToWindows,
+    });
+    //      Задача авто-проверки (§5/AC4): интервал 24 ч, без согласия тик молчит
+    //      (проверка согласия внутри задачи — §5); отказ согласия/политики внутри
+    //      check() изолируется scheduler'ом (074 §9). Отказ проверки сети не бросает
+    //      ({status: 'error'}) — lastRun пишется, повтор не чаще 24 ч (+throttle 10
+    //      мин сервиса после ошибки, §13).
+    scheduler.register(createUpdatesCheckJob({ check: () => updates.check() }));
     //      TASK-076 §5/§9: LlmProcessClient — синглтон контейнера. Spawn ленивый
     //      (первая операция — сборка контейнера в node-vitest не спавнит, §19);
     //      боевая фабрика — utilityProcess.fork + MessageChannelMain (ленивый
@@ -1468,6 +1520,24 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       CHANNEL_SCHEMAS['ai/chat/list'],
       createAiChatListHandler(chatRepo),
     );
+    // TASK-096 §5/§11: обновления — check/download за согласием+журналом gateway
+    // (отказ без согласия — NET/BLOCKED_BY_POLICY, AC1); install — {restarting:
+    // true} по кнопке UI 097 (без скачанного — UPD/NOT_READY, AC6).
+    channels.register(
+      'updates/check',
+      CHANNEL_SCHEMAS['updates/check'],
+      createUpdatesCheckHandler(updates),
+    );
+    channels.register(
+      'updates/download',
+      CHANNEL_SCHEMAS['updates/download'],
+      createUpdatesDownloadHandler(updates),
+    );
+    channels.register(
+      'updates/install',
+      CHANNEL_SCHEMAS['updates/install'],
+      createUpdatesInstallHandler(updates),
+    );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
@@ -1501,6 +1571,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       chatRepo,
       askChat,
       clearChat,
+      updates,
       openDatabase,
       close(): void {
         if (closed) {

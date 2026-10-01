@@ -77,6 +77,9 @@ describe('типы реестра — компилятор выводит payloa
       | 'scales/active'
       | 'stats/period'
       | 'trend/series'
+      | 'updates/check'
+      | 'updates/download'
+      | 'updates/install'
     >();
   });
 

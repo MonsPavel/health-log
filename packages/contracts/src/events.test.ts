@@ -91,8 +91,26 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
         'measurement:changed',
         'net:activity',
         'prefs:changed',
+        'update:available',
+        'update:progress',
+        'update:ready',
       ].sort(),
     );
+  });
+
+  it('содержит update:available с payload {version} — обновление доступно (TASK-096 §5/§11)', () => {
+    expectTypeOf<HlEventMap['update:available']>().toEqualTypeOf<{ readonly version: string }>();
+    expect(HL_EVENT_PAYLOAD_KEYS['update:available']).toEqual(['version']);
+  });
+
+  it('содержит update:progress с payload {percent} — прогресс загрузки (TASK-096 §11)', () => {
+    expectTypeOf<HlEventMap['update:progress']>().toEqualTypeOf<{ readonly percent: number }>();
+    expect(HL_EVENT_PAYLOAD_KEYS['update:progress']).toEqual(['percent']);
+  });
+
+  it('содержит update:ready с ПУСТЫМ payload — обновление скачано (TASK-096 §11)', () => {
+    expectTypeOf<HlEventMap['update:ready']>().toEqualTypeOf<Record<string, never>>();
+    expect(HL_EVENT_PAYLOAD_KEYS['update:ready']).toEqual([]);
   });
 
   it('содержит ai/chat/result с payload {requestId, messageId?} — финал хода чата (TASK-089 §11)', () => {

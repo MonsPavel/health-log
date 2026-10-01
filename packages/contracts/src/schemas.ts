@@ -73,6 +73,15 @@ import {
 import { SCALES_ACTIVE_REQUEST_SCHEMA, SCALES_ACTIVE_RESPONSE_SCHEMA } from './scales.js';
 import { STATS_REQUEST_SCHEMA, STATS_RESPONSE_SCHEMA } from './stats/schemas.js';
 import { TREND_REQUEST_SCHEMA, TREND_RESPONSE_SCHEMA } from './trends.js';
+// TASK-096 §5/§11: каналы обновлений приложения (ручной режим electron-updater
+// за согласием prefs.netConsents.updatesCheck — NFR-11).
+import {
+  UPDATES_CHECK_REQUEST_SCHEMA,
+  UPDATES_DOWNLOAD_REQUEST_SCHEMA,
+  UPDATES_INSTALL_REQUEST_SCHEMA,
+  UPDATES_INSTALL_RESPONSE_SCHEMA,
+  UPDATES_STATUS_RESPONSE_SCHEMA,
+} from './updates.js';
 
 /** Пара схем канала: запрос валидируется в main до handler, ответ — контракт хендлера. */
 export interface ChannelSchemas<TRequest = unknown, TResponse = unknown> {
@@ -358,5 +367,26 @@ export const CHANNEL_SCHEMAS = {
   'trend/series': {
     request: TREND_REQUEST_SCHEMA,
     response: TREND_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-096 §5/§11: обновления приложения (ручной режим electron-updater).
+   * check {} → {status: available|latest|error, version?} — проверка ТОЛЬКО по
+   * согласию updatesCheck (разрешение и журнал — EgressGateway.checkPermission,
+   * §4; без согласия — NET/BLOCKED_BY_POLICY, журнал blocked); download {} → та
+   * же форма статуса (финал ready|error; ход — событиями update:progress, §11 —
+   * §23: одна схема на оба канала, прецедент report/export-*); install {} →
+   * {restarting: true} — только по кнопке UI 097 (без скачанного — UPD/NOT_READY).
+   */
+  'updates/check': {
+    request: UPDATES_CHECK_REQUEST_SCHEMA,
+    response: UPDATES_STATUS_RESPONSE_SCHEMA,
+  },
+  'updates/download': {
+    request: UPDATES_DOWNLOAD_REQUEST_SCHEMA,
+    response: UPDATES_STATUS_RESPONSE_SCHEMA,
+  },
+  'updates/install': {
+    request: UPDATES_INSTALL_REQUEST_SCHEMA,
+    response: UPDATES_INSTALL_RESPONSE_SCHEMA,
   },
 } satisfies Record<ChannelName, ChannelSchemas>;

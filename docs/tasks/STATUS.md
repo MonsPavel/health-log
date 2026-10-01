@@ -101,7 +101,7 @@
 | TASK-093 | done | | смержена вручную 01.10: интегратор прогона 14 отчитался «смержена», но checkout/merge не выполнились (main reflog чист, push не прошёл) — merge доделан основным агентом; impl 37М токенов, приёмка 2 раунда зелёные; ветка task/TASK-093 (8 коммитов: kernel-коды VAULT/WRONG_PASSPHRASE|LOCKED, passphrase-crypto Argon2id+AES-256-GCM, vault-format v2+миграция, SafeStorageKeyVault v2, ленивое открытие БД) |
 | TASK-094 | todo | | |
 | TASK-095 | todo | | |
-| TASK-096 | todo | | |
+| TASK-096 | done | | смержена |
 | TASK-097 | todo | | |
 | TASK-098 | todo | | |
 | TASK-099 | todo | | |
