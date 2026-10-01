@@ -627,3 +627,60 @@ describe('GenerateSummary — полный поток UC-03 (TASK-087 §19)', ()
     expect(outcome.summaryId).toBeDefined();
   });
 });
+
+/**
+ * TASK-091 §9: test-hook guardrailsEnabled — параметр конструктора, дефолт true;
+ * false отключает эшелоны 2/3 (префильтр 086 + пост-фильтр 085) ТОЛЬКО внутри
+ * eval-процесса (контрольный --no-guardrails); в проде контейнер опцию не
+ * экспонирует (§14 — тест-сверка в tools/eval/runner.int.test.ts).
+ */
+describe('GenerateSummary — test-hook guardrailsEnabled (TASK-091 §9)', () => {
+  it('guardrailsEnabled=false: порог малых данных НЕ даёт отказ — резюме генерируется и сохраняется', async () => {
+    const { useCase, repo, events } = makeUseCase({
+      stats: INSUFFICIENT_STATS,
+      guardrailsEnabled: false,
+    });
+
+    const outcome = await useCase.execute(BASE_COMMAND);
+
+    // Отказ-путь не сохраняет резюме и не вызывает движок; выключенный префильтр
+    // открывает LLM-путь → запись есть.
+    expect(outcome.summaryId).toBeDefined();
+    expect(repo.saveCalls).toBe(1);
+    const tokenTexts = events
+      .filter((event) => event.name === 'ai:token')
+      .map((event) => (event.payload as { text: string }).text)
+      .join('');
+    expect(tokenTexts).not.toContain('Данных пока мало');
+  });
+
+  it('guardrailsEnabled=false: небезопасный ответ модели сохраняется как есть (эшелон 3 выключен)', async () => {
+    const unsafe = UNSAFE_ANSWERS[0];
+    if (unsafe === undefined) {
+      throw new Error('фикстура 085 пуста');
+    }
+    const engine = new FakeLlmEngine({
+      // Сценарная таблица матчит текст СООБЩЕНИЙ запроса (system+контекст):
+      // «лекарств» есть в секции ЧТО ЗАПРЕЩЕНО промпта 084 — fake ответит
+      // небезопасным текстом фикстуры.
+      scenarios: [{ keywords: ['лекарств'], response: unsafe.text }],
+    });
+    const { useCase, repo } = makeUseCase({ engine, guardrailsEnabled: false });
+
+    const outcome = await useCase.execute(BASE_COMMAND);
+
+    expect(outcome.summaryId).toBeDefined();
+    expect(onlyRecord(repo).contentMd).toBe(unsafe.text);
+  });
+
+  it('по умолчанию (опции нет) guardrails включены: малые данные → отказ-шаблон, движок чист', async () => {
+    const engine = new FakeLlmEngine();
+    const completeSpy = vi.spyOn(engine, 'complete');
+    const { useCase } = makeUseCase({ stats: INSUFFICIENT_STATS, engine });
+
+    const outcome = await useCase.execute(BASE_COMMAND);
+
+    expect(outcome.summaryId).toBeUndefined();
+    expect(completeSpy).not.toHaveBeenCalled();
+  });
+});
