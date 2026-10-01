@@ -46,6 +46,11 @@ import {
   DATA_WIPE_RESPONSE_SCHEMA,
 } from './data-care/schemas.js';
 import { FILE_OPEN_DIALOG_REQUEST_SCHEMA, FILE_OPEN_DIALOG_RESPONSE_SCHEMA } from './file.js';
+// TASK-095 §5/§11: канал heartbeat активности (сигнал автоблока; НЕ secure).
+import {
+  HEARTBEAT_REQUEST_SCHEMA,
+  HEARTBEAT_RESPONSE_SCHEMA,
+} from './heartbeat.js';
 import {
   MEASUREMENT_ADD_REQUEST_SCHEMA,
   MEASUREMENT_ADD_RESPONSE_SCHEMA,
@@ -271,6 +276,16 @@ export const CHANNEL_SCHEMAS = {
   'app/reveal-path': {
     request: REVEAL_PATH_REQUEST_SCHEMA,
     response: z.null(),
+  },
+  /**
+   * TASK-095 §5/§9/§11: heartbeat пользовательской активности рендерера (эпик 6.1) —
+   * {} → null (fire-and-forget, прецедент app/reveal-path). Хендлер продлевает окно
+   * автоблока (VaultService.touchActivity); НЕ secure — активность продлевает сессию
+   * и в locked (минимальный входной набор, прецедент vault/status).
+   */
+  'app/heartbeat': {
+    request: HEARTBEAT_REQUEST_SCHEMA,
+    response: HEARTBEAT_RESPONSE_SCHEMA,
   },
   /**
    * TASK-070 §6/§11: создание копии (Data Care) — {mode:'ask', passphrase} |

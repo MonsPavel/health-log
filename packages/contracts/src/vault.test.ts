@@ -147,6 +147,9 @@ const SECURE_CHANNELS: readonly ChannelName[] = [
  * открывает»). Управление паролем в набор не входит — только из открытой сессии.
  */
 const OPEN_CHANNELS: readonly ChannelName[] = [
+  // TASK-095 §11: heartbeat активности — безопасный сигнал автоблока, продлевает
+  // сессию и в locked (блокировать активность бессмысленно — сессия уже закрыта).
+  'app/heartbeat',
   'app/log-client-error',
   'app/ping',
   'app/reveal-path',
