@@ -25,12 +25,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-import type {
-  HlEventMap,
-  PeriodStatisticsDto,
-  StatsPeriodParam,
-  TrendResponse,
-} from '@hl/contracts';
+import type { HlEventMap, PeriodStatisticsDto, TrendResponse } from '@hl/contracts';
 import { AppError, type Clock } from '@hl/kernel';
 
 import { UNSAFE_ANSWERS } from './__fixtures__/unsafe-answers.js';
@@ -269,7 +264,7 @@ function makeUseCase(options: HarnessOptions = {}): {
 const BASE_COMMAND: AskChatCommand = {
   profileId: PROFILE,
   question: 'Почему вечером выше?',
-  period: '30d' as StatsPeriodParam,
+  period: '30d',
   requestId: 'req-1',
 };
 
@@ -440,14 +435,14 @@ describe('AskChat — полный поток US-19 (TASK-089 §19)', () => {
     const engine = new ControlledEngine();
     const { useCase, repo } = makeUseCase({ engine });
     const first = useCase.execute(BASE_COMMAND);
-    await vi.waitFor(() => expect((engine as ControlledEngine).completeCalls.length).toBe(1));
+    await vi.waitFor(() => expect(engine.completeCalls.length).toBe(1));
 
     await expect(useCase.execute({ ...BASE_COMMAND, requestId: 'req-2' })).rejects.toMatchObject({
       code: 'AI/BUSY',
     });
 
-    (engine as ControlledEngine).push({ delta: 'ответ ' });
-    (engine as ControlledEngine).push({ done: 'stop' });
+    engine.push({ delta: 'ответ ' });
+    engine.push({ done: 'stop' });
     const outcome = await first;
     expect(outcome.messageId).toBeDefined();
     expect(repo.rows).toHaveLength(2);
@@ -547,7 +542,7 @@ describe('AskChat — полный поток US-19 (TASK-089 §19)', () => {
     const engine = new ControlledEngine();
     const { useCase, repo } = makeUseCase({ engine });
     const first = useCase.execute(BASE_COMMAND);
-    await vi.waitFor(() => expect((engine as ControlledEngine).completeCalls.length).toBe(1));
+    await vi.waitFor(() => expect(engine.completeCalls.length).toBe(1));
 
     engine.fail(AppError.of('AI/WORKER_CRASHED', 'errors.AI_WORKER_CRASHED', { reason: 'test' }));
     await expect(first).rejects.toMatchObject({ code: 'AI/WORKER_CRASHED' });

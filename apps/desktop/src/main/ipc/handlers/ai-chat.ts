@@ -35,9 +35,7 @@ import { AppError } from '@hl/kernel';
 
 import type { AskChat, AskChatCommand } from '../../modules/ai-insight/application/ask-chat.js';
 import type { ClearChat } from '../../modules/ai-insight/application/clear-chat.js';
-import {
-  llmEngineBusyError,
-} from '../../modules/ai-insight/application/ports/llm-engine.js';
+import { llmEngineBusyError } from '../../modules/ai-insight/application/ports/llm-engine.js';
 import type {
   ChatMessageRecord,
   ChatRepository,

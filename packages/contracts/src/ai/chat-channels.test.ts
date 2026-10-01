@@ -97,9 +97,9 @@ describe('ChatMessageDto — проводная форма сообщения и
     expect(CHAT_MESSAGE_DTO_SCHEMA.parse(assistant)).toEqual(assistant);
     // Чужая роль/класс — отказ; лишние поля — отказ (§14).
     expect(CHAT_MESSAGE_DTO_SCHEMA.safeParse({ ...user, role: 'system' }).success).toBe(false);
-    expect(
-      CHAT_MESSAGE_DTO_SCHEMA.safeParse({ ...user, refusalClass: 'medication' }).success,
-    ).toBe(false);
+    expect(CHAT_MESSAGE_DTO_SCHEMA.safeParse({ ...user, refusalClass: 'medication' }).success).toBe(
+      false,
+    );
     expect(CHAT_MESSAGE_DTO_SCHEMA.safeParse({ ...user, extra: 1 }).success).toBe(false);
   });
 
@@ -162,6 +162,9 @@ describe('ai/chat/clear — контракт канала очистки (TASK-0
   });
 
   it('типы выводятся из схем (z.infer, §23)', () => {
+    // Точная форма z.object({}): пустой объект — так выводит zod (прецедент
+    // channels.test.ts app/ping).
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     expectTypeOf<AiChatClearRequest>().toEqualTypeOf<{}>();
     expectTypeOf<AiChatClearResponse>().toEqualTypeOf<{ cleared: true }>();
   });

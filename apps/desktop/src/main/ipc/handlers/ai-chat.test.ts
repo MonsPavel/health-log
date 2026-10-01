@@ -17,7 +17,11 @@ import { describe, expect, it } from 'vitest';
 
 import { AppError } from '@hl/kernel';
 
-import { createAiChatClearHandler, createAiChatListHandler, createAiChatSendHandler } from './ai-chat.js';
+import {
+  createAiChatClearHandler,
+  createAiChatListHandler,
+  createAiChatSendHandler,
+} from './ai-chat.js';
 import { AiSummaryRequestRegistry } from './ai-summary.js';
 import type {
   AskChat,
@@ -25,9 +29,11 @@ import type {
   AskChatOutcome,
 } from '../../modules/ai-insight/application/ask-chat.js';
 import type { ClearChat } from '../../modules/ai-insight/application/clear-chat.js';
-import type { ChatMessageRecord, ChatRepository } from '../../modules/ai-insight/application/ports/chat-repository.js';
+import type {
+  ChatMessageRecord,
+  ChatRepository,
+} from '../../modules/ai-insight/application/ports/chat-repository.js';
 
-const NOW_MS = 1_758_816_000_000;
 const PROFILE = 'seed-profile-0001';
 
 /** Stub use case: управляемый execute + isBusy (§19, прецедент StubGenerateSummary). */
@@ -143,7 +149,10 @@ describe('ai/chat/send — хендлер (TASK-089 §11)', () => {
   it('(2) BUSY: занятый use case → AppError AI/BUSY до ответа {requestId} (§9)', async () => {
     const useCase = new StubAskChat();
     useCase.busy = true;
-    const handler = createAiChatSendHandler(useCase as unknown as AskChat, new AiSummaryRequestRegistry());
+    const handler = createAiChatSendHandler(
+      useCase as unknown as AskChat,
+      new AiSummaryRequestRegistry(),
+    );
 
     // Хендлер бросает СИНХРОННО (каркас ловит тем же try/catch → ApiFailure §13).
     let caught: unknown;

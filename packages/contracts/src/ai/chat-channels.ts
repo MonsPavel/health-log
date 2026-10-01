@@ -64,9 +64,7 @@ export const AI_CHAT_SEND_REQUEST_SCHEMA = z
   .strict();
 
 /** §5/§11: ответ send — {requestId} (стрим/финал — событиями, арх. 05 §3). */
-export const AI_CHAT_SEND_RESPONSE_SCHEMA = z
-  .object({ requestId: z.string().min(1) })
-  .strict();
+export const AI_CHAT_SEND_RESPONSE_SCHEMA = z.object({ requestId: z.string().min(1) }).strict();
 
 /** Запрос send (§11). */
 export type AiChatSendRequest = z.infer<typeof AI_CHAT_SEND_REQUEST_SCHEMA>;

@@ -46,17 +46,17 @@ import { AppError, type Clock } from '@hl/kernel';
 
 import type { ChatMessageRecord, ChatRepository } from './ports/chat-repository.js';
 import type { AiContext, AiContextInput } from './ai-context-builder.js';
-import { AI_SUMMARY_DISCLAIMER_TEXT, type GenerateSummaryLogger } from './generate-summary.js';
+import {
+  AI_ENGINE_NOT_CONFIGURED_MESSAGE_KEY,
+  AI_SUMMARY_DISCLAIMER_TEXT,
+  type GenerateSummaryLogger,
+} from './generate-summary.js';
 import {
   resolveSummaryPeriod,
   type SummaryModelMetaProvider,
   type SummaryNotify,
 } from './generate-summary.js';
-import {
-  llmEngineBusyError,
-  AI_ENGINE_NOT_CONFIGURED_MESSAGE_KEY,
-  type LlmEngine,
-} from './ports/llm-engine.js';
+import { llmEngineBusyError, type LlmEngine } from './ports/llm-engine.js';
 import { buildChatSystemPrompt } from './prompts/system-prompt.js';
 import { DEFAULT_GUARDRAIL_POLICY, type RefusalClass } from '../domain/guardrail-policy.js';
 import type { PrecheckService } from './precheck-service.js';
@@ -298,12 +298,7 @@ export class AskChat {
    * входом и данными, 083 §13).
    */
   private async buildContextCached(input: AiContextInput): Promise<AiContext> {
-    const key = JSON.stringify([
-      input.profileId,
-      input.period,
-      input.includeNotes,
-      input.modelId,
-    ]);
+    const key = JSON.stringify([input.profileId, input.period, input.includeNotes, input.modelId]);
     const dataVersion = this.deps.dataVersion !== undefined ? await this.deps.dataVersion() : 0;
     if (this.memo !== undefined && this.memo.key === key && this.memo.dataVersion === dataVersion) {
       return this.memo.context;

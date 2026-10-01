@@ -86,14 +86,7 @@ describe('миграция v7 — chat_message (TASK-089 §19/§20)', () => {
       'refusal_class',
       'created_at_utc',
     ]);
-    expect(columns.map((c) => c.type)).toEqual([
-      'TEXT',
-      'TEXT',
-      'TEXT',
-      'TEXT',
-      'TEXT',
-      'INTEGER',
-    ]);
+    expect(columns.map((c) => c.type)).toEqual(['TEXT', 'TEXT', 'TEXT', 'TEXT', 'TEXT', 'INTEGER']);
     // PK неявно NOT NULL (0); refusal_class — ЕДИНСТВЕННАЯ допускающая NULL колонка (§5);
     // остальные NOT NULL.
     expect(columns.map((c) => c.notnull)).toEqual([0, 1, 1, 1, 0, 1]);
@@ -138,7 +131,14 @@ describe('миграция v7 — chat_message (TASK-089 §19/§20)', () => {
     // Обычный ход: refusal_class NULL.
     insert.run('m-user', 'seed-profile-0001', 'user', 'Почему вечером выше?', null, 1000);
     // refusal-ответ: класс отказа в refusal_class (§7 — пометка для UI 088).
-    insert.run('m-bot', 'seed-profile-0001', 'assistant', 'Я не определяю заболевания.', 'diagnosis', 1001);
+    insert.run(
+      'm-bot',
+      'seed-profile-0001',
+      'assistant',
+      'Я не определяю заболевания.',
+      'diagnosis',
+      1001,
+    );
 
     const rows = db
       .prepare(

@@ -92,9 +92,7 @@ describe('SqliteChatRepository — chat_message v7 (TASK-089 §19)', () => {
   it('(3) listRecent — последние N хронологически; 8-е сообщение вытесняет старейшее из окна', async () => {
     const { db, repo } = await makeRepo('chat-window.sqlite');
     for (let i = 1; i <= 8; i += 1) {
-      await repo.append(
-        message({ id: `m-${i}`, content: `ход ${i}`, createdAtUtc: 1000 + i }),
-      );
+      await repo.append(message({ id: `m-${i}`, content: `ход ${i}`, createdAtUtc: 1000 + i }));
     }
 
     const window6 = await repo.listRecent(PROFILE, 6);
