@@ -172,7 +172,11 @@ function emitGithubOutput(githubOutputPath, modelPath) {
 
 /** Аргументы CLI. */
 function parseCliArgs(args) {
-  const parsed = { manifestPath: DEFAULT_MANIFEST_PATH, modelId: undefined, dir: DEFAULT_MODEL_DIR };
+  const parsed = {
+    manifestPath: DEFAULT_MANIFEST_PATH,
+    modelId: undefined,
+    dir: DEFAULT_MODEL_DIR,
+  };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === '--manifest') {

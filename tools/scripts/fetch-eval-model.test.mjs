@@ -24,12 +24,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  fetchEvalModel,
-  pickModelEntry,
-  sha256Hex,
-  verifySha256,
-} from './fetch-eval-model.mjs';
+import { fetchEvalModel, pickModelEntry, sha256Hex, verifySha256 } from './fetch-eval-model.mjs';
 
 /** Тело «модели» фикстур и его настоящий sha256. */
 const MODEL_BODY = 'GGUF-fake-model-body';

@@ -1,0 +1,121 @@
+# TASK-092: ночной CI-прогон eval («красный набор» TASK-091 на компактной 1B-модели).
+# Спека: docs/tasks/TASK-092-eval-nightly-ci.md; каркас CI — TASK-014 (pr.yml).
+#
+# §5: ОТДЕЛЬНЫЙ ночной контур — триггеров pull_request/push нет, красный прогон
+# НЕ блокирует PR-пайплайн (AC §20.5; сегрегация осознанная — стоимость модели,
+# TD-7; полный гейт на релизе — ручной прогон TASK-105). Статус — зелёный/красный
+# по гейту 100% кейсов (exit-код eval: 0 — все зелёные, 1 — есть красные).
+#
+# §15: бюджет ≤30 мин (20 кейсов × 1B ≈ 10–20 мин), timeout job 45 мин — защита.
+# §14: sha256 из манифеста обязателен («не верим URL», гейт в fetch-скрипте);
+# токены не нужны (публичный хостинг); permissions — contents: read.
+name: Eval nightly
+
+on:
+  # §5: ночь — дешёвый детектор деградации guardrails (ловится за сутки);
+  # §22: при лимитах квот — cron настраиваемый (например, 3×/неделя: '0 3 * * 1-3').
+  schedule:
+    - cron: '0 3 * * *'
+  # §19/§24: ручной dispatch — приёмка §20 и разовая проверка после смены модели.
+  workflow_dispatch:
+
+# §14: минимальные права.
+permissions:
+  contents: read
+
+# Новый прогон (расписание/dispatch) отменяет устаревший.
+concurrency:
+  group: eval-nightly
+  cancel-in-progress: true
+
+jobs:
+  eval-nightly:
+    name: Eval nightly (1B, red set)
+    runs-on: ubuntu-latest
+    # §15: бюджет прогона ≤30 мин; 45 мин — аварийный предел.
+    timeout-minutes: 45
+    env:
+      # Прецедент pr.yml: Electron-бинарник не нужен — eval гоняет use case'ы в node (tsx).
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      # §4/§5: headless-режим контура — app-загрузка без BrowserWindow (гард
+      # evalHeadlessEnabled в bootstrap, лог «window skipped», AC §20.4).
+      # Сам pnpm eval окна не создаёт по построению (use case'ы напрямую) —
+      # флаг декларирует режим контура и страхует будущий app-stub прогон.
+      HL_EVAL_HEADLESS: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Прецедент pr.yml: Node 24 (dependency-cruiser 18 / локальный toolchain),
+      # pnpm 9 из packageManager через corepack.
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Enable corepack (pnpm 9 — packageManager)
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+
+      - name: Get pnpm store path
+        id: pnpm-store
+        run: echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
+      - name: Fetch dependencies
+        run: pnpm fetch
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # §5: кэш модели (путь ~/.hl-eval-model). Ключ — версия модели (§4 «ключ
+      # версии из манифеста»): смена записи манифеста = ручной бамп ключа
+      # model-1b-v1 → model-1b-v2 (перекачивание новой версии).
+      - name: Cache eval model
+        id: model-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.hl-eval-model
+          key: model-1b-v1
+
+      # §5: если кэша нет — скрипт скачивает dev-модель из манифеста (curl) и
+      # проверяет sha256 манифеста (гейт, AC §20.3). На cache-hit скрипт
+      # НЕ скачивает — только перепроверяет sha256 кэша (лог пропуска, AC §20.2).
+      # Путь модели — в GITHUB_OUTPUT (steps.model.outputs.model-path).
+      - name: Fetch eval model (manifest + sha256 gate)
+        id: model
+        run: node tools/scripts/fetch-eval-model.mjs
+
+      # §5: прогон «красного набора» с отчётом. Отклонение от буквальной записи
+      # §5 «--report out»: флаг CLI eval (TASK-091) называется --out-dir.
+      # Exit-код: 0 — 100% кейсов зелёные (гейт пройден), 1 — есть красные
+      # (§13: красная ночь = investigate, PR не блокирует).
+      - name: Eval red set (1B model)
+        run: pnpm eval -- --model "${{ steps.model.outputs.model-path }}" --out-dir eval-report
+
+      # §18: отчёт — таблица кейсов в GitHub Actions Job Summary.
+      - name: Eval report to job summary
+        if: always()
+        run: |
+          if compgen -G "eval-report/*.md" > /dev/null; then
+            cat eval-report/*.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "eval: отчёт не создан (прогон упал до отчёта)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # §5/§18: отчёт — артефакт прогона (грузится и при красном прогоне).
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval-report/
+          if-no-files-found: warn
