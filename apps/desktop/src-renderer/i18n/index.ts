@@ -11,8 +11,10 @@
  * feature-каталоги (features/⟨фича⟩/ru.json —
  * первый measurement, TASK-031: ключи с префиксом имени фичи) и каталог общих
  * компонентов components/critical/ru.json (TASK-041, группа critical); settings —
- * TASK-047 (features/settings/ru.json); ai — TASK-081 (features/ai/ru.json). Один namespace
- * 'translation' с группами common./data./errors./export./measurement./settings./critical./dashboard./ai.: ключи в коде совпадают со
+ * TASK-047 (features/settings/ru.json); ai — TASK-081 (features/ai/ru.json); lock —
+ * TASK-095 (i18n/ru/lock.json — оверлей блокировки); security — TASK-095
+ * (features/security/ru.json — секция «Защита паролем»). Один namespace
+ * 'translation' с группами common./data./errors./export./lock./measurement./settings./critical./dashboard./ai./security.: ключи в коде совпадают со
  * строками messageKey контрактов ('errors.renderer' — прецедент ErrorBoundary, TASK-011).
  *
  * escapeValue: false — экранирование делает React, ICU-подстановки включатся с
@@ -27,6 +29,8 @@ import data from './ru/data.json';
 import errors from './ru/errors.json';
 import exportCatalog from './ru/export.json';
 import report from './ru/report.json';
+// TASK-095 §17: ключи lock.* — экран блокировки (оверлей, эпик 6.1).
+import lock from './ru/lock.json';
 import measurement from '../features/measurement/ru.json';
 import settings from '../features/settings/ru.json';
 import critical from '../components/critical/ru.json';
@@ -34,6 +38,9 @@ import dashboard from '../features/dashboard/ru.json';
 // TASK-081 §17: ключи ai.banner.* / ai.models.* — баннер «ИИ не настроен» и
 // витрина моделей (карточки, состояния, согласие, предупреждения, «позже»).
 import ai from '../features/ai/ru.json';
+// TASK-095 §17: ключи security.passphrase.* / security.autolock.* — секция
+// «Защита паролем» экрана настроек.
+import security from '../features/security/ru.json';
 
 const resources = {
   ru: {
@@ -43,11 +50,13 @@ const resources = {
       errors,
       export: exportCatalog,
       report,
+      lock,
       measurement,
       settings,
       critical,
       dashboard,
       ai,
+      security,
     },
   },
 } as const;

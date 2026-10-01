@@ -8,7 +8,8 @@
  * видна только при advancedMode=true, скрытие — условный рендер — из DOM целиком
  * (§16), prefs скрытых опций сохраняются (§13). Навигация не прячется (§5: решение
  * — стабильность для П3). Секции крупного режима — TASK-048, сетевые согласия —
- * TASK-099 (§5 «не включено»).
+ * TASK-099 (§5 «не включено»). TASK-095 §6: секция «Защита паролем»
+ * (SecuritySettings) — после «Вида», до «Продвинутых».
  */
 import { useTranslation } from 'react-i18next';
 
@@ -16,6 +17,7 @@ import { useFlags, useSetFlag } from '../../../lib/flags';
 import { usePreferences } from '../model/use-preferences';
 import { AdvancedSection } from './AdvancedSection';
 import { AppearanceSection } from './AppearanceSection';
+import { SecuritySettings } from '../../security/ui/SecuritySettings';
 
 export function SettingsScreen(): JSX.Element {
   const { t } = useTranslation();
@@ -60,6 +62,9 @@ export function SettingsScreen(): JSX.Element {
         </button>
       </div>
       <AppearanceSection />
+      {/* TASK-095 §5/§6: секция «Защита паролем» — включение/смена/снятие пароля,
+          выбор автоблока; состояние — vault/status (§12). */}
+      <SecuritySettings />
       {/* §5/§16: условный рендер — скрытая секция отсутствует в DOM. */}
       {flags.advancedMode ? <AdvancedSection /> : null}
     </section>

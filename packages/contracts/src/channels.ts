@@ -111,6 +111,9 @@ export type ChannelName =
   | 'app/ping'
   | 'app/log-client-error'
   | 'app/reveal-path'
+  // TASK-095 §5/§11: heartbeat пользовательской активности (сигнал автоблока,
+  // троттл 30 с в рендерере; схемы — heartbeat.ts; НЕ secure — §9/§11).
+  | 'app/heartbeat'
   | 'backup/create'
   | 'backup/restore'
   | 'data/wipe'
