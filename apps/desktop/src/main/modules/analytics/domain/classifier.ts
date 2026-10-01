@@ -31,9 +31,18 @@ export interface BpRange {
   readonly max: number | null;
 }
 
+/**
+ * Коды категорий офисной шкалы ESC/ESH 2018 — ТОЧНОЕ зеркало одноимённого типа
+ * @hl/scales-data (domain-purity: пакет не импортируем, union переобъявляется;
+ * совместимость зеркал фиксирует тип-тест classifier.test.ts — расхождение в любую
+ * сторону красит компилятор). Новая категория в пакете = синхронное зеркало здесь.
+ */
+export type ScaleCategoryCode =
+  'optimal' | 'normal' | 'high_normal' | 'hypertension1' | 'hypertension2' | 'hypertension3';
+
 /** Категория шкалы — зеркало ScaleCategory @hl/scales-data (совместимость — тип-тест). */
 export interface ScaleCategory {
-  readonly code: string;
+  readonly code: ScaleCategoryCode;
   readonly label: string;
   /** Границы по систолическому давлению (СДА), мм рт. ст. */
   readonly sysRange: BpRange;
