@@ -18,6 +18,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { AppError, FixedClock, type Result } from '@hl/kernel';
 
 import { buildContainer } from './container.js';
+import { silentLogger } from './shared/logger/silent-logger.js';
 import type { PdfRenderResult } from './modules/reporting/application/report-spec.js';
 import { BuildPdfReportUseCase } from './modules/reporting/application/build-pdf-report.js';
 import { ReportPointsAdapter } from './modules/reporting/adapters/report-points-adapter.js';
@@ -147,7 +148,7 @@ describe('smoke: tmp-БД 50 записей → PDF >10 КБ (TASK-068 §19/§20
         queue: container.fileOpQueue,
         clock: container.clock,
         appVersion: '0.0.0',
-        logger: { debug: () => undefined, info: () => undefined, error: () => undefined },
+        logger: silentLogger(),
       });
 
       const result = await useCase.execute({

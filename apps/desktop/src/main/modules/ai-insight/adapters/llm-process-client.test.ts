@@ -37,6 +37,7 @@ import {
   type LlmWorkerProcess,
   type SpawnLlmWorker,
 } from './llm-process-client.js';
+import { silentLogger } from '../../../shared/logger/silent-logger.js';
 
 /** Мок порта: исходящие к воркеру собираются, от воркера — через fromWorker(). */
 class FakePort implements LlmWorkerPort {
@@ -180,12 +181,7 @@ function newClient(
     tokenFlushMs: options.flushMs ?? 5,
     idleTimeoutMs: options.idleMs ?? 10_000,
     maxRestartAttempts: options.maxRestarts ?? 3,
-    logger: {
-      debug: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: () => undefined,
-    },
+    logger: silentLogger(),
   });
 }
 
@@ -224,12 +220,7 @@ describe('LlmProcessClient — spawn/handshake/статусы (§5/§15)', () =>
     const client = new LlmProcessClient({
       spawn,
       pathExists: () => false,
-      logger: {
-        debug: () => undefined,
-        info: () => undefined,
-        warn: () => undefined,
-        error: () => undefined,
-      },
+      logger: silentLogger(),
     });
 
     await expect(client.load('C:/models/нет.gguf')).rejects.toMatchObject({
