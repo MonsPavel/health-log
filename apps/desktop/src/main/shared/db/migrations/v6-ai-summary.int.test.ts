@@ -11,7 +11,7 @@
 //     content_md NOT NULL, data_version NOT NULL, created_at_utc NOT NULL + служебные
 //     несъёмные поля disclaimer_text/period_text (решение §5/§7/§20 п.6 — отдельные
 //     поля рендера) + индекс ai_summary_profile_created_idx (profile_id,
-//     created_at_utc DESC); schema_version = 6;
+//     created_at_utc DESC); schema_version ≥ 6 (на полном реестре — 7, TASK-089);
 //  2. вставка/чтение строки работают; CHECK (kind) отбраковывает чужой kind (§8);
 //  3. профиль «latest по периоду» идёт по индексу (profile_id, created_at_utc DESC) —
 //     smoke «последняя по периоду» (профиль latestForPeriod TASK-087, §5);
@@ -74,7 +74,7 @@ const tableExists = (db: EncryptedDatabase, name: string): boolean =>
     { name: string } | undefined) !== undefined;
 
 describe('миграция v6 — ai_summary (TASK-087 §19/§20)', () => {
-  it('(1) v6 создаёт таблицу ai_summary и индекс (profile_id, created_at_utc desc); DDL поимённо; schema_version=6', async () => {
+  it('(1) v6 создаёт таблицу ai_summary и индекс (profile_id, created_at_utc desc); DDL поимённо; schema_version=7', async () => {
     const db = await migrateFresh('v6-schema.sqlite');
 
     expect(tableExists(db, 'ai_summary')).toBe(true);
@@ -142,7 +142,7 @@ describe('миграция v6 — ai_summary (TASK-087 §19/§20)', () => {
     const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as {
       value: string;
     };
-    expect(version.value).toBe('6');
+    expect(version.value).toBe('7');
     db.close();
   });
 
@@ -318,7 +318,7 @@ describe('миграция v6 — ai_summary (TASK-087 §19/§20)', () => {
     const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as {
       value: string;
     };
-    expect(version.value).toBe('6');
+    expect(version.value).toBe('7');
     db.close();
   });
 
@@ -351,8 +351,8 @@ describe('миграция v6 — ai_summary (TASK-087 §19/§20)', () => {
     db.close();
   });
 
-  it('(6) реестр MIGRATIONS — версии [1, 2, 3, 4, 5, 6]; V6_AI_SUMMARY.version === 6 (§4/§5)', () => {
+  it('(6) реестр MIGRATIONS — версии [1, 2, 3, 4, 5, 6, 7]; V6_AI_SUMMARY.version === 6 (§4/§5)', () => {
     expect(V6_AI_SUMMARY.version).toBe(6);
-    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });

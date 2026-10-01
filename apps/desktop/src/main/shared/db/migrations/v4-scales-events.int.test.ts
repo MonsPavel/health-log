@@ -270,8 +270,8 @@ describe('миграция v4 — reference_scale + app_event (TASK-051 §19/§2
     db.close();
   });
 
-  it('(7) реестр MIGRATIONS — версии [1, 2, 3, 4, 5, 6] (TASK-075: +v5, TASK-087: +v6); V4_SCALES_EVENTS.version === 4', () => {
+  it('(7) реестр MIGRATIONS — версии [1, 2, 3, 4, 5, 6, 7] (TASK-075: +v5, TASK-087: +v6, TASK-089: +v7); V4_SCALES_EVENTS.version === 4', () => {
     expect(V4_SCALES_EVENTS.version).toBe(4);
-    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });
