@@ -37,10 +37,11 @@
  *
  * ТЕСТИРУЕМОСТЬ (§19): сеть updater'а за интерфейсом-обёрткой UpdatesAdapter —
  * тесты подставляют мок; боевой адаптер — wireElectronUpdater (конфиг §4/§14:
- * autoDownload=false, disableWebInstaller=true — никаких фоновых загрузок, AC3)
- * над структурной поверхностью electron-updater; createDefaultUpdatesAdapter
- * резолвит autoUpdater ЛЕНИВО при первом использовании (сборка графа идёт и в
- * node-vitest — прецедент createDefaultEgressFetch).
+ * autoDownload=false, disableWebInstaller=true, autoInstallOnAppQuit=false —
+ * никаких фоновых загрузок И молчаливой установки на quit, AC3) над структурной
+ * поверхностью electron-updater; createDefaultUpdatesAdapter резолвит autoUpdater
+ * ЛЕНИВО при первом использовании (сборка графа идёт и в node-vitest — прецедент
+ * createDefaultEgressFetch).
  *
  * СОСТОЯНИЕ (§12): снапшот и lastFailureAtUtc — в памяти main (перезапуск сбрасывает;
  * авто-проверка 24 ч и ручная проверка восстанавливают актуальность). Персистентность
@@ -288,6 +289,8 @@ export function createUpdatesCheckJob(deps: UpdatesCheckJobDeps): JobDefinition 
 export interface ElectronUpdaterLike {
   autoDownload: boolean;
   disableWebInstaller: boolean;
+  /** Дефолт electron-updater — true (AppUpdater.js:114); всегда выключается, §2/§5/§13. */
+  autoInstallOnAppQuit: boolean;
   checkForUpdates(): Promise<unknown>;
   downloadUpdate(): Promise<unknown>;
   quitAndInstall(): void;
@@ -305,7 +308,12 @@ function versionOf(info: unknown): string | undefined {
 /**
  * Боевой адаптер: конфиг и маппинг electron-updater к UpdatesAdapter (§4/§14/§19).
  * КОНФИГ (AC3): autoDownload=false — никаких фоновых загрузок; disableWebInstaller=
- * true — веб-инсталлятор выключен. События пробрасываются подписчикам сервиса.
+ * true — веб-инсталлятор выключен; autoInstallOnAppQuit=false — БЕЗ молчаливой
+ * авто-установки скачанного при закрытии приложения (дефолт electron-updater true,
+ * AppUpdater.js:114: после скачивания BaseUpdater.addQuitHandler ставит обновление
+ * на quit — это ломало бы §2 «установка — только по явному действию» и §13
+ * «ready → install → relaunch» как единственный путь). События пробрасываются
+ * подписчикам сервиса.
  */
 export function wireElectronUpdater(
   updater: ElectronUpdaterLike,
@@ -313,7 +321,10 @@ export function wireElectronUpdater(
 ): UpdatesAdapter {
   updater.autoDownload = false; // §4/§14: ручной режим целиком
   updater.disableWebInstaller = true; // §4: веб-инсталлятор выключен
-  logger.debug('updater wired: ручной режим (autoDownload=false, disableWebInstaller=true)');
+  updater.autoInstallOnAppQuit = false; // §2/§5/§13: установка — только по кнопке
+  logger.debug(
+    'updater wired: ручной режим (autoDownload=false, disableWebInstaller=true, autoInstallOnAppQuit=false)',
+  );
   return {
     getFeedUrl(): Promise<string> {
       const url = updater.getFeedURL();
