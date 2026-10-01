@@ -133,6 +133,7 @@ describe('backup.reminder — определение и метаданные (§
     expect(next.lastBackup).toEqual({ path: String.raw`D:\copy.hlbackup`, at: T0 + 5 });
     expect(next.jobs).toEqual({ 'backup.reminder': T0 });
     expect(next.shown).toEqual({ 'backup-reminder': T0 });
-    expect(base.lastBackup).toBeUndefined(); // исходный объект не мутируется
+    // Исходный объект не мутируется: поле в фикстуре не объявлялось (JobState.lastBackup?).
+    expect((base as { lastBackup?: unknown }).lastBackup).toBeUndefined();
   });
 });

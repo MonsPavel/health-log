@@ -16,7 +16,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ZodType } from 'zod';
 
-import type { Prefs, PrefsPatch } from '@hl/contracts';
+import type { PrefsPatch } from '@hl/contracts';
 import { AppError } from '@hl/kernel';
 
 import { PreferencesService, PREFS_STORAGE_KEY } from './preferences-service.js';
@@ -63,7 +63,12 @@ const makeService = (store: SettingsStorePort) => {
   return { service: new PreferencesService({ store, events, logger }), events, logger };
 };
 
-const stored = (store: FakeStore, prefs: Prefs): void => {
+/**
+ * Документ «как в хранилище»: неизвестный JSON произвольной (в т.ч. усечённой
+ * legacy-) формы — его достраивает zod-дефолтами сервис (§22); поэтому unknown,
+ * а не Prefs.
+ */
+const stored = (store: FakeStore, prefs: unknown): void => {
   store.rows.set(PREFS_STORAGE_KEY, JSON.stringify(prefs));
 };
 
@@ -184,13 +189,15 @@ describe('PreferencesService — setPrefs (§7/§9/§11/§20)', () => {
 
     // 1. Select (use case 081): aiSettings заменяется целиком — modelId внутри,
     //    dismissed из zod-дефолта (выбор не сбрасывает решение «позже»).
-    await service.setPrefs({ aiSettings: { dismissed: false, modelId: 'dev-ru' } });
+    await service.setPrefs({
+      aiSettings: { dismissed: false, includeNotes: false, modelId: 'dev-ru' },
+    });
     expect(JSON.parse(store.rows.get(PREFS_STORAGE_KEY) as string)).toMatchObject({
       aiSettings: { modelId: 'dev-ru', dismissed: false, includeNotes: false },
     });
 
     // 2. «Настроить позже»: dismissed=true целиком (modelId при отсутствии — нет).
-    await service.setPrefs({ aiSettings: { dismissed: true } });
+    await service.setPrefs({ aiSettings: { dismissed: true, includeNotes: false } });
     expect(JSON.parse(store.rows.get(PREFS_STORAGE_KEY) as string)).toMatchObject({
       aiSettings: { dismissed: true, includeNotes: false },
     });
@@ -281,9 +288,12 @@ describe('PreferencesService — setPrefs (§7/§9/§11/§20)', () => {
     });
     const { service } = makeService(store);
 
-    const result = await service.setPrefs({ netConsents: { updatesCheck: false } });
+    const result = await service.setPrefs({
+      netConsents: { updatesCheck: false, modelsDownload: false },
+    });
 
-    // TASK-075: patch заменяет объект целиком; недостающий modelsDownload — дефолт.
+    // Patch заменяет netConsents объектом целиком — stored {updatesCheck: true}
+    // не deep-мержится (§5).
     expect(result.netConsents).toEqual({ updatesCheck: false, modelsDownload: false });
   });
 });

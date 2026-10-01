@@ -100,12 +100,14 @@ export interface BenchReportJson {
 export function buildBenchJson(input: BenchReportInput): BenchReportJson {
   const channelMs = medianOf(input.channelRunsMs);
   const renderMs = medianOf(input.renderRunsMs);
+  // Оба флага — до литерала: ok в BenchGateResult readonly (мутации нет).
+  const channelOk = evaluateBenchGate(channelMs, input.thresholds.channelMs);
+  const renderOk = evaluateBenchGate(renderMs, input.thresholds.renderMs);
   const gates: BenchGateResult = {
-    channelOk: evaluateBenchGate(channelMs, input.thresholds.channelMs),
-    renderOk: evaluateBenchGate(renderMs, input.thresholds.renderMs),
-    ok: false,
+    channelOk,
+    renderOk,
+    ok: channelOk && renderOk,
   };
-  gates.ok = gates.channelOk && gates.renderOk;
   return {
     task: 'TASK-062',
     dateUtc: input.dateUtc,

@@ -482,7 +482,9 @@ describe('мок-движок за протоколом 076 (§19)', () => {
         sent.push(message);
       },
       onRequest: (l) => {
-        listener = l;
+        // Транспорт контрактурует: raw — всегда WorkerRequest (протокол 076 §7);
+        // храним в unknown-сигнатуре фасада receive(raw: unknown).
+        listener = l as (raw: unknown) => void;
       },
     };
     return { transport, sent, receive: (raw) => listener?.(raw) };

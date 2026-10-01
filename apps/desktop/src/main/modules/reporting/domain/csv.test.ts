@@ -168,7 +168,7 @@ describe('toCsv — roundtrip mini-парсером (§19/§20: юникод/э�
 
   it('property: произвольная заметка переживает roundtrip; кавычки минимальны (§13)', () => {
     fc.assert(
-      fc.property(fc.string({ maxSize: 200 }), (note) => {
+      fc.property(fc.string({ maxLength: 200 }), (note) => {
         const csv = toCsv([row({ note })]);
         const records = parseCsv(csv);
         expect(records).toHaveLength(2);

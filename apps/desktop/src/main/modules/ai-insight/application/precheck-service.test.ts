@@ -66,9 +66,7 @@ function regularPoints(
 }
 
 /** СТАТИСТИКА ветвей (боевой read model 052 — один конструктор со списком точек). */
-const SUFFICIENT = buildPeriodStatistics(
-  regularPoints(4, 2, { sys: 125, dia: 82, pulse: 62 }),
-);
+const SUFFICIENT = buildPeriodStatistics(regularPoints(4, 2, { sys: 125, dia: 82, pulse: 62 }));
 const FEW = buildPeriodStatistics([
   point('2026-03-02', '07:00', 120, 80, 60),
   point('2026-03-02', '20:00', 130, 85, 70),

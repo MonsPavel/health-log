@@ -148,8 +148,8 @@ describe('focusExistingWindow — restore/show/focus (§10/§20 п. 3)', () => {
     expect(show).toHaveBeenCalledTimes(1);
     expect(focus).toHaveBeenCalledTimes(1);
     // §10: порядок isMinimized → restore → show → focus
-    expect(restore.mock.invocationCallOrder[0]).toBeLessThan(show.mock.invocationCallOrder[0]);
-    expect(show.mock.invocationCallOrder[0]).toBeLessThan(focus.mock.invocationCallOrder[0]);
+    expect(restore.mock.invocationCallOrder[0]!).toBeLessThan(show.mock.invocationCallOrder[0]!);
+    expect(show.mock.invocationCallOrder[0]!).toBeLessThan(focus.mock.invocationCallOrder[0]!);
   });
 
   it('обычное (не свёрнутое) окно → show + focus, без restore', () => {

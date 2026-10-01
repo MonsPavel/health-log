@@ -91,11 +91,10 @@ describe('ai/models/list — запрос и ответ (§7/§11: одним в
   });
 
   it('типы: AiModelsListResponse/ModelView выведены из схем (§23)', () => {
-    expectTypeOf<AiModelsListResponse>().toEqualTypeOf<{
-      readonly models: readonly ModelView[];
-      readonly ramTotalGb: number;
-      readonly uiLanguage: string;
-    }>();
+    // z.infer даёт мутабельную форму (не readonly-литерал) — пиняем фактическую.
+    expectTypeOf<AiModelsListResponse['models']>().toEqualTypeOf<ModelView[]>();
+    expectTypeOf<AiModelsListResponse['ramTotalGb']>().toEqualTypeOf<number>();
+    expectTypeOf<AiModelsListResponse['uiLanguage']>().toEqualTypeOf<string>();
     expectTypeOf<ModelView['state']>().toEqualTypeOf<(typeof MODEL_STATUSES)[number]>();
   });
 });

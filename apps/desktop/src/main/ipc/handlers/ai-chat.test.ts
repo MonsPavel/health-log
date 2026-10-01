@@ -42,7 +42,7 @@ class StubAskChat implements Partial<AskChat> {
   commands: AskChatCommand[] = [];
   private readonly resolvers: Array<(outcome: AskChatOutcome) => void> = [];
   /** Сбой следующего execute (§19: отказ фонового пути). */
-  failure: Error | undefined;
+  failure: AppError | undefined;
 
   isBusy(): boolean {
     return this.busy;
@@ -51,6 +51,7 @@ class StubAskChat implements Partial<AskChat> {
   execute(command: AskChatCommand): Promise<AskChatOutcome> {
     this.commands.push(command);
     if (this.failure !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006; прецедент llm-process-client.ts)
       return Promise.reject(this.failure);
     }
     return new Promise((resolve) => {

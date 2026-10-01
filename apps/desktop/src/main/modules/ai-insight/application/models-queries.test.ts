@@ -45,15 +45,15 @@ function descriptor(overrides: Partial<ModelDescriptor> = {}): ModelDescriptor {
 
 /** Store-порт с настраиваемым статусом и spy-делегированием (§19). */
 class FakeStore {
-  readonly downloadSpy = vi.fn(
-    (_modelId: string): Promise<Result<ModelStatusInfo>> =>
-      Promise.resolve(ok({ state: 'installed' })),
+  /** Тип шпиона несёт параметр порта, реализация его не использует — без unused. */
+  readonly downloadSpy = vi.fn<(modelId: string) => Promise<Result<ModelStatusInfo>>>(() =>
+    Promise.resolve(ok({ state: 'installed' })),
   );
-  readonly resumeSpy = vi.fn(
-    (_modelId: string): Promise<Result<ModelStatusInfo>> => Promise.resolve(ok({ state: 'paused' })),
+  readonly resumeSpy = vi.fn<(modelId: string) => Promise<Result<ModelStatusInfo>>>(() =>
+    Promise.resolve(ok({ state: 'paused' })),
   );
-  readonly pauseSpy = vi.fn((_modelId: string) => undefined);
-  readonly resetSpy = vi.fn((_modelId: string) => undefined);
+  readonly pauseSpy = vi.fn<(modelId: string) => void>(() => undefined);
+  readonly resetSpy = vi.fn<(modelId: string) => void>(() => undefined);
 
   constructor(public statusResult: ModelStatusInfo = { state: 'not_installed' }) {}
 
@@ -116,9 +116,8 @@ class FakePrefs {
 
 /** Test-install порт (§22): включаемость + spy установки мимо сети. */
 class FakeTestInstall {
-  readonly installSpy = vi.fn(
-    (_modelId: string): Promise<Result<ModelStatusInfo>> =>
-      Promise.resolve(ok({ state: 'installed' })),
+  readonly installSpy = vi.fn<(modelId: string) => Promise<Result<ModelStatusInfo>>>(() =>
+    Promise.resolve(ok({ state: 'installed' })),
   );
 
   constructor(public enabled = false) {}

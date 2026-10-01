@@ -132,7 +132,7 @@ function respondPending(
   onUnmatched?: (request: WorkerRequest) => void,
 ): void {
   while (state.answered < port.sentToWorker.length) {
-    const request = port.sentToWorker[state.answered];
+    const request = port.sentToWorker[state.answered]!;
     state.answered += 1;
     if (request.type === 'load') {
       port.fromWorker({ type: 'ready' });

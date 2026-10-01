@@ -101,6 +101,9 @@ describe('buildContainer — резюме периода (TASK-087 §11)', () =>
       payload: { profileId: 'seed-profile-0001', period: '30d', includeNotes: false },
     });
     expect(generate.ok).toBe(true);
+    if (!generate.ok) {
+      return; // сужение union для type-безопасного .data (прецедент trends.int.test.ts)
+    }
     const requestId = (generate.data as { requestId: string }).requestId;
     expect(requestId.length).toBeGreaterThan(0);
 

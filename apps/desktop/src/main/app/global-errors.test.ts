@@ -98,12 +98,13 @@ describe('createGlobalErrorHandler — вызов → лог + диалог (§2
 
   it('текст диалога — константа с кодом, без message исключения (§14)', () => {
     const { logger } = makeLogger();
-    const showDialog = vi.fn(pendingDialog);
+    // Сигнатура с message: каркас зовёт showDialog(message), pendingDialog игнорирует.
+    const showDialog = vi.fn<(message: string) => Promise<unknown>>(pendingDialog);
     const handle = createGlobalErrorHandler({ logger, showDialog });
 
     handle(new Error('C:\\Users\\секрет\\путь'), 'uncaughtException');
 
-    const text = showDialog.mock.calls[0]?.[0] as string;
+    const text = showDialog.mock.calls[0]![0];
     expect(text).toBe('Произошла непредвиденная ошибка. Данные не затронуты. Код: APP/INTERNAL');
     expect(text).not.toContain('секрет'); // §14: только code, никаких путей/данных
   });

@@ -88,7 +88,7 @@ async function makeHarness(name: string): Promise<Harness> {
   const scaleRepo = new SqliteScaleRepository(db, { clock: CLOCK });
   const scaleService = new ScaleService({
     repo: scaleRepo,
-    logger: { info: () => undefined },
+    logger: { info: () => undefined, warn: () => undefined, error: () => undefined },
     data: BP_OFFICE_ESC2018,
   });
   await scaleService.ensureActivated();

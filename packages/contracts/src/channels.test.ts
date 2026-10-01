@@ -12,6 +12,7 @@ import {
   type ChannelResponse,
   type HlBridge,
 } from './channels.js';
+import { CHANNEL_SCHEMAS } from './schemas.js';
 
 describe('HL_INVOKE_CHANNEL — транспортный канал main (единая точка)', () => {
   it('имя в неймспейсе hl, не пересекается с прикладными каналами (домен/действие)', () => {
@@ -80,9 +81,12 @@ describe('типы реестра — компилятор выводит payloa
   });
 
   it('ChannelRequest для app/ping — вывод z.infer из схемы запроса', () => {
-    // Точная форма z.object({}): пустой объект — так выводит zod, иных полей у запроса нет.
-    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-    expectTypeOf<ChannelRequest<'app/ping'>>().toEqualTypeOf<{}>();
+    // Пустой запрос z.object({}) — type-литералы на {} бьют в известный крэш
+    // перегрузки expectTypeOf («Expected 1 arguments»); форму фиксирует сама
+    // strict-схема: пусто — ок, лишнее поле — нет.
+    const schema = CHANNEL_SCHEMAS['app/ping']?.request;
+    expect(schema?.safeParse({}).success).toBe(true);
+    expect(schema?.safeParse({ extra: 1 }).success).toBe(false);
   });
 
   it('ChannelResponse для app/ping — {pong: true, ts: number}', () => {

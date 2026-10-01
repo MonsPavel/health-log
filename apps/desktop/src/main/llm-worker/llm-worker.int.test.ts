@@ -95,7 +95,8 @@ class InProcessWorkerChannel {
       }, 0);
     },
     onRequest: (listener) => {
-      this.workerListener = listener;
+      // Протокол 076 §7: raw запроса — всегда WorkerRequest; хранилище — unknown-сигнатура.
+      this.workerListener = listener as (raw: unknown) => void;
     },
   };
 

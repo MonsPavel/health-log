@@ -11,7 +11,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { dialogRef } = vi.hoisted(() => ({
-  dialogRef: { current: undefined },
+  // Поверхность мока = OpenDialogApi структурно (адаптер сам сужает electron.cast).
+  dialogRef: {
+    current: undefined as { showOpenDialog: (options: unknown) => Promise<unknown> } | undefined,
+  },
 }));
 vi.mock('electron', () => ({
   get dialog() {

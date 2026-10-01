@@ -13,6 +13,7 @@ import {
   HL_INVOKE_CHANNEL,
   VALIDATION_FAILED_ERROR,
   type ApiEnvelope,
+  type ChannelName,
 } from '@hl/contracts';
 import { AppError } from '@hl/kernel';
 
@@ -21,13 +22,12 @@ import {
   installChannelBridge,
   type ChannelHandler,
   type ChannelRegistry,
-  type ChannelName,
   type IpcLogger,
 } from './register-channel.js';
 
 /**
  * Синтетическое имя тестового канала: каркас типизирован боевым union ChannelName,
- * тест каналов NOT регистрирует — cast зеркалит транспортную реальность (dispatch
+ * которого в тесте каналов нет — cast зеркалит транспортную реальность (dispatch
  * сам приводит строку рендерера к ChannelName, register-channel.ts §13).
  */
 const testChannel = (name: string): ChannelName => name as ChannelName;

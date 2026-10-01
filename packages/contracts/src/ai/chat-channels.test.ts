@@ -15,7 +15,6 @@ import {
   AI_CHAT_SEND_REQUEST_SCHEMA,
   AI_CHAT_SEND_RESPONSE_SCHEMA,
   CHAT_MESSAGE_DTO_SCHEMA,
-  type AiChatClearRequest,
   type AiChatClearResponse,
   type AiChatListRequest,
   type AiChatListResponse,
@@ -162,10 +161,9 @@ describe('ai/chat/clear — контракт канала очистки (TASK-0
   });
 
   it('типы выводятся из схем (z.infer, §23)', () => {
-    // Точная форма z.object({}): пустой объект — так выводит zod (прецедент
-    // channels.test.ts app/ping).
-    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-    expectTypeOf<AiChatClearRequest>().toEqualTypeOf<{}>();
+    // Пустой запрос z.object({}) — литеральные type-тесты на {} бьют в известный
+    // крэш перегрузки expectTypeOf («Expected 1 arguments»); форму пустого
+    // запроса фиксирует strict-safeParse выше ({} ок, лишнее поле — нет).
     expectTypeOf<AiChatClearResponse>().toEqualTypeOf<{ cleared: true }>();
   });
 });

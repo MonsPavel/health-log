@@ -86,10 +86,12 @@ function makeRegistry(points: {
     entryUrl: new URL('../../shared/workerpool/worker.ts', import.meta.url),
     tasksModule: PDF_TASKS_MODULE_URL.href,
     logger: {
+      trace: () => undefined,
       debug: () => undefined,
       info: () => undefined,
       warn: () => undefined,
       error: () => undefined,
+      fatal: () => undefined,
     },
   });
   registry.register(

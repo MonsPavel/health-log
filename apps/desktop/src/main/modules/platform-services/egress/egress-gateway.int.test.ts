@@ -292,7 +292,7 @@ describe('EgressGateway — ветки §13 (TASK-075 §19/§20)', () => {
       status: 'ok',
       bytes: Buffer.byteLength(JSON.stringify({ ok: true, url: '/models/llm.bin' })),
     });
-    expect(rows[0].at_utc).toBeGreaterThanOrEqual(startMs);
+    expect(rows[0]!.at_utc).toBeGreaterThanOrEqual(startMs);
 
     // AC4: событие доставлено renderer'у — конверт моста на едином канале (§11).
     expect(fx.envelopes).toEqual([

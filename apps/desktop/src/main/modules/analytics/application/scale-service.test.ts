@@ -42,10 +42,10 @@ class FakeScaleRepository implements ScaleRepository {
 
   finds = 0;
 
-  findActiveByCode(): Promise<ScaleRecord | undefined> {
+  findActiveByCode(code: string): Promise<ScaleRecord | undefined> {
     this.finds += 1;
     const active = [...this.rows.values()]
-      .filter((row) => row.activatedAtUtc !== null)
+      .filter((row) => row.code === code && row.activatedAtUtc !== null)
       .sort((a, b) => (b.activatedAtUtc as number) - (a.activatedAtUtc as number))[0];
     return Promise.resolve(active);
   }
@@ -181,7 +181,7 @@ describe('ScaleService.getActiveScale — чтение с валидацией �
       code: BP_OFFICE_ESC2018.code,
       version: BP_OFFICE_ESC2018.version,
       sourceLabel: BP_OFFICE_ESC2018.sourceLabel,
-      categories: BP_OFFICE_ESC2018.categories,
+      categories: [...BP_OFFICE_ESC2018.categories],
       homeBPNote: BP_OFFICE_ESC2018.homeBPNote,
       specialGroupsNote: BP_OFFICE_ESC2018.specialGroupsNote,
     } satisfies ActiveScale);

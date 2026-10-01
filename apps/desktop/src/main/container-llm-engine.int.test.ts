@@ -162,7 +162,7 @@ describe('buildContainer — выбор движка LlmEngine (TASK-078 §5/§1
 
     expect(realContainer.llmEngine).toBeInstanceOf(ProcessLlmEngine);
     // Обёртка над ТЕМ ЖЕ синглтоном клиента графа (не копия).
-    expect(realContainer.llmEngine.client).toBe(realContainer.llm);
+    expect((realContainer.llmEngine as ProcessLlmEngine).client).toBe(realContainer.llm);
     // Моком процесса служит ленивость клиента: сборка контейнера не спавнит (§19).
     expect(realContainer.llm.state).toBe('starting');
     expect(realContainer.llm).toBeInstanceOf(LlmProcessClient);

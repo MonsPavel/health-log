@@ -37,13 +37,21 @@ import type {
 const NOW_MS = 1_758_816_000_000;
 const PROFILE = 'seed-profile-0001';
 
+/**
+ * Мост стаба в параметр фабрик хендлеров (прецедент ai-chat.test.ts): хендлер
+ * потребляет только публичные execute/isBusy, но типизирован конкретным классом —
+ * приватные поля (deps/activeRequest/…) структурно не воспроизводимы.
+ */
+const asUseCase = (stub: StubGenerateSummary): GenerateSummary =>
+  stub as unknown as GenerateSummary;
+
 /** Stub use case: управляемый execute + isBusy. */
 class StubGenerateSummary implements Partial<GenerateSummary> {
   busy = false;
   commands: GenerateSummaryCommand[] = [];
   private readonly resolvers: Array<(outcome: GenerateSummaryOutcome) => void> = [];
-  /** Сбой следующего execute (§19: отказ фонового пути). */
-  failure: Error | undefined;
+  /** Сбой следующего execute (§19: отказ фонового пути). Наружу — только AppError (TASK-006). */
+  failure: AppError | undefined;
 
   isBusy(): boolean {
     return this.busy;
@@ -52,6 +60,7 @@ class StubGenerateSummary implements Partial<GenerateSummary> {
   execute(command: GenerateSummaryCommand): Promise<GenerateSummaryOutcome> {
     this.commands.push(command);
     if (this.failure !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006; прецедент llm-process-client.ts)
       return Promise.reject(this.failure);
     }
     return new Promise((resolve) => {
@@ -79,7 +88,7 @@ class FakeRepo implements InsightRepository {
   /** TASK-088 §5: счётчик вызовов deleteAll (хендлер обязан делегировать порту). */
   deleteAllCalls = 0;
   /** TASK-088 §19: отказ следующего deleteAll (STORAGE/*). */
-  deleteAllFailure: Error | undefined;
+  deleteAllFailure: AppError | undefined;
 
   findByContextHash(): Promise<SummaryRecord | undefined> {
     return Promise.resolve(undefined);
@@ -96,6 +105,7 @@ class FakeRepo implements InsightRepository {
   deleteAll(): Promise<void> {
     this.deleteAllCalls += 1;
     if (this.deleteAllFailure !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- отказ Promise — AppError (не Error по построению, TASK-006; прецедент llm-process-client.ts)
       return Promise.reject(this.deleteAllFailure);
     }
     return Promise.resolve();
@@ -123,7 +133,7 @@ describe('ai/summary/generate — хендлер (TASK-087 §11)', () => {
   it('(1) мгновенный {requestId}: фоновый запуск не держит вызов; requestId совпадает с командой', async () => {
     const useCase = new StubGenerateSummary();
     const registry = new AiSummaryRequestRegistry();
-    const handler = createAiSummaryGenerateHandler(useCase, registry);
+    const handler = createAiSummaryGenerateHandler(asUseCase(useCase), registry);
 
     const response = await handler({ profileId: PROFILE, period: '7d', includeNotes: false });
 
@@ -147,7 +157,10 @@ describe('ai/summary/generate — хендлер (TASK-087 §11)', () => {
   it('(2) BUSY: занятый use case → AppError AI/BUSY до ответа {requestId} (§9)', async () => {
     const useCase = new StubGenerateSummary();
     useCase.busy = true;
-    const handler = createAiSummaryGenerateHandler(useCase, new AiSummaryRequestRegistry());
+    const handler = createAiSummaryGenerateHandler(
+      asUseCase(useCase),
+      new AiSummaryRequestRegistry(),
+    );
 
     // Хендлер бросает СИНХРОННО (каркас ловит тем же try/catch → ApiFailure §13).
     let caught: unknown;
@@ -168,7 +181,11 @@ describe('ai/summary/generate — хендлер (TASK-087 §11)', () => {
       reason: 'test',
     });
     const { lines, logger } = recordingLogger();
-    const handler = createAiSummaryGenerateHandler(useCase, new AiSummaryRequestRegistry(), logger);
+    const handler = createAiSummaryGenerateHandler(
+      asUseCase(useCase),
+      new AiSummaryRequestRegistry(),
+      logger,
+    );
 
     const response = await handler({ profileId: PROFILE, period: '7d', includeNotes: false });
     await new Promise<void>((resolve) => setTimeout(resolve, 0)); // микрофоны фонового отказа
@@ -183,7 +200,7 @@ describe('ai/cancel — хендлер (TASK-087 §5 п.5)', () => {
   it('(4) abort активного requestId → {cancelled: true}, сигнал в команде use case', async () => {
     const useCase = new StubGenerateSummary();
     const registry = new AiSummaryRequestRegistry();
-    const generate = createAiSummaryGenerateHandler(useCase, registry);
+    const generate = createAiSummaryGenerateHandler(asUseCase(useCase), registry);
     const cancel = createAiSummaryCancelHandler(registry);
 
     const { requestId } = await generate({ profileId: PROFILE, period: '7d', includeNotes: false });
@@ -204,7 +221,7 @@ describe('ai/cancel — хендлер (TASK-087 §5 п.5)', () => {
   it('(5b) ревью: cancel ПОСЛЕ успешного финала → {cancelled: false} (реестр освобождён, не протухший контроллер)', async () => {
     const useCase = new StubGenerateSummary();
     const registry = new AiSummaryRequestRegistry();
-    const generate = createAiSummaryGenerateHandler(useCase, registry);
+    const generate = createAiSummaryGenerateHandler(asUseCase(useCase), registry);
     const cancel = createAiSummaryCancelHandler(registry);
 
     const { requestId } = await generate({ profileId: PROFILE, period: '7d', includeNotes: false });

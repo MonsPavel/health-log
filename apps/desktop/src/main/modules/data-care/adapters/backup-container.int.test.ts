@@ -121,7 +121,7 @@ describe('BackupContainerCodec.writeContainer / readContainer (§4: формат
     });
 
     const file = readFileSync(destinationPath);
-    file[5 + 4 + Buffer.byteLength(JSON.stringify(manifest)) + 12] ^= 0xff; // первый байт шифртекста
+    file[5 + 4 + Buffer.byteLength(JSON.stringify(manifest)) + 12]! ^= 0xff; // первый байт шифртекста
     writeFileSync(destinationPath, file);
 
     await expect(
@@ -145,7 +145,7 @@ describe('BackupContainerCodec.writeContainer / readContainer (§4: формат
     });
 
     const file = readFileSync(destinationPath);
-    file[9] ^= 0x01; // первый байт манифеста ('{')
+    file[9]! ^= 0x01; // первый байт манифеста ('{')
     writeFileSync(destinationPath, file);
 
     await expect(
