@@ -11,6 +11,7 @@ import { createSecondInstanceHandler, ensureSingleInstance } from './single-inst
 import { resolveUserDataPath } from './user-data-override.js';
 import {
   buildContainer,
+  fakeLlmDelayMs,
   fakeLlmEnabled,
   HL_TEST_MODEL_FILE_ENV,
   testModelFileEnabled,
@@ -115,6 +116,9 @@ if (gotSingleInstanceLock) {
       // TASK-062). Контейнер сам env не читает — параметром (§19, тесты без
       // env-мутаций); выбор движка и его лог — в buildContainer (§18).
       useFakeLlm: fakeLlmEnabled(process.env, app.isPackaged),
+      // TASK-090 §19/§20: задержка fake-движка для e2e-эмуляции BUSY (гард
+      // fakeLlmDelayMs — только с HL_FAKE_LLM=1 и не-packaged, §14).
+      useFakeLlmDelayMs: fakeLlmDelayMs(process.env, app.isPackaged),
       // TASK-081 §22/§14: TEST-ONLY установка модели мимо сети — env
       // HL_TEST_MODEL_FILE (путь файла-источника), только не-packaged (гард
       // testModelFileEnabled — тот же паттерн); e2e §20-6 (dev-модель с

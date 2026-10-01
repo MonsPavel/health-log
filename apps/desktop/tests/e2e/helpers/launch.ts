@@ -40,6 +40,12 @@ export interface LaunchAppOptions {
    */
   readonly fakeLlm?: boolean;
   /**
+   * TASK-090 §19/§20: задержка fake-движка между «словами», мс (env
+   * HL_FAKE_LLM_DELAY_MS; гард main — только вместе с fakeLlm и не-packaged,
+   * §14). Детерминированное окно занятости движка для e2e-эмуляции BUSY.
+   */
+  readonly fakeLlmDelayMs?: number;
+  /**
    * TASK-081 §22/§20 (AC6): TEST-ONLY путь файла «модели» — запуск с env
    * HL_TEST_MODEL_FILE: bootstrap передаёт путь в контейнер (гард
    * testModelFileEnabled — только не-packaged, §14), ai/models/download ставит
@@ -93,6 +99,9 @@ export async function launchApp(options: LaunchAppOptions): Promise<ElectronAppl
   }
   if (options.fakeLlm === true) {
     env['HL_FAKE_LLM'] = '1';
+  }
+  if (options.fakeLlmDelayMs !== undefined) {
+    env['HL_FAKE_LLM_DELAY_MS'] = String(options.fakeLlmDelayMs);
   }
   if (options.testModelFile !== undefined) {
     env['HL_TEST_MODEL_FILE'] = options.testModelFile;

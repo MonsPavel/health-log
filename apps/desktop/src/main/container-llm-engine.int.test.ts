@@ -21,7 +21,13 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import { AppError, FixedClock, type Clock, type Result } from '@hl/kernel';
 
-import { buildContainer, fakeLlmEnabled, HL_FAKE_LLM_ENV } from './container.js';
+import {
+  buildContainer,
+  fakeLlmDelayMs,
+  fakeLlmEnabled,
+  HL_FAKE_LLM_DELAY_MS_ENV,
+  HL_FAKE_LLM_ENV,
+} from './container.js';
 import { LlmProcessClient } from './modules/ai-insight/adapters/llm-process-client.js';
 import { FakeLlmEngine, FAKE_LLM_PREFIX } from './modules/ai-insight/adapters/fake-llm-engine.js';
 import { ProcessLlmEngine } from './modules/ai-insight/adapters/process-llm-engine.js';
@@ -90,6 +96,27 @@ describe('fakeLlmEnabled — гард env-флага (TASK-078 §14, AC4)', () =
     expect(fakeLlmEnabled({}, false)).toBe(false);
     expect(fakeLlmEnabled({ [HL_FAKE_LLM_ENV]: '0' }, false)).toBe(false);
     expect(fakeLlmEnabled({ [HL_FAKE_LLM_ENV]: 'true' }, false)).toBe(false);
+  });
+});
+
+describe('fakeLlmDelayMs — гард задержки fake-движка (TASK-090 §19/§20)', () => {
+  it('валидное целое > 0 с HL_FAKE_LLM=1 в не-packaged запуске — задержка', () => {
+    expect(fakeLlmDelayMs({ [HL_FAKE_LLM_ENV]: '1', [HL_FAKE_LLM_DELAY_MS_ENV]: '30' }, false)).toBe(30);
+  });
+
+  it('без HL_FAKE_LLM=1 или в packaged — undefined (§14: только dev/e2e)', () => {
+    expect(fakeLlmDelayMs({ [HL_FAKE_LLM_DELAY_MS_ENV]: '30' }, false)).toBeUndefined();
+    expect(
+      fakeLlmDelayMs({ [HL_FAKE_LLM_ENV]: '1', [HL_FAKE_LLM_DELAY_MS_ENV]: '30' }, true),
+    ).toBeUndefined();
+  });
+
+  it('мусор, 0 и отрицательное — undefined (дефолт движка 0)', () => {
+    const env = { [HL_FAKE_LLM_ENV]: '1' };
+    expect(fakeLlmDelayMs(env, false)).toBeUndefined();
+    expect(fakeLlmDelayMs({ ...env, [HL_FAKE_LLM_DELAY_MS_ENV]: 'abc' }, false)).toBeUndefined();
+    expect(fakeLlmDelayMs({ ...env, [HL_FAKE_LLM_DELAY_MS_ENV]: '0' }, false)).toBeUndefined();
+    expect(fakeLlmDelayMs({ ...env, [HL_FAKE_LLM_DELAY_MS_ENV]: '-5' }, false)).toBeUndefined();
   });
 });
 
