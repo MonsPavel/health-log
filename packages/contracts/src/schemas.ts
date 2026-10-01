@@ -454,9 +454,9 @@ export const CHANNEL_SCHEMAS = {
     secure: true,
   },
   /**
-   * TASK-094 §5/§11: локальный вход (эпик 6.1) — статус/разблокировка/блокировка/
-   * управление паролем. НЕ secure: это единственные каналы, доступные при locked
-   * (vault/unlock и есть выход из lock, §5 «повторный unlock открывает»).
+   * TASK-094 §5/§11: локальный вход (эпик 6.1) — статус/разблокировка/блокировка.
+   * НЕ secure: минимальный входной набор, доступный при locked (vault/unlock и
+   * есть выход из lock, §5 «повторный unlock открывает»).
    */
   'vault/status': {
     request: VAULT_STATUS_REQUEST_SCHEMA,
@@ -470,8 +470,17 @@ export const CHANNEL_SCHEMAS = {
     request: VAULT_LOCK_REQUEST_SCHEMA,
     response: VAULT_LOCK_RESPONSE_SCHEMA,
   },
+  /**
+   * TASK-094 §5/§11 + РЕВЬЮ (§3/§14): управление паролем — только из открытой
+   * сессии. secure: иначе в locked канал давал бы неthrottled-оракул того же
+   * секрета (change/remove порта 093 полностью проверяют пароль Argon2id+GCM без
+   * backoff) и молча перепаковывал бы vault.key на угаданный пароль. Гвардия
+   * каркаса — единая точка; VaultService.setPassphrase дублирует отказ
+   * VAULT/LOCKED (defense-in-depth для прямых вызовов сервиса).
+   */
   'vault/set-passphrase': {
     request: VAULT_SET_PASSPHRASE_REQUEST_SCHEMA,
     response: VAULT_SET_PASSPHRASE_RESPONSE_SCHEMA,
+    secure: true,
   },
 } satisfies Record<ChannelName, ChannelSchemas>;

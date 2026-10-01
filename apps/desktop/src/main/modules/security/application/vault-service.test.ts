@@ -494,9 +494,10 @@ describe('VaultService — setPassphrase (§5: {pass|old+new|remove}; §19: ко
     expect(vault.setPassphrase).toHaveBeenCalledWith('пароль');
   });
 
-  it('change → vault.changePassphrase(old, new); remove → vault.removePassphrase(old) и {mode: "none"}', async () => {
+  it('change → vault.changePassphrase(old, new); remove → vault.removePassphrase(old) и {mode: "none"} (открытая сессия)', async () => {
     const clock = new AdvanceClock(1_000);
     const { service, vault } = makeService('passphrase', clock);
+    await service.unlock('пароль'); // управление паролем — из открытой сессии (ревью §14)
     await service.setPassphrase({ action: 'change', old: 'старый', new: 'новый' });
     expect(vault.changePassphrase).toHaveBeenCalledWith('старый', 'новый');
     await expect(service.setPassphrase({ action: 'remove', old: 'новый' })).resolves.toEqual(
@@ -508,6 +509,7 @@ describe('VaultService — setPassphrase (§5: {pass|old+new|remove}; §19: ко
   it('ошибка порта проходит наружу как есть (WRONG_PASSPHRASE при change, §13 093)', async () => {
     const clock = new AdvanceClock(1_000);
     const { service, vault } = makeService('passphrase', clock);
+    await service.unlock('пароль'); // открытая сессия (ревью §14)
     vault.changePassphrase.mockReturnValue(
       Promise.resolve(
         err(AppError.of('VAULT/WRONG_PASSPHRASE', VAULT_WRONG_PASSPHRASE_MESSAGE_KEY)),
@@ -542,23 +544,26 @@ describe('VaultService — setPassphrase при locked (ревью: отказ �
     { action: 'set', pass: 'новый' },
     { action: 'change', old: 'подборка', new: 'атаки' },
     { action: 'remove', old: 'подборка' },
-  ] as const)('locked: %j → err VAULT/LOCKED, порт НЕ вызывается (нет оракула)', async (command) => {
-    const clock = new AdvanceClock(1_000);
-    const { service, vault, logger } = makeService('passphrase', clock); // старт заблокирован
-    const result = await service.setPassphrase(command);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('VAULT/LOCKED');
-      expect(result.error.messageKey).toBe(VAULT_LOCKED_MESSAGE_KEY);
-    }
-    expect(vault.setPassphrase).not.toHaveBeenCalled();
-    expect(vault.changePassphrase).not.toHaveBeenCalled();
-    expect(vault.removePassphrase).not.toHaveBeenCalled();
-    // §18: отказ логируется без пароля.
-    expect(logger.warn).toHaveBeenCalledWith('vault set-passphrase refused: locked');
-    const logged = JSON.stringify(logger.warn.mock.calls);
-    expect(logged).not.toContain('подборка');
-  });
+  ] as const)(
+    'locked: %j → err VAULT/LOCKED, порт НЕ вызывается (нет оракула)',
+    async (command) => {
+      const clock = new AdvanceClock(1_000);
+      const { service, vault, logger } = makeService('passphrase', clock); // старт заблокирован
+      const result = await service.setPassphrase(command);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('VAULT/LOCKED');
+        expect(result.error.messageKey).toBe(VAULT_LOCKED_MESSAGE_KEY);
+      }
+      expect(vault.setPassphrase).not.toHaveBeenCalled();
+      expect(vault.changePassphrase).not.toHaveBeenCalled();
+      expect(vault.removePassphrase).not.toHaveBeenCalled();
+      // §18: отказ логируется без пароля.
+      expect(logger.warn).toHaveBeenCalledWith('vault set-passphrase refused: locked');
+      const logged = JSON.stringify(logger.warn.mock.calls);
+      expect(logged).not.toContain('подборка');
+    },
+  );
 
   it('locked + окно backoff: отказ LOCKED и без расхода счётчика attempts', async () => {
     const clock = new AdvanceClock(1_000);

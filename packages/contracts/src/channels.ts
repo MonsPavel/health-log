@@ -69,9 +69,11 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * {ok: true} (неудача — конверт отказа: VAULT/WRONG_PASSPHRASE / в окне backoff
  * VAULT/RATE_LIMITED с params {backoffSec}, §17); lock {} → {locked} (БД
  * закрывается — checkpoint+close); set-passphrase — union по action
- * {set, pass}|{change, old, new}|{remove, old} → {mode}. Каналы vault/* НЕ
- * secure — доступны в locked (иначе вход невозможен); БД-каналы помечены
- * secure: true — гвардия requireUnlocked каркаса (§7/§11, AC5).
+ * {set, pass}|{change, old, new}|{remove, old} → {mode}. vault/status|unlock|lock
+ * НЕ secure — минимальный входной набор, доступный при locked (иначе вход
+ * невозможен); set-passphrase и БД-каналы помечены secure: true — гвардия
+ * requireUnlocked каркаса (§7/§11, AC5; ревью: смена/снятие пароля в locked —
+ * неthrottled-оракул секрета).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -132,7 +134,8 @@ export type ChannelName =
   | 'updates/download'
   | 'updates/install'
   // TASK-094 §5/§11: локальный вход — статус/разблокировка/блокировка/пароль
-  // (схемы — vault.ts; VaultService main; НЕ secure — доступны при locked).
+  // (схемы — vault.ts; VaultService main; НЕ secure — статус/unlock/lock доступны
+  // при locked; set-passphrase — secure, ревью §14).
   | 'vault/status'
   | 'vault/unlock'
   | 'vault/lock'

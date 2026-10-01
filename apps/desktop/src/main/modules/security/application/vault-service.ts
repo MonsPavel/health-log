@@ -27,7 +27,10 @@
  *    в prefs каждые 30 с → событие prefs:changed → перечитывание ['prefs'] рендерером
  *    → IPC-вызов → touchActivity → простой никогда не накопился бы). Задача в
  *    scheduler зарегистрирована (§5, tick при старте), таймер 30 с — рядом с ней.
- *  - set-passphrase — транзит к порту 093 (set/change/remove; §19 консистентность).
+ *  - set-passphrase — транзит к порту 093 (set/change/remove; §19 консистентность)
+ *    ТОЛЬКО из открытой сессии: при locked — отказ VAULT/LOCKED до порта (ревью
+ *    §3/§14: иначе канал — неthrottled-оракул того же секрета и молчаливая
+ *    перепаковка vault.key; гвардия каркаса secure-флагом — единая точка).
  *
  * СОБЫТИЯ (§5/арх. 05 §4): lock:engaged — БД закрыта (экран блокировки, 095);
  * lock:required — приложение стартует заблокированным (mode=passphrase); актуальное
@@ -290,10 +293,22 @@ export class VaultService {
   /**
    * Управление паролем (§5: {pass|old+new|remove}) — транзит к порту 093
    * (setPassphrase/changePassphrase/removePassphrase, §19); ответ — новый режим.
+   *
+   * РЕВЬЮ (блокер §3/§14): при locked — отказ VAULT/LOCKED ДО обращения к порту.
+   * change/remove порта 093 полностью верифицируют пароль (Argon2id + GCM) без
+   * какого-либо backoff — в locked канал давал бы неthrottled-оракул того же
+   * секрета, против которого и построен rate-limit unlock, а угаданный пароль
+   * молча перепаковывал бы vault.key (remove — снимал бы пароль). Гвардия
+   * каркаса (secure-флаг канала) — единая точка; эта проверка — defense-in-depth
+   * для прямых вызовов сервиса. §18: отказ логируется без пароля.
    */
   async setPassphrase(
     command: SetPassphraseCommand,
   ): Promise<Result<{ mode: VaultMode }, AppError>> {
+    if (!this.isUnlocked()) {
+      this.logger.warn('vault set-passphrase refused: locked');
+      return err(AppError.of('VAULT/LOCKED', VAULT_LOCKED_MESSAGE_KEY));
+    }
     const result =
       command.action === 'set'
         ? await this.vault.setPassphrase(command.pass)

@@ -1629,8 +1629,10 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     );
     // TASK-094 §5/§11: локальный вход — статус/разблокировка (backoff — AppError
     // конвертом отказа, §17)/блокировка/пароль (set|change|remove, консистентность
-    // с 093). vault/* — НЕ secure: единственные каналы, доступные при locked
-    // (vault/unlock и есть выход, §5 «повторный unlock открывает»).
+    // с 093). vault/status|unlock|lock — НЕ secure (минимальный входной набор,
+    // доступный при locked; vault/unlock и есть выход, §5); vault/set-passphrase —
+    // secure (ревью §3/§14: смена/снятие пароля в locked — неthrottled-оракул
+    // секрета; защита — гвардия каркаса + гард в самом сервисе).
     channels.register(
       'vault/status',
       CHANNEL_SCHEMAS['vault/status'],
