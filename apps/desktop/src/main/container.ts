@@ -40,6 +40,14 @@
  * terminate пула воркеров (активные задачи обрываются с логом: потерянный PDF при
  * закрытии приложения допустим; will-quit не висит).
  *
+ * TASK-093 §9 (двойная обёртка ключа, passphrase): при mode=passphrase контейнер
+ * собирается БЕЗ открытия БД — `db` это прокси, любой доступ до unlock даёт
+ * синхронный VAULT/LOCKED; миграции и активация шкалы перенесены в openDatabase()
+ * («unlock → ensureKey → открытие БД»; снятие locked-состояния — TASK-094). При
+ * mode=none старт не изменён (eager). Фоновый тик планировщика (bootstrap §9) при
+ * locked упрётся в LOCKED и изолируется scheduler'ом — уважение locked-состояния
+ * планировщиком входит в объём TASK-094.
+ *
  * БУДУЩАЯ РАБОТА (§23): здесь же включатся use case'ы 029+ (место помечено —
  * секция «прикладные use case'ы» ниже), SettingsStore (047), ScaleService (051),
  * AI-модуль (076+). EgressGateway подключён (075, §9 — singleton). Рост: при >15
@@ -212,6 +220,7 @@ import {
 } from './modules/security/adapters/safe-storage-key-vault.js';
 import type { VaultLogger } from './modules/security/adapters/safe-storage-key-vault.js';
 import {
+  VAULT_LOCKED_MESSAGE_KEY,
   VAULT_UNAVAILABLE_MESSAGE_KEY,
   type KeyVault,
 } from './modules/security/application/ports/key-vault.js';
@@ -337,6 +346,9 @@ function scheduleAppRelaunch(): void {
 
 /** Версия приложения по умолчанию (манифест копии, TASK-070 §2; bootstrap передаёт app.getVersion()). */
 const DEFAULT_APP_VERSION = '0.0.0';
+
+/** Ключ APP/INTERNAL из контракта каркаса (contracts, app-error-dto.ts TASK-008). */
+const APP_INTERNAL_MESSAGE_KEY = 'errors.internal';
 
 /**
  * Контекст сборки vault-а (§19: фабрика переопределяема): путь файла ключа контейнер
@@ -511,6 +523,14 @@ export interface Container {
   readonly clearChat: ClearChat;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
+  /**
+   * TASK-093 §9: ленивое открытие БД (режим passphrase): «unlock → ensureKey →
+   * открытие БД» — миграции (с hook-снапшотом) и активация шкалы выполняются здесь;
+   * доступ к `db` до успешного вызова даёт синхронный VAULT/LOCKED. В mode=none БД
+   * открыта при сборке — ok немедленно (идемпотентно); err не кэшируется — повтор
+   * после unlock работает (прецедент ensureKey §13).
+   */
+  readonly openDatabase: () => Promise<Result<void, AppError>>;
 }
 
 /**
@@ -527,6 +547,78 @@ function readSchemaVersionForLog(db: EncryptedDatabase): number {
     // Свежая БД — «no such table: meta»: миграций не было.
     return 0;
   }
+}
+
+/**
+ * TASK-093 §9: ленивое соединение для режима passphrase — контейнер собирается ДО
+ * unlock, а конструкторы адаптеров вызывают `db.prepare(sql)`/`db.transaction(fn)`
+ * при сборке (прецедент TASK-026/045/047/051). Поэтому в locked-состоянии:
+ *  - `prepare(sql)` отдаёт placeholder-statement: любое ИСПОЛЬЗОВАНИЕ (get/run/all)
+ *    после открытия пересылается реальному statement (компиляция отложена до unlock —
+ *    prepare закрытой БД всё равно невозможен); использование до открытия — LOCKED;
+ *  - `transaction(fn)` отдаёт отложенную обёртку: тело исполняется в транзакции
+ *    реального соединения при вызове (после открытия);
+ *  - любой другой доступ до открытия — синхронный VAULT/LOCKED (§9: БД не открывается).
+ * После успешного openDatabase() все обращения пересылаются реальному соединению.
+ */
+function createLockedDatabaseProxy(
+  getOpened: () => EncryptedDatabase | undefined,
+): EncryptedDatabase {
+  /** Читает реальный член соединения; до открытия — VAULT/LOCKED (контракт §9). */
+  const realMember = (prop: string | symbol): unknown => {
+    const connection = getOpened();
+    if (connection === undefined) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- контракт §9: AppError в потребителя (репозитории/каналы), прецедент sqlite.ts TASK-022
+      throw AppError.of('VAULT/LOCKED', VAULT_LOCKED_MESSAGE_KEY);
+    }
+    const value = Reflect.get(
+      connection as unknown as object,
+      prop,
+      connection as unknown as object,
+    ) as unknown;
+    return typeof value === 'function'
+      ? (value as (...args: unknown[]) => unknown).bind(connection)
+      : value;
+  };
+
+  /** Placeholder-statement: компиляция и forward — при первом использовании (после открытия). */
+  const lazyStatement = (sql: string): unknown => {
+    let statement: object | undefined;
+    const resolve = (): object => {
+      statement ??= (realMember('prepare') as (s: string) => object)(sql);
+      return statement;
+    };
+    return new Proxy({} as object, {
+      get: (_target, prop) => {
+        const real = resolve();
+        const value = Reflect.get(real, prop, real) as unknown;
+        // Методы statement требуют this = statement — связываем при выдаче.
+        return typeof value === 'function'
+          ? (value as (...args: unknown[]) => unknown).bind(real)
+          : value;
+      },
+    });
+  };
+
+  return new Proxy({} as EncryptedDatabase, {
+    get(_target, prop) {
+      if (prop === 'prepare') {
+        return lazyStatement;
+      }
+      if (prop === 'transaction') {
+        // `db.transaction(fn)` вызывается в конструкторах — возвращаем отложенную
+        // обёртку: тело уйдёт в транзакцию реального соединения при вызове.
+        return (fn: (...args: unknown[]) => unknown) =>
+          (...args: unknown[]) => {
+            const makeTransaction = realMember('transaction') as (
+              f: (...a: unknown[]) => unknown,
+            ) => (...a: unknown[]) => unknown;
+            return makeTransaction(fn)(...args);
+          };
+      }
+      return realMember(prop);
+    },
+  });
 }
 
 /**
@@ -573,21 +665,43 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
   const vault =
     deps.vault !== undefined ? deps.vault(vaultContext) : await createDefaultVault(vaultContext);
 
+  // TASK-093 §9: режим vault-а решает СПОСОБ старта — mode=passphrase: контейнер НЕ
+  // открывает БД до unlock (состояние locked; управление им — TASK-094); mode=none —
+  // как в TASK-027 (ensureKey → открытие при сборке).
+  const vaultMode = vault.getMode();
+  const locked = vaultMode === 'passphrase';
+
   // dbExists решает сценарий vault-а (§13 кейс 4: файла ключа нет при существующей БД
   // → KEY_MISSING, новый ключ НЕ генерируется — различение по факту наличия файла БД).
   const dbExists = existsSync(dbPath);
-  const ensured = await vault.ensureKey(dbExists);
-  if (!ensured.ok) {
-    // §9: наружу AppError с кодом VAULT/* (прецедент only-throw-error — sqlite.ts TASK-022).
-    // eslint-disable-next-line @typescript-eslint/only-throw-error -- контракт init-ошибок §9: AppError в глобальный хендлер TASK-011
-    throw ensured.error;
-  }
-  // §14: keyHex живёт только здесь — в граф и наружу не передаётся далее открытого ключа.
-  const keyHex = ensured.value.keyHex;
-  const keyCreated = ensured.value.created;
 
-  // 4. БД (§5: openEncrypted(dbPath, keyHex) — единственная точка открытия, TASK-022).
-  const db = openEncrypted(dbPath, keyHex);
+  // §14: keyHex живёт только здесь — в граф и наружу не передаётся. Привязка изменяемая:
+  // в режиме none известна сразу (ниже), в passphrase появляется в openDatabase после
+  // unlock (замыкания data-care/копий читают актуальное значение в момент вызова).
+  let keyHex = '';
+  let keyCreated = false;
+  /** Открытое соединение; в режиме passphrase появляется только после unlock (§9). */
+  let openedDb: EncryptedDatabase | undefined;
+
+  let db: EncryptedDatabase;
+  if (locked) {
+    // TASK-093 §9: ленивое открытие — граф собирается по прокси (репозитории готовят
+    // statements лениво); доступ до unlock — синхронный VAULT/LOCKED.
+    db = createLockedDatabaseProxy(() => openedDb);
+    logger.info('container locked: БД не открывается до unlock', { mode: vaultMode });
+  } else {
+    const ensured = await vault.ensureKey(dbExists);
+    if (!ensured.ok) {
+      // §9: наружу AppError с кодом VAULT/* (прецедент only-throw-error — sqlite.ts TASK-022).
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- контракт init-ошибок §9: AppError в глобальный хендлер TASK-011
+      throw ensured.error;
+    }
+    keyHex = ensured.value.keyHex;
+    keyCreated = ensured.value.created;
+    // 4. БД (§5: openEncrypted(dbPath, keyHex) — единственная точка открытия, TASK-022).
+    openedDb = openEncrypted(dbPath, keyHex);
+    db = openedDb;
+  }
   try {
     // 4.5. Data Care (TASK-070 §5): use case CreateBackup — ДО миграций: hook
     //      снапшота (beforeMigration) зовёт его перед каждой применяемой миграцией
@@ -646,14 +760,22 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     // 5. Миграции (старт БД §9 TASK-024: openEncrypted → migrate(); failure → STORAGE/*).
     //    TASK-070 §5: hook снапшота — createBackup(mode auto) перед каждой
     //    применяемой миграцией (pre-migration-vN.hlbackup в userData/backups, §7).
-    const schemaVersionBefore = readSchemaVersionForLog(db);
-    await new MigrationRunner({
-      migrations: MIGRATIONS,
-      beforeMigration: createPreMigrationBackupHook(createBackup),
-    }).migrate(db);
-    // После успешного migrate схема на максимальной версии реестра (иначе — throw выше).
-    const schemaVersion = MIGRATIONS.at(-1)?.version ?? schemaVersionBefore;
-    const migrationsApplied = schemaVersion - schemaVersionBefore;
+    //    TASK-093 §9: в режиме passphrase выполняются в openDatabase (БД ещё закрыта).
+    const applyMigrations = async (
+      connection: EncryptedDatabase,
+    ): Promise<{ schemaVersion: number; migrationsApplied: number }> => {
+      const schemaVersionBefore = readSchemaVersionForLog(connection);
+      await new MigrationRunner({
+        migrations: MIGRATIONS,
+        beforeMigration: createPreMigrationBackupHook(createBackup),
+      }).migrate(connection);
+      // После успешного migrate схема на максимальной версии реестра (иначе — throw выше).
+      const schemaVersion = MIGRATIONS.at(-1)?.version ?? schemaVersionBefore;
+      return { schemaVersion, migrationsApplied: schemaVersion - schemaVersionBefore };
+    };
+    const { schemaVersion, migrationsApplied } = locked
+      ? { schemaVersion: 0, migrationsApplied: 0 } // факты лога — в openDatabase (§9)
+      : await applyMigrations(db);
 
     // 5.5. Data Care (TASK-073, подключение §14 071): страховка прошлого
     //      восстановления удаляется при УСПЕШНОМ старте (БД открыта и промигрирована
@@ -722,8 +844,11 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     const scaleRepo = new SqliteScaleRepository(db, { clock, logger: dbLogger });
     const scaleService = new ScaleService({ repo: scaleRepo, logger, data: BP_OFFICE_ESC2018 });
     // Активация — часть старта (§5): отказ STORAGE/* пробрасывается выше →
-    // глобальный хендлер TASK-011 (шкала критична, §7).
-    await scaleService.ensureActivated();
+    // глобальный хендлер TASK-011 (шкала критична, §7). TASK-093 §9: в режиме
+    // passphrase — в openDatabase (БД ещё закрыта).
+    if (!locked) {
+      await scaleService.ensureActivated();
+    }
     //      TASK-054: GetPeriodStatistics — use case канала stats/period (тонкая
     //      сборка: период → границы → точки порта → read model 052 + classification
     //      053 → {stats, scale}). Порт точек — адаптер над журналом измерений
@@ -1021,6 +1146,63 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     });
     const clearChat = new ClearChat({ repo: chatRepo });
 
+    //    TASK-093 §9: открытие БД по требованию (режим passphrase): «unlock →
+    //    ensureKey → открытие БД». В mode=none БД уже открыта — ok немедленно.
+    //    До unlock ensureKey даёт VAULT/LOCKED; после — миграции (с hook-снапшотом)
+    //    и активация шкалы; успех логируется как обычный «container ready» (§18).
+    //    err не кэшируется — повтор после unlock работает (прецедент ensureKey §13).
+    let opening: Promise<Result<void, AppError>> | undefined;
+    const openDatabase = async (): Promise<Result<void, AppError>> => {
+      if (openedDb !== undefined) {
+        return ok(undefined);
+      }
+      opening ??= (async (): Promise<Result<void, AppError>> => {
+        const ensured = await vault.ensureKey(dbExists);
+        if (!ensured.ok) {
+          // До unlock — VAULT/LOCKED (§9); прочие коды vault-а — как есть.
+          return err(ensured.error);
+        }
+        const connection = openEncrypted(dbPath, ensured.value.keyHex);
+        // Прокси-граф (в т.ч. hook авто-копий миграций) начинает видеть соединение
+        // сразу после открытия — до миграций.
+        openedDb = connection;
+        try {
+          keyHex = ensured.value.keyHex;
+          keyCreated = ensured.value.created;
+          const versions = await applyMigrations(connection);
+          await scaleService.ensureActivated();
+          logger.info('container ready', {
+            db: basename(dbPath),
+            schemaVersion: versions.schemaVersion,
+            keyCreated,
+            migrationsApplied: versions.migrationsApplied,
+            backupHook: 'on',
+          });
+          return ok(undefined);
+        } catch (error) {
+          // Дескриптор не переживает неудачное открытие (Windows: файл заблокирован);
+          // граф возвращается в locked — доступ до успеха даёт LOCKED.
+          openedDb = undefined;
+          try {
+            connection.close();
+          } catch {
+            // соединение уже закрыто — при пробросе ошибки это не важно
+          }
+          if (error instanceof AppError) {
+            return err(error); // STORAGE/* из openEncrypted/runner (контракт §9)
+          }
+          return err(
+            AppError.of('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error),
+          );
+        }
+      })();
+      try {
+        return await opening;
+      } finally {
+        opening = undefined;
+      }
+    };
+
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
     //    (детерминизм тестов, NFR-10); app/log-client-error (TASK-011) — прикладной
@@ -1300,23 +1482,29 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       chatRepo,
       askChat,
       clearChat,
+      openDatabase,
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op
         }
         closed = true;
-        try {
-          // §8: чекпоинт перед закрытием — чистое отсутствие -wal/-shm после выхода.
-          // TASK-073: БД может быть УЖЕ закрыта data-care-операцией (closeCurrentDb
-          // restore 071/wipe 072 — замена/удаление) — чекпоинт тогда не нужен.
-          db.pragma('wal_checkpoint(TRUNCATE)');
-        } catch {
-          // соединение закрыто под контейнером — закрывать нечего
-        } finally {
+        // TASK-093 §9: в режиме passphrase до unlock БД не открывалась — закрывать
+        // нечего (прокси не трогаем: доступ дал бы VAULT/LOCKED).
+        const connection = openedDb;
+        if (connection !== undefined) {
           try {
-            db.close();
+            // §8: чекпоинт перед закрытием — чистое отсутствие -wal/-shm после выхода.
+            // TASK-073: БД может быть УЖЕ закрыта data-care-операцией (closeCurrentDb
+            // restore 071/wipe 072 — замена/удаление) — чекпоинт тогда не нужен.
+            connection.pragma('wal_checkpoint(TRUNCATE)');
           } catch {
-            // уже закрыто (тот же кейс) — will-quit не роняет приложение
+            // соединение закрыто под контейнером — закрывать нечего
+          } finally {
+            try {
+              connection.close();
+            } catch {
+              // уже закрыто (тот же кейс) — will-quit не роняет приложение
+            }
           }
         }
         // §9: пул — ПОСЛЕ закрытия БД (воркеры БД не открывают, §8); задачи обрываются
@@ -1333,8 +1521,9 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
   } catch (error) {
     // §13: контейнер не создаётся — открытый дескриптор не переживает неудачную сборку
     // (Windows: файл заблокирован для удаления; прецедент openEncrypted TASK-022).
+    // TASK-093 §9: в режиме passphrase дескриптора ещё нет — закрытия нет.
     try {
-      db.close();
+      openedDb?.close();
     } catch {
       // соединение уже закрыто — при пробросе ошибки это не важно
     }
