@@ -1,36 +1,46 @@
 /**
- * TASK-023 §5/§9: адаптер KeyVault на Electron safeStorage — обёртка ключа БД
- * средствами ОС (DPAPI на Windows / Keychain на macOS / kwallet|gnome-keyring на Linux,
- * арх. 08 §2/§7): ноль своего крипто-кода, keytar не используется (устарел).
+ * TASK-023 §5/§9 + TASK-093 §5: адаптер KeyVault на Electron safeStorage — обёртка
+ * ключа БД средствами ОС (DPAPI на Windows / Keychain на macOS / kwallet|gnome-keyring
+ * на Linux, арх. 08 §2/§7) с ДОБАТОЧНОЙ парольной обёрткой (двойная, арх. 08 §2):
+ * `KEK = Argon2id(passphrase, salt)`, `wrappedKey = AES-256-GCM(dbKey, KEK)`.
  *
- * Файл ключа (§5): `<vaultFilePath>` = JSON `{v: 1, wrapped: base64, createdUtc}`
- * (имя файла — vault.key, константа в shared; полный путь вводится зависимостью:
- * зоны арх. 03 §4 — adapters не импортируют shared, контейнер TASK-027 собирает
- * `join(app.getPath('userData'), VAULT_KEY_FILENAME)`).
+ * Файл ключа (§5 TASK-093): JSON v2 `{v: 2, mode: 'safeStorage'|'passphrase',
+ * saltB64?, argonParams?, wrappedKeyB64, createdUtc}` (имя — vault.key, константа
+ * shared; полный путь вводится зависимостью: зоны арх. 03 §4). Миграция v1→v2 —
+ * при первом чтении файла (переупаковка safeStorage-blob'а, ключ не меняется);
+ * downgrade v2→v1 запрещён — пишется только v2 (§13).
  *
- * ПРЕДУПРЕЖДЕНИЕ (§22, ADR-0002): файл vault.key — единственный ключ к БД. Его потеря
- * при существующей БД = невосстановимая потеря данных (VAULT/KEY_MISSING → предложение
- * восстановиться из копии, TASK-101/071). Перенос файла на другую машину бессмыслен:
- * DPAPI привязывает обёртку к пользователю Windows (это фича — ключ не крадётся вместе
- * с файлом), при смене пользователя/машины — VAULT/KEY_CORRUPT (§13 кейс 3).
+ * Пароль (§2/§13): setPassphrase — переобёртка (БД не перешифровывается, §8);
+ * changePassphrase — новая соль, параметры из файла (без рекалибровки, §15);
+ * removePassphrase — возврат в safeStorage; unlock — полный derive и проверка по
+ * auth-tag GCM (§5 — РЕШЕНИЕ: быстрого обхода Argon2id нет); в режиме passphrase
+ * ensureKey до unlock — VAULT/LOCKED (контейнер §9 не открывает БД).
+ *
+ * ПРЕДУПРЕЖДЕНИЕ (§22/§13, ADR-0002): файл vault.key — единственный ключ к БД;
+ * порча salt/wrappedKey в passphrase-режиме или забытый пароль = невосстановимая
+ * потеря данных (та же семантика потери ключа; предупреждение UI — TASK-095).
  *
  * Зависимости вводятся конструктором (детерминированные тесты §19):
- *  - safeStorage — структурный интерфейс SafeStorageApi Electron (isEncryptionAvailable/
- *    encryptString/decryptString); боевой — safeStorage из electron, в тестах — мок;
- *  - vaultFilePath — полный путь файла ключа (см. выше);
- *  - clock — источник createdUtc (SystemClock по умолчанию; в тестах FixedClock);
- *  - logger — логгер факта ensureKey (§18; боевой — createLogger('db') в контейнере).
+ *  - safeStorage — структурный интерфейс SafeStorageApi Electron (боевой — electron,
+ *    тесты — мок); нужен только для safeStorage-режима и set/removePassphrase;
+ *  - vaultFilePath — полный путь файла ключа (контейнер TASK-027 собирает join);
+ *  - calibrate — фабрика параметров Argon2id (§15: по умолчанию калибровка под
+ *    бюджет 500 мс; тесты подставляют быстрые параметры);
+ *  - clock — источник createdUtc (SystemClock по умолчанию; тесты — FixedClock);
+ *  - logger — логгер фактов (§18; боевой — createLogger('db') в контейнере).
  *
- * Логирование (§18): только факт «vault key ensured» с флагом created (без ключа —
- * redact-список логгера keyHex/wrapped/wrappedB64 страхует нарушение правила вызова)
- * и «vault key ensure failed» с машинным кодом ошибки. Сообщения ключей пользователю —
- * TASK-095/101 (§16–17).
+ * Логирование (§18): «vault key ensured» {created}; «vault mode changed to
+ * passphrase|safeStorage» (смена режима, параметры — не секрет); «vault unlock
+ * attempt» (БЕЗ пароля и результата — счётчики неудач логирует rate-limit 094);
+ * отказы — warn с машинным кодом. Пароль/KEK/salt/обёртка никогда не логируются —
+ * redact-список логгера страхует нарушителя (§14).
  *
- * Кэш (§13): успешный ensureKey кэшируется на жизнь экземпляра (один decrypt за старт —
- * контейнер создаёт vault один раз на сессию); err-результаты не кэшируются — повторный
- * вызов после устранимой причины (восстановление файла из копии) работает.
+ * Кэш (§13): успешный ensureKey/unlock кэшируется на жизнь экземпляра (сессия
+ * разблокирована до конца процесса — §8: повторных unlock в сессии нет); err не
+ * кэшируется. Обнуление строк пароля — JS-ограничение, документировано (ADR-0002).
  */
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 
 import {
@@ -45,11 +55,31 @@ import {
 } from '@hl/kernel';
 
 import {
+  PASSPHRASE_SALT_BYTES,
+  PassphraseWrapIntegrityError,
+  calibrate as calibrateArgon2id,
+  deriveKek,
+  unwrapDbKey,
+  wrapDbKey,
+  type Argon2Params,
+} from './passphrase-crypto.js';
+import {
+  type PassphraseVaultFile,
+  type VaultKeyFileV2,
+  migrateV1ToV2,
+  parseV1,
+  parseV2,
+  serializeV2,
+} from './vault-format.js';
+import {
   VAULT_KEY_CORRUPT_MESSAGE_KEY,
   VAULT_KEY_MISSING_MESSAGE_KEY,
+  VAULT_LOCKED_MESSAGE_KEY,
   VAULT_UNAVAILABLE_MESSAGE_KEY,
+  VAULT_WRONG_PASSPHRASE_MESSAGE_KEY,
   type EnsuredKey,
   type KeyVault,
+  type VaultMode,
   type WrappedKeyBlob,
 } from '../application/ports/key-vault.js';
 
@@ -78,78 +108,49 @@ export interface SafeStorageKeyVaultOptions {
   readonly vaultFilePath: string;
   /** SafeStorageApi Electron (боевой) или мок (тесты, §19). */
   readonly safeStorage: VaultSafeStorage;
-  /** Логгер факта ensureKey (§18) — боевой: createLogger('db'). */
+  /** Логгер фактов vault-а (§18) — боевой: createLogger('db'). */
   readonly logger: VaultLogger;
+  /**
+   * Фабрика параметров Argon2id для setPassphrase (TASK-093 §5/§15): по умолчанию —
+   * калибровка под бюджет 500 мс (однократный замер на первой установке); тесты
+   * подставляют быстрые параметры (§19).
+   */
+  readonly calibrate?: () => Promise<Argon2Params>;
   /** Источник createdUtc; по умолчанию SystemClock (§7). */
   readonly clock?: Clock;
 }
-
-/** JSON-форма файла ключа на диске (§5) до валидации схемы. */
-interface VaultKeyFileJson {
-  readonly v?: unknown;
-  readonly wrapped?: unknown;
-  readonly createdUtc?: unknown;
-}
-
-/** Валидированное содержимое файла (§5 после разбора). */
-interface ParsedVaultFile {
-  readonly wrapped: string;
-  readonly createdUtc: number;
-}
-
-/** Версия формата файла ключа (§5: v = 1). */
-const FORMAT_VERSION = 1;
-
-/** Размер ключа БД в байтах (§7: 32 байта → hex 64 символа lowercase). */
-const KEY_BYTES = 32;
 
 /** Ключ — ровно 64 hex-символа lowercase (инвариант §7). */
 const KEY_HEX_PATTERN = /^[0-9a-f]{64}$/;
 
 /** Ключ APP/INTERNAL из контракта каркаса (contracts, app-error-dto.ts TASK-008). */
 const APP_INTERNAL_MESSAGE_KEY = 'errors.internal';
+const APP_NOT_IMPLEMENTED_MESSAGE_KEY = 'errors.APP_NOT_IMPLEMENTED';
+
+/**
+ * Результат чтения файла vault (с миграцией v1→v2): missing — файла нет;
+ * error — программно-средовая ошибка или повреждение (готовый AppError);
+ * file — валидированный v2-файл (v1 переупакован на диске, §5).
+ */
+type VaultFileState =
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'error'; readonly error: AppError }
+  | { readonly kind: 'file'; readonly file: VaultKeyFileV2 };
 
 /** true, если ошибка — Node-ошибка с данным кодом (например, ENOENT: файла нет). */
 function hasNodeErrorCode(error: unknown, code: string): boolean {
   return (error as { code?: string } | null)?.code === code;
 }
 
-/**
- * Разбор и валидация файла ключа (§5): JSON-объект `{v: 1, wrapped: non-empty string,
- * createdUtc: finite number}`. Любое отклонение — undefined (→ VAULT/KEY_CORRUPT,
- * кейс 3 §13: «файл есть и валиден» — иначе он считается повреждённым).
- */
-function parseVaultFile(raw: string): ParsedVaultFile | undefined {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return undefined;
-  }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    return undefined;
-  }
-  const file = parsed as VaultKeyFileJson;
-  if (file.v !== FORMAT_VERSION) {
-    return undefined;
-  }
-  if (typeof file.wrapped !== 'string' || file.wrapped.length === 0) {
-    return undefined;
-  }
-  if (typeof file.createdUtc !== 'number' || !Number.isFinite(file.createdUtc)) {
-    return undefined;
-  }
-  return { wrapped: file.wrapped, createdUtc: file.createdUtc };
-}
-
-/** Адаптер KeyVault на safeStorage (§5). Поведение ensureKey — см. порт KeyVault. */
+/** Адаптер KeyVault на safeStorage + двойная парольная обёртка (§5 TASK-093). */
 export class SafeStorageKeyVault implements KeyVault {
   private readonly vaultFilePath: string;
   private readonly safeStorage: VaultSafeStorage;
   private readonly logger: VaultLogger;
+  private readonly calibrate: () => Promise<Argon2Params>;
   private readonly clock: Clock;
 
-  /** Кэш успешного ensureKey (§13: один decrypt за старт). */
+  /** Кэш успешного ensureKey/unlock (§13: один decrypt за старт; сессия разблокирована). */
   private cached?: Result<EnsuredKey, AppError>;
   /** Летящий ensureKey: параллельные вызовы делят один сценарий генерации/расшифровки. */
   private pending?: Promise<Result<EnsuredKey, AppError>>;
@@ -158,6 +159,7 @@ export class SafeStorageKeyVault implements KeyVault {
     this.vaultFilePath = options.vaultFilePath;
     this.safeStorage = options.safeStorage;
     this.logger = options.logger;
+    this.calibrate = options.calibrate ?? calibrateArgon2id;
     this.clock = options.clock ?? new SystemClock();
   }
 
@@ -179,52 +181,227 @@ export class SafeStorageKeyVault implements KeyVault {
     return this.pending;
   }
 
-  /** §5: wrapped-ключ как есть — без keyring и расшифровки (см. порт). */
+  /** §5: wrapped-ключ как есть — без keyring и расшифровки (см. порт; passphrase → отказ). */
   async exportKeyForBackup(): Promise<Result<WrappedKeyBlob, AppError>> {
+    const state = await this.readVaultFile();
+    if (state.kind === 'missing') {
+      return this.fail('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY);
+    }
+    if (state.kind === 'error') {
+      return this.failWith(state.error);
+    }
+    if (state.file.mode === 'passphrase') {
+      // §5 TASK-093: резервный ключ в passphrase-режиме невосстановим без пароля —
+      // семантика восстановления не определена до TASK-094/101: явный отказ, не blob.
+      return this.fail('APP/NOT_IMPLEMENTED', APP_NOT_IMPLEMENTED_MESSAGE_KEY, {
+        reason: 'backup-of-passphrase-vault',
+      });
+    }
+    return ok({ v: 2, wrappedB64: state.file.wrappedKeyB64, createdUtc: state.file.createdUtc });
+  }
+
+  /** TASK-093 §5/§13: включение пароля — переобёртка файла (см. порт). */
+  async setPassphrase(passphrase: string): Promise<Result<void, AppError>> {
+    const state = await this.readVaultFile();
+    if (state.kind === 'missing') {
+      return this.fail('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY);
+    }
+    if (state.kind === 'error') {
+      return this.failWith(state.error);
+    }
+    if (state.file.mode === 'passphrase') {
+      // Контракт §5: пароль уже включён — смена через changePassphrase.
+      return this.fail('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, {
+        reason: 'passphrase-already-set',
+      });
+    }
+    const key = this.resolveCurrentKey(state.file);
+    if (!key.ok) {
+      return key;
+    }
+    const params = await this.calibrate();
+    const wrapped = await this.wrapWithPassphrase(
+      key.value,
+      passphrase,
+      params,
+      state.file.createdUtc,
+    );
+    if (!wrapped.ok) {
+      return this.failWith(wrapped.error);
+    }
+    this.logger.info('vault mode changed to passphrase', {
+      iterations: params.iterations,
+      memoryKib: params.memoryKib,
+      parallelism: params.parallelism,
+    });
+    return ok(undefined);
+  }
+
+  /** TASK-093 §5/§13: смена пароля — verify(old) → переобёртка с новой солью (см. порт). */
+  async changePassphrase(
+    oldPassphrase: string,
+    newPassphrase: string,
+  ): Promise<Result<void, AppError>> {
+    const state = await this.readVaultFile();
+    if (state.kind === 'missing') {
+      return this.fail('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY);
+    }
+    if (state.kind === 'error') {
+      return this.failWith(state.error);
+    }
+    if (state.file.mode !== 'passphrase') {
+      // Контракт §5: пароля нет — включение через setPassphrase.
+      return this.fail('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, {
+        reason: 'passphrase-not-set',
+      });
+    }
+    const key = await this.openWithPassphrase(state.file, oldPassphrase);
+    if (!key.ok) {
+      return key;
+    }
+    // §15: параметры — из файла (рекалибровки нет); соль — всегда новая.
+    const wrapped = await this.wrapWithPassphrase(
+      key.value,
+      newPassphrase,
+      state.file.argonParams,
+      state.file.createdUtc,
+    );
+    if (!wrapped.ok) {
+      return this.failWith(wrapped.error);
+    }
+    return ok(undefined);
+  }
+
+  /** TASK-093 §5/§13: снятие пароля → возврат в mode='safeStorage' (см. порт). */
+  async removePassphrase(oldPassphrase: string): Promise<Result<void, AppError>> {
+    const state = await this.readVaultFile();
+    if (state.kind === 'missing') {
+      return this.fail('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY);
+    }
+    if (state.kind === 'error') {
+      return this.failWith(state.error);
+    }
+    if (state.file.mode !== 'passphrase') {
+      return ok(undefined); // идемпотентно: пароля нет
+    }
+    if (!this.safeStorage.isEncryptionAvailable()) {
+      return this.fail('VAULT/UNAVAILABLE', VAULT_UNAVAILABLE_MESSAGE_KEY, {
+        platform: process.platform,
+      });
+    }
+    const key = await this.openWithPassphrase(state.file, oldPassphrase);
+    if (!key.ok) {
+      return key;
+    }
+    try {
+      const wrappedB64 = this.safeStorage.encryptString(key.value).toString('base64');
+      await this.writeVaultFile({
+        v: 2,
+        mode: 'safeStorage',
+        wrappedKeyB64: wrappedB64,
+        createdUtc: state.file.createdUtc,
+      });
+    } catch (error) {
+      return this.fail('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error);
+    }
+    this.logger.info('vault mode changed to safeStorage');
+    return ok(undefined);
+  }
+
+  /** TASK-093 §5/§9: разблокировка — derive KEK + проверка по auth-tag GCM (см. порт). */
+  async unlock(passphrase: string): Promise<Result<void, AppError>> {
+    if (this.cached?.ok === true) {
+      return ok(undefined); // сессия уже разблокирована (§13)
+    }
+    const state = await this.readVaultFile();
+    if (state.kind === 'missing') {
+      return this.fail('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY);
+    }
+    if (state.kind === 'error') {
+      return this.failWith(state.error);
+    }
+    if (state.file.mode !== 'passphrase') {
+      return ok(undefined); // идемпотентно: заблокировано ничего не было
+    }
+    // §18: сам факт попытки — без пароля; исход (ok/err) и счётчики — TASK-094.
+    this.logger.info('vault unlock attempt');
+    const key = await this.openWithPassphrase(state.file, passphrase);
+    if (!key.ok) {
+      return key;
+    }
+    // Сессия разблокирована: ключ доступен ensureKey («unlock → ensureKey → БД», §9).
+    this.cached = ok({ keyHex: key.value, created: false });
+    return ok(undefined);
+  }
+
+  /** TASK-093 §7: режим vault-а из заголовка файла — синхронно, без crypto (см. порт). */
+  getMode(): VaultMode {
+    let raw: string;
+    try {
+      raw = readFileSync(this.vaultFilePath, 'utf8');
+    } catch {
+      return 'none'; // файла нет (или не читается — вскроется при обращении, §13)
+    }
+    const file = parseV2(raw);
+    return file?.mode === 'passphrase' ? 'passphrase' : 'none';
+  }
+
+  /**
+   * Читает файл vault с миграцией v1→v2 при старте (§5): v1 переупаковывается в v2
+   * НА ДИСКЕ (safeStorage-blob и createdUtc сохраняются — ключ не меняется); любое
+   * отклонение схемы — KEY_CORRUPT (§13), прочие ошибки чтения/записи — APP/INTERNAL.
+   */
+  private async readVaultFile(): Promise<VaultFileState> {
     let raw: string;
     try {
       raw = await readFile(this.vaultFilePath, 'utf8');
     } catch (error) {
       if (hasNodeErrorCode(error, 'ENOENT')) {
-        return err(AppError.of('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY));
+        return { kind: 'missing' };
       }
-      return err(AppError.of('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error));
+      return {
+        kind: 'error',
+        error: AppError.of('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error),
+      };
     }
-    const parsed = parseVaultFile(raw);
-    if (parsed === undefined) {
-      return err(
-        AppError.of(
-          'VAULT/KEY_CORRUPT',
-          VAULT_KEY_CORRUPT_MESSAGE_KEY,
-          undefined,
-          'файл vault.key не соответствует формату {v: 1, wrapped, createdUtc}',
-        ),
-      );
+    const file = parseV2(raw);
+    if (file !== undefined) {
+      return { kind: 'file', file };
     }
-    return ok({ v: FORMAT_VERSION, wrappedB64: parsed.wrapped, createdUtc: parsed.createdUtc });
+    const legacy = parseV1(raw);
+    if (legacy !== undefined) {
+      const migrated = migrateV1ToV2(legacy);
+      try {
+        await this.writeVaultFile(migrated);
+      } catch (error) {
+        return {
+          kind: 'error',
+          error: AppError.of('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error),
+        };
+      }
+      this.logger.info('vault key format migrated to v2', { mode: migrated.mode });
+      return { kind: 'file', file: migrated };
+    }
+    return {
+      kind: 'error',
+      error: AppError.of(
+        'VAULT/KEY_CORRUPT',
+        VAULT_KEY_CORRUPT_MESSAGE_KEY,
+        undefined,
+        'файл vault.key не соответствует формату v1 {v, wrapped, createdUtc} или v2 {v, mode, wrappedKeyB64, createdUtc, …}',
+      ),
+    };
   }
 
-  /** Один прогон сценария ensureKey (кейсы §13 1–5; кэширование — в ensureKey). */
+  /** Один прогон сценария ensureKey (§13 1–5 + LOCKED; кэширование — в ensureKey). */
   private async ensureKeyUncached(dbExists: boolean): Promise<Result<EnsuredKey, AppError>> {
-    // Кейс 5 (§13): без шифрования ОС-хранилища не выполнимы ни создание, ни расшифровка —
-    // проверка ДО выбора сценария (unavailable + dbExists=true → UNAVAILABLE, не KEY_MISSING).
-    if (!this.safeStorage.isEncryptionAvailable()) {
-      return this.fail(
-        'VAULT/UNAVAILABLE',
-        VAULT_UNAVAILABLE_MESSAGE_KEY,
-        // Платформенное пояснение (§5): имя платформы без пользовательских данных.
-        { platform: process.platform },
-      );
-    }
+    const state = await this.readVaultFile();
 
-    let raw: string;
-    try {
-      raw = await readFile(this.vaultFilePath, 'utf8');
-    } catch (error) {
-      if (!hasNodeErrorCode(error, 'ENOENT')) {
-        // Файл есть, но не читается (права/диск) — программно-средовая ошибка, не сценарий §13.
-        return this.fail('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error);
-      }
+    if (state.kind === 'error') {
+      // Файл есть, но повреждён/не читается — кейс 3 (§13).
+      return this.failWith(state.error);
+    }
+    if (state.kind === 'missing') {
       if (dbExists) {
         // Кейс 4 (§13/§20): файла ключа нет при существующей БД — новый ключ НЕ
         // генерируется (это молчаливая потеря всех данных) — явный KEY_MISSING.
@@ -233,19 +410,34 @@ export class SafeStorageKeyVault implements KeyVault {
       // Кейс 1 (§13): первая установка — ключ создаётся здесь и только здесь.
       return this.generateAndStore();
     }
-
-    // Кейсы 2/3 (§13): файл есть — расшифровка.
-    return this.unwrapStoredKey(raw);
+    if (state.file.mode === 'passphrase') {
+      // TASK-093 §9/§13: до unlock ключа нет — контейнер не открывает БД (LOCKED).
+      if (this.cached?.ok === true) {
+        return this.cached; // сессия уже разблокирована (после unlock)
+      }
+      return this.fail('VAULT/LOCKED', VAULT_LOCKED_MESSAGE_KEY);
+    }
+    // Кейсы 2/3 (§13): safeStorage-режим — расшифровка.
+    return this.unwrapSafeStorageKey(state.file);
   }
 
-  /** Кейс 1 (§13): CSPRNG-ключ → encryptString → запись файла → created=true (§14). */
+  /** Кейс 1 (§13): CSPRNG-ключ → safeStorage → запись v2 → created=true (§14). */
   private async generateAndStore(): Promise<Result<EnsuredKey, AppError>> {
-    const keyHex = randomBytes(KEY_BYTES).toString('hex');
+    if (!this.safeStorage.isEncryptionAvailable()) {
+      return this.fail('VAULT/UNAVAILABLE', VAULT_UNAVAILABLE_MESSAGE_KEY, {
+        platform: process.platform,
+      });
+    }
+    const keyHex = randomBytes(32).toString('hex');
     const createdUtc = this.clock.nowMs();
     try {
-      const wrapped = this.safeStorage.encryptString(keyHex).toString('base64');
-      const fileJson = JSON.stringify({ v: FORMAT_VERSION, wrapped, createdUtc });
-      await writeFile(this.vaultFilePath, fileJson, 'utf8');
+      const wrappedKeyB64 = this.safeStorage.encryptString(keyHex).toString('base64');
+      await this.writeVaultFile({
+        v: 2,
+        mode: 'safeStorage',
+        wrappedKeyB64,
+        createdUtc,
+      });
     } catch (error) {
       return this.fail('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error);
     }
@@ -253,20 +445,16 @@ export class SafeStorageKeyVault implements KeyVault {
     return ok({ keyHex, created: true });
   }
 
-  /** Кейсы 2/3 (§13): расшифровка файла; любой сбой — VAULT/KEY_CORRUPT. */
-  private unwrapStoredKey(raw: string): Result<EnsuredKey, AppError> {
-    const parsed = parseVaultFile(raw);
-    if (parsed === undefined) {
-      return this.fail(
-        'VAULT/KEY_CORRUPT',
-        VAULT_KEY_CORRUPT_MESSAGE_KEY,
-        undefined,
-        'файл vault.key не соответствует формату {v: 1, wrapped, createdUtc}',
-      );
+  /** Кейсы 2/3 (§13): safeStorage-расшифровка v2-файла; любой сбой — VAULT/KEY_CORRUPT. */
+  private unwrapSafeStorageKey(file: VaultKeyFileV2): Result<EnsuredKey, AppError> {
+    if (!this.safeStorage.isEncryptionAvailable()) {
+      return this.fail('VAULT/UNAVAILABLE', VAULT_UNAVAILABLE_MESSAGE_KEY, {
+        platform: process.platform,
+      });
     }
     let keyHex: string;
     try {
-      keyHex = this.safeStorage.decryptString(Buffer.from(parsed.wrapped, 'base64'));
+      keyHex = this.safeStorage.decryptString(Buffer.from(file.wrappedKeyB64, 'base64'));
     } catch (error) {
       // Кейс 3 (§13): сменился Windows-пользователь/машина — keyring не может расшифровать.
       return this.fail('VAULT/KEY_CORRUPT', VAULT_KEY_CORRUPT_MESSAGE_KEY, undefined, error);
@@ -284,7 +472,93 @@ export class SafeStorageKeyVault implements KeyVault {
     return ok({ keyHex, created: false });
   }
 
-  /** Ошибка сценария: warn-лог с машинным кодом (§18) + err-Result с AppError. */
+  /**
+   * Ключ текущей установки для setPassphrase (§13 «при открытой БД — мгновенно»):
+   * из кэша сессии (боевой поток: ensureKey уже отработал) или safeStorage-расшифровкой.
+   */
+  private resolveCurrentKey(file: VaultKeyFileV2): Result<string, AppError> {
+    if (this.cached?.ok === true) {
+      return ok(this.cached.value.keyHex);
+    }
+    const unwrapped = this.unwrapSafeStorageKey(file);
+    if (unwrapped.ok) {
+      this.cached = unwrapped; // сессия имела право на ключ — кэшируем (§13)
+      return ok(unwrapped.value.keyHex);
+    }
+    return err(unwrapped.error);
+  }
+
+  /**
+   * Полный derive KEK и разворачивание ключа (TASK-093 §2): сбой auth-tag →
+   * VAULT/WRONG_PASSPHRASE (неверный пароль); прочее — APP/INTERNAL. Верификация
+   * происходит БЕЗ открытия БД и БЕЗ safeStorage (§20).
+   */
+  private async openWithPassphrase(
+    file: PassphraseVaultFile,
+    passphrase: string,
+  ): Promise<Result<string, AppError>> {
+    const salt = Buffer.from(file.saltB64, 'base64');
+    let kek: Buffer;
+    try {
+      kek = await deriveKek(passphrase, salt, file.argonParams);
+    } catch (error) {
+      return this.fail('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error);
+    }
+    let keyBytes: Buffer;
+    try {
+      keyBytes = unwrapDbKey(Buffer.from(file.wrappedKeyB64, 'base64'), kek);
+    } catch (error) {
+      if (error instanceof PassphraseWrapIntegrityError) {
+        // §2/§19: неверный пароль (или подмена/порча байтов при валидной схеме —
+        // криптографически неотличимо, §14 backup-crypto).
+        return this.fail('VAULT/WRONG_PASSPHRASE', VAULT_WRONG_PASSPHRASE_MESSAGE_KEY);
+      }
+      return this.fail('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error);
+    }
+    const keyHex = keyBytes.toString('hex');
+    if (!KEY_HEX_PATTERN.test(keyHex)) {
+      // GCM-целостность нарушена быть не могла — файл создан в чужом формате.
+      return this.fail(
+        'VAULT/KEY_CORRUPT',
+        VAULT_KEY_CORRUPT_MESSAGE_KEY,
+        undefined,
+        'развёрнутый текст не является 64-hex-ключом (32 байта)',
+      );
+    }
+    return ok(keyHex);
+  }
+
+  /** Переобёртка ключа паролем: соль → KEK → GCM → запись v2 passphrase (§2/§5). */
+  private async wrapWithPassphrase(
+    keyHex: string,
+    passphrase: string,
+    params: Argon2Params,
+    createdUtc: number,
+  ): Promise<Result<void, AppError>> {
+    const salt = randomBytes(PASSPHRASE_SALT_BYTES);
+    try {
+      const kek = await deriveKek(passphrase, salt, params);
+      const wrapped = wrapDbKey(Buffer.from(keyHex, 'hex'), kek);
+      await this.writeVaultFile({
+        v: 2,
+        mode: 'passphrase',
+        wrappedKeyB64: wrapped.toString('base64'),
+        createdUtc,
+        saltB64: salt.toString('base64'),
+        argonParams: params,
+      });
+      return ok(undefined);
+    } catch (error) {
+      return err(AppError.of('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error));
+    }
+  }
+
+  /** Атомарная по смыслу запись файла (§5; формат — только v2, downgrade запрещён §13). */
+  private async writeVaultFile(file: VaultKeyFileV2): Promise<void> {
+    await writeFile(this.vaultFilePath, serializeV2(file), 'utf8');
+  }
+
+  /** Ошибка сценария ensureKey/export: warn-лог с машинным кодом (§18) + err. */
   private fail(
     code: ErrorCode,
     messageKey: string,
@@ -293,5 +567,11 @@ export class SafeStorageKeyVault implements KeyVault {
   ): Result<never, AppError> {
     this.logger.warn('vault key ensure failed', { code });
     return err(AppError.of(code, messageKey, params, cause));
+  }
+
+  /** Ошибка, уже собранная как AppError (чтение файла/переобёртка) — warn + наружу. */
+  private failWith(error: AppError): Result<never, AppError> {
+    this.logger.warn('vault key ensure failed', { code: error.code });
+    return err(error);
   }
 }

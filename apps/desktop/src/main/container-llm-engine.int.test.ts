@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { AppError, FixedClock, type Clock, type Result } from '@hl/kernel';
+import { AppError, FixedClock, type Clock, type Result, ok } from '@hl/kernel';
 
 import {
   buildContainer,
@@ -58,6 +58,28 @@ class MockVault implements KeyVault {
       ok: false,
       error: AppError.of('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY),
     });
+  }
+
+  // TASK-093 §5/§7: парольные режимы в этом сценарии не используются — нейтральные
+  // заглушки контракта (сессия всегда разблокирована, mode='none').
+  setPassphrase(): Promise<Result<void, AppError>> {
+    return Promise.resolve(ok(undefined));
+  }
+
+  changePassphrase(): Promise<Result<void, AppError>> {
+    return Promise.resolve(ok(undefined));
+  }
+
+  removePassphrase(): Promise<Result<void, AppError>> {
+    return Promise.resolve(ok(undefined));
+  }
+
+  unlock(): Promise<Result<void, AppError>> {
+    return Promise.resolve(ok(undefined));
+  }
+
+  getMode(): 'none' {
+    return 'none';
   }
 }
 

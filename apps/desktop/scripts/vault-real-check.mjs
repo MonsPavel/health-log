@@ -76,11 +76,17 @@ app.whenReady().then(async () => {
   if (ensured.value.created) return fail('повторный старт: ожидался created=false');
   if (ensured.value.keyHex !== first.value.keyHex) return fail('ключ после расшифровки не совпал');
 
-  // 4) Экспорт wrapped-blob (§5/§7): совпадает с содержимым файла.
+  // 4) Экспорт wrapped-blob (§5/§7): совпадает с содержимым файла (формат v2, TASK-093).
   const blob = await reopened.exportKeyForBackup();
   if (!blob.ok) return fail(`exportKeyForBackup: ${blob.error.code}`);
   const fileJson = JSON.parse(fileContent);
-  if (blob.value.wrappedB64 !== fileJson.wrapped || blob.value.createdUtc !== fileJson.createdUtc) {
+  if (fileJson.v !== 2 || fileJson.mode !== 'safeStorage') {
+    return fail(`файл vault.key не v2 safeStorage: v=${fileJson.v}, mode=${fileJson.mode}`);
+  }
+  if (
+    blob.value.wrappedB64 !== fileJson.wrappedKeyB64 ||
+    blob.value.createdUtc !== fileJson.createdUtc
+  ) {
     return fail('wrapped-blob не совпадает с файлом vault.key');
   }
 

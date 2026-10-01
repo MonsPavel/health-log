@@ -31,6 +31,11 @@ export const ERROR_CODES = [
   'VAULT/KEY_MISSING',
   'VAULT/KEY_CORRUPT',
   'VAULT/UNAVAILABLE',
+  // TASK-093 §5/§13/§19: двойная обёртка ключа (Argon2id + AES-256-GCM) — неверный
+  // пароль детектируется по auth-tag GCM (БД не открывается); обращение к БД vault-а
+  // в режиме passphrase до unlock — состояние locked (§9/§12; управление — TASK-094).
+  'VAULT/WRONG_PASSPHRASE',
+  'VAULT/LOCKED',
   // TASK-024 §5/§20: migration runner — сбой миграции (rollback, схема осталась на
   // предыдущей версии; params {version}); БД записана более новой версией приложения
   // (schema_version > известного) — явная ошибка «обновите приложение» (EC-25).

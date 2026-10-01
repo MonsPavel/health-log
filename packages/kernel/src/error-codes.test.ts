@@ -106,4 +106,12 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('REPORT/EMPTY_PERIOD');
     expect(ERROR_CODES).toContain('REPORT/RENDER_FAILED');
   });
+
+  // TASK-093 §13/§19: двойная обёртка ключа (Argon2id passphrase) — неверный пароль
+  // детектируется по auth-tag GCM (БД не открывается); обращение к БД до unlock —
+  // контейнер в состоянии locked (§9/§12; управление состоянием — TASK-094).
+  it('коды VAULT/WRONG_PASSPHRASE и VAULT/LOCKED присутствуют (TASK-093)', () => {
+    expect(ERROR_CODES).toContain('VAULT/WRONG_PASSPHRASE');
+    expect(ERROR_CODES).toContain('VAULT/LOCKED');
+  });
 });
