@@ -53,6 +53,7 @@ import { BpMeasurement } from './modules/measurement/domain/bp-measurement.js';
 import { MIGRATIONS } from './shared/db/migrations/index.js';
 import { MigrationRunner } from './shared/db/migration-runner.js';
 import { openEncrypted, type EncryptedDatabase } from './shared/db/sqlite.js';
+import { silentLogger } from './shared/logger/silent-logger.js';
 
 const NOW_MS = 1_758_816_000_000;
 const DAY = 86_400_000;
@@ -88,7 +89,7 @@ async function makeHarness(name: string): Promise<Harness> {
   const scaleRepo = new SqliteScaleRepository(db, { clock: CLOCK });
   const scaleService = new ScaleService({
     repo: scaleRepo,
-    logger: { info: () => undefined, warn: () => undefined, error: () => undefined },
+    logger: silentLogger(),
     data: BP_OFFICE_ESC2018,
   });
   await scaleService.ensureActivated();

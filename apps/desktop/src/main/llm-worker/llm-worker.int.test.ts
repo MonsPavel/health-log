@@ -32,7 +32,6 @@ import {
   AI_ENGINE_NOT_CONFIGURED_MESSAGE_KEY,
   AI_WORKER_CRASHED_MESSAGE_KEY,
   LlmProcessClient,
-  type LlmClientLogger,
   type LlmNotify,
   type LlmWorkerPort,
   type LlmWorkerProcess,
@@ -44,14 +43,7 @@ import {
   type LlmWorkerEngine,
   type WorkerTransport,
 } from './protocol.js';
-
-/** Молчун-логгер (§18 — ассерты не по логу). */
-const silentLogger: LlmClientLogger = {
-  debug: () => undefined,
-  info: () => undefined,
-  warn: () => undefined,
-  error: () => undefined,
-};
+import { silentLogger } from '../shared/logger/silent-logger.js';
 
 /**
  * In-process канал «процессной границы»: макротаскичная доставка в обе стороны
@@ -216,7 +208,7 @@ function newClient(
     restartBackoffMs: 5,
     tokenFlushMs: 10,
     idleTimeoutMs: 10_000,
-    logger: silentLogger,
+    logger: silentLogger(),
   });
   return { client, channels };
 }

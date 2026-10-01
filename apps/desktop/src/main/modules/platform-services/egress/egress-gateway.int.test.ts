@@ -28,7 +28,7 @@ import { HL_EVENT_CHANNEL, type NetConsents } from '@hl/contracts';
 import { AppError, FixedClock, type Clock } from '@hl/kernel';
 
 import { createBroadcastToWindows, type BroadcastTarget } from '../../../events/broadcast.js';
-import type { EventsLogger } from '../../../events/event-bus.js';
+import { silentLogger } from '../../../shared/logger/silent-logger.js';
 import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite.js';
 import { MigrationRunner } from '../../../shared/db/migration-runner.js';
 import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
@@ -69,12 +69,6 @@ afterAll(async () => {
     server.close((error) => (error === undefined ? resolve() : reject(error)));
   });
 });
-
-/** Логгер-молчун для моста broadcast (§19; интерфейс EventsLogger TASK-009). */
-const silentEventsLogger: EventsLogger = {
-  debug: () => undefined,
-  error: () => undefined,
-};
 
 /**
  * Реальный HTTP-клиент теста (§19 «трафик реальный через gateway»): loopback-запрос
@@ -166,19 +160,12 @@ const makeFixture = (clock: Clock = new FixedClock(1_758_816_000_000, 180)): Pro
     const { target, envelopes } = makeFakeWindow();
     const notify = createBroadcastToWindows({
       getAllTargets: () => [target],
-      logger: silentEventsLogger,
+      logger: silentLogger(),
     });
     const gateway = new EgressGateway({
       db,
       clock,
-      logger: {
-        debug: () => undefined,
-        info: () => undefined,
-        warn: () => undefined,
-        error: () => undefined,
-        trace: () => undefined,
-        fatal: () => undefined,
-      },
+      logger: silentLogger(),
       consents: () => Promise.resolve(consents),
       fetch: fetchSpy,
       notify,

@@ -50,6 +50,7 @@ import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
 import { EgressGateway } from '../../platform-services/egress/egress-gateway.js';
 import { ModelsRegistry } from './models-registry.js';
 import { ModelStore } from './model-store.js';
+import { silentLogger } from '../../../shared/logger/silent-logger.js';
 
 // --- вспомогательные чистые хелперы ---
 
@@ -270,16 +271,6 @@ afterAll(async () => {
   }
 });
 
-/** Логгер-молчун (HlLogger — мост broadcast и gateway; §19). */
-const silentLogger = {
-  debug: () => undefined,
-  info: () => undefined,
-  warn: () => undefined,
-  error: () => undefined,
-  trace: () => undefined,
-  fatal: () => undefined,
-};
-
 /** Fake-окно (webContents со шпионом send + отметка времени) — приёмник событий. */
 const makeFakeWindow = (): {
   target: BroadcastTarget;
@@ -362,14 +353,14 @@ const makeFixture = (
       const { target, envelopes } = makeFakeWindow();
       const notify = createBroadcastToWindows({
         getAllTargets: () => [target],
-        logger: silentLogger,
+        logger: silentLogger(),
       });
       let freeDisk: (dir: string) => number | Promise<number> =
         options.freeDiskBytes ?? (() => Number.MAX_SAFE_INTEGER);
       const gateway = new EgressGateway({
         db,
         clock: new FixedClock(1_758_816_000_000, 180),
-        logger: silentLogger,
+        logger: silentLogger(),
         consents: () => Promise.resolve(consents),
         fetch: (endpoint, init) => {
           fetchCalls.push({ endpoint, init });
@@ -383,7 +374,7 @@ const makeFixture = (
           registry: new ModelsRegistry({ manifestPath }),
           egress: gateway,
           notify,
-          logger: silentLogger,
+          logger: silentLogger(),
           retryBackoffMs: [1, 1, 1],
           stallTimeoutMs: 1_000, // обрыв/hold короче таймаута теста (см. шапку файла)
           freeDiskBytes: (dir) => freeDisk(dir),

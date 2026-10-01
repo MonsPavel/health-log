@@ -37,6 +37,7 @@ import type {
   BackupStatement,
 } from '../../modules/data-care/application/ports/backup-database.js';
 import type { BackupFileSaver } from '../../modules/data-care/application/ports/backup-file-saver.js';
+import { silentLogger } from '../../shared/logger/silent-logger.js';
 import { electronFileOpenDialog } from '../../platform/file-open.js';
 import { createChannelRegistry } from '../register-channel.js';
 import {
@@ -51,11 +52,7 @@ const PASSPHRASE = 'верный-пароль-копии';
 /** Байты «снапшота БД» — фикстура, которой фейк БД отвечает на VACUUM INTO. */
 const SNAPSHOT_BYTES = Buffer.from('health-log-snapshot-fixture-bytes');
 
-const silenceLogger = {
-  debug: () => undefined,
-  info: () => undefined,
-  error: () => undefined,
-};
+const silenceLogger = silentLogger();
 
 /**
  * Фейк открытой БД (порт BackupDatabase, §19): VACUUM INTO '<path>' пишет фикстурные

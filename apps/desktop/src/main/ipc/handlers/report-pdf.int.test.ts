@@ -33,6 +33,7 @@ import { createChannelRegistry, type ChannelRegistry } from '../register-channel
 import { ElectronFileSaver } from '../../platform/file-saver.js';
 import { FileOpQueue } from '../../modules/data-care/application/file-op-queue.js';
 import { WorkerPool } from '../../shared/workerpool/pool.js';
+import { silentLogger } from '../../shared/logger/silent-logger.js';
 import { PDF_TASKS_MODULE_URL } from '../../modules/reporting/adapters/pdf/pdf-tasks-url.js';
 import { BuildPdfReportUseCase } from '../../modules/reporting/application/build-pdf-report.js';
 import { createBuildPdfReportHandler } from './report-pdf.js';
@@ -85,14 +86,7 @@ function makeRegistry(points: {
     // tasksModule — БОЕВОЙ (задача pdf.render 067).
     entryUrl: new URL('../../shared/workerpool/worker.ts', import.meta.url),
     tasksModule: PDF_TASKS_MODULE_URL.href,
-    logger: {
-      trace: () => undefined,
-      debug: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: () => undefined,
-      fatal: () => undefined,
-    },
+    logger: silentLogger(),
   });
   registry.register(
     'report/pdf',
