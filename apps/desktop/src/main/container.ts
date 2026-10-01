@@ -290,6 +290,23 @@ export function testModelFileEnabled(
 }
 
 /**
+ * TASK-092 §4/§5: имя env-флага headless-режима eval (§5: HL_EVAL_HEADLESS=1;
+ * единственный источник строки) и гард его применения: ТОЛЬКО не-packaged
+ * запуск (§14 — тот же паттерн TEST-ONLY гардов: fakeLlmEnabled выше,
+ * testModelFileEnabled TASK-081). Bootstrap при флаге НЕ создаёт BrowserWindow
+ * (ночной CI-прогон eval на ubuntu-runner: CPU-инференс без дисплея, xvfb не
+ * нужен; лог «window skipped» — наблюдаемость AC §20.4).
+ */
+export const HL_EVAL_HEADLESS_ENV = 'HL_EVAL_HEADLESS';
+
+export function evalHeadlessEnabled(
+  env: Readonly<Record<string, string | undefined>>,
+  isPackaged: boolean,
+): boolean {
+  return env[HL_EVAL_HEADLESS_ENV] === '1' && !isPackaged;
+}
+
+/**
  * Профиль дневника (seed миграции v1; bench-seed.ts — тот же идентификатор):
  * счётчик записей задачи backup.reminder считается по нему (§13).
  */
