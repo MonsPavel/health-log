@@ -181,11 +181,12 @@ describe('container + UpdatesService (TASK-096 §9/§19/§20)', () => {
   });
 
   it('(AC4) scheduler.tick при согласии выполняет задачу updates.check (первый тик), повторный — молчит (24 ч)', async () => {
+    // Адаптер общий на сценарий: до этого теста была 1 ручная проверка (канал).
     await container!.scheduler.tick({ utcMs: NOW_MS, tzOffsetMin: TZ });
-    expect(adapter.checkCalls).toBe(1); // первая проверка задачи (lastRun не было)
+    expect(adapter.checkCalls).toBe(2); // первая проверка задачи (lastRun не было)
 
     await container!.scheduler.tick({ utcMs: NOW_MS + 1, tzOffsetMin: TZ });
-    expect(adapter.checkCalls).toBe(1); // интервал 24 ч не истёк — тик молчит
+    expect(adapter.checkCalls).toBe(2); // интервал 24 ч не истёк — тик молчит
   });
 
   it('(AC6) updates/install без скачанного → конверт отказа UPD/NOT_READY; quitAndInstall не вызван', async () => {
