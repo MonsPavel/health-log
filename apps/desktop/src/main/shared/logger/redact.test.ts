@@ -89,6 +89,53 @@ describe('redactPhi — секреты хранилища ключа (TASK-023 �
   });
 });
 
+describe('redactPhi — парольная обёртка vault-а (TASK-093 §14: passphrase/KEK/salt)', () => {
+  // Фикстура: пароль, соль Argon2id (обе формы имени) и GCM-обёртка ключа v2.
+  const PASSPHRASE = 'пароль-владельца';
+  const SALT_B64 = Buffer.from('argon2-salt-material', 'utf8').toString('base64');
+  const WRAPPED_KEY_B64 = Buffer.from('gcm-wrapped-db-key', 'utf8').toString('base64');
+
+  it('passphrase цензурен на любом уровне вложенности (§20: пароль не в логах)', () => {
+    const out = redactPhi({ unlock: { passphrase: PASSPHRASE, op: 'vault.unlock' } });
+
+    expect(out).toEqual({ unlock: { passphrase: PHI_CENSOR, op: 'vault.unlock' } });
+    expect(outJson(out)).not.toContain(PASSPHRASE);
+  });
+
+  it('salt/saltB64/wrappedKey (файл v2, TASK-093 §5) цензурены на любом уровне вложенности', () => {
+    const out = redactPhi({
+      vault: {
+        file: {
+          v: 2,
+          mode: 'passphrase',
+          wrappedKeyB64: WRAPPED_KEY_B64,
+          salt: SALT_B64,
+          saltB64: SALT_B64,
+          createdUtc: 1,
+        },
+        wrap: { wrappedKey: WRAPPED_KEY_B64 },
+      },
+    });
+
+    expect(out).toEqual({
+      vault: {
+        file: {
+          v: 2,
+          mode: 'passphrase',
+          wrappedKeyB64: PHI_CENSOR,
+          salt: PHI_CENSOR,
+          saltB64: PHI_CENSOR,
+          // Разрешённые соседи остаются: v/mode/createdUtc (§14: параметры — не секрет).
+          createdUtc: 1,
+        },
+        wrap: { wrappedKey: PHI_CENSOR },
+      },
+    });
+    expect(outJson(out)).not.toContain(SALT_B64);
+    expect(outJson(out)).not.toContain(WRAPPED_KEY_B64);
+  });
+});
+
 describe('redactPhi — точное совпадение ключа (§7: «пути без имени пользователя разрешены»)', () => {
   it('system/syslog не путаются с sys; остальные ключи не цензурятся', () => {
     const out = redactPhi({ system: 'ok', syslog: 1, sys: 125 });
@@ -147,7 +194,7 @@ describe('redactPhi — отказобезопасность (§14)', () => {
 });
 
 describe('конфиг редакции — контракт спецификации (§5/§7)', () => {
-  it('PHI_REDACT_PATHS — ровно redact-пути из §5 + ключи БД (TASK-022/023) + пароль копии (TASK-070: pino.redact слой)', () => {
+  it('PHI_REDACT_PATHS — ровно redact-пути из §5 + ключи БД (TASK-022/023) + пароль копии (TASK-070) + парольная обёртка (TASK-093: pino.redact слой)', () => {
     expect([...PHI_REDACT_PATHS]).toEqual([
       'sys',
       'dia',
@@ -173,10 +220,19 @@ describe('конфиг редакции — контракт специфика�
       // TASK-070 §14: пароль копии (backup/create) — top-level и глубина 1.
       'passphrase',
       '*.passphrase',
+      // TASK-093 §14: парольная обёртка (соль и GCM-обёртка, обе формы имени) — top-level и глубина 1.
+      'salt',
+      'saltB64',
+      'wrappedKey',
+      'wrappedKeyB64',
+      '*.salt',
+      '*.saltB64',
+      '*.wrappedKey',
+      '*.wrappedKeyB64',
     ]);
   });
 
-  it('PHI_KEYS покрывает доменные PHI-поля §7, ключи БД TASK-022, wrapped TASK-023 и пароль копии TASK-070 (рекурсивный слой)', () => {
+  it('PHI_KEYS покрывает доменные PHI-поля §7, ключи БД TASK-022, wrapped TASK-023, пароль копии TASK-070 и парольную обёртку TASK-093 (рекурсивный слой)', () => {
     for (const key of [
       'sys',
       'dia',
@@ -194,6 +250,11 @@ describe('конфиг редакции — контракт специфика�
       'wrappedB64',
       // TASK-070 §14: пароль копии — цензура на ЛЮБОЙ глубине.
       'passphrase',
+      // TASK-093 §14: соль и GCM-обёртка парольного режима (обе формы имени поля).
+      'salt',
+      'saltB64',
+      'wrappedKey',
+      'wrappedKeyB64',
     ]) {
       expect(PHI_KEYS.has(key)).toBe(true);
     }

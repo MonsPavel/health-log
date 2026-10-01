@@ -28,25 +28,37 @@ import {
   type Argon2Params,
 } from './passphrase-crypto.js';
 
-/** Актуальная версия формата файла ключа (§5: v = 2). */
-export const VAULT_FORMAT_VERSION = 2;
-
 /** Режим обёртки ключа в файле (§5). */
 export type VaultMode = 'safeStorage' | 'passphrase';
 
-/** Валидированное содержимое файла vault.key v2 (§5). */
-export interface VaultKeyFileV2 {
+/** Актуальная версия формата файла ключа (§5: v = 2). */
+export const VAULT_FORMAT_VERSION = 2;
+
+/** Общая часть файла vault.key v2 (§5). */
+interface VaultKeyFileV2Base {
   readonly v: 2;
-  readonly mode: VaultMode;
   /** Обёртка ключа: base64(iv||ct||tag) в passphrase-режиме, blob safeStorage — в safeStorage. */
   readonly wrappedKeyB64: string;
   /** Момент создания ключа, мс эпохи Unix (наследовано v1; резервные копии §7). */
   readonly createdUtc: number;
-  /** Соль Argon2id (base64) — только mode='passphrase'. */
-  readonly saltB64?: string;
-  /** Параметры Argon2id — только mode='passphrase' (в файле, не в коде, §14). */
-  readonly argonParams?: Argon2Params;
 }
+
+/** Файл v2, mode='safeStorage': поля парольной обёртки отсутствуют (противоречие схемы). */
+export interface SafeStorageVaultFile extends VaultKeyFileV2Base {
+  readonly mode: 'safeStorage';
+}
+
+/** Файл v2, mode='passphrase': соль и параметры Argon2id обязательны (§5). */
+export interface PassphraseVaultFile extends VaultKeyFileV2Base {
+  readonly mode: 'passphrase';
+  /** Соль Argon2id (base64). */
+  readonly saltB64: string;
+  /** Параметры Argon2id — в файле, не в коде (§14). */
+  readonly argonParams: Argon2Params;
+}
+
+/** Валидированное содержимое файла vault.key v2 (§5) — дисриминация по mode. */
+export type VaultKeyFileV2 = SafeStorageVaultFile | PassphraseVaultFile;
 
 /** Легаси-содержимое файла v1 (TASK-023 §5) — только вход миграции. */
 export interface VaultKeyFileV1 {
@@ -142,8 +154,7 @@ export function parseV2(raw: string): VaultKeyFileV2 | undefined {
   if (!isCanonicalBase64(file.wrappedKeyB64)) {
     return undefined;
   }
-  const mode = file.mode;
-  if (mode === 'passphrase') {
+  if (file.mode === 'passphrase') {
     // §13 «порча wrapped»: парольная обёртка не бывает короче iv||ct||tag даже
     // с пустым ct (12+16+1 байт) — обрезка ловится здесь, а не при разворачивании.
     if (base64ByteLength(file.wrappedKeyB64) < WRAP_IV_BYTES + WRAP_TAG_BYTES + 1) {
@@ -151,7 +162,7 @@ export function parseV2(raw: string): VaultKeyFileV2 | undefined {
     }
     if (
       !isCanonicalBase64(file.saltB64) ||
-      base64ByteLength(file.saltB64 as string) < ARGON2_MIN_SALT_BYTES
+      base64ByteLength(file.saltB64) < ARGON2_MIN_SALT_BYTES
     ) {
       return undefined;
     }
@@ -159,25 +170,27 @@ export function parseV2(raw: string): VaultKeyFileV2 | undefined {
     if (argonParams === undefined) {
       return undefined;
     }
-    return {
+    const passphraseFile: PassphraseVaultFile = {
       v: 2,
-      mode,
+      mode: 'passphrase',
       wrappedKeyB64: file.wrappedKeyB64,
       createdUtc: file.createdUtc,
       saltB64: file.saltB64,
       argonParams,
     };
+    return passphraseFile;
   }
   // mode='safeStorage': поля парольной обёртки обязаны отсутствовать (противоречие схемы).
   if (file.saltB64 !== undefined || file.argonParams !== undefined) {
     return undefined;
   }
-  return {
+  const safeStorageFile: SafeStorageVaultFile = {
     v: 2,
-    mode,
+    mode: 'safeStorage',
     wrappedKeyB64: file.wrappedKeyB64,
     createdUtc: file.createdUtc,
   };
+  return safeStorageFile;
 }
 
 /**

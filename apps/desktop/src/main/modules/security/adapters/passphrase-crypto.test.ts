@@ -100,7 +100,7 @@ describe('wrapDbKey/unwrapDbKey — AES-256-GCM(dbKey, KEK) (TASK-093 §2)', () 
 
     for (const at of [0, WRAP_IV_BYTES, blob.length - 1]) {
       const tampered = Buffer.from(blob);
-      tampered[at] ^= 0xff;
+      tampered[at] = (tampered[at] ?? 0) ^ 0xff;
       expect(() => unwrapDbKey(tampered, kek), `подмена байта ${at}`).toThrow(
         PassphraseWrapIntegrityError,
       );

@@ -49,6 +49,13 @@ export const PHI_KEYS: ReadonlySet<string> = new Set([
   // TASK-070 §14: пароль копии (backup/create) никогда не логируется — цензура на
   // любом уровне вложенности (прецедент keyHex TASK-022).
   'passphrase',
+  // TASK-093 §14: парольная обёртка vault-а — соль Argon2id (обе формы имени: salt
+  // и поле файла saltB64) и GCM-обёртка ключа (обе формы имени: wrappedKey и поле
+  // файла v2 wrappedKeyB64); пароль (passphrase) и KEK покрыты выше/не материализуются.
+  'salt',
+  'saltB64',
+  'wrappedKey',
+  'wrappedKeyB64',
 ]);
 
 /**
@@ -81,6 +88,15 @@ export const PHI_REDACT_PATHS: readonly string[] = [
   // TASK-070 §14: пароль копии — top-level и глубина 1 (глубже — рекурсивный слой).
   'passphrase',
   '*.passphrase',
+  // TASK-093 §14: парольная обёртка vault-а — top-level и глубина 1 (глубже — рекурсивный слой).
+  'salt',
+  'saltB64',
+  'wrappedKey',
+  'wrappedKeyB64',
+  '*.salt',
+  '*.saltB64',
+  '*.wrappedKey',
+  '*.wrappedKeyB64',
 ];
 
 /**
