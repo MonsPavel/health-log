@@ -40,7 +40,7 @@
     "test:pr-workflow": "tsx scripts/test-pr-workflow.ts",
     "lint": "eslint . --cache --max-warnings 0 && prettier --check .",
     "lint:fix": "eslint . --fix && prettier --write .",
-    "typecheck": "tsc -b packages/kernel/tsconfig.json packages/contracts/tsconfig.json packages/scales-data/tsconfig.json apps/desktop/tsconfig.json",
+    "typecheck": "tsc -b packages/kernel/tsconfig.json packages/contracts/tsconfig.json packages/scales-data/tsconfig.json apps/desktop/tsconfig.json && tsc -p tsconfig.json --noEmit",
     "check-strict": "tsx scripts/check-strict.ts"
   },
   "devDependencies": {
