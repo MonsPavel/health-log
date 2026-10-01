@@ -19,6 +19,7 @@ import {
 } from './vault-service.js';
 import {
   VAULT_KEY_MISSING_MESSAGE_KEY,
+  VAULT_LOCKED_MESSAGE_KEY,
   VAULT_WRONG_PASSPHRASE_MESSAGE_KEY,
   type EnsuredKey,
   type KeyVault,
@@ -529,6 +530,60 @@ describe('VaultService — setPassphrase (§5: {pass|old+new|remove}; §19: ко
     expect(service.lock('manual')).toEqual({ locked: false });
     expect(closeDatabase).not.toHaveBeenCalled();
     expect(notify).not.toHaveBeenCalled();
+  });
+});
+
+// Ревью TASK-094 (блокер, §3/§14): vault/set-passphrase в locked-состоянии не
+// должен давать проверку пароля ВООБЩЕ — change/remove порта 093 верифицируют
+// пароль полностью (Argon2id + GCM) без всякого backoff (неthrottled-оракул
+// того же секрета) и молча перепаковывают vault.key на угаданный пароль.
+describe('VaultService — setPassphrase при locked (ревью: отказ ДО порта)', () => {
+  it.each([
+    { action: 'set', pass: 'новый' },
+    { action: 'change', old: 'подборка', new: 'атаки' },
+    { action: 'remove', old: 'подборка' },
+  ] as const)('locked: %j → err VAULT/LOCKED, порт НЕ вызывается (нет оракула)', async (command) => {
+    const clock = new AdvanceClock(1_000);
+    const { service, vault, logger } = makeService('passphrase', clock); // старт заблокирован
+    const result = await service.setPassphrase(command);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('VAULT/LOCKED');
+      expect(result.error.messageKey).toBe(VAULT_LOCKED_MESSAGE_KEY);
+    }
+    expect(vault.setPassphrase).not.toHaveBeenCalled();
+    expect(vault.changePassphrase).not.toHaveBeenCalled();
+    expect(vault.removePassphrase).not.toHaveBeenCalled();
+    // §18: отказ логируется без пароля.
+    expect(logger.warn).toHaveBeenCalledWith('vault set-passphrase refused: locked');
+    const logged = JSON.stringify(logger.warn.mock.calls);
+    expect(logged).not.toContain('подборка');
+  });
+
+  it('locked + окно backoff: отказ LOCKED и без расхода счётчика attempts', async () => {
+    const clock = new AdvanceClock(1_000);
+    const { service, vault } = makeService('passphrase', clock);
+    vault.unlock.mockReturnValue(Promise.resolve(err(WRONG)));
+    await service.unlock('x');
+    await service.unlock('x');
+    await service.unlock('x'); // attempts=3, backoff 1 с
+    const result = await service.setPassphrase({ action: 'change', old: 'x', new: 'y' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('VAULT/LOCKED');
+    }
+    // Счётчик/окно не тронуты: статус несёт тот же backoffSec.
+    clock.advance(200);
+    expect(service.getStatus().backoffSec).toBe(1);
+  });
+
+  it('mode=none (никогда не заблокирован): set работает как раньше', async () => {
+    const clock = new AdvanceClock(1_000);
+    const { service, vault } = makeService('none', clock);
+    await expect(service.setPassphrase({ action: 'set', pass: 'пароль' })).resolves.toEqual(
+      ok({ mode: 'passphrase' as const }),
+    );
+    expect(vault.setPassphrase).toHaveBeenCalledWith('пароль');
   });
 });
 

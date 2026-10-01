@@ -134,16 +134,24 @@ const SECURE_CHANNELS: readonly ChannelName[] = [
   'updates/check',
   'updates/download',
   'updates/install',
+  // Ревью TASK-094: смена/снятие пароля — те же vault-операции, что и unlock, и
+  // ОБЯЗАНЫ гвардиться в locked — иначе канал даёт неthrottled-оракул того же
+  // секрета (change/remove у порта 093 делают полную проверку пароля Argon2id+GCM
+  // без всякого backoff) и молча перепаковывает vault.key на угаданный пароль.
+  'vault/set-passphrase',
 ];
 
-/** Не-БД каналы: каркасные, диалоговые и vault/* (доступ к ним и есть выход из lock). */
+/**
+ * Не-БД каналы: каркасные, диалоговые и МИНИМАЛЬНЫЙ входной набор vault/*
+ * (статус/unlock/lock — доступ к ним и есть выход из lock; §5 «повторный unlock
+ * открывает»). Управление паролем в набор не входит — только из открытой сессии.
+ */
 const OPEN_CHANNELS: readonly ChannelName[] = [
   'app/log-client-error',
   'app/ping',
   'app/reveal-path',
   'file/open-dialog',
   'vault/lock',
-  'vault/set-passphrase',
   'vault/status',
   'vault/unlock',
 ];

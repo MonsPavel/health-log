@@ -214,6 +214,21 @@ describe('buildContainer — локальный вход через каналы
       expect(prefsWhileLocked.error).toMatchObject({ code: 'VAULT/LOCKED' });
     }
 
+    // Ревью (блокер §3/§14): попытка перебора через set-passphrase в locked —
+    // конверт VAULT/LOCKED и БЕЗ проверки пароля (неthrottled-оракул закрыт);
+    // угаданный/неугаданный old не перепаковывает vault.key — оригинальный пароль
+    // после «атаки» продолжает открывать (файл не переобёрнут на new:'атаки').
+    const brute = await dispatch('vault/set-passphrase', {
+      action: 'change',
+      old: 'подборка-пароля',
+      new: 'пароль-атакующего',
+    });
+    expect(brute).toEqual({
+      v: 1,
+      ok: false,
+      error: { code: 'VAULT/LOCKED', messageKey: 'errors.VAULT_LOCKED' },
+    });
+
     // Повторный unlock открывает — данные на месте (§13, §8 «повторное открытие»).
     clock.advance(1_000);
     expect(await dispatch('vault/unlock', { pass: PASS })).toEqual({
