@@ -88,6 +88,8 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
         'app:log',
         'data:versionBumped',
         'job:backup-reminder',
+        'lock:engaged',
+        'lock:required',
         'measurement:changed',
         'net:activity',
         'prefs:changed',
@@ -111,6 +113,16 @@ describe('HlEventMap — начальный состав (§5, §20)', () => {
   it('содержит update:ready с ПУСТЫМ payload — обновление скачано (TASK-096 §11)', () => {
     expectTypeOf<HlEventMap['update:ready']>().toEqualTypeOf<Record<string, never>>();
     expect(HL_EVENT_PAYLOAD_KEYS['update:ready']).toEqual([]);
+  });
+
+  it('содержит lock:engaged с ПУСТЫМ payload — БД закрыта (checkpoint+close), показать экран блокировки (TASK-094 §5)', () => {
+    expectTypeOf<HlEventMap['lock:engaged']>().toEqualTypeOf<Record<string, never>>();
+    expect(HL_EVENT_PAYLOAD_KEYS['lock:engaged']).toEqual([]);
+  });
+
+  it('содержит lock:required с ПУСТЫМ payload — сессия стартует заблокированной (TASK-094 §5)', () => {
+    expectTypeOf<HlEventMap['lock:required']>().toEqualTypeOf<Record<string, never>>();
+    expect(HL_EVENT_PAYLOAD_KEYS['lock:required']).toEqual([]);
   });
 
   it('содержит ai/chat/result с payload {requestId, messageId?} — финал хода чата (TASK-089 §11)', () => {

@@ -28,6 +28,8 @@ const VALID_PREFS = {
   jobState: { jobs: {}, shown: {} },
   // TASK-088 §5: includeNotes — тумблер заметок превью (дефолт false, zod).
   aiSettings: { dismissed: false, includeNotes: false },
+  // TASK-094 §5: порог автоблока по простою, минуты (0 — выкл; дефолт 5).
+  autoLockMin: 5,
 } as const;
 
 describe('PREFS_SCHEMA — документ настроек (§5)', () => {
@@ -61,6 +63,21 @@ describe('PREFS_SCHEMA — документ настроек (§5)', () => {
     expect(
       PREFS_SCHEMA.safeParse({ ...VALID_PREFS, netConsents: { updatesCheck: 'yes' } }).success,
     ).toBe(false);
+  });
+});
+
+describe('PREFS_SCHEMA — autoLockMin (TASK-094 §5: порог автоблока)', () => {
+  it('допустимые значения 5|15|60 и 0 (выкл); дефолт 5', () => {
+    for (const autoLockMin of [0, 5, 15, 60]) {
+      expect(PREFS_SCHEMA.parse({ ...VALID_PREFS, autoLockMin })).toMatchObject({ autoLockMin });
+    }
+    expect(PREFS_SCHEMA.parse({}).autoLockMin).toBe(5);
+  });
+
+  it('прочие числа/типы отклоняются', () => {
+    expect(PREFS_SCHEMA.safeParse({ ...VALID_PREFS, autoLockMin: 3 }).success).toBe(false);
+    expect(PREFS_SCHEMA.safeParse({ ...VALID_PREFS, autoLockMin: -1 }).success).toBe(false);
+    expect(PREFS_SCHEMA.safeParse({ ...VALID_PREFS, autoLockMin: '5' }).success).toBe(false);
   });
 });
 
@@ -190,6 +207,12 @@ describe('PREFS_PATCH_SCHEMA — patch set (§7/§11)', () => {
       aiSettings: { dismissed: true, includeNotes: false },
     });
     expect(PREFS_PATCH_SCHEMA.safeParse({ aiSettings: { modelId: 5 } }).success).toBe(false);
+  });
+
+  it('autoLockMin — patch принимается (5|15|60|0), неверное значение — ошибка (TASK-094 §5)', () => {
+    expect(PREFS_PATCH_SCHEMA.parse({ autoLockMin: 15 })).toEqual({ autoLockMin: 15 });
+    expect(PREFS_PATCH_SCHEMA.parse({ autoLockMin: 0 })).toEqual({ autoLockMin: 0 });
+    expect(PREFS_PATCH_SCHEMA.safeParse({ autoLockMin: 30 }).success).toBe(false);
   });
 });
 

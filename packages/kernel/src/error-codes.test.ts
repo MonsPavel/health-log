@@ -114,4 +114,11 @@ describe('ErrorCode: реестр кодов (§5)', () => {
     expect(ERROR_CODES).toContain('VAULT/WRONG_PASSPHRASE');
     expect(ERROR_CODES).toContain('VAULT/LOCKED');
   });
+
+  // TASK-094 §4/§13: экспоненциальный rate-limit unlock — попытка в окне backoff
+  // отклоняется ДО проверки пароля (перебор непрактичен, §3); backoffSec в params —
+  // текст «Подождите N с» (§17).
+  it('код VAULT/RATE_LIMITED присутствует (TASK-094)', () => {
+    expect(ERROR_CODES).toContain('VAULT/RATE_LIMITED');
+  });
 });
