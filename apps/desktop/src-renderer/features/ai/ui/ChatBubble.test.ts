@@ -62,16 +62,15 @@ describe('ChatBubble — визуальные роли ленты (§5/§10)', (
   });
 
   it('классы выравнивания: user — акцент справа (ml-auto), assistant — нейтрал слева', () => {
-    const { rerender } = render(createElement(ChatBubble, { role: 'user', content: 'вопрос' }));
+    const first = render(createElement(ChatBubble, { role: 'user', content: 'вопрос' }));
+    const userBubble = screen.getByTestId('chat-bubble');
+    expect(userBubble.className).toContain('ml-auto');
+    expect(userBubble.className).toContain('bg-accent');
+    first.unmount();
 
-    let bubble = screen.getByTestId('chat-bubble');
-    expect(bubble.className).toContain('ml-auto');
-    expect(bubble.className).toContain('bg-accent');
-
-    cleanup();
-    rerender(createElement(ChatBubble, { role: 'assistant', content: 'ответ' }));
-    bubble = screen.getByTestId('chat-bubble');
-    expect(bubble.className).not.toContain('ml-auto');
-    expect(bubble.className).toContain('bg-neutral-100');
+    render(createElement(ChatBubble, { role: 'assistant', content: 'ответ' }));
+    const assistantBubble = screen.getByTestId('chat-bubble');
+    expect(assistantBubble.className).not.toContain('ml-auto');
+    expect(assistantBubble.className).toContain('bg-neutral-100');
   });
 });

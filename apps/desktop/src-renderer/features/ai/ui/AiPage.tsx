@@ -1,6 +1,6 @@
 /**
- * TASK-081 §4/§5 + TASK-088 §6: маршрут /ai — экран ИИ с ВКЛАДКАМИ «Разбор»/«Чат»/
- * «Модель» (§6 088: роутер /ai — вкладки; чат — TASK-090, плейсхолдер). Онбординг-
+ * TASK-081 §4/§5 + TASK-088 §6 + TASK-090: маршрут /ai — экран ИИ с ВКЛАДКАМИ «Разбор»/«Чат»/
+ * «Модель» (§6 088: роутер /ai — вкладки; экраны — свои задачи, чат реализует TASK-090). Онбординг-
  * паттерн (UC-07 A3) остаётся: баннер «ИИ не настроен» (НЕ модальный, role=status)
  * над вкладками с ссылкой «Настроить позже».
  *
@@ -19,6 +19,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { usePreferences } from '../../settings/model/use-preferences';
 import { useAiModels } from '../api/use-ai-models';
+import { ChatScreen } from './ChatScreen';
 import { InsightScreen } from './InsightScreen';
 import { ModelsScreen } from './ModelsScreen';
 
@@ -142,14 +143,8 @@ export function AiPage(): JSX.Element {
       {tab === 'insight' ? (
         <InsightScreen onGoToModel={() => setTab('model')} />
       ) : tab === 'chat' ? (
-        // Чат — TASK-090 (§6 088: вкладка уже, экран — своя задача).
-        <p
-          role="status"
-          data-testid="ai-chat-wip"
-          className="text-sm text-neutral-600 dark:text-neutral-300"
-        >
-          {t('ai.chat.wip')}
-        </p>
+        // Чат — TASK-090 (§6 088: вкладка владеет адресом; CTA → вкладка «Модель»).
+        <ChatScreen onGoToModel={() => setTab('model')} />
       ) : (
         <ModelsScreen />
       )}

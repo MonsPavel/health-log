@@ -165,8 +165,8 @@ const emit = (name: keyof HlEventMap, payload: unknown): void => {
   }
 };
 
-/** Баблы ленты (history + оптимистичная пара). */
-const bubbles = (): HTMLElement[] => screen.getAllByTestId('chat-bubble');
+/** Баблы ленты (history + оптимистичная пара); queryAll — пустая лента валидна. */
+const bubbles = (): HTMLElement[] => screen.queryAllByTestId('chat-bubble');
 
 const typeQuestion = async (text: string): Promise<HTMLTextAreaElement> => {
   const input = await screen.findByTestId('chat-input');
@@ -260,7 +260,8 @@ describe('ChatScreen — отправка вопроса (Enter + кнопка, 
 
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(payloadsOf('ai/chat/send')).toHaveLength(1));
-    expect(payloadsOf('ai/chat/send')[0]).toMatchObject({ question: 'Как менялось давление?\n' });
+    // trim на клиенте: оптимистичный бабл совпадает с сохранённым (схема канала тоже trim, §13 089).
+    expect(payloadsOf('ai/chat/send')[0]).toMatchObject({ question: 'Как менялось давление?' });
   });
 
   it('пустой вопрос → кнопка disabled (§13)', async () => {
@@ -280,6 +281,9 @@ describe('ChatScreen — отправка вопроса (Enter + кнопка, 
     await waitFor(() =>
       expect(payloadsOf('ai/chat/send')[0]).toMatchObject({ period: '7d' }),
     );
+    // Завершаем первый ход (финал без messageId — cancel): фаза idle, ввод активен.
+    emit('ai/chat/result', { requestId: 'r1' });
+    await waitFor(() => expect(bubbles()).toHaveLength(0));
 
     fireEvent.click(screen.getByTestId('chat-period-custom'));
     fireEvent.change(screen.getByTestId('filter-range-from'), { target: { value: '2026-03-01' } });
@@ -483,7 +487,8 @@ describe('ChatScreen — a11y-атрибуты (§16)', () => {
     expect(feed.getAttribute('role')).toBe('log');
     expect(feed.getAttribute('aria-live')).toBe('polite');
 
-    const input = screen.getByTestId('chat-input');
+    // Композер появляется после загрузки prefs/models (без вспышки, §5 081).
+    const input = await screen.findByTestId('chat-input');
     expect(screen.getByLabelText('Ваш вопрос')).toBe(input);
     // Дисклеймер-футер несъёмный (§5/§14).
     expect(screen.getByTestId('chat-disclaimer').textContent).toContain(
