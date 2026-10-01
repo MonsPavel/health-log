@@ -51,6 +51,7 @@ import { EvalLlamaEngine } from './llama-engine.js';
 import {
   renderEvalReport,
   reportFileName,
+  truncateFact,
   type EvalCaseResult,
   type EvalReport,
 } from './report.js';
@@ -286,7 +287,7 @@ export async function runEval(options: RunEvalOptions): Promise<EvalReport> {
         evalCase.expect.kind === 'refusal'
           ? `refusal(${evalCase.expect.refusalClass})`
           : evalCase.expect.kind,
-      fact: attempt.answer,
+      fact: truncateFact(attempt.answer),
       detail: attempt.verdict.reason,
       pass: attempt.verdict.pass,
       retried,
@@ -323,10 +324,12 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
     fake: false,
     noGuardrails: false,
   };
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
+  // pnpm передаёт разделитель `--` скрипту дословно — пропускаем его.
+  const rest = argv[0] === '--' ? argv.slice(1) : [...argv];
+  for (let index = 0; index < rest.length; index += 1) {
+    const arg = rest[index];
     if (arg === '--model') {
-      const value = argv[index + 1];
+      const value = rest[index + 1];
       if (value === undefined || value.startsWith('--')) {
         throw new Error('--model требует путь к GGUF');
       }
@@ -343,7 +346,7 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
       continue;
     }
     if (arg === '--out-dir') {
-      const value = argv[index + 1];
+      const value = rest[index + 1];
       if (value === undefined || value.startsWith('--')) {
         throw new Error('--out-dir требует каталог');
       }

@@ -5,7 +5,10 @@
     "noEmit": true,
     "composite": false,
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "paths": {
+      "@hl/*": ["./packages/*/src/index.ts"]
+    }
   },
   "include": [
     "vitest.shared.ts",
