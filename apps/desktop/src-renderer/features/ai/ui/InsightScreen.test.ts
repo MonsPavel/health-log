@@ -33,7 +33,9 @@ import { InsightScreen } from './InsightScreen';
 type InvokeMock = ReturnType<typeof vi.fn<(channel: string, payload: unknown) => Promise<unknown>>>;
 
 let invoke: InvokeMock;
-let eventListeners: Partial<Record<keyof HlEventMap, (payload: unknown) => void>>;
+// Мок моста хранит ВСЕ подписки на имя (реальный мост доставляет каждой) —
+// на экране их несколько (превью и latest слушают measurement:changed).
+let eventListeners: Partial<Record<keyof HlEventMap, Array<(payload: unknown) => void>>>;
 
 const OK = (data: unknown) => ({ v: 1, ok: true, data });
 const FAIL = (code: string, messageKey: string) => ({
@@ -164,7 +166,9 @@ const payloadsOf = (channel: string): unknown[] =>
 
 /** Токен/финал/статус активной генерации — в подписки моста (useHlEvent). */
 const emit = (name: keyof HlEventMap, payload: unknown): void => {
-  eventListeners[name]?.(payload);
+  for (const listener of eventListeners[name] ?? []) {
+    listener(payload);
+  }
 };
 
 beforeEach(() => {
@@ -176,8 +180,11 @@ beforeEach(() => {
     value: {
       invoke,
       on: vi.fn((name: keyof HlEventMap, listener: (payload: unknown) => void) => {
-        eventListeners[name] = listener;
-        return () => undefined;
+        const bucket = eventListeners[name] ?? (eventListeners[name] = []);
+        bucket.push(listener);
+        return () => {
+          eventListeners[name] = bucket.filter((entry) => entry !== listener);
+        };
       }),
     },
   });
@@ -210,6 +217,18 @@ describe('InsightScreen — превью контекста и тумблер з
     const setPayloads = payloadsOf('prefs/set');
     expect(setPayloads[0]).toMatchObject({
       patch: { aiSettings: { includeNotes: true, modelId: 'dev-placeholder-ru' } },
+    });
+  });
+
+  it('measurement:changed → превью перечитывается (§4: пользователь видит ТОЧНЫЙ текст ухода)', async () => {
+    renderScreen();
+    await screen.findByTestId('ai-context-preview');
+    const previewCallsBefore = payloadsOf('ai/context/preview').length;
+
+    emit('measurement:changed', { profileId: 'seed-profile-0001' });
+
+    await waitFor(() => {
+      expect(payloadsOf('ai/context/preview').length).toBeGreaterThan(previewCallsBefore);
     });
   });
 });

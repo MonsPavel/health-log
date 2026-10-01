@@ -92,18 +92,33 @@ async function fetchLatest(
   return result.data;
 }
 
-/** Превью контекста (§5/AC-5.5): точный текст проекции периода с текущими опциями. */
+/** Корень ключей превью (§12): точка инвалидаций по событиям данных. */
+export const AI_CONTEXT_PREVIEW_KEY_ROOT = ['ai-context-preview'] as const;
+
+/**
+ * Превью контекста (§5/AC-5.5): точный текст проекции периода с текущими опциями.
+ * События данных — refetch (§4 спеки: пользователь видит ТОЧНЫЙ текст, который
+ * уйдёт в модель — протухшее превью после правки журнала было бы ложью).
+ */
 export function useContextPreview(
   profileId: string,
   period: StatsPeriodParam,
   includeNotes: boolean,
 ) {
-  return useQuery({
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
     queryKey: ['ai-context-preview', profileId, period, includeNotes],
     queryFn: () => fetchPreview(profileId, period, includeNotes),
     placeholderData: keepPreviousData,
     staleTime: 0,
   });
+
+  useHlEvent('measurement:changed', () => {
+    void queryClient.invalidateQueries({ queryKey: AI_CONTEXT_PREVIEW_KEY_ROOT });
+  });
+
+  return query;
 }
 
 /** Сохранённый разбор периода + stale-флаг (§12); события данных — refetch (бейдж). */
