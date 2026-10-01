@@ -135,18 +135,27 @@ describe('SqliteChatRepository — chat_message v7 (TASK-089 §19)', () => {
 
   it('(5) clearAll очищает ВСЮ историю (все профили); повторный clear — ok (§13 идемпотентность)', async () => {
     const { db, repo } = await makeRepo('chat-clear.sqlite');
+    // Второй профиль — реальная строка profile (FK chat_message → profile, v7 DDL).
+    db.prepare('INSERT INTO profile (id, name, created_at_utc) VALUES (?, ?, ?)').run(
+      'other-profile',
+      'Другой',
+      1,
+    );
     await repo.append(message());
     await repo.append(message({ id: 'm-2', profileId: 'other-profile' }));
 
-    await repo.clearAll();
-    expect(await repo.listRecent(PROFILE, 10)).toEqual([]);
-    expect(await repo.listRecent('other-profile', 10)).toEqual([]);
-    const rows = db.prepare('SELECT count(*) AS n FROM chat_message').get() as { n: number };
-    expect(rows.n).toBe(0);
+    try {
+      await repo.clearAll();
+      expect(await repo.listRecent(PROFILE, 10)).toEqual([]);
+      expect(await repo.listRecent('other-profile', 10)).toEqual([]);
+      const rows = db.prepare('SELECT count(*) AS n FROM chat_message').get() as { n: number };
+      expect(rows.n).toBe(0);
 
-    // Повторный clear на пустой таблице — успех без ошибки (§13).
-    await expect(repo.clearAll()).resolves.toBeUndefined();
-    db.close();
+      // Повторный clear на пустой таблице — успех без ошибки (§13).
+      await expect(repo.clearAll()).resolves.toBeUndefined();
+    } finally {
+      db.close();
+    }
   });
 
   it('(6) мусорный refusal_class в БД трактуется как «нет пометки» (undefined, §8)', async () => {
