@@ -508,7 +508,9 @@ describe('createUpdatesCheckJob — авто-проверка на каркас�
 
   /** Fake prefs-store (§19, прецедент scheduler.test.ts) + мутабельные согласия. */
   const makeStore = (consents: NetConsents): { store: JobPrefsStore; patches: Prefs[] } => {
-    let current: Prefs = PREFS_SCHEMA.parse({ netConsents: consents });
+    // netConsents — ЖИВАЯ ссылка на объект консентов (parse копирует): в боевом
+    // графе и gateway, и задача читают один документ PreferencesService (§14).
+    let current: Prefs = { ...PREFS_SCHEMA.parse({}), netConsents: consents };
     const patches: Prefs[] = [];
     return {
       patches,
