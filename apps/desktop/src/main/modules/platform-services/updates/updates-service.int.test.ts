@@ -471,6 +471,9 @@ describe('wireElectronUpdater — конфиг и маппинг боевого 
     const listeners = new Map<string, ((...args: unknown[]) => void)[]>();
     return {
       autoDownload: true,
+      // Дефолт electron-updater 6.8.9 (AppUpdater.js:114) — эмулируем: quit-хендлер
+      // BaseUpdater.addQuitHandler ставит обновление молча, если флаг не выключен.
+      autoInstallOnAppQuit: true,
       disableWebInstaller: false,
       checkForUpdates: () => Promise.resolve(null),
       downloadUpdate: () => Promise.resolve([]),
@@ -488,11 +491,15 @@ describe('wireElectronUpdater — конфиг и маппинг боевого 
     };
   };
 
-  it('(AC3) конфиг: autoDownload=false, disableWebInstaller=true — никаких фоновых загрузок (§4/§14)', () => {
+  it('(AC3) конфиг: autoDownload=false, disableWebInstaller=true, autoInstallOnAppQuit=false — никаких фоновых загрузок И авто-установки на quit (§2/§4/§5/§14: установка только по явному действию)', () => {
     const updater = makeFakeUpdater();
     wireElectronUpdater(updater, silentLogger());
     expect(updater.autoDownload).toBe(false);
     expect(updater.disableWebInstaller).toBe(true);
+    // electron-updater ставит quit-хендлер после каждого скачивания
+    // (BaseUpdater.executeDownload→addQuitHandler): без false приложение молча
+    // установит обновление при обычном закрытии — мимо кнопки install (§13).
+    expect(updater.autoInstallOnAppQuit).toBe(false);
   });
 
   it('маппинг исхода: {isUpdateAvailable, updateInfo.version} → {available, version}; null → latest', async () => {
