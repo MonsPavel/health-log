@@ -127,15 +127,19 @@ class FakeInsightRepository implements InsightRepository {
     return Promise.resolve();
   }
 
-  latestForPeriod(profileId: string, period: SummaryPeriod): Promise<SummaryRecord | undefined> {
+  latestForPeriod(profileId: string, period: StatsPeriodParam): Promise<SummaryRecord | undefined> {
     let latest: SummaryRecord | undefined;
     for (const row of this.rows.values()) {
-      if (
+      // Сопоставление как в SqliteInsightRepository (§12/ревью): пресет/'all' — по
+      // каноническому periodParam, custom — по точным границам.
+      const matches =
         row.profileId === profileId &&
-        row.period.fromUtcMs === period.fromUtcMs &&
-        row.period.toUtcMs === period.toUtcMs &&
-        (latest === undefined || row.createdAtUtc > latest.createdAtUtc)
-      ) {
+        (typeof period === 'string'
+          ? row.periodParam === period
+          : row.periodParam === 'custom' &&
+            row.period.fromUtcMs === period.fromUtcMs &&
+            row.period.toUtcMs === period.toUtcMs);
+      if (matches && (latest === undefined || row.createdAtUtc > latest.createdAtUtc)) {
         latest = row;
       }
     }
@@ -351,6 +355,8 @@ describe('GenerateSummary — полный поток UC-03 (TASK-087 §19)', ()
     expect(record.modelVersion).toBe('1.0.0');
     expect(record.createdAtUtc).toBe(NOW_MS);
     expect(record.period).toEqual(EXPECTED_PERIOD_30D);
+    // Канонический параметр — ключ сопоставления latest (§12/ревью): пресет → сам пресет.
+    expect(record.periodParam).toBe('30d');
     // Инвариант §20 п.6: дисклеймер/период — отдельные поля, заполнены всегда.
     expect(record.disclaimerText).toBe(AI_SUMMARY_DISCLAIMER_TEXT);
     expect(record.periodText.length).toBeGreaterThan(0);
@@ -393,6 +399,7 @@ describe('GenerateSummary — полный поток UC-03 (TASK-087 §19)', ()
     await repo.save({
       id: 'cached-1',
       profileId: PROFILE,
+      periodParam: '30d',
       period: EXPECTED_PERIOD_30D,
       contextHash: 'h'.repeat(64),
       modelId: 'test-model',
@@ -418,19 +425,27 @@ describe('GenerateSummary — полный поток UC-03 (TASK-087 §19)', ()
     expect(events.filter((event) => event.name === 'ai/summary/result')).toHaveLength(1);
   });
 
-  it('(3) мутация → latest-чтение даёт stale=true (data_version записи старее текущего)', async () => {
+  it('(3) ревью: hit после мутации через use case → {cached:true, stale:true} (§19/§20 п.1, боевая ветка cache-hit)', async () => {
+    // Замечание ревью TASK-087: прежний тест (3) проверял арифметику ФИКСТУРЫ
+    // (ручное сравнение на fake-репозитории), а боевая ветка stale в cache-hit
+    // (generate-summary: cachedRecord.dataVersion < currentVersion) не была покрыта.
+    // Здесь — полный путь use case: generate (data_version захвачен) → «мутация
+    // данных» (счётчик вырос) → повторный execute → hit со stale=true.
     const { useCase, repo } = makeUseCase();
-    await useCase.execute(BASE_COMMAND);
+    const first = await useCase.execute(BASE_COMMAND);
+    expect(first.cached).toBe(false);
     const record = onlyRecord(repo);
-    expect(record.dataVersion).toBe(1);
+    expect(record.dataVersion).toBe(1); // текущий счётчик на момент save
 
-    // «Мутация данных»: счётчик вырос, запись не перезаписывалась (§7 — stale при чтении).
-    repo.currentVersion = 2;
-    const latest = await repo.latestForPeriod(PROFILE, EXPECTED_PERIOD_30D);
-    if (latest === undefined) {
-      throw new Error('latest не найден');
-    }
-    expect(latest.dataVersion < (await repo.currentDataVersion())).toBe(true);
+    repo.currentVersion = 2; // «мутация данных»: add/update/delete двигают счётчик (§13)
+    const second = await useCase.execute({ ...BASE_COMMAND, requestId: 'req-2' });
+
+    expect(second).toEqual({
+      requestId: 'req-2',
+      summaryId: record.id,
+      cached: true,
+      stale: true, // data_version записи (1) < текущего (2) — бейдж «обновите разбор»
+    });
   });
 
   it('(4) cancel → done(cancelled): записи нет, финал без summaryId, токены остановлены (§20 п.4)', async () => {
@@ -577,15 +592,18 @@ describe('GenerateSummary — полный поток UC-03 (TASK-087 §19)', ()
     expect(outcome.summaryId).toBeDefined();
     const record = onlyRecord(repo);
     expect(record.period).toEqual({ fromUtcMs: from, toUtcMs: NOW_MS });
+    // Custom сопоставляется latest по границам — параметр 'custom' (§12/ревью).
+    expect(record.periodParam).toBe('custom');
     // tz 180 → настенные даты по Clock (§17: RU-подпись main).
     expect(record.periodText).toMatch(/^\d{2}\.\d{2}\.\d{4}–\d{2}\.\d{2}\.\d{4}$/);
   });
 
-  it("(12) 'all' → границы-сентинелы (0..now), periodText «весь журнал»", async () => {
+  it("(12) 'all' → границы-сентинелы (0..now), periodText «весь журнал», параметр 'all'", async () => {
     const { useCase, repo } = makeUseCase({ contextHash: 'a'.repeat(64) });
     await useCase.execute({ ...BASE_COMMAND, period: 'all' });
     const record = onlyRecord(repo);
     expect(record.period).toEqual({ fromUtcMs: 0, toUtcMs: NOW_MS });
+    expect(record.periodParam).toBe('all');
     expect(record.periodText).toBe('весь журнал наблюдений');
   });
 

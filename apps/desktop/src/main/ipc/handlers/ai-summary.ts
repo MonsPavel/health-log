@@ -7,12 +7,16 @@
  * = ApiFailure, §9), генерирует requestId (ключ корреляции ai:token/финала),
  * стартует execute В ФОНЕ (отказ — лог с кодом, без текста: контекст/ответ PHI,
  * §14; UI живёт по событиям ai:status) и мгновенно отвечает {requestId}.
+ * Реестр контроллеров освобождается на ЛЮБОМ исходе фона (finally — ревью
+ * TASK-087: success тоже финализация; иначе cancel по завершённому requestId
+ * отвечал {cancelled:true} на протухшем контроллере, Map рос без предела).
  * Отмена — `ai/cancel` {requestId} → abort сигнала команды (реестр контроллеров
  * общий с generate; незнакомый id — {cancelled: false}, идемпотентность §13 076).
  *
- * `ai/summary/latest` (§12): границы периода — resolveSummaryPeriod (ТОТ ЖЕ код,
- * что у use case: без дрейфа пресетов/сентинелов), чтение latest + stale-флаг
- * (data_version записи против текущего, §7) — бейдж рендерер получает готовым.
+ * `ai/summary/latest` (§12): сопоставление периода — забота ПОРТА (пресет/'all' —
+ * по каноническому period_param, custom — по границам; ревью TASK-087), здесь —
+ * чтение latest + stale-флаг (data_version записи против текущего, §7) — бейдж
+ * рендерер получает готовым.
  *
  * PHI (§14): requestId/summaryId — идентификаторы (события/лог), текст контекста и
  * ответа в лог не пишется; DTO latest содержит contentMd — только владельцу в ответе.
@@ -28,7 +32,7 @@ import type {
   AiSummaryLatestRequest,
   AiSummaryLatestResponse,
 } from '@hl/contracts';
-import { AppError, type Clock } from '@hl/kernel';
+import { AppError } from '@hl/kernel';
 
 import type {
   GenerateSummary,
@@ -39,7 +43,6 @@ import type {
   InsightRepository,
   SummaryRecord,
 } from '../../modules/ai-insight/application/ports/insight-repository.js';
-import { resolveSummaryPeriod } from '../../modules/ai-insight/application/generate-summary.js';
 
 /** Минимальная поверхность логгера хендлеров (§18; HlLogger ей удовлетворяет). */
 export interface AiSummaryHandlerLogger {
@@ -113,15 +116,22 @@ export function createAiSummaryGenerateHandler(
     };
     // Фоновый запуск (arch. 05 §3): отказ не роняет main и не теряется — лог с кодом
     // (AppError.code — не PHI); события стрима/финала — забота use case (§11).
-    void generate.execute(command).catch((error: unknown) => {
-      registry.release(requestId);
-      const code = error instanceof AppError ? error.code : 'APP/INTERNAL';
-      logger?.warn('ai/summary/generate failed', {
-        requestId,
-        code,
-        durationMs: Math.round(performance.now() - startedAtMs),
+    // РЕЛИЗ реестра — на ЛЮБОМ исходе фона (ревью TASK-087): успех — тоже финализация;
+    // release только в .catch оставлял протухший контроллер (cancel по завершённому
+    // requestId отвечал {cancelled:true} против контракта канала) и растил Map.
+    void generate
+      .execute(command)
+      .catch((error: unknown) => {
+        const code = error instanceof AppError ? error.code : 'APP/INTERNAL';
+        logger?.warn('ai/summary/generate failed', {
+          requestId,
+          code,
+          durationMs: Math.round(performance.now() - startedAtMs),
+        });
+      })
+      .finally(() => {
+        registry.release(requestId);
       });
-    });
     return Promise.resolve({ requestId });
   };
 }
@@ -152,12 +162,13 @@ function toDto(record: SummaryRecord): AiSummaryDto {
 /** Фабрика хендлера `ai/summary/latest` (§12): latest по периоду + готовый stale-флаг. */
 export function createAiSummaryLatestHandler(
   repo: InsightRepository,
-  clock: Clock,
 ): (payload: AiSummaryLatestRequest) => Promise<AiSummaryLatestResponse> {
   return async ({ profileId, period }) => {
-    // ТЕ ЖЕ правила границ, что у use case (§12: без дрейфа пресетов/сентинелов).
-    const resolved = resolveSummaryPeriod(period, clock);
-    const record = await repo.latestForPeriod(profileId, resolved.period);
+    // Сопоставление периода — забота порта (ревью TASK-087): пресет/'all' — по
+    // каноническому period_param записи (границы пресета «двигаются» вместе с now
+    // момента генерации — точное равенство границ между generate и latest
+    // недостижимо), custom — по явным стабильным границам.
+    const record = await repo.latestForPeriod(profileId, period);
     if (record === undefined) {
       return undefined;
     }

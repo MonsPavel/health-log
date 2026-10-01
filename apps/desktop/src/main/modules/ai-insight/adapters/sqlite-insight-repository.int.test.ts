@@ -5,11 +5,13 @@
 //
 // Матрица:
 //  1. save → findByContextHash возвращает запись целиком (все поля §7, включая
-//     служебные disclaimerText/periodText и dataVersion);
+//     periodParam, служебные disclaimerText/periodText и dataVersion);
 //  2. findByContextHash скоупится по профилю: тот же hash чужого профиля — undefined;
 //     нет записи — undefined (не throw, §7);
-//  3. latestForPeriod: новейшая по (created_at_utc DESC, id DESC) среди совпавших
-//     границ периода; чужой период/пустая таблица — undefined;
+//  3. latestForPeriod (§12/ревью TASK-087): пресет/'all' сопоставляется по
+//     каноническому period_param (границы записи — метаданные, «движутся» с now
+//     момента генерации), custom — по точным границам; новейшая по
+//     (created_at_utc DESC, id DESC); чужой период/профиль/пустая таблица — undefined;
 //  4. deleteAll очищает таблицу (кнопка «Очистить разборы», §8);
 //  5. currentDataVersion читает meta.data_version (v1 сеет '1'); изменение строки
 //     meta (bump мутаций данных) порт видит — основа stale-расчёта §7;
@@ -52,6 +54,7 @@ const PROFILE = 'seed-profile-0001';
 const record = (over: Partial<SummaryRecord> = {}): SummaryRecord => ({
   id: 's-1',
   profileId: PROFILE,
+  periodParam: 'custom',
   period: { fromUtcMs: 1000, toUtcMs: 2000 },
   contextHash: 'a'.repeat(64),
   modelId: 'test-model',
@@ -86,18 +89,60 @@ describe('SqliteInsightRepository — ai_summary v6 (TASK-087 §19)', () => {
     db.close();
   });
 
-  it('(3) latestForPeriod — новейшая по created_at_utc DESC среди совпавших границ; чужой период — undefined', async () => {
+  it('(3) latestForPeriod: пресет по period_param (границы записи — метаданные), custom по границам; чужой период — undefined', async () => {
     const { db, repo } = await makeRepo('insight-latest.sqlite');
-    await repo.save(record({ id: 's-old', contextHash: 'a'.repeat(64), createdAtUtc: 1000 }));
-    await repo.save(record({ id: 's-new', contextHash: 'b'.repeat(64), createdAtUtc: 9000 }));
+    // Пресет '30d': границы записи — от now момента ГЕНЕРАЦИИ (T1=1000..2000).
     await repo.save(
-      record({ id: 's-other', contextHash: 'c'.repeat(64), period: { fromUtcMs: 5, toUtcMs: 6 } }),
+      record({
+        id: 's-old',
+        periodParam: '30d',
+        period: { fromUtcMs: 1000, toUtcMs: 2000 },
+        contextHash: 'a'.repeat(64),
+        createdAtUtc: 1000,
+      }),
+    );
+    await repo.save(
+      record({
+        id: 's-new',
+        periodParam: '30d',
+        period: { fromUtcMs: 1000, toUtcMs: 2000 },
+        contextHash: 'b'.repeat(64),
+        createdAtUtc: 9000,
+      }),
+    );
+    // Другой пресет и custom — не матчатся '30d'.
+    await repo.save(
+      record({
+        id: 's-7d',
+        periodParam: '7d',
+        period: { fromUtcMs: 5000, toUtcMs: 6000 },
+        contextHash: 'c'.repeat(64),
+      }),
+    );
+    await repo.save(
+      record({
+        id: 's-custom',
+        periodParam: 'custom',
+        period: { fromUtcMs: 7000, toUtcMs: 8000 },
+        contextHash: 'd'.repeat(64),
+      }),
     );
 
-    const latest = await repo.latestForPeriod(PROFILE, { fromUtcMs: 1000, toUtcMs: 2000 });
-    expect(latest?.id).toBe('s-new');
-    expect(await repo.latestForPeriod(PROFILE, { fromUtcMs: 777, toUtcMs: 888 })).toBeUndefined();
-    expect(await repo.latestForPeriod('ghost', { fromUtcMs: 1000, toUtcMs: 2000 })).toBeUndefined();
+    // Ревью TASK-087: сопоставление по каноническому параметру — запрос при ДРУГОМ now
+    // (запрос шлёт только '30d', никаких границ) находит запись, чьи границы от T1.
+    const latest = await repo.latestForPeriod(PROFILE, '30d');
+    expect(latest?.id).toBe('s-new'); // новейшая по created_at_utc DESC
+    expect(latest?.period).toEqual({ fromUtcMs: 1000, toUtcMs: 2000 }); // метаданные T1
+
+    // Чужой пресет — мимо; custom ищется ТОЛЬКО по точным границам.
+    expect(await repo.latestForPeriod(PROFILE, '90d')).toBeUndefined();
+    expect(await repo.latestForPeriod(PROFILE, 'all')).toBeUndefined();
+    const custom = await repo.latestForPeriod(PROFILE, { fromUtcMs: 7000, toUtcMs: 8000 });
+    expect(custom?.id).toBe('s-custom');
+    // Границы «двинувшегося» пресета НЕ матчатся custom-запросом (пресет ≠ custom).
+    expect(await repo.latestForPeriod(PROFILE, { fromUtcMs: 1000, toUtcMs: 2000 })).toBeUndefined();
+    // Чужой профиль — мимо (скоуп §3).
+    expect(await repo.latestForPeriod('ghost', '30d')).toBeUndefined();
     db.close();
   });
 
@@ -108,6 +153,7 @@ describe('SqliteInsightRepository — ai_summary v6 (TASK-087 §19)', () => {
 
     await repo.deleteAll();
     expect(await repo.findByContextHash(PROFILE, 'a'.repeat(64))).toBeUndefined();
+    expect(await repo.latestForPeriod(PROFILE, '30d')).toBeUndefined();
     expect(await repo.latestForPeriod(PROFILE, { fromUtcMs: 1000, toUtcMs: 2000 })).toBeUndefined();
     db.close();
   });
@@ -127,7 +173,7 @@ describe('SqliteInsightRepository — ai_summary v6 (TASK-087 §19)', () => {
   it('(6) порт асинхронный — методы возвращают Promise (контракт порта)', async () => {
     const { db, repo } = await makeRepo('insight-async.sqlite');
     expect(repo.findByContextHash(PROFILE, 'a'.repeat(64))).toBeInstanceOf(Promise);
-    expect(repo.latestForPeriod(PROFILE, { fromUtcMs: 1, toUtcMs: 2 })).toBeInstanceOf(Promise);
+    expect(repo.latestForPeriod(PROFILE, '30d')).toBeInstanceOf(Promise);
     expect(repo.currentDataVersion()).toBeInstanceOf(Promise);
     expect(repo.deleteAll()).toBeInstanceOf(Promise);
     db.close();

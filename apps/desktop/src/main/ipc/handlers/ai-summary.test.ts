@@ -14,7 +14,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { AppError, type Clock } from '@hl/kernel';
+import { AppError } from '@hl/kernel';
 
 import {
   createAiSummaryCancelHandler,
@@ -34,7 +34,6 @@ import type {
 } from '../../modules/ai-insight/application/ports/insight-repository.js';
 
 const NOW_MS = 1_758_816_000_000;
-const CLOCK: Clock = { nowMs: () => NOW_MS, tzOffsetMin: () => 180 };
 const PROFILE = 'seed-profile-0001';
 
 /** Stub use case: управляемый execute + isBusy. */
@@ -192,18 +191,37 @@ describe('ai/cancel — хендлер (TASK-087 §5 п.5)', () => {
     expect(await cancel({ requestId: 'ghost' })).toEqual({ cancelled: false });
     expect(await cancel({ requestId: 'ghost' })).toEqual({ cancelled: false });
   });
+
+  it('(5b) ревью: cancel ПОСЛЕ успешного финала → {cancelled: false} (реестр освобождён, не протухший контроллер)', async () => {
+    const useCase = new StubGenerateSummary();
+    const registry = new AiSummaryRequestRegistry();
+    const generate = createAiSummaryGenerateHandler(useCase, registry);
+    const cancel = createAiSummaryCancelHandler(registry);
+
+    const { requestId } = await generate({ profileId: PROFILE, period: '7d', includeNotes: false });
+    useCase.settleAll(); // фон завершился УСПЕХОМ
+    // Детерминированный flush микрофиналов фоновой цепочки (execute → finally → release).
+    // ВАЖНО: cancel мутирует реестр (abort удаляет запись), поэтому poll на нём невозможен —
+    // первый же cancel «вылечил» бы баг, скрыв протухший контроллер.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    // Реестр обязан освободиться финалом use case (успех — тоже финализация).
+    expect(await cancel({ requestId })).toEqual({ cancelled: false });
+    // Повторный — тоже мимо (идемпотентность §13).
+    expect(await cancel({ requestId })).toEqual({ cancelled: false });
+  });
 });
 
 describe('ai/summary/latest — хендлер стейлс-бейджа (TASK-087 §12)', () => {
   it('(6) нет записи → undefined; есть → {summary: DTO, stale} по data_version (§7)', async () => {
     const repo = new FakeRepo();
-    const handler = createAiSummaryLatestHandler(repo, CLOCK);
+    const handler = createAiSummaryLatestHandler(repo);
 
     expect(await handler({ profileId: PROFILE, period: '7d' })).toBeUndefined();
 
     repo.record = {
       id: 's-1',
       profileId: PROFILE,
+      periodParam: '7d',
       period: { fromUtcMs: NOW_MS - 7 * 86_400_000, toUtcMs: NOW_MS },
       contextHash: 'a'.repeat(64),
       modelId: 'm',

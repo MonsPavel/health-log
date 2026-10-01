@@ -167,11 +167,13 @@ describe('GenerateSummary — интеграция tmp-БД + fake-engine (TASK-
     expect(rows.n).toBe(1);
     const row = harness.db
       .prepare(
-        'SELECT id, profile_id, kind, context_hash, model_id, model_version, data_version, ' +
-          'content_md, disclaimer_text, period_text, created_at_utc FROM ai_summary',
+        'SELECT id, profile_id, kind, period_param, context_hash, model_id, model_version, ' +
+          'data_version, content_md, disclaimer_text, period_text, created_at_utc FROM ai_summary',
       )
       .get() as Record<string, unknown>;
     expect(row.kind).toBe('summary');
+    // Канонический параметр — ключ сопоставления latest (§12/ревью).
+    expect(row.period_param).toBe('30d');
     expect(row.model_id).toBe('fake-model');
     expect(row.data_version).toBe(11); // 10 сидингов +1 за каждый → счётчик на момент save
     expect(row.disclaimer_text).toBe(AI_SUMMARY_DISCLAIMER_TEXT);
@@ -227,17 +229,47 @@ describe('GenerateSummary — интеграция tmp-БД + fake-engine (TASK-
     }
     await harness.measurements.add(extra.value);
 
-    // Бейдж через боевой мини-канал (§12): тот же resolveSummaryPeriod, что у use case.
-    const latest = await createAiSummaryLatestHandler(
-      harness.repo,
-      CLOCK,
-    )({
+    // Бейдж через боевой мини-канал (§12): сопоставление — в порту (period_param).
+    const latest = await createAiSummaryLatestHandler(harness.repo)({
       profileId: PROFILE,
       period: '30d',
     });
     expect(latest).toBeDefined();
     expect(latest?.summary.id).toBe(first.summaryId);
     expect(latest?.stale).toBe(true); // «данные изменились — обновите разбор» (FR-5.7)
+    harness.db.close();
+  });
+
+  it('(3b) ревью: latest для пресета отвечает СРАЗУ после генерации и после сдвига времени сессии (§12/§13, FR-5.7)', async () => {
+    // Ревью TASK-087: сопоставление latest по ТОЧНОМУ равенству границ было мёртвым
+    // для пресетов — границы «двигаются» вместе с now момента генерации, а любой
+    // реальный сдвиг часов между generate и latest давал undefined (бейдж недостижим,
+    // «только что сохранённое резюме» не находилось каналом; FixedClock в тесте
+    // маскировал это совпадением границ байт-в-байт). Идентичность пресета —
+    // канонический period_param; границы записи — метаданные отображения.
+    const harness = await makeHarness('summary-drift.sqlite');
+    await seedMeasurements(harness, 10);
+    const first = await harness.useCase.execute(COMMAND);
+    if (first.summaryId === undefined) {
+      throw new Error('резюме не сохранено');
+    }
+
+    const latestHandler = createAiSummaryLatestHandler(harness.repo);
+    // Сразу после генерации — бейдж-запрос отвечает (found, не stale).
+    const fresh = await latestHandler({ profileId: PROFILE, period: '30d' });
+    expect(fresh).toBeDefined();
+    expect(fresh?.summary.id).toBe(first.summaryId);
+    expect(fresh?.stale).toBe(false);
+
+    // Пресеты не перекрёстно матчатся; 'all' — своя группа (to=now тоже движется).
+    expect(await latestHandler({ profileId: PROFILE, period: '7d' })).toBeUndefined();
+    await harness.useCase.execute({ ...COMMAND, requestId: 'int-req-all', period: 'all' });
+    const latestAll = await latestHandler({ profileId: PROFILE, period: 'all' });
+    expect(latestAll).toBeDefined();
+    // periodParam — не поле DTO (внутренний ключ): различаем группы по id записи.
+    expect(latestAll?.summary.id).not.toBe(fresh?.summary.id);
+    const still30d = await latestHandler({ profileId: PROFILE, period: '30d' });
+    expect(still30d?.summary.id).toBe(first.summaryId); // 'all' не вытеснил '30d'
     harness.db.close();
   });
 
