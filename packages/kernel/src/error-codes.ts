@@ -36,6 +36,10 @@ export const ERROR_CODES = [
   // в режиме passphrase до unlock — состояние locked (§9/§12; управление — TASK-094).
   'VAULT/WRONG_PASSPHRASE',
   'VAULT/LOCKED',
+  // TASK-094 §4/§13: экспоненциальный rate-limit unlock (VaultService) — попытка в
+  // окне backoff отклоняется ДО проверки пароля (перебор непрактичен, §3); остаток
+  // ожидания — params {backoffSec} для текста «Подождите N с» (§17).
+  'VAULT/RATE_LIMITED',
   // TASK-024 §5/§20: migration runner — сбой миграции (rollback, схема осталась на
   // предыдущей версии; params {version}); БД записана более новой версией приложения
   // (schema_version > известного) — явная ошибка «обновите приложение» (EC-25).

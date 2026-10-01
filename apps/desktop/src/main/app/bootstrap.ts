@@ -22,6 +22,7 @@ import {
 import { benchChannelsEnabled, createBenchSeedHandler } from '../ipc/handlers/bench-seed.js';
 import { installChannelBridge } from '../ipc/register-channel.js';
 import { createLogger, initFileLogging } from '../shared/logger/logger.js';
+import { AUTOLOCK_CHECK_INTERVAL_MS } from '../modules/security/application/vault-service.js';
 
 /**
  * Инициализация логирования (TASK-010 §9): bootstrap → whenReady → getPath('logs') →
@@ -90,10 +91,25 @@ if (gotSingleInstanceLock) {
   /** Собранный контейнер; если сборка не состоялась — закрывать нечего (§13). */
   let container: Container | undefined;
 
+  /**
+   * TASK-094 §5/§9: живой таймер проверки автоблока (интервал 30 с). Зовёт
+   * vaultService.checkAutolock() НАПРЯМУЮ, а не через scheduler.tick — прогон через
+   * тик писал бы jobState в prefs каждые 30 с: событие prefs:changed → рендерер
+   * перечитывает prefs → IPC-вызов → активность → простой никогда не накопился бы
+   * (решение зафиксировано в шапке vault-service.ts). checkAutolock при locked —
+   * no-op до чтения prefs (§3: фоновые задачи ничего не читают БД); отказ чтения
+   * prefs изолирован внутри. Останавливается на will-quit (чистый выход тестов/e2e).
+   */
+  let autolockTimer: NodeJS.Timeout | undefined;
+
   // TASK-027 §8: graceful shutdown — WAL-чекпоинт (TRUNCATE) и закрытие БД на выходе:
   // чистое отсутствие -wal/-shm после выхода (NFR-2-гигиена). Сборка не состоялась —
   // close не вызывается (контейнер не создан); повторный will-quit — no-op в close.
   app.on('will-quit', () => {
+    if (autolockTimer !== undefined) {
+      clearInterval(autolockTimer);
+      autolockTimer = undefined;
+    }
     container?.close();
   });
 
@@ -165,6 +181,13 @@ if (gotSingleInstanceLock) {
       .catch((cause: unknown) => {
         createLogger('app').warn('scheduler: tick при старте не удался', { cause });
       });
+    // TASK-094 §5/§9: запуск живого таймера автоблока (проверка каждые 30 с;
+    // сам lock — внутри VaultService по порту Clock, детерминированно в тестах).
+    autolockTimer = setInterval(() => {
+      void container?.vaultService.checkAutolock().catch((cause: unknown) => {
+        createLogger('app').warn('vault: тик автоблока не удался', { cause });
+      });
+    }, AUTOLOCK_CHECK_INTERVAL_MS);
   });
 }
 

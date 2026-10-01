@@ -3,8 +3,13 @@
  * Порядок обработки вызова — §13:
  *  (1) канал существует? — иначе лог + APP/INTERNAL наружу;
  *  (2) payload валиден по zod-схеме? — иначе VALIDATION/FAILED (handler не вызывается);
+ *  (2.5) TASK-094: secure-канал при locked? — VAULT/LOCKED ДО handler (гвардия
+ *        requireUnlocked, ЕДИНАЯ обёртка §7/§11/§14: обход = ревью-блокер);
  *  (3) handler → конверт {ok:true,data} / AppError → {ok:false,error:toDto};
  *  (4) неизвестное исключение → лог с cause (только main-лог, §18), наружу APP/INTERNAL.
+ *
+ * TASK-094 §9 (idle-трекер): любой валидный транспортный запрос hl.* обновляет
+ * lastActivity (onActivity — один патч каркаса; VaultService продлевает окно автоблока).
  *
  * Транспорт: один канал `hl:invoke` (contracts.HL_INVOKE_CHANNEL), в который preload
  * кладёт {channel, payload} — у Electron нет hook на invoke незарегистрированного
@@ -17,6 +22,7 @@ import {
   apiFailure,
   apiSuccess,
   APP_INTERNAL_ERROR,
+  VAULT_LOCKED_ERROR,
   VALIDATION_FAILED_ERROR,
   HL_INVOKE_CHANNEL,
   HL_INVOKE_REQUEST_SCHEMA,
@@ -74,12 +80,22 @@ function serializedLength(value: unknown): number | undefined {
 interface RegisteredChannel {
   readonly schemas: ChannelSchemas<unknown, unknown>;
   readonly handler: ChannelHandler<unknown, unknown>;
+  /** TASK-094 §11: secure-канал — гвардится requireUnlocked при locked (VAULT/LOCKED). */
+  readonly secure: boolean;
 }
 
 /** Опции фабрики реестра (для тестов); isDev по умолчанию — индикатор dev-скрипта. */
 export interface ChannelRegistryOptions {
   /** §13 create-window: индикатор dev-режима — наличие ELECTRON_RENDERER_URL. */
   readonly isDev?: boolean;
+  /**
+   * TASK-094 §7/§11: состояние сессии для гвардии requireUnlocked (false — сессия
+   * заблокирована). undefined — гвардия не активна (обратная совместимость).
+   * Боевой — VaultService.isUnlocked (контейнер).
+   */
+  readonly isUnlocked?: () => boolean;
+  /** TASK-094 §9: idle-трекер — вызывается на КАЖДЫЙ валидный транспортный запрос. */
+  readonly onActivity?: () => void;
 }
 
 /** Фабрика реестра: чистая (без Electron) — интеграционные тесты гоняют её напрямую (§19). */
@@ -98,6 +114,8 @@ export function createChannelRegistry(
       channels.set(name, {
         schemas,
         handler: handler as ChannelHandler<unknown, unknown>,
+        // TASK-094 §11: secure-флаг из реестра контрактов — БД-канал (инвентарь AC5).
+        secure: schemas.secure === true,
       });
     },
 
@@ -108,6 +126,10 @@ export function createChannelRegistry(
         logger.error('битый запрос к транспортному каналу', { error: transport.error.message });
         return apiFailure(APP_INTERNAL_ERROR);
       }
+
+      // TASK-094 §9: любое обращение рендерера — пользовательское действие
+      // (окно автоблока продлевается до разбора канала).
+      options.onActivity?.();
 
       // (1) канал существует?
       const channel = transport.data.channel as ChannelName;
@@ -121,6 +143,12 @@ export function createChannelRegistry(
       const parsed = entry.schemas.request.safeParse(transport.data.payload);
       if (!parsed.success) {
         return apiFailure(VALIDATION_FAILED_ERROR);
+      }
+
+      // (2.5) TASK-094 §7/§11/§14: гвардия requireUnlocked — ЕДИНАЯ точка: secure-канал
+      // при locked отклоняется ДО handler (side-эффектов и чтений закрытой БД нет).
+      if (entry.secure && options.isUnlocked !== undefined && !options.isUnlocked()) {
+        return apiFailure(VAULT_LOCKED_ERROR);
       }
 
       // §11: лимит payload 5 МБ — dev-предупреждение по валидированному payload.

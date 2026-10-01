@@ -127,6 +127,8 @@ export class PreferencesService {
       netConsents: validPatch.netConsents ?? current.netConsents,
       jobState: validPatch.jobState ?? current.jobState,
       aiSettings: validPatch.aiSettings ?? current.aiSettings,
+      // TASK-094 §5: порог автоблока (5|15|60|0) — UI настроек защиты (095).
+      autoLockMin: validPatch.autoLockMin ?? current.autoLockMin,
     };
 
     // 3. Валидация результата (§9): инвариант, defensive-ветка (APP/INTERNAL).

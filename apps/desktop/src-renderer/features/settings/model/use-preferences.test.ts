@@ -34,6 +34,8 @@ const DEFAULT_PREFS: Prefs = {
   jobState: { jobs: {}, shown: {} },
   // TASK-081: aiSettings — выбранной модели нет, «настроить позже» не нажат.
   aiSettings: { dismissed: false, includeNotes: false },
+  // TASK-094: порог автоблока — новое поле документа (дефолт схемы 5).
+  autoLockMin: 5,
 };
 
 const OK_ENVELOPE = (data: unknown) => ({ v: 1, ok: true, data });

@@ -201,6 +201,112 @@ describe('register — дисциплина реестра (§9)', () => {
   });
 });
 
+// TASK-094 §7/§11/§14: гвардия requireUnlocked — ЕДИНАЯ обёртка каркаса: канал,
+// помеченный secure: true в реестре контрактов, отклоняется ДО вызова хендлера,
+// пока сессия заблокирована; идемпотентный idle-трекер — любой валидный вызов
+// hl.* обновляет lastActivity (§9, один патч каркаса).
+describe('гвардия requireUnlocked и idle-трекер (TASK-094 §7/§9/§11, AC5)', () => {
+  const secureSchemas = {
+    request: z.object({}).strict(),
+    response: z.object({ value: z.string() }).strict(),
+    secure: true,
+  };
+
+  it('secure-канал при locked: конверт VAULT/LOCKED, хендлер НЕ вызывается (§7/§14)', async () => {
+    const { logger, error } = fakeLogger();
+    const handler = vi.fn(() => ({ value: 'данные' }));
+    const registry = createChannelRegistry(logger, {
+      isDev: false,
+      isUnlocked: () => false,
+    });
+    registry.register(testChannel('test/db'), secureSchemas, handler);
+
+    await expect(registry.dispatch({ channel: 'test/db', payload: {} })).resolves.toEqual({
+      v: API_ENVELOPE_VERSION,
+      ok: false,
+      error: { code: 'VAULT/LOCKED', messageKey: 'errors.VAULT_LOCKED' },
+    });
+    expect(handler).not.toHaveBeenCalled();
+    // Ожидаемая ветка гвардии — не «необработанная ошибка» (§18).
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('secure-канал при unlocked: хендлер вызывается (guard прозрачен)', async () => {
+    const logger = fakeLogger();
+    const handler = vi.fn(() => ({ value: 'данные' }));
+    const registry = createChannelRegistry(logger.logger, {
+      isDev: false,
+      isUnlocked: () => true,
+    });
+    registry.register(testChannel('test/db'), secureSchemas, handler);
+
+    await expect(registry.dispatch({ channel: 'test/db', payload: {} })).resolves.toEqual({
+      v: API_ENVELOPE_VERSION,
+      ok: true,
+      data: { value: 'данные' },
+    });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('канал без secure-флага не гвардится (vault/* доступны при locked)', async () => {
+    const logger = fakeLogger();
+    const handler = vi.fn(() => ({ value: 'ok' }));
+    const registry = createChannelRegistry(logger.logger, {
+      isDev: false,
+      isUnlocked: () => false,
+    });
+    registry.register(testChannel('test/open'), echoSchemas, handler);
+
+    await expect(
+      registry.dispatch({ channel: 'test/open', payload: { value: 'x' } }),
+    ).resolves.toEqual({ v: API_ENVELOPE_VERSION, ok: true, data: { value: 'ok' } });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('без isUnlocked в опциях гвардия не активна (обратная совместимость тестов каркаса)', async () => {
+    const logger = fakeLogger();
+    const handler = vi.fn(() => ({ value: 'данные' }));
+    const registry = createChannelRegistry(logger.logger, { isDev: false });
+    registry.register(testChannel('test/db'), secureSchemas, handler);
+
+    await expect(registry.dispatch({ channel: 'test/db', payload: {} })).resolves.toEqual({
+      v: API_ENVELOPE_VERSION,
+      ok: true,
+      data: { value: 'данные' },
+    });
+  });
+
+  it('валидация payload идёт ДО гвардии (невалидный payload при locked — VALIDATION/FAILED)', async () => {
+    const logger = fakeLogger();
+    const registry = createChannelRegistry(logger.logger, {
+      isDev: false,
+      isUnlocked: () => false,
+    });
+    registry.register(testChannel('test/db'), secureSchemas, () => ({ value: 'x' }));
+
+    await expect(registry.dispatch({ channel: 'test/db', payload: { extra: 1 } })).resolves.toEqual(
+      { v: API_ENVELOPE_VERSION, ok: false, error: VALIDATION_FAILED_ERROR },
+    );
+  });
+
+  it('idle-трекер: любой валидный запрос hl.* вызывает onActivity (§9 — один патч каркаса)', async () => {
+    const logger = fakeLogger();
+    const onActivity = vi.fn();
+    const registry = createChannelRegistry(logger.logger, { isDev: false, onActivity });
+    registry.register(testChannel('test/echo'), echoSchemas, (payload) => payload);
+
+    await registry.dispatch({ channel: 'test/echo', payload: { value: 'раз' } });
+    await registry.dispatch({ channel: 'test/echo', payload: { value: 'два' } });
+    await registry.dispatch({ channel: 'test/nope', payload: {} }); // неизвестный канал — тоже активность
+    await registry.dispatch({ channel: 'test/echo', payload: { extra: 1 } }); // невалидный payload — тоже
+    expect(onActivity).toHaveBeenCalledTimes(4);
+
+    // Битый транспортный запрос (не hl.*-форма) активностью не считается.
+    await registry.dispatch({ payload: {} });
+    expect(onActivity).toHaveBeenCalledTimes(4);
+  });
+});
+
 describe('лимит payload 5 МБ (§5/§11: dev-режим — предупреждение в лог, не отказ)', () => {
   const bigSchemas = {
     request: z.object({ blob: z.string() }).strict(),
