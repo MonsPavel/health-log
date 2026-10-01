@@ -24,6 +24,7 @@
     "check:i18n": "node tools/scripts/check-i18n.mjs",
     "bench:chart": "tsx tools/scripts/bench-chart.mjs",
     "bench:pdf": "tsx tools/scripts/bench-pdf.mjs",
+    "eval": "tsx tools/eval/runner.ts",
     "export:golden-csv": "tsx tools/scripts/export-golden-csv.mjs",
     "export:golden-pdf": "tsx tools/scripts/export-golden-pdf.mjs",
     "depcruise": "depcruise . --config",

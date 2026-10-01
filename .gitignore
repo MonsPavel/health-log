@@ -26,3 +26,6 @@ tools/bench-results/
 
 # TASK-063 §24: golden-CSV для ручной Excel-проверки (артефакт ручной, в репо не входит)
 tools/export-samples/
+
+# TASK-091 §18: eval-отчёты runner «красного набора» (артефакт ручной, в репо не входит)
+tools/eval/reports/

@@ -224,6 +224,8 @@ interface HarnessOptions {
   readonly stats?: PeriodStatisticsDto;
   readonly modelId?: string;
   readonly engine?: LlmEngine;
+  /** TASK-091 §9: test-hook отключения эшелонов 2/3 (eval). */
+  readonly guardrailsEnabled?: boolean;
 }
 
 /** Сборка use case с fake-зависимостями + ручки наблюдения. */
@@ -260,6 +262,7 @@ function makeUseCase(options: HarnessOptions = {}): {
     logger,
     locale: 'ru',
     dataVersion: () => Promise.resolve(dataVersion.value),
+    guardrailsEnabled: options.guardrailsEnabled,
   });
   return { useCase, repo, engine, context, events, guardLog, logs, dataVersion };
 }
@@ -672,3 +675,47 @@ function makeSummaryUseCase(engine: LlmEngine): GenerateSummary {
     locale: 'ru',
   });
 }
+
+/**
+ * TASK-091 §9: test-hook guardrailsEnabled — параметр конструктора, дефолт true;
+ * false отключает эшелоны 2/3 (префильтр 086 + пост-фильтр 085) ТОЛЬКО внутри
+ * eval-процесса (контрольный --no-guardrails); в проде контейнер опцию не
+ * экспонирует (§14 — тест-сверка в tools/eval/runner.int.test.ts).
+ */
+describe('AskChat — test-hook guardrailsEnabled (TASK-091 §9)', () => {
+  it('guardrailsEnabled=false: refusal-вопрос идёт в LLM — пара сохранена без refusal_class', async () => {
+    const { useCase, repo, engine } = makeUseCase({ guardrailsEnabled: false });
+    const controlled = engine as ControlledEngine;
+    const pending = useCase.execute({
+      ...BASE_COMMAND,
+      question: 'Какие таблетки мне принять?',
+    });
+    await vi.waitFor(() => expect(controlled.completeCalls.length).toBe(1));
+
+    // Ответ модели намеренно небезопасен: с выключенным guard он доходит до пользователя.
+    controlled.push({ delta: 'Принимайте 5 мг препарата.' });
+    controlled.push({ done: 'stop' });
+    const outcome = await pending;
+
+    expect(outcome.messageId).toBeDefined();
+    const [user, assistant] = lastPair(repo);
+    expect(user.content).toBe('Какие таблетки мне принять?');
+    expect(assistant.content).toBe(`Принимайте 5 мг препарата.${FOOTER}`);
+    expect(assistant.refusalClass).toBeUndefined();
+  });
+
+  it('по умолчанию guardrails включены: тот же вопрос → отказ-пара без вызова движка', async () => {
+    const { useCase, repo, engine } = makeUseCase();
+    const completeSpy = vi.spyOn(engine, 'complete');
+
+    const outcome = await useCase.execute({
+      ...BASE_COMMAND,
+      question: 'Какие таблетки мне принять?',
+    });
+
+    expect(outcome.messageId).toBeDefined();
+    expect(completeSpy).not.toHaveBeenCalled();
+    const [, assistant] = lastPair(repo);
+    expect(assistant.refusalClass).toBe('treatment');
+  });
+});

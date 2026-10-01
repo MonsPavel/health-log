@@ -5,7 +5,10 @@
     "noEmit": true,
     "composite": false,
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "paths": {
+      "@hl/*": ["./packages/*/src/index.ts"]
+    }
   },
   "include": [
     "vitest.shared.ts",
@@ -16,6 +19,7 @@
     "apps/desktop/src/main/**/*.test.ts",
     "apps/desktop/playwright.config.ts",
     "apps/desktop/tests/e2e/**/*.ts",
-    "tools/scripts/**/*.ts"
+    "tools/scripts/**/*.ts",
+    "tools/eval/**/*.ts"
   ]
 }

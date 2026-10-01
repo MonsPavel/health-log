@@ -173,6 +173,13 @@ export interface GenerateSummaryDeps {
   readonly logger?: GenerateSummaryLogger;
   /** Локаль номеров экстренных служб для префильтра (§14 086); нет — ru. */
   readonly locale?: string;
+  /**
+   * TASK-091 §9: TEST-ONLY отключение эшелонов 2/3 (префильтр 086 + пост-фильтр
+   * 085) для контрольного режима eval (--no-guardrails — проверка чувствительности
+   * механизма). Дефолт true; боевой контейнер опцию не передаёт и не экспонирует
+   * (§14 091: в проде guardrails всегда включены).
+   */
+  readonly guardrailsEnabled?: boolean;
 }
 
 /** Разрешённый период записи: границы (метаданные) + подпись + канонический параметр. */
@@ -237,11 +244,18 @@ export function resolveSummaryPeriod(
 export class GenerateSummary {
   private readonly deps: GenerateSummaryDeps;
 
+  /**
+   * Эшелоны 2/3 включены (TASK-091 §9): false — только eval-процесс; боевой
+   * контейнер дефолт не переопределяет.
+   */
+  private readonly guardrailsEnabled: boolean;
+
   /** Слот генерации (§9): undefined — свободен; второй execute до финала → AI/BUSY. */
   private activeRequest: string | undefined;
 
   constructor(deps: GenerateSummaryDeps) {
     this.deps = deps;
+    this.guardrailsEnabled = deps.guardrailsEnabled ?? true;
   }
 
   /**
@@ -276,10 +290,13 @@ export class GenerateSummary {
       });
 
       // (2) Префильтр 086 (см. шапку: для резюме срабатывает порог малых данных).
-      const precheck = this.deps.precheck.check(SUMMARY_SERVICE_QUESTION, {
-        stats: context.stats,
-        locale: this.deps.locale,
-      });
+      // TASK-091 §9: guardrailsEnabled=false — эшелон пропускается (только eval).
+      const precheck = this.guardrailsEnabled
+        ? this.deps.precheck.check(SUMMARY_SERVICE_QUESTION, {
+            stats: context.stats,
+            locale: this.deps.locale,
+          })
+        : undefined;
       if (precheck !== undefined) {
         // Отказ-резюме НЕ сохраняется (решение §5): мгновенный стрим шаблона.
         this.deps.notify('ai:token', { requestId: command.requestId, text: precheck.text });
@@ -366,7 +383,10 @@ export class GenerateSummary {
       }
 
       // Пост-фильтр 085 (§9: вызов один раз после завершения стрима).
-      const guardResult = this.deps.guard.check(answer);
+      // TASK-091 §9: guardrailsEnabled=false — эшелон пропускается (только eval).
+      const guardResult = this.guardrailsEnabled
+        ? this.deps.guard.check(answer)
+        : ({ action: 'pass' } as const);
       if (guardResult.action === 'replace') {
         // Решение §9: replace-ответ «не резюме» — НЕ сохраняется; в стриме пользователь
         // уже видел исходный текст, фиксация исхода — финал без summaryId (§14: лог
