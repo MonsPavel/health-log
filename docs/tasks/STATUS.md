@@ -121,4 +121,4 @@
 | TASK-113 | todo | | |
 | TASK-114 | todo | | |
 | TASK-115 | todo | | |
-| TASK-116 | todo | | |
+| TASK-116 | done | | смержена вручную 01.10: корневой tsc 137 ошибок → 0 (53 файла, type-only), счётчики тестов прежние (267ф/2843+4skip), gate+lint зелёные; отступление от §5 — 3 eslint-disable prefer-promise-reject-errors (прецедент llm-process-client, AppError не Error по TASK-006); НАХОДКА: зеркало типов classifier — домен шире пакета по code (string vs union ScaleCategoryCode), тест ослаблен до toExtend, решение о строгом зеркале — отдельно |
