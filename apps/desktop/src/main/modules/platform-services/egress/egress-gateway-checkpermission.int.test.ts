@@ -38,6 +38,12 @@ import { EgressGateway } from './egress-gateway.js';
 
 const dirs: string[] = [];
 
+afterAll(() => {
+  for (const dir of dirs) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 const makeFakeWindow = (): {
   target: BroadcastTarget;
   envelopes: { channel: string; envelope: unknown }[];
@@ -87,7 +93,9 @@ const makeFixture = async (): Promise<Fixture> => {
   return { db, gateway, envelopes, consents };
 };
 
-const journalRows = (db: EncryptedDatabase): {
+const journalRows = (
+  db: EncryptedDatabase,
+): {
   kind: string;
   endpoint: string;
   status: string;

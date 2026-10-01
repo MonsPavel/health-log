@@ -38,9 +38,9 @@ describe('updates/* — схемы каналов (TASK-096 §5/§11)', () => {
   it('updates/download: запрос {} — загрузка покрывается согласием updatesCheck (§5 РЕШЕНИЕ); ответ — та же форма статуса (§23: одна схема, прецедент report/export-*)', () => {
     expect(UPDATES_DOWNLOAD_REQUEST_SCHEMA.safeParse({}).success).toBe(true);
     expect(UPDATES_DOWNLOAD_REQUEST_SCHEMA.safeParse({ modelId: 'x' }).success).toBe(false);
-    expect(UPDATES_STATUS_RESPONSE_SCHEMA.safeParse({ status: 'ready', version: '2.0.0' }).success).toBe(
-      true,
-    );
+    expect(
+      UPDATES_STATUS_RESPONSE_SCHEMA.safeParse({ status: 'ready', version: '2.0.0' }).success,
+    ).toBe(true);
   });
 
   it('updates/install: запрос {}; ответ {restarting: true} — literal (§5: приложение уходит в перезапуск)', () => {

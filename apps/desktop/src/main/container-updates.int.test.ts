@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { ok, FixedClock, type AppError, type Result } from '@hl/kernel';
+import { AppError, ok, FixedClock, type Result } from '@hl/kernel';
 
 import { buildContainer } from './container.js';
 import {
@@ -31,7 +31,10 @@ import {
   type KeyVault,
   type WrappedKeyBlob,
 } from './modules/security/application/ports/key-vault.js';
-import { UpdatesService, type UpdatesAdapter } from './modules/platform-services/updates/updates-service.js';
+import {
+  UpdatesService,
+  type UpdatesAdapter,
+} from './modules/platform-services/updates/updates-service.js';
 
 const KEY_HEX = 'ab'.repeat(32);
 const NOW_MS = 1_758_816_000_000;
@@ -84,21 +87,23 @@ class FakeAdapter implements UpdatesAdapter {
   downloadCalls = 0;
   installCalls = 0;
 
-  async getFeedUrl(): Promise<string> {
-    return FEED_URL;
+  getFeedUrl(): Promise<string> {
+    return Promise.resolve(FEED_URL);
   }
 
-  async checkForUpdates(): Promise<{ available: boolean }> {
+  checkForUpdates(): Promise<{ available: boolean }> {
     this.checkCalls += 1;
-    return { available: false };
+    return Promise.resolve({ available: false });
   }
 
-  async downloadUpdate(): Promise<void> {
+  downloadUpdate(): Promise<void> {
     this.downloadCalls += 1;
+    return Promise.resolve();
   }
 
-  async quitAndInstall(): Promise<void> {
+  quitAndInstall(): Promise<void> {
     this.installCalls += 1;
+    return Promise.resolve();
   }
 
   onAvailable(): void {
@@ -154,9 +159,10 @@ describe('container + UpdatesService (TASK-096 §9/§19/§20)', () => {
       expect(envelope.error.code).toBe('NET/BLOCKED_BY_POLICY');
     }
     expect(adapter.checkCalls).toBe(0);
-    const rows = container.db
-      .prepare('SELECT kind, status FROM network_event')
-      .all() as { kind: string; status: string }[];
+    const rows = container.db.prepare('SELECT kind, status FROM network_event').all() as {
+      kind: string;
+      status: string;
+    }[];
     expect(rows).toEqual([{ kind: 'updates.check', status: 'blocked' }]);
   });
 
@@ -190,7 +196,10 @@ describe('container + UpdatesService (TASK-096 §9/§19/§20)', () => {
   });
 
   it('(AC6) updates/install без скачанного → конверт отказа UPD/NOT_READY; quitAndInstall не вызван', async () => {
-    const envelope = await container!.channels.dispatch({ channel: 'updates/install', payload: {} });
+    const envelope = await container!.channels.dispatch({
+      channel: 'updates/install',
+      payload: {},
+    });
 
     expect(envelope.ok).toBe(false);
     if (!envelope.ok) {

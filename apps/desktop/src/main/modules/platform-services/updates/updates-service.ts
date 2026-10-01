@@ -47,13 +47,10 @@
  * не требуется: подпись/фид — TASK-104, ошибка проверки — исход канала, не состояние.
  */
 import { AppError, type Clock } from '@hl/kernel';
-import { NET_BLOCKED_BY_POLICY_MESSAGE_KEY, EgressGateway, type EgressNotify } from '../egress/egress-gateway.js';
+import { NET_BLOCKED_BY_POLICY_MESSAGE_KEY } from '../egress/egress-policy.js';
+import { EgressGateway, type EgressNotify } from '../egress/egress-gateway.js';
 import type { HlLogger } from '../../../shared/logger/logger.js';
-import type {
-  JobCtx,
-  JobDefinition,
-  JobShowAction,
-} from '../../../shared/scheduler/scheduler.js';
+import type { JobCtx, JobDefinition, JobShowAction } from '../../../shared/scheduler/scheduler.js';
 import type { UpdatesInstallResponse, UpdatesStatusResponse } from '@hl/contracts';
 
 /** Имя сетевой операции белого списка (EgressPolicy 075) и журнала (§18). */
@@ -73,13 +70,7 @@ export const UPDATES_AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 /** Состояние обновления в снапшоте статуса (§7 — единый снимок для UI). */
 export type UpdateState =
-  | 'idle'
-  | 'checking'
-  | 'available'
-  | 'latest'
-  | 'downloading'
-  | 'ready'
-  | 'error';
+  'idle' | 'checking' | 'available' | 'latest' | 'downloading' | 'ready' | 'error';
 
 /** Снапшот статуса обновления (§7): state + версия/прогресс, когда есть. */
 export interface UpdateStatus {
@@ -178,6 +169,7 @@ export class UpdatesService {
     const permission = await this.deps.gateway.checkPermission(UPDATES_CHECK_OP);
     if (!permission.allowed) {
       // §13: без согласия — blocked (запись уже в журнале gateway'ем).
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт §7, прецедент sqlite.ts)
       throw AppError.of('NET/BLOCKED_BY_POLICY', NET_BLOCKED_BY_POLICY_MESSAGE_KEY, {
         op: UPDATES_CHECK_OP,
       });
@@ -224,6 +216,7 @@ export class UpdatesService {
     }
     const permission = await this.deps.gateway.checkPermission(UPDATES_CHECK_OP);
     if (!permission.allowed) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт §7, прецедент sqlite.ts)
       throw AppError.of('NET/BLOCKED_BY_POLICY', NET_BLOCKED_BY_POLICY_MESSAGE_KEY, {
         op: UPDATES_CHECK_OP,
       });
@@ -253,6 +246,7 @@ export class UpdatesService {
    */
   async install(): Promise<UpdatesInstallResponse> {
     if (this.status.state !== 'ready') {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт §7, прецедент sqlite.ts)
       throw AppError.of('UPD/NOT_READY', UPD_NOT_READY_MESSAGE_KEY);
     }
     await this.deps.adapter.quitAndInstall();
@@ -313,14 +307,17 @@ function versionOf(info: unknown): string | undefined {
  * КОНФИГ (AC3): autoDownload=false — никаких фоновых загрузок; disableWebInstaller=
  * true — веб-инсталлятор выключен. События пробрасываются подписчикам сервиса.
  */
-export function wireElectronUpdater(updater: ElectronUpdaterLike, logger: HlLogger): UpdatesAdapter {
+export function wireElectronUpdater(
+  updater: ElectronUpdaterLike,
+  logger: HlLogger,
+): UpdatesAdapter {
   updater.autoDownload = false; // §4/§14: ручной режим целиком
   updater.disableWebInstaller = true; // §4: веб-инсталлятор выключен
   logger.debug('updater wired: ручной режим (autoDownload=false, disableWebInstaller=true)');
   return {
-    async getFeedUrl(): Promise<string> {
+    getFeedUrl(): Promise<string> {
       const url = updater.getFeedURL();
-      return typeof url === 'string' ? url : '';
+      return Promise.resolve(typeof url === 'string' ? url : '');
     },
     async checkForUpdates(): Promise<UpdateCheckOutcome> {
       const result = (await updater.checkForUpdates()) as {
@@ -335,8 +332,9 @@ export function wireElectronUpdater(updater: ElectronUpdaterLike, logger: HlLogg
     async downloadUpdate(): Promise<void> {
       await updater.downloadUpdate();
     },
-    async quitAndInstall(): Promise<void> {
+    quitAndInstall(): Promise<void> {
       updater.quitAndInstall();
+      return Promise.resolve();
     },
     onAvailable(listener: (version: string) => void): void {
       updater.on('update-available', (...args: unknown[]) => {
@@ -390,6 +388,7 @@ export function createDefaultUpdatesAdapter(logger: HlLogger): UpdatesAdapter {
       if (autoUpdater === undefined) {
         // Не Electron-рантайм (node-vitest/тесты) — честный отказ при ВЫЗОВЕ,
         // не тихий сбой (прецедент createDefaultVault VAULT/UNAVAILABLE).
+        // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (контракт §7, прецедент sqlite.ts)
         throw AppError.of('APP/INTERNAL', 'errors.internal', { reason: 'updater-unavailable' });
       }
       const adapter = wireElectronUpdater(autoUpdater, logger);

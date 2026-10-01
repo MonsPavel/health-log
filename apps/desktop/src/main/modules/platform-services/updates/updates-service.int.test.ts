@@ -25,7 +25,11 @@ import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite
 import { MigrationRunner } from '../../../shared/db/migration-runner.js';
 import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
 import { EgressGateway } from '../egress/egress-gateway.js';
-import { JobScheduler, type JobPrefsStore, type JobShowSink } from '../../../shared/scheduler/scheduler.js';
+import {
+  JobScheduler,
+  type JobPrefsStore,
+  type JobShowSink,
+} from '../../../shared/scheduler/scheduler.js';
 import {
   UPD_NOT_READY_MESSAGE_KEY,
   UPDATES_AUTO_CHECK_INTERVAL_MS,
@@ -42,6 +46,12 @@ const dirs: string[] = [];
 const FEED_URL = 'https://releases.example.com/latest';
 const T0 = 1_758_816_000_000;
 const MINUTE_MS = 60_000;
+
+afterAll(() => {
+  for (const dir of dirs) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 const makeFakeWindow = (): {
   target: BroadcastTarget;
@@ -72,6 +82,8 @@ class FakeUpdatesAdapter implements UpdatesAdapter {
   private checkImpl: () => Promise<UpdateCheckOutcome> = () =>
     Promise.resolve({ available: false });
   private downloadImpl: () => Promise<void> = () => Promise.resolve();
+  private checkFailure: Error | undefined;
+  private downloadFailure: Error | undefined;
   private readonly listeners = {
     available: [] as ((version: string) => void)[],
     notAvailable: [] as (() => void)[],
@@ -81,23 +93,27 @@ class FakeUpdatesAdapter implements UpdatesAdapter {
   };
 
   setCheckOutcome(outcome: UpdateCheckOutcome): void {
+    this.checkFailure = undefined;
     this.checkImpl = () => Promise.resolve(outcome);
   }
 
-  setCheckFailure(cause: unknown): void {
-    this.checkImpl = () => Promise.reject(cause);
+  setCheckFailure(cause: Error): void {
+    this.checkFailure = cause;
   }
 
-  setDownloadFailure(cause: unknown): void {
-    this.downloadImpl = () => Promise.reject(cause);
+  setDownloadFailure(cause: Error): void {
+    this.downloadFailure = cause;
   }
 
-  async getFeedUrl(): Promise<string> {
-    return FEED_URL;
+  getFeedUrl(): Promise<string> {
+    return Promise.resolve(FEED_URL);
   }
 
   async checkForUpdates(): Promise<UpdateCheckOutcome> {
     this.checkCalls += 1;
+    if (this.checkFailure !== undefined) {
+      return Promise.reject(this.checkFailure);
+    }
     const outcome = await this.checkImpl();
     if (outcome.available && outcome.version !== undefined) {
       this.lastAvailableVersion = outcome.version;
@@ -110,13 +126,17 @@ class FakeUpdatesAdapter implements UpdatesAdapter {
 
   async downloadUpdate(): Promise<void> {
     this.downloadCalls += 1;
+    if (this.downloadFailure !== undefined) {
+      throw this.downloadFailure;
+    }
     await this.downloadImpl();
     this.fireProgress(100);
     this.fireDownloaded(this.lastAvailableVersion ?? '0.0.0');
   }
 
-  async quitAndInstall(): Promise<void> {
+  quitAndInstall(): Promise<void> {
     this.installCalls += 1;
+    return Promise.resolve();
   }
 
   onAvailable(listener: (version: string) => void): void {
@@ -213,7 +233,9 @@ const makeFixture = async (consents: NetConsents): Promise<Fixture> => {
   };
 };
 
-const journalRows = (db: EncryptedDatabase): {
+const journalRows = (
+  db: EncryptedDatabase,
+): {
   kind: string;
   endpoint: string;
   status: string;
@@ -275,7 +297,9 @@ describe('UpdatesService — проверка за согласием (TASK-096 
     ]);
     expect(eventNames(fx.envelopes)).toContain('update:available');
     expect(
-      fx.envelopes.find((envelope) => (envelope.envelope as { name: string }).name === 'update:available'),
+      fx.envelopes.find(
+        (envelope) => (envelope.envelope as { name: string }).name === 'update:available',
+      ),
     ).toEqual({
       channel: HL_EVENT_CHANNEL,
       envelope: { name: 'update:available', payload: { version: '1.2.3' } },
@@ -525,7 +549,9 @@ describe('createUpdatesCheckJob — авто-проверка на каркас�
     };
   };
 
-  const makeSchedulerDeps = (store: JobPrefsStore): {
+  const makeSchedulerDeps = (
+    store: JobPrefsStore,
+  ): {
     store: JobPrefsStore;
     sink: JobShowSink;
     logger: { info: () => void; error: () => void };
