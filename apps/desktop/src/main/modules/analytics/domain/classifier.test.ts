@@ -353,11 +353,10 @@ describe('classify — контракт типов (§5) и зеркала @hl/s
     >();
   });
 
-  it('типы домена — совместимое зеркало типов пакета (дрейф ловит компилятор)', () => {
-    // НАХОДКА TASK-116: домен намеренно шире пакета по code (string против union
-    // ScaleCategoryCode) — новый код категории в пакете не ломает домен; обратная
-    // совместимость «данные пакета удовлетворяют поверхности домена» = toExtend.
-    expectTypeOf<ScaleData['categories'][number]>().toExtend<ScaleCategory>();
+  it('типы домена — точное структурное зеркало типов пакета (дрейф ловит компилятор)', () => {
+    // TASK-117: зеркало снова строгое — доменный ScaleCategoryCode переобъявлен
+    // union'ом пакета; расхождение в любую сторону красит этот тест.
+    expectTypeOf<ScaleData['categories'][number]>().toEqualTypeOf<ScaleCategory>();
     expectTypeOf<ScaleData['homeBPNote']>().toEqualTypeOf<string>();
     expectTypeOf<ScaleData['specialGroupsNote']>().toEqualTypeOf<string>();
   });
