@@ -89,8 +89,8 @@ describe('renderEvalReport — markdown-отчёт (§5/§20 AC4)', () => {
     expect(reportFileName(sampleReport())).toBe('2026-10-01-Llama-3.2-1B-Instruct-Q4_K_M.gguf.md');
     // Модель-плейсхолдер (fake-режим без --model) — доспускается слаг 'fake'.
     expect(reportFileName(sampleReport({ modelId: '' }))).toBe('2026-10-01-fake.md');
-    // Символы пути в имени модели нейтрализуются.
-    expect(reportFileName(sampleReport({ modelId: 'a/b\\c:d' }))).toBe('2026-10-01-a-b-c-d.md');
+    // Для пути модели берётся basename — разделители определяют каталоги (§18).
+    expect(reportFileName(sampleReport({ modelId: 'a/b\\c:d' }))).toBe('2026-10-01-d.md');
   });
 });
 
