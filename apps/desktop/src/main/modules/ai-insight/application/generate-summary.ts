@@ -58,6 +58,7 @@ import { DEFAULT_GUARDRAIL_POLICY } from '../domain/guardrail-policy.js';
 import type {
   InsightRepository,
   SummaryPeriod,
+  SummaryPeriodParam,
   SummaryRecord,
 } from './ports/insight-repository.js';
 import { llmEngineBusyError, type LlmEngine } from './ports/llm-engine.js';
@@ -174,12 +175,18 @@ export interface GenerateSummaryDeps {
   readonly locale?: string;
 }
 
-/** Разрешённый период + подпись (единый источник для use case и latest-хендлера §12). */
+/** Разрешённый период записи: границы (метаданные) + подпись + канонический параметр. */
 export interface ResolvedSummaryPeriod {
-  /** Границы записи (сентинелы ∞ — см. шапку). */
+  /** Границы записи (метаданные отображения; сентинелы ∞ — см. шапку). */
   readonly period: SummaryPeriod;
   /** Подпись «Период анализа» (§17): в system prompt 084 и в запись. */
   readonly periodText: string;
+  /**
+   * Канонический идентификатор периода ('7d'|'30d'|'90d'|'all'|'custom') — ключ
+   * сопоставления latest (§12/ревью): пресетные границы «двигаются» вместе с now
+   * момента генерации, идентичность пресета — сам параметр, не байты границ.
+   */
+  readonly periodParam: SummaryPeriodParam;
 }
 
 /** Настенная дата 'DD.MM.YYYY' момента в собственном поясе приложения (§17). */
@@ -190,9 +197,10 @@ function wallDateOf(utcMs: number, tzOffsetMin: number): string {
 }
 
 /**
- * Разрешение периода (§7/§13): пресет — от now (Clock), custom — как есть, 'all' —
- * сентинелы {0, now}. Подпись — RU-константа пресета либо диапазон настенных дат.
- * Чистая функция времени — переиспользуется latest-хендлером (§12, без дрейфа).
+ * Разрешение периода (§7/§13): пресет — границы от now (Clock), custom — как есть,
+ * 'all' — сентинелы {0, now}. Подпись — RU-константа пресета либо диапазон настенных
+ * дат. periodParam — канонический параметр (ключ latest; ревью TASK-087: сопоставление
+ * latest идёт по нему для пресетов/'all', НЕ по байтам границ).
  */
 export function resolveSummaryPeriod(
   period: StatsPeriodParam,
@@ -200,18 +208,24 @@ export function resolveSummaryPeriod(
 ): ResolvedSummaryPeriod {
   const nowMs = clock.nowMs();
   if (period === 'all') {
-    return { period: { fromUtcMs: 0, toUtcMs: nowMs }, periodText: ALL_PERIOD_LABEL };
+    return {
+      period: { fromUtcMs: 0, toUtcMs: nowMs },
+      periodText: ALL_PERIOD_LABEL,
+      periodParam: 'all',
+    };
   }
   if (typeof period === 'string') {
     return {
       period: { fromUtcMs: nowMs - PRESET_DAYS[period] * MS_PER_DAY, toUtcMs: nowMs },
       periodText: PRESET_LABELS[period],
+      periodParam: period,
     };
   }
   const tz = clock.tzOffsetMin();
   return {
     period: { fromUtcMs: period.fromUtcMs, toUtcMs: period.toUtcMs },
     periodText: `${wallDateOf(period.fromUtcMs, tz)}–${wallDateOf(period.toUtcMs, tz)}`,
+    periodParam: 'custom',
   };
 }
 
@@ -372,6 +386,7 @@ export class GenerateSummary {
       const record: SummaryRecord = {
         id: uuidV7(),
         profileId: command.profileId,
+        periodParam: resolved.periodParam,
         period: resolved.period,
         contextHash: context.contextHash,
         modelId: meta.modelId,

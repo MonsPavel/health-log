@@ -1133,7 +1133,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     channels.register(
       'ai/summary/latest',
       CHANNEL_SCHEMAS['ai/summary/latest'],
-      createAiSummaryLatestHandler(insightRepo, clock),
+      createAiSummaryLatestHandler(insightRepo),
     );
     channels.register(
       'ai/cancel',

@@ -14,26 +14,38 @@
  * currentDataVersion читает тот же meta.data_version, что bump'ают мутации
  * measurement (адаптер — прямой SELECT, без связки с чужим модулем).
  *
+ * СОПОСТАВЛЕНИЕ latest (§12/ревью TASK-087): пресетные периоды ('7d'|'30d'|'90d'|
+ * 'all') идентичны ПАРАМЕТРОМ (periodParam записи), не границам — границы пресета
+ * «двигаются» вместе с now момента генерации, точное равенство границ между
+ * generate и latest недостижимо при любом сдвиге часов. Custom-период идентичен
+ * своими явными границами (renderer шлёт готовые utcMs — они стабильны).
+ *
  * deleteAll — «Очистить разборы» (§8): необратимая очистка КЭША резюме, данные
  * дневника не трогает.
  */
+import type { StatsPeriodParam } from '@hl/contracts';
 import type { Instant } from '@hl/kernel';
 
 /** Границы периода записи (§7 «period»): разрешённые границы запроса контекста. */
 export interface SummaryPeriod {
-  /** Нижняя граница (включительно); 'all'/to=∞ — 0-сентинел (см. шапку generate-summary). */
+  /** Нижняя граница (включительно); 'all' — сентинел 0 (см. шапку generate-summary). */
   readonly fromUtcMs: number;
-  /** Верхняя граница (включительно); ∞ — nowMs момента генерации. */
+  /** Верхняя граница (включительно); ∞/пресеты — nowMs момента генерации. */
   readonly toUtcMs: number;
 }
 
-/** Запись кэша ИИ-резюме (§7 дословно). */
+/** Канонический идентификатор периода записи (ключ сопоставления latest — см. шапку). */
+export type SummaryPeriodParam = '7d' | '30d' | '90d' | 'all' | 'custom';
+
+/** Запись кэша ИИ-резюме (§7 дословно + periodParam — ключ сопоставления latest). */
 export interface SummaryRecord {
   /** uuid v7 (конвенция id агрегатов, §5). */
   readonly id: string;
   /** Профиль-владелец (принудительный скоуп, арх. 08 §3). */
   readonly profileId: string;
-  /** Разрешённые границы периода (метаданные latest-запроса §12). */
+  /** Канонический параметр периода ('7d'|'30d'|'90d'|'all'|'custom') — ключ latest. */
+  readonly periodParam: SummaryPeriodParam;
+  /** Разрешённые границы периода (метаданные отображения: «что реально запрашивалось»). */
   readonly period: SummaryPeriod;
   /** SHA-256 canonical-строки 083 — кэш-ключ (FR-5.7). */
   readonly contextHash: string;
@@ -69,11 +81,12 @@ export interface InsightRepository {
   save(record: SummaryRecord): Promise<void>;
 
   /**
-   * Новейшая запись (created_at_utc DESC, tie-break id DESC) профиля с ТОЧНО
-   * совпавшими границами периода (§12: бейдж «данные изменились» для текущего
-   * вида периода); нет — undefined.
+   * Новейшая запись (created_at_utc DESC, tie-break id DESC) профиля для ЗАПРОШЕННОГО
+   * периода (§12: бейдж «данные изменились» для текущего вида периода). Пресет/
+   * 'all' сопоставляется по каноническому параметру (см. шапку), custom — по точным
+   * границам; нет — undefined.
    */
-  latestForPeriod(profileId: string, period: SummaryPeriod): Promise<SummaryRecord | undefined>;
+  latestForPeriod(profileId: string, period: StatsPeriodParam): Promise<SummaryRecord | undefined>;
 
   /** Очистить ВСЕ резюме (кнопка «Очистить разборы», §8); идемпотентен. */
   deleteAll(): Promise<void>;
