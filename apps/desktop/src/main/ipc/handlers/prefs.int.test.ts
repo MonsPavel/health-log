@@ -74,6 +74,9 @@ class MockVault implements KeyVault {
     return Promise.resolve(ok(undefined));
   }
 
+  // TASK-094 §5: сброс сессии в mode=none — no-op (мок; см. порт key-vault).
+  lock(): void {}
+
   getMode(): 'none' {
     return 'none';
   }

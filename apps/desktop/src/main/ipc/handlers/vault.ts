@@ -6,10 +6,7 @@
  * {backoffSec} — текст «Подождите N с», §17) / ошибки порта 093. Пароль в ответах
  * и логах не появляется (§14).
  */
-import type {
-  ChannelRequest,
-  ChannelResponse,
-} from '@hl/contracts';
+import type { ChannelRequest, ChannelResponse } from '@hl/contracts';
 
 import type { VaultService } from '../../modules/security/application/vault-service.js';
 
@@ -23,9 +20,7 @@ export function createVaultStatusHandler(
 /** Фабрика хендлера `vault/unlock` (§5): успех — {ok: true}, неудача — AppError. */
 export function createVaultUnlockHandler(
   service: VaultService,
-): (
-  payload: ChannelRequest<'vault/unlock'>,
-) => Promise<ChannelResponse<'vault/unlock'>> {
+): (payload: ChannelRequest<'vault/unlock'>) => Promise<ChannelResponse<'vault/unlock'>> {
   return async (payload) => {
     const result = await service.unlock(payload.pass);
     if (!result.ok) {

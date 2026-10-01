@@ -34,10 +34,10 @@
  * состояние рендерер уточняет vault/status при старте (§12) — доставка at-most-once.
  *
  * БЕЗОПАСНОСТЬ (§14): backoff «серверный» — считается в main по порту Clock, UI-таймер
- * не доверенный; лог неудачи — attempts/backoffSec БЕЗ пароля (§18). Ключ БД остаётся
- * в кэше адаптера vault (порт 093, время жизни экземпляра): путь повторного открытия
- * проходит через unlock(pass) — пароль проверяется по файлу; прямых вызовов
- * openDatabase вне сервиса граф не содержит, гвардия requireUnlocked каркаса —
+ * не доверенный; лог неудачи — attempts/backoffSec БЕЗ пароля (§18). При lock кэш
+ * ключа адаптера vault сбрасывается (порт 093, метод lock) — путь повторного
+ * открытия проходит через unlock(pass) с ПОЛНОЙ проверкой пароля по файлу; прямых
+ * вызовов openDatabase вне сервиса граф не содержит, гвардия requireUnlocked каркаса —
  * единая точка доступа рендерера (§14: обход = ревью-блокер), а закрытое соединение
  * недоступно и через прокси (VAULT/LOCKED, §9 093).
  *
@@ -96,7 +96,10 @@ export interface VaultStatus {
 }
 
 /** Мост событий блокировки (боевой — broadcastToWindows; тесты — шпион, §19). */
-export type VaultNotify = (name: 'lock:engaged' | 'lock:required', payload: Record<string, never>) => void;
+export type VaultNotify = (
+  name: 'lock:engaged' | 'lock:required',
+  payload: Record<string, never>,
+) => void;
 
 /** Минимальная поверхность логгера (§18; HlLogger ей удовлетворяет). */
 export interface VaultServiceLogger {
@@ -210,9 +213,7 @@ export class VaultService {
     if (this.backoffUntilUtcMs !== undefined && nowMs < this.backoffUntilUtcMs) {
       const backoffSec = Math.ceil((this.backoffUntilUtcMs - nowMs) / 1000);
       this.logger.warn('vault unlock refused: backoff', { attempts: this.attempts, backoffSec });
-      return err(
-        AppError.of('VAULT/RATE_LIMITED', VAULT_RATE_LIMITED_MESSAGE_KEY, { backoffSec }),
-      );
+      return err(AppError.of('VAULT/RATE_LIMITED', VAULT_RATE_LIMITED_MESSAGE_KEY, { backoffSec }));
     }
     const result = await this.vault.unlock(pass);
     if (!result.ok) {
@@ -244,6 +245,9 @@ export class VaultService {
       return { locked: false }; // блокировать нечего (§13: открыть без пароля нельзя)
     }
     this.closeDatabase();
+    // Порт 093: забыть сессионный ключ — unlock(pass) после lock обязан заново
+    // проверить пароль по файлу (иначе кэш 093 вернул бы ok на любой ввод).
+    this.vault.lock();
     this.locked = true;
     this.lastActivityUtcMs = this.clock.nowMs(); // свежее окно автоблока на новую сессию
     this.logger.info('vault lock engaged', { reason });
@@ -287,7 +291,9 @@ export class VaultService {
    * Управление паролем (§5: {pass|old+new|remove}) — транзит к порту 093
    * (setPassphrase/changePassphrase/removePassphrase, §19); ответ — новый режим.
    */
-  async setPassphrase(command: SetPassphraseCommand): Promise<Result<{ mode: VaultMode }, AppError>> {
+  async setPassphrase(
+    command: SetPassphraseCommand,
+  ): Promise<Result<{ mode: VaultMode }, AppError>> {
     const result =
       command.action === 'set'
         ? await this.vault.setPassphrase(command.pass)

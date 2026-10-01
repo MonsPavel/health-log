@@ -221,9 +221,7 @@ describe('гвардия requireUnlocked и idle-трекер (TASK-094 §7/§9/
     });
     registry.register(testChannel('test/db'), secureSchemas, handler);
 
-    await expect(
-      registry.dispatch({ channel: 'test/db', payload: {} }),
-    ).resolves.toEqual({
+    await expect(registry.dispatch({ channel: 'test/db', payload: {} })).resolves.toEqual({
       v: API_ENVELOPE_VERSION,
       ok: false,
       error: { code: 'VAULT/LOCKED', messageKey: 'errors.VAULT_LOCKED' },
@@ -242,9 +240,11 @@ describe('гвардия requireUnlocked и idle-трекер (TASK-094 §7/§9/
     });
     registry.register(testChannel('test/db'), secureSchemas, handler);
 
-    await expect(
-      registry.dispatch({ channel: 'test/db', payload: {} }),
-    ).resolves.toEqual({ v: API_ENVELOPE_VERSION, ok: true, data: { value: 'данные' } });
+    await expect(registry.dispatch({ channel: 'test/db', payload: {} })).resolves.toEqual({
+      v: API_ENVELOPE_VERSION,
+      ok: true,
+      data: { value: 'данные' },
+    });
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
@@ -269,9 +269,11 @@ describe('гвардия requireUnlocked и idle-трекер (TASK-094 §7/§9/
     const registry = createChannelRegistry(logger.logger, { isDev: false });
     registry.register(testChannel('test/db'), secureSchemas, handler);
 
-    await expect(
-      registry.dispatch({ channel: 'test/db', payload: {} }),
-    ).resolves.toEqual({ v: API_ENVELOPE_VERSION, ok: true, data: { value: 'данные' } });
+    await expect(registry.dispatch({ channel: 'test/db', payload: {} })).resolves.toEqual({
+      v: API_ENVELOPE_VERSION,
+      ok: true,
+      data: { value: 'данные' },
+    });
   });
 
   it('валидация payload идёт ДО гвардии (невалидный payload при locked — VALIDATION/FAILED)', async () => {
@@ -282,9 +284,9 @@ describe('гвардия requireUnlocked и idle-трекер (TASK-094 §7/§9/
     });
     registry.register(testChannel('test/db'), secureSchemas, () => ({ value: 'x' }));
 
-    await expect(
-      registry.dispatch({ channel: 'test/db', payload: { extra: 1 } }),
-    ).resolves.toEqual({ v: API_ENVELOPE_VERSION, ok: false, error: VALIDATION_FAILED_ERROR });
+    await expect(registry.dispatch({ channel: 'test/db', payload: { extra: 1 } })).resolves.toEqual(
+      { v: API_ENVELOPE_VERSION, ok: false, error: VALIDATION_FAILED_ERROR },
+    );
   });
 
   it('idle-трекер: любой валидный запрос hl.* вызывает onActivity (§9 — один патч каркаса)', async () => {

@@ -36,8 +36,9 @@
  * redact-список логгера страхует нарушителя (§14).
  *
  * Кэш (§13): успешный ensureKey/unlock кэшируется на жизнь экземпляра (сессия
- * разблокирована до конца процесса — §8: повторных unlock в сессии нет); err не
- * кэшируется. Обнуление строк пароля — JS-ограничение, документировано (ADR-0002).
+ * разблокирована до конца процесса — §8); err не кэшируется. TASK-094: lock()
+ * сбрасывает кэш — повторный unlock после lock обязан снова проверить пароль
+ * (см. порт). Обнуление строк пароля — JS-ограничение, документировано (ADR-0002).
  */
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -332,6 +333,12 @@ export class SafeStorageKeyVault implements KeyVault {
     // Сессия разблокирована: ключ доступен ensureKey («unlock → ensureKey → БД», §9).
     this.cached = ok({ keyHex: key.value, created: false });
     return ok(undefined);
+  }
+
+  /** TASK-094 §5/§8: блокировка — забыть сессионный ключ (см. порт; файл не трогаем). */
+  lock(): void {
+    this.cached = undefined;
+    this.pending = undefined;
   }
 
   /** TASK-093 §7: режим vault-а из заголовка файла — синхронно, без crypto (см. порт). */

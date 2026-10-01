@@ -62,8 +62,9 @@ const makeVault = (initialMode: VaultMode) => {
     ensureKey: vi.fn((): Promise<Result<EnsuredKey, AppError>> =>
       Promise.resolve(ok({ keyHex: 'ab'.repeat(32), created: false })),
     ),
-    exportKeyForBackup: vi.fn((): Promise<Result<{ v: 2; wrappedB64: string; createdUtc: number }, AppError>> =>
-      Promise.resolve(err(AppError.of('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY))),
+    exportKeyForBackup: vi.fn(
+      (): Promise<Result<{ v: 2; wrappedB64: string; createdUtc: number }, AppError>> =>
+        Promise.resolve(err(AppError.of('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY))),
     ),
     setPassphrase: vi.fn((): Promise<Result<void, AppError>> => {
       mode = 'passphrase';
@@ -75,6 +76,7 @@ const makeVault = (initialMode: VaultMode) => {
       return Promise.resolve(ok(undefined));
     }),
     unlock: vi.fn((): Promise<Result<void, AppError>> => Promise.resolve(ok(undefined))),
+    lock: vi.fn((): void => undefined),
     getMode: (): VaultMode => mode,
   };
   return { impl, vault: impl as unknown as KeyVault };
@@ -94,14 +96,14 @@ const makeService = (
   } = {},
 ) => {
   const { vault, impl } = makeVault(vaultMode);
-  const openDatabase = (
-    overrides.openDatabase ?? vi.fn(() => Promise.resolve(ok(undefined)))
-  ) as MockFn<() => Promise<Result<void, AppError>>>;
+  const openDatabase = (overrides.openDatabase ??
+    vi.fn(() => Promise.resolve(ok(undefined)))) as MockFn<() => Promise<Result<void, AppError>>>;
   const closeDatabase = (overrides.closeDatabase ?? vi.fn()) as MockFn<() => void>;
   const notify = vi.fn() as unknown as MockFn<VaultNotify>;
   const logger = makeLogger();
-  const getAutoLockMin = (overrides.getAutoLockMin ??
-    vi.fn(() => Promise.resolve(5))) as MockFn<() => Promise<number>>;
+  const getAutoLockMin = (overrides.getAutoLockMin ?? vi.fn(() => Promise.resolve(5))) as MockFn<
+    () => Promise<number>
+  >;
   const service = new VaultService({
     vault,
     openDatabase,
@@ -309,15 +311,16 @@ describe('VaultService — unlock (§13: успех → сброс; §9: unlock 
 });
 
 describe('VaultService — lock (§5: БД закрывается checkpoint+close; события)', () => {
-  it('ручной lock: closeDatabase, событие lock:engaged, лог с причиной manual (§18)', async () => {
+  it('ручной lock: closeDatabase + сброс кэша ключа порта (unlock снова проверит пароль), событие lock:engaged, лог с причиной manual (§18)', async () => {
     const clock = new AdvanceClock(1_000);
-    const { service, closeDatabase, notify, logger } = makeService('passphrase', clock);
+    const { service, vault, closeDatabase, notify, logger } = makeService('passphrase', clock);
     await service.unlock('пароль');
     closeDatabase.mockClear();
     notify.mockClear();
 
     service.lock('manual');
     expect(closeDatabase).toHaveBeenCalledTimes(1);
+    expect(vault.lock).toHaveBeenCalledTimes(1); // порт 093: ключ забыт (§5/§8)
     expect(notify).toHaveBeenCalledWith('lock:engaged', {});
     expect(logger.info).toHaveBeenCalledWith('vault lock engaged', { reason: 'manual' });
   });
@@ -395,20 +398,23 @@ describe('VaultService — автоблок (§9/AC4: порог из prefs, а�
   it.each([
     [15, 14],
     [60, 59],
-  ] as const)('порог %i мин: на %i-й минуте блокировки нет, на пороге — есть', async (threshold, before) => {
-    const clock = new AdvanceClock(0);
-    const { service } = makeService('passphrase', clock, {
-      getAutoLockMin: vi.fn(() => Promise.resolve(threshold)),
-    });
-    await service.unlock('пароль');
+  ] as const)(
+    'порог %i мин: на %i-й минуте блокировки нет, на пороге — есть',
+    async (threshold, before) => {
+      const clock = new AdvanceClock(0);
+      const { service } = makeService('passphrase', clock, {
+        getAutoLockMin: vi.fn(() => Promise.resolve(threshold)),
+      });
+      await service.unlock('пароль');
 
-    clock.advance(before * MIN);
-    await service.checkAutolock();
-    expect(service.getStatus().locked).toBe(false);
-    clock.advance(1 * MIN);
-    await service.checkAutolock();
-    expect(service.getStatus().locked).toBe(true);
-  });
+      clock.advance(before * MIN);
+      await service.checkAutolock();
+      expect(service.getStatus().locked).toBe(false);
+      clock.advance(1 * MIN);
+      await service.checkAutolock();
+      expect(service.getStatus().locked).toBe(true);
+    },
+  );
 
   it('autoLockMin=0 — автоблок выключен (10 часов простоя — блокировки нет, §22)', async () => {
     const clock = new AdvanceClock(0);

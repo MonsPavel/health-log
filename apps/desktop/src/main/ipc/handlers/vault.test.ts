@@ -24,9 +24,7 @@ const makeService = (): {
   const getStatus = vi.fn(() => ({ mode: 'passphrase' as const, locked: true }));
   const unlock = vi.fn(() => Promise.resolve(ok({ ok: true as const })));
   const lock = vi.fn(() => ({ locked: true as const }));
-  const setPassphrase = vi.fn(() =>
-    Promise.resolve(ok({ mode: 'passphrase' as const })),
-  );
+  const setPassphrase = vi.fn(() => Promise.resolve(ok({ mode: 'passphrase' as const })));
   return {
     getStatus,
     unlock,
@@ -88,9 +86,7 @@ describe('хендлеры vault/* (TASK-094 §11)', () => {
   it('vault/set-passphrase: AppError порта уходит в конверт отказа (§19, консистентность с 093)', async () => {
     const { service, setPassphrase } = makeService();
     setPassphrase.mockReturnValue(
-      Promise.resolve(
-        err(AppError.of('VAULT/WRONG_PASSPHRASE', 'errors.VAULT_WRONG_PASSPHRASE')),
-      ),
+      Promise.resolve(err(AppError.of('VAULT/WRONG_PASSPHRASE', 'errors.VAULT_WRONG_PASSPHRASE'))),
     );
     await expect(
       createVaultSetPassphraseHandler(service)({ action: 'change', old: 'а', new: 'б' }),

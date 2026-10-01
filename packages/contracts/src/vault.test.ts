@@ -76,8 +76,7 @@ describe('каналы vault/* — формы payload (TASK-094 §5/§11)', () =
     // Чужие action и неполные формы — отказ (strict, §14).
     expect(VAULT_SET_PASSPHRASE_REQUEST_SCHEMA.safeParse({ action: 'reset' }).success).toBe(false);
     expect(
-      VAULT_SET_PASSPHRASE_REQUEST_SCHEMA.safeParse({ action: 'set', pass: 'п', extra: 1 })
-        .success,
+      VAULT_SET_PASSPHRASE_REQUEST_SCHEMA.safeParse({ action: 'set', pass: 'п', extra: 1 }).success,
     ).toBe(false);
     expect(
       VAULT_SET_PASSPHRASE_REQUEST_SCHEMA.safeParse({ action: 'change', old: 'а' }).success,
@@ -150,15 +149,19 @@ const OPEN_CHANNELS: readonly ChannelName[] = [
 ];
 
 describe('secure-флаг реестра — инвентарь каналов (TASK-094 §11, AC5)', () => {
+  /** Читает secure-флаг записи реестра (опционален — union без него на части записей). */
+  const secureOf = (name: ChannelName): boolean | undefined =>
+    (CHANNEL_SCHEMAS[name] as { secure?: boolean }).secure;
+
   it('каждый БД-канал помечен secure: true — гвардия requireUnlocked (§7/§11)', () => {
     for (const name of SECURE_CHANNELS) {
-      expect(CHANNEL_SCHEMAS[name].secure, `канал ${name} должен быть secure`).toBe(true);
+      expect(secureOf(name), `канал ${name} должен быть secure`).toBe(true);
     }
   });
 
   it('vault/* и каркасные каналы НЕ secure — доступны в locked (иначе вход невозможен)', () => {
     for (const name of OPEN_CHANNELS) {
-      expect(CHANNEL_SCHEMAS[name].secure, `канал ${name} не должен быть secure`).not.toBe(true);
+      expect(secureOf(name), `канал ${name} не должен быть secure`).not.toBe(true);
     }
   });
 

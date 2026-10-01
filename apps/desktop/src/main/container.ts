@@ -236,10 +236,7 @@ import {
   createVaultStatusHandler,
   createVaultUnlockHandler,
 } from './ipc/handlers/vault.js';
-import {
-  createAutolockJob,
-  VaultService,
-} from './modules/security/application/vault-service.js';
+import { createAutolockJob, VaultService } from './modules/security/application/vault-service.js';
 import type { LlmEngine } from './modules/ai-insight/application/ports/llm-engine.js';
 import { AddMeasurementUseCase } from './modules/measurement/application/add-measurement.js';
 import { DeleteMeasurementUseCase } from './modules/measurement/application/delete-measurement.js';

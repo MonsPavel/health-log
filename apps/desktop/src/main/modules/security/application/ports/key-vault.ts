@@ -126,9 +126,22 @@ export interface KeyVault {
    * успех → ключ доступен ensureKey (поток «unlock → ensureKey → открытие БД», §9).
    * Неверный пароль → err VAULT/WRONG_PASSPHRASE (повтор разрешён; rate-limit —
    * TASK-094); порча salt/wrapped → VAULT/KEY_CORRUPT; режима passphrase нет →
-   * ok (ничего не заблокировано — идемпотентен); повторный unlock → ok (кэш §13).
+   * ok (ничего не заблокировано — идемпотентен); повторный unlock → ok (кэш §13 —
+   * пока не было lock() ниже).
    */
   unlock(passphrase: string): Promise<Result<void, AppError>>;
+
+  /**
+   * TASK-094 §5/§8: блокировка хранилища — сброс сессионного кэша ключа (093 §13):
+   * последующие ensureKey/unlock НЕ считают сессию разблокированной — ensureKey
+   * снова VAULT/LOCKED, а unlock(pass) обязан ПОЛНОСТЬЮ проверить пароль по файлу
+   * (путь «повторный unlock открывает», §5). Без этого кэш переживал бы lock и
+   * unlock с ЛЮБЫМ паролем возвращал бы ok — парольная защита повторного входа
+   * была бы фикцией. mode=none — no-op по эффекту на вызывающих (ensureKey
+   * перевыполнит safeStorage-расшифровку из файла). Вызывает VaultService.lock;
+   * идемпотентен, файл не трогает.
+   */
+  lock(): void;
 
   /**
    * TASK-093 §7: режим vault-а — источник состояния locked для контейнера/экрана
