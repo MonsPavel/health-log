@@ -33,7 +33,7 @@ const DEFAULT_PREFS: Prefs = {
   netConsents: { updatesCheck: false, modelsDownload: false },
   jobState: { jobs: {}, shown: {} },
   // TASK-081: aiSettings — выбранной модели нет, «настроить позже» не нажат.
-  aiSettings: { dismissed: false },
+  aiSettings: { dismissed: false, includeNotes: false },
 };
 
 const OK_ENVELOPE = (data: unknown) => ({ v: 1, ok: true, data });

@@ -1,17 +1,21 @@
 /**
- * TASK-081 §4/§5/§20 AC5: баннер «ИИ не настроен» на /ai — ненавязчивый (UC-07 A3,
- * не модальный): «Настроить позже» схлопывает НАВСЕГДА (prefs.aiSettings.dismissed,
- * РЕШЕНИЕ спеки), экран моделей остаётся доступен вручную; баннер не показывается,
- * пока выбранная модель не установлена (ИИ настроен).
+ * TASK-081 §4/§5/§20 AC5 + TASK-088 §6: баннер «ИИ не настроен» на /ai — ненавязчивый
+ * (UC-07 A3, не модальный): «Настроить позже» схлопывает НАВСЕГДА
+ * (prefs.aiSettings.dismissed, РЕШЕНИЕ спеки), экран моделей остаётся доступен
+ * вручную; баннер не показывается, пока выбранная модель не установлена (ИИ настроен).
+ * TASK-088: /ai — вкладки «Разбор»/«Чат»/«Модель» (?tab=, дефолт insight):
+ * баннер живёт над вкладками, витрина моделей — вкладка «Модель».
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { HlEventMap } from '@hl/contracts';
 
 import '../../../i18n';
+import { ToastProvider } from '../../../app/toast';
 import { createQueryClient } from '../../../lib/query-client';
 import { AiPage } from './AiPage';
 
@@ -30,7 +34,8 @@ const PREFS = (over: Record<string, unknown> = {}) => ({
   advancedMode: false,
   netConsents: { updatesCheck: false, modelsDownload: false },
   jobState: { jobs: {}, shown: {} },
-  aiSettings: { dismissed: false },
+  // TASK-088: includeNotes — тумблер превью (дефолт схемы).
+  aiSettings: { dismissed: false, includeNotes: false },
   ...over,
 });
 
@@ -62,9 +67,18 @@ const LIST_NOT_INSTALLED = {
   models: [{ ...(LIST_INSTALLED.models[0] as object), state: 'not_installed' }],
 };
 
-function renderPage(): void {
+/** Рендер страницы (§19): Router (вкладки читают ?tab=) + тосты + клиент кэша. */
+function renderPage(url = '/'): void {
   render(
-    createElement(QueryClientProvider, { client: createQueryClient() }, createElement(AiPage)),
+    createElement(
+      MemoryRouter,
+      { initialEntries: [url] },
+      createElement(
+        ToastProvider,
+        null,
+        createElement(QueryClientProvider, { client: createQueryClient() }, createElement(AiPage)),
+      ),
+    ),
   );
 }
 
@@ -77,7 +91,24 @@ beforeEach(() => {
       return Promise.resolve(OK(PREFS()));
     }
     if (channel === 'prefs/set') {
-      return Promise.resolve(OK(PREFS({ aiSettings: { dismissed: true } })));
+      return Promise.resolve(OK(PREFS({ aiSettings: { dismissed: true, includeNotes: false } })));
+    }
+    // TASK-088: дефолтная вкладка «Разбор» монтирует InsightScreen — её каналы
+    // отвечают пустыми валидными формами (превью без текста, latest undefined).
+    if (channel === 'ai/context/preview') {
+      return Promise.resolve(OK({ text: '', sections: [], hash: '0'.repeat(64) }));
+    }
+    if (channel === 'ai/summary/latest') {
+      return Promise.resolve(OK(undefined));
+    }
+    if (channel === 'ai/summary/generate') {
+      return Promise.resolve(OK({ requestId: 'r1' }));
+    }
+    if (channel === 'ai/cancel') {
+      return Promise.resolve(OK({ cancelled: true }));
+    }
+    if (channel === 'ai/summary/delete-all') {
+      return Promise.resolve(OK(null));
     }
     return Promise.resolve(OK({}));
   });
@@ -112,23 +143,25 @@ describe('AiPage — баннер «ИИ не настроен» (TASK-081 §20 
     fireEvent.click(screen.getByTestId('ai-banner-later'));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('prefs/set', {
-        patch: { aiSettings: { dismissed: true } },
+        patch: { aiSettings: { dismissed: true, includeNotes: false } },
       }),
     );
   });
 
-  it('«позже» не навязывается: dismissed=true → баннера нет; экран моделей доступен', async () => {
+  it('«позже» не навязывается: dismissed=true → баннера нет; экран моделей доступен с вкладки', async () => {
     invoke.mockImplementation((channel: string): Promise<unknown> => {
       if (channel === 'ai/models/list') {
         return Promise.resolve(OK(LIST_NOT_INSTALLED));
       }
       if (channel === 'prefs/get') {
-        return Promise.resolve(OK(PREFS({ aiSettings: { dismissed: true } })));
+        return Promise.resolve(OK(PREFS({ aiSettings: { dismissed: true, includeNotes: false } })));
       }
       return Promise.resolve(OK({}));
     });
     renderPage();
 
+    // §6 088: витрина моделей — вкладка «Модель» (дефолт — «Разбор»).
+    fireEvent.click(await screen.findByTestId('ai-tab-model'));
     await screen.findByTestId('model-card');
     expect(screen.queryByTestId('ai-banner')).toBeNull();
     // §20 AC5: экран моделей доступен вручную — список на месте.
@@ -142,13 +175,18 @@ describe('AiPage — баннер «ИИ не настроен» (TASK-081 §20 
       }
       if (channel === 'prefs/get') {
         return Promise.resolve(
-          OK(PREFS({ aiSettings: { dismissed: false, modelId: 'dev-placeholder-ru' } })),
+          OK(
+            PREFS({
+              aiSettings: { dismissed: false, includeNotes: false, modelId: 'dev-placeholder-ru' },
+            }),
+          ),
         );
       }
       return Promise.resolve(OK({}));
     });
     renderPage();
 
+    fireEvent.click(await screen.findByTestId('ai-tab-model'));
     await screen.findByTestId('model-card');
     expect(screen.queryByTestId('ai-banner')).toBeNull();
   });
@@ -164,14 +202,42 @@ describe('AiPage — баннер «ИИ не настроен» (TASK-081 §20 
       if (channel === 'ai/models/list') {
         return Promise.resolve(OK(LIST_NOT_INSTALLED));
       }
+      if (channel === 'ai/context/preview') {
+        return Promise.resolve(OK({ text: '', sections: [], hash: '0'.repeat(64) }));
+      }
+      if (channel === 'ai/summary/latest') {
+        return Promise.resolve(OK(undefined));
+      }
       return Promise.resolve(OK({}));
     });
     renderPage();
 
-    await screen.findByTestId('model-card');
+    await screen.findByTestId('insight-screen');
     expect(screen.queryByTestId('ai-banner')).toBeNull();
 
     resolvePrefs(OK(PREFS()));
     await screen.findByTestId('ai-banner');
+  });
+});
+
+describe('AiPage — вкладки «Разбор»/«Чат»/«Модель» (TASK-088 §6)', () => {
+  it('дефолт — вкладка «Разбор» (URL без ?tab); «Чат» — плейсхолдер; ?tab=model открывает витрину сразу', async () => {
+    renderPage();
+    // Дефолт: экран разбора, витрины нет.
+    await screen.findByTestId('insight-screen');
+    expect(screen.queryByTestId('ai-models-section')).toBeNull();
+
+    // «Чат» — плейсхолдер TASK-090 (§6 088).
+    fireEvent.click(screen.getByTestId('ai-tab-chat'));
+    expect(await screen.findByTestId('ai-chat-wip')).toBeDefined();
+
+    // «Модель» — витрина.
+    fireEvent.click(screen.getByTestId('ai-tab-model'));
+    await screen.findByTestId('ai-models-section');
+
+    // ?tab=model — витрина сразу, без кликов (URL — истина, §6).
+    cleanup();
+    renderPage('/?tab=model');
+    await screen.findByTestId('ai-models-section');
   });
 });

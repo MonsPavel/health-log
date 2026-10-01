@@ -56,8 +56,10 @@ test.describe('витрина моделей (TASK-081 §20 AC6)', () => {
 
     // (1) /ai: навигация как пользователь — ссылка «ИИ» в sidebar (прецедент
     // critical-path.spec.ts); баннер онбординга + карточка not_installed.
+    // TASK-088 §6: витрина моделей — вкладка «Модель» (дефолт /ai — «Разбор»).
     await window.getByRole('link', { name: 'ИИ' }).click();
     await expect(window.getByTestId('ai-banner')).toBeVisible();
+    await window.getByTestId('ai-tab-model').click();
     const card = window.getByTestId('model-card');
     await expect(card).toBeVisible();
     await expect(window.getByTestId('model-name')).toHaveText('Dev Placeholder Model');

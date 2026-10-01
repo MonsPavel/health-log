@@ -57,7 +57,7 @@ const validSnapshot = {
     advancedMode: false,
     netConsents: { updatesCheck: false, modelsDownload: false },
     jobState: { jobs: {}, shown: {} },
-    aiSettings: { dismissed: false },
+    aiSettings: { dismissed: false, includeNotes: false },
   },
   scales: [{ code: 'bp-office-esc2018', version: '1.0.0' }],
 };

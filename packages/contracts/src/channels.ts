@@ -50,7 +50,8 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * резюме периода `ai/summary/generate` (стрим: ответ {requestId}, данные —
  * событиями ai:token + финал 'ai/summary/result') и `ai/summary/latest` (стейлс-
  * бейдж §12: {profileId, period} → {summary, stale}|undefined) — TASK-087 §5/§11/§12
- * (схемы — ai/summary-channels.ts).
+ * (схемы — ai/summary-channels.ts); `ai/summary/delete-all` — «Очистить разборы»
+ * (TASK-088 §5: {} → null — вызов порта deleteAll 087, подтверждение — в UI).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -74,8 +75,10 @@ export type ChannelName =
   // TASK-087 §5/§11/§12: резюме периода — generate (стрим: ответ {requestId},
   // данные событиями + финал 'ai/summary/result') и latest (стейлс-бейдж, §12);
   // `ai/cancel` — отмена генерации по requestId (§5 п.5, арх. 05 §3; чат 089 — тот же).
+  // TASK-088 §5: `ai/summary/delete-all` — «Очистить разборы» (deleteAll порта 087).
   | 'ai/summary/generate'
   | 'ai/summary/latest'
+  | 'ai/summary/delete-all'
   | 'ai/cancel'
   | 'app/ping'
   | 'app/log-client-error'

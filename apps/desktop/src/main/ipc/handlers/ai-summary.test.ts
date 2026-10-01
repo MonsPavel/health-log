@@ -18,6 +18,7 @@ import { AppError } from '@hl/kernel';
 
 import {
   createAiSummaryCancelHandler,
+  createAiSummaryDeleteAllHandler,
   createAiSummaryGenerateHandler,
   createAiSummaryLatestHandler,
   AiSummaryRequestRegistry,
@@ -75,6 +76,10 @@ class StubGenerateSummary implements Partial<GenerateSummary> {
 class FakeRepo implements InsightRepository {
   record: SummaryRecord | undefined;
   currentVersion = 1;
+  /** TASK-088 §5: счётчик вызовов deleteAll (хендлер обязан делегировать порту). */
+  deleteAllCalls = 0;
+  /** TASK-088 §19: отказ следующего deleteAll (STORAGE/*). */
+  deleteAllFailure: Error | undefined;
 
   findByContextHash(): Promise<SummaryRecord | undefined> {
     return Promise.resolve(undefined);
@@ -89,6 +94,10 @@ class FakeRepo implements InsightRepository {
   }
 
   deleteAll(): Promise<void> {
+    this.deleteAllCalls += 1;
+    if (this.deleteAllFailure !== undefined) {
+      return Promise.reject(this.deleteAllFailure);
+    }
     return Promise.resolve();
   }
 
@@ -252,5 +261,32 @@ describe('ai/summary/latest — хендлер стейлс-бейджа (TASK-0
     repo.currentVersion = 2;
     const stale = await handler({ profileId: PROFILE, period: '7d' });
     expect(stale).toMatchObject({ stale: true });
+  });
+});
+
+describe('ai/summary/delete-all — хендлер «Очистить разборы» (TASK-088 §5)', () => {
+  it('(1) делегирует порту deleteAll и отвечает null (fire-and-forget, §5)', async () => {
+    const repo = new FakeRepo();
+    const handler = createAiSummaryDeleteAllHandler(repo);
+
+    await expect(handler({})).resolves.toBeNull();
+    expect(repo.deleteAllCalls).toBe(1);
+  });
+
+  it('(2) повторный вызов — идемпотентен (deleteAll порта, §8)', async () => {
+    const repo = new FakeRepo();
+    const handler = createAiSummaryDeleteAllHandler(repo);
+
+    await handler({});
+    await expect(handler({})).resolves.toBeNull();
+    expect(repo.deleteAllCalls).toBe(2);
+  });
+
+  it('(3) отказ порта (STORAGE/*) пробрасывается — каркас вернёт ApiFailure (прецедент latest)', async () => {
+    const repo = new FakeRepo();
+    repo.deleteAllFailure = AppError.of('STORAGE/FAILED', 'errors.internal');
+    const handler = createAiSummaryDeleteAllHandler(repo);
+
+    await expect(handler({})).rejects.toMatchObject({ code: 'STORAGE/FAILED' });
   });
 });

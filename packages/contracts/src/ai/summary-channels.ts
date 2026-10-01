@@ -119,3 +119,20 @@ export type AiCancelRequest = z.infer<typeof AI_CANCEL_REQUEST_SCHEMA>;
 
 /** Ответ cancel (§5 п.5). */
 export type AiCancelResponse = z.infer<typeof AI_CANCEL_RESPONSE_SCHEMA>;
+
+/**
+ * TASK-088 §5: «Очистить разборы» — вызов порта deleteAll (087: «кнопка — UI 088»).
+ * Параметров нет: очистка ВСЕХ резюме (кэш анализа, данные дневника не трогает,
+ * §8 порта); ответ null — fire-and-forget, прецедент app/reveal-path. Подтверждение
+ * — забота UI (диалог перед вызовом), канал необратим по дизайну порта.
+ */
+export const AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA = z.object({}).strict();
+
+/** Ответ delete-all (§5): null — очистка выполнена. */
+export const AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA = z.null();
+
+/** Запрос delete-all (§5 088). */
+export type AiSummaryDeleteAllRequest = z.infer<typeof AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA>;
+
+/** Ответ delete-all (§5 088). */
+export type AiSummaryDeleteAllResponse = z.infer<typeof AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA>;

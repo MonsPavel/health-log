@@ -52,6 +52,12 @@ export const AI_SETTINGS_SCHEMA = z
     modelId: z.string().min(1).optional(),
     /** «Настроить позже»: баннер не возвращается до явной настройки (§5 РЕШЕНИЕ). */
     dismissed: z.boolean().default(false),
+    /**
+     * TASK-088 §5: «включить заметки» (FR-5.5) — тумблер экрана «Разбор»,
+     * персистентен (выбор переживает перезапуск); дефолт false — заметки в
+     * контекст ИИ ТОЛЬКО по явной опции (§14 083). Участник hash кэша (083).
+     */
+    includeNotes: z.boolean().default(false),
   })
   .strict();
 
@@ -88,7 +94,7 @@ export const PREFS_SCHEMA = z
     /** TASK-074 §5: состояние задач планировщика (последний запуск, показы, копия). */
     jobState: JOB_STATE_SCHEMA.default({ jobs: {}, shown: {} }),
     /** TASK-081 §5: настройки ИИ — выбранная модель + «настроить позже». */
-    aiSettings: AI_SETTINGS_SCHEMA.default({ dismissed: false }),
+    aiSettings: AI_SETTINGS_SCHEMA.default({ dismissed: false, includeNotes: false }),
   })
   .strict();
 

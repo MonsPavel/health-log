@@ -39,6 +39,11 @@ interface ToastItem {
 /** API тостов, доступный дереву под провайдером (§12). */
 export interface ToastApi {
   readonly showToast: (error: AppErrorDto) => void;
+  /**
+   * TASK-088 §5: нейтральное системное уведомление (не ошибка; «Разбор сохранён»)
+   * — тот же регион/очередь/авто-скрытие, что у ошибок, без каталога ошибок.
+   */
+  readonly showMessage: (text: string) => void;
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -61,15 +66,30 @@ export function ToastProvider({ children }: { readonly children: ReactNode }): J
     setItems((current) => current.filter((item) => item.id !== id));
   }, []);
 
-  const showToast = useCallback((error: AppErrorDto): void => {
+  /** §10: очередь max 3 — старейшие вытесняются (slice от хвоста). */
+  const push = useCallback((text: string): void => {
     nextId.current += 1;
-    const item: ToastItem = { id: nextId.current, text: toUserMessage(error) };
-    // §10: очередь max 3 — старейшие вытесняются (slice от хвоста).
+    const item: ToastItem = { id: nextId.current, text };
     setItems((current) => [...current, item].slice(-MAX_TOASTS));
   }, []);
 
+  const showToast = useCallback(
+    (error: AppErrorDto): void => {
+      push(toUserMessage(error));
+    },
+    [push],
+  );
+
+  // TASK-088 §5: нейтральный текст системного уведомления — тот же регион.
+  const showMessage = useCallback(
+    (text: string): void => {
+      push(text);
+    },
+    [push],
+  );
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={{ showToast, showMessage }}>
       {children}
       <div role="status" aria-live="polite" data-testid="toast-region">
         {items.map((item) => (

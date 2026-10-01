@@ -58,6 +58,8 @@ export {
 export {
   AI_CANCEL_REQUEST_SCHEMA,
   AI_CANCEL_RESPONSE_SCHEMA,
+  AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA,
+  AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA,
   AI_SUMMARY_DTO_SCHEMA,
   AI_SUMMARY_GENERATE_REQUEST_SCHEMA,
   AI_SUMMARY_GENERATE_RESPONSE_SCHEMA,
@@ -65,6 +67,8 @@ export {
   AI_SUMMARY_LATEST_RESPONSE_SCHEMA,
   type AiCancelRequest,
   type AiCancelResponse,
+  type AiSummaryDeleteAllRequest,
+  type AiSummaryDeleteAllResponse,
   type AiSummaryDto,
   type AiSummaryGenerateRequest,
   type AiSummaryGenerateResponse,

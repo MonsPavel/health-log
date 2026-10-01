@@ -52,7 +52,7 @@ function renderRouterAt(hash: string): void {
   );
 }
 
-/** Полный документ prefs (дефолты, TASK-047/081) — мосту prefs/get. */
+/** Полный документ prefs (дефолты, TASK-047/081/088) — мосту prefs/get. */
 const MOCK_PREFS = {
   theme: 'system',
   textScale: '100',
@@ -60,7 +60,7 @@ const MOCK_PREFS = {
   advancedMode: false,
   netConsents: { updatesCheck: false, modelsDownload: false },
   jobState: { jobs: {}, shown: {} },
-  aiSettings: { dismissed: false },
+  aiSettings: { dismissed: false, includeNotes: false },
 };
 
 /** Витрина моделей: единственная dev-модель манифеста, не установлена (TASK-081). */
@@ -98,6 +98,19 @@ function mockHlBridge(): void {
         }
         if (channel === 'ai/models/list') {
           return Promise.resolve({ v: 1, ok: true, data: MOCK_AI_MODELS_LIST });
+        }
+        // TASK-088: вкладка «Разбор» (дефолт /ai) монтирует InsightScreen — её
+        // каналы отвечают пустыми валидными формами (превью без текста, latest —
+        // «записи нет», валидный ответ канала).
+        if (channel === 'ai/context/preview') {
+          return Promise.resolve({
+            v: 1,
+            ok: true,
+            data: { text: '', sections: [], hash: '0'.repeat(64) },
+          });
+        }
+        if (channel === 'ai/summary/latest') {
+          return Promise.resolve({ v: 1, ok: true, data: undefined });
         }
         return Promise.resolve({ v: 1, ok: true, data: { items: [], total: 0 } });
       }),
@@ -140,14 +153,18 @@ describe('AppRouter — маршруты (§5)', () => {
     expect(screen.getByTestId('data-wipe-button').textContent).toBe('Удалить все данные');
   });
 
-  it('#/ai: реальный экран моделей (TASK-081) — заголовок, баннер онбординга, карточка модели', async () => {
+  it('#/ai: вкладки 088 (дефолт «Разбор»), витрина моделей — с вкладки «Модель» (TASK-081)', async () => {
     renderRouterAt('#/ai');
 
     expect(await screen.findByRole('heading', { name: 'ИИ' })).not.toBeNull();
-    // §4/§5: баннер «ИИ не настроен» (не модальный) + витрина моделей на месте.
-    expect(await screen.findByTestId('model-name')).not.toBeNull();
+    // §6 088: дефолтная вкладка — «Разбор»; баннер онбординга — над вкладками.
+    expect(await screen.findByTestId('insight-screen')).not.toBeNull();
     expect(screen.getByTestId('ai-banner')).not.toBeNull();
-    expect(screen.getByTestId('ai-models-section')).not.toBeNull();
+    expect(screen.queryByTestId('ai-models-section')).toBeNull();
+
+    // Витрина моделей — вкладка «Модель» (§6 088).
+    fireEvent.click(screen.getByTestId('ai-tab-model'));
+    expect(await screen.findByTestId('ai-models-section')).not.toBeNull();
     expect(screen.getByTestId('model-name').textContent).toBe('Dev Placeholder Model');
     expect(screen.getByTestId('model-download').textContent).toBe('Скачать');
     expect(screen.queryByText('Экран появится после настройки')).toBeNull();

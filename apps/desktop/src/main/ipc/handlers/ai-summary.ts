@@ -26,6 +26,8 @@ import { performance } from 'node:perf_hooks';
 import type {
   AiCancelRequest,
   AiCancelResponse,
+  AiSummaryDeleteAllRequest,
+  AiSummaryDeleteAllResponse,
   AiSummaryDto,
   AiSummaryGenerateRequest,
   AiSummaryGenerateResponse,
@@ -174,5 +176,19 @@ export function createAiSummaryLatestHandler(
     }
     const stale = record.dataVersion < (await repo.currentDataVersion());
     return { summary: toDto(record), stale };
+  };
+}
+
+/**
+ * Фабрика хендлера `ai/summary/delete-all` (TASK-088 §5): делегирование порту
+ * deleteAll (087: «кнопка — UI 088»); ответ null — fire-and-forget. Подтверждение —
+ * забота UI (диалог); STORAGE/* пробрасывается — каркас вернёт ApiFailure (§9).
+ */
+export function createAiSummaryDeleteAllHandler(
+  repo: InsightRepository,
+): (payload: AiSummaryDeleteAllRequest) => Promise<AiSummaryDeleteAllResponse> {
+  return async () => {
+    await repo.deleteAll();
+    return null;
   };
 }
