@@ -180,7 +180,10 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
 
   const messages = history.data?.messages ?? [];
   const feedEmpty =
-    !history.isPending && !history.isError && messages.length === 0 && generation.question === undefined;
+    !history.isPending &&
+    !history.isError &&
+    messages.length === 0 &&
+    generation.question === undefined;
 
   // §4/§15: скролл-якорь вниз при новых сообщениях/токенах — rAF, только если
   // пользователь у низа (ручной скролл вверх не дёргается, прецедент SummaryView).
@@ -230,11 +233,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
         </div>
         {periodState.period === 'custom' && (
           <div className="mt-3">
-            <CustomRangeFields
-              from={periodState.from}
-              to={periodState.to}
-              onApply={setRange}
-            />
+            <CustomRangeFields from={periodState.from} to={periodState.to} onApply={setRange} />
           </div>
         )}
       </fieldset>
@@ -392,7 +391,10 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
               data-testid="chat-clear-dialog"
               className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg p-6 shadow-lg"
             >
-              <AlertDialog.Title data-testid="chat-clear-title" className="text-lg font-semibold text-text">
+              <AlertDialog.Title
+                data-testid="chat-clear-title"
+                className="text-lg font-semibold text-text"
+              >
                 {t('ai.chat.clearTitle')}
               </AlertDialog.Title>
               <AlertDialog.Description className="mt-2 text-sm text-text">

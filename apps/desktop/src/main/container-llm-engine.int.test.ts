@@ -101,7 +101,9 @@ describe('fakeLlmEnabled — гард env-флага (TASK-078 §14, AC4)', () =
 
 describe('fakeLlmDelayMs — гард задержки fake-движка (TASK-090 §19/§20)', () => {
   it('валидное целое > 0 с HL_FAKE_LLM=1 в не-packaged запуске — задержка', () => {
-    expect(fakeLlmDelayMs({ [HL_FAKE_LLM_ENV]: '1', [HL_FAKE_LLM_DELAY_MS_ENV]: '30' }, false)).toBe(30);
+    expect(
+      fakeLlmDelayMs({ [HL_FAKE_LLM_ENV]: '1', [HL_FAKE_LLM_DELAY_MS_ENV]: '30' }, false),
+    ).toBe(30);
   });
 
   it('без HL_FAKE_LLM=1 или в packaged — undefined (§14: только dev/e2e)', () => {

@@ -15,7 +15,10 @@ export interface SuggestedQuestionsProps {
 
 /** Карта ключей чипов (§17 chat.chips.*): литералы для check-i18n (§22). */
 const CHIP_KEY: Readonly<
-  Record<'pressure' | 'morningEvening' | 'unusual', 'ai.chat.chips.pressure' | 'ai.chat.chips.morningEvening' | 'ai.chat.chips.unusual'>
+  Record<
+    'pressure' | 'morningEvening' | 'unusual',
+    'ai.chat.chips.pressure' | 'ai.chat.chips.morningEvening' | 'ai.chat.chips.unusual'
+  >
 > = {
   pressure: 'ai.chat.chips.pressure',
   morningEvening: 'ai.chat.chips.morningEvening',

@@ -33,6 +33,7 @@ import type { ChatMessageDto, HlEventMap } from '@hl/contracts';
 import '../../../i18n';
 import { ToastProvider } from '../../../app/toast';
 import { createQueryClient } from '../../../lib/query-client';
+import { periodToStatsParam } from '../../../lib/period';
 import { ChatScreen } from './ChatScreen';
 
 /** Типизированный мок моста: канал → Promise (no-misused-promises, §19). */
@@ -169,9 +170,9 @@ const emit = (name: keyof HlEventMap, payload: unknown): void => {
 const bubbles = (): HTMLElement[] => screen.queryAllByTestId('chat-bubble');
 
 const typeQuestion = async (text: string): Promise<HTMLTextAreaElement> => {
-  const input = await screen.findByTestId('chat-input');
+  const input = await screen.findByTestId<HTMLTextAreaElement>('chat-input');
   fireEvent.change(input, { target: { value: text } });
-  return input as HTMLTextAreaElement;
+  return input;
 };
 
 beforeEach(() => {
@@ -266,11 +267,11 @@ describe('ChatScreen — отправка вопроса (Enter + кнопка, 
 
   it('пустой вопрос → кнопка disabled (§13)', async () => {
     renderScreen();
-    const send = await screen.findByTestId('chat-send');
-    expect((send as HTMLButtonElement).disabled).toBe(true);
+    const send = await screen.findByTestId<HTMLButtonElement>('chat-send');
+    expect(send.disabled).toBe(true);
 
     await typeQuestion('   ');
-    expect((screen.getByTestId('chat-send') as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByTestId<HTMLButtonElement>('chat-send').disabled).toBe(true);
   });
 
   it('выбор периода уходит в send (локальный state, дефолт 30d → 7d/custom, §5/§12)', async () => {
@@ -278,9 +279,7 @@ describe('ChatScreen — отправка вопроса (Enter + кнопка, 
     fireEvent.click(await screen.findByTestId('chat-period-7d'));
     await typeQuestion('Как менялось давление?');
     fireEvent.click(screen.getByTestId('chat-send'));
-    await waitFor(() =>
-      expect(payloadsOf('ai/chat/send')[0]).toMatchObject({ period: '7d' }),
-    );
+    await waitFor(() => expect(payloadsOf('ai/chat/send')[0]).toMatchObject({ period: '7d' }));
     // Завершаем первый ход (финал без messageId — cancel): фаза idle, ввод активен.
     emit('ai/chat/result', { requestId: 'r1' });
     await waitFor(() => expect(bubbles()).toHaveLength(0));
@@ -290,10 +289,14 @@ describe('ChatScreen — отправка вопроса (Enter + кнопка, 
     fireEvent.change(screen.getByTestId('filter-range-to'), { target: { value: '2026-03-08' } });
     await typeQuestion('А за эту неделю?');
     fireEvent.click(screen.getByTestId('chat-send'));
+    // Точные границы: период канала — periodToStatsParam от тех же настенных дат
+    // (границы дневные — не зависят от момента вызова Date.now в одном дне).
+    const expectedCustom = periodToStatsParam(
+      { period: 'custom', from: '2026-03-01', to: '2026-03-08' },
+      Date.now(),
+    );
     await waitFor(() =>
-      expect(payloadsOf('ai/chat/send')[1]).toMatchObject({
-        period: { fromUtcMs: expect.any(Number), toUtcMs: expect.any(Number) },
-      }),
+      expect(payloadsOf('ai/chat/send')[1]).toMatchObject({ period: expectedCustom }),
     );
   });
 
@@ -303,7 +306,7 @@ describe('ChatScreen — отправка вопроса (Enter + кнопка, 
 
     fireEvent.click(screen.getAllByTestId('chat-chip')[0] as HTMLElement);
 
-    expect((screen.getByTestId('chat-input') as HTMLTextAreaElement).value).toBe(
+    expect(screen.getByTestId<HTMLTextAreaElement>('chat-input').value).toBe(
       'Как менялось давление?',
     );
     expect(payloadsOf('ai/chat/send')).toHaveLength(0);
@@ -373,14 +376,14 @@ describe('ChatScreen — стрим, финал, отмена (§10/§12)', () =
     fireEvent.click(screen.getByTestId('chat-send'));
     await waitFor(() => expect(payloadsOf('ai/chat/send')).toHaveLength(1));
 
-    expect((screen.getByTestId('chat-input') as HTMLTextAreaElement).disabled).toBe(true);
+    expect(screen.getByTestId<HTMLTextAreaElement>('chat-input').disabled).toBe(true);
     expect(screen.queryByTestId('chat-send')).toBeNull();
     expect(screen.getByTestId('chat-stop').textContent).toBe('Стоп');
 
     emit('ai/chat/result', { requestId: 'r1', messageId: 'm2' });
 
     await waitFor(() =>
-      expect((screen.getByTestId('chat-input') as HTMLTextAreaElement).disabled).toBe(false),
+      expect(screen.getByTestId<HTMLTextAreaElement>('chat-input').disabled).toBe(false),
     );
     expect(screen.getByTestId('chat-send')).toBeDefined();
     expect(screen.queryByTestId('chat-stop')).toBeNull();

@@ -21,9 +21,7 @@ afterEach(() => {
 
 describe('ChatBubble — визуальные роли ленты (§5/§10)', () => {
   it('user-бабл: data-kind="user", sr-only подпись «Вы:», текст как есть', () => {
-    render(
-      createElement(ChatBubble, { role: 'user', content: 'Как менялось давление?' }),
-    );
+    render(createElement(ChatBubble, { role: 'user', content: 'Как менялось давление?' }));
 
     const bubble = screen.getByTestId('chat-bubble');
     expect(bubble.getAttribute('data-kind')).toBe('user');
