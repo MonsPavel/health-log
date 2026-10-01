@@ -11,6 +11,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import '../../../i18n';
 import { SummaryView } from './SummaryView';
 
 afterEach(cleanup);
@@ -70,9 +71,7 @@ describe('SummaryView — отказ-стиль, бейджи, aria-live (§5/§
 
   it('стейлс-бейдж: виден при stale, клик вызывает перегенерацию (§10)', () => {
     const onStaleClick = vi.fn();
-    const { rerender } = render(
-      createElement(SummaryView, { ...BASE, stale: true, onStaleClick }),
-    );
+    const { rerender } = render(createElement(SummaryView, { ...BASE, stale: true, onStaleClick }));
 
     const badge = screen.getByTestId('insight-stale-badge');
     expect(badge.textContent).toContain('Данные изменились');

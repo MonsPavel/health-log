@@ -25,11 +25,12 @@ import { MemoryRouter } from 'react-router-dom';
 import type { HlEventMap } from '@hl/contracts';
 
 import '../../../i18n';
+import { ToastProvider } from '../../../app/toast';
 import { createQueryClient } from '../../../lib/query-client';
 import { InsightScreen } from './InsightScreen';
 
 /** Типизированный мок моста: канал → Promise (no-misused-promises, §19). */
-type InvokeMock = ReturnType<typeof vi.fn<(channel: string) => Promise<unknown>>>;
+type InvokeMock = ReturnType<typeof vi.fn<(channel: string, payload: unknown) => Promise<unknown>>>;
 
 let invoke: InvokeMock;
 let eventListeners: Partial<Record<keyof HlEventMap, (payload: unknown) => void>>;
@@ -74,11 +75,6 @@ const LIST_INSTALLED = {
   uiLanguage: 'ru',
 };
 
-const LIST_NOT_INSTALLED = {
-  ...LIST_INSTALLED,
-  models: [{ ...(LIST_INSTALLED.models[0] as object), state: 'not_installed' }],
-};
-
 /** Точные тексты превью: различие секции заметок — маркер тумблера (AC-5.5). */
 const PREVIEW_WITHOUT_NOTES = '# Период [period]\nДиапазон: 01.03.2026–08.03.2026\nИзмерений: 8';
 const PREVIEW_WITH_NOTES = `${PREVIEW_WITHOUT_NOTES}\n\n## Заметки [notes]\nЗаметка: утром таблетка`;
@@ -97,35 +93,49 @@ const SUMMARY_DTO = {
 };
 
 function defaultInvoke(): InvokeMock {
-  return vi.fn<(channel: string) => Promise<unknown>>().mockImplementation((channel: string) => {
-    if (channel === 'ai/models/list') {
-      return Promise.resolve(OK(LIST_INSTALLED));
-    }
-    if (channel === 'prefs/get') {
-      return Promise.resolve(OK(PREFS()));
-    }
-    if (channel === 'prefs/set') {
-      return Promise.resolve(OK(PREFS({ aiSettings: { dismissed: true, includeNotes: true, modelId: 'dev-placeholder-ru' } })));
-    }
-    if (channel === 'ai/context/preview') {
-      return Promise.resolve(
-        OK({ text: PREVIEW_WITHOUT_NOTES, sections: ['period', 'daily'], hash: 'a'.repeat(64) }),
-      );
-    }
-    if (channel === 'ai/summary/generate') {
-      return Promise.resolve(OK({ requestId: 'r1' }));
-    }
-    if (channel === 'ai/summary/latest') {
-      return Promise.resolve(OK({ summary: SUMMARY_DTO, stale: false }));
-    }
-    if (channel === 'ai/summary/delete-all') {
-      return Promise.resolve(OK(null));
-    }
-    if (channel === 'ai/cancel') {
-      return Promise.resolve(OK({ cancelled: true }));
-    }
-    return Promise.resolve(OK({}));
-  });
+  return vi
+    .fn<(channel: string, payload: unknown) => Promise<unknown>>()
+    .mockImplementation((channel: string, payload: unknown) => {
+      if (channel === 'ai/models/list') {
+        return Promise.resolve(OK(LIST_INSTALLED));
+      }
+      if (channel === 'prefs/get') {
+        return Promise.resolve(OK(PREFS()));
+      }
+      if (channel === 'prefs/set') {
+        return Promise.resolve(
+          OK(
+            PREFS({
+              aiSettings: { dismissed: true, includeNotes: true, modelId: 'dev-placeholder-ru' },
+            }),
+          ),
+        );
+      }
+      if (channel === 'ai/context/preview') {
+        const request = payload as { includeNotes?: boolean };
+        return Promise.resolve(
+          OK({
+            text: request.includeNotes === true ? PREVIEW_WITH_NOTES : PREVIEW_WITHOUT_NOTES,
+            sections:
+              request.includeNotes === true ? ['period', 'daily', 'notes'] : ['period', 'daily'],
+            hash: 'a'.repeat(64),
+          }),
+        );
+      }
+      if (channel === 'ai/summary/generate') {
+        return Promise.resolve(OK({ requestId: 'r1' }));
+      }
+      if (channel === 'ai/summary/latest') {
+        return Promise.resolve(OK({ summary: SUMMARY_DTO, stale: false }));
+      }
+      if (channel === 'ai/summary/delete-all') {
+        return Promise.resolve(OK(null));
+      }
+      if (channel === 'ai/cancel') {
+        return Promise.resolve(OK({ cancelled: true }));
+      }
+      return Promise.resolve(OK({}));
+    });
 }
 
 function renderScreen(options: { onGoToModel?: () => void; url?: string } = {}): void {
@@ -134,9 +144,13 @@ function renderScreen(options: { onGoToModel?: () => void; url?: string } = {}):
       MemoryRouter,
       { initialEntries: [options.url ?? '/?tab=insight'] },
       createElement(
-        QueryClientProvider,
-        { client: createQueryClient() },
-        createElement(InsightScreen, { onGoToModel: options.onGoToModel ?? (() => undefined) }),
+        ToastProvider,
+        null,
+        createElement(
+          QueryClientProvider,
+          { client: createQueryClient() },
+          createElement(InsightScreen, { onGoToModel: options.onGoToModel ?? (() => undefined) }),
+        ),
       ),
     ),
   );
@@ -239,6 +253,7 @@ describe('InsightScreen — генерация: стрим, финал, «Сто
   it('финал cache-hit — бейдж «из кэша» (§5)', async () => {
     renderScreen();
     fireEvent.click(await screen.findByTestId('insight-generate'));
+    await waitFor(() => expect(payloadsOf('ai/summary/generate')).toHaveLength(1));
 
     emit('ai:token', { requestId: 'r1', text: 'Разбор из кэша.' });
     emit('ai/summary/result', { requestId: 'r1', summaryId: 's1', cached: true, stale: false });
@@ -260,6 +275,7 @@ describe('InsightScreen — генерация: стрим, финал, «Сто
   it('отказ (финал без summaryId, стопа не было) — серый блок с info-иконкой (§10)', async () => {
     renderScreen();
     fireEvent.click(await screen.findByTestId('insight-generate'));
+    await waitFor(() => expect(payloadsOf('ai/summary/generate')).toHaveLength(1));
 
     emit('ai:token', { requestId: 'r1', text: 'Данных пока мало — я не буду делать выводов.' });
     emit('ai/summary/result', { requestId: 'r1', cached: false, stale: false });
@@ -291,15 +307,13 @@ describe('InsightScreen — стейлс-бейдж и пустое состоя
       if (channel === 'ai/summary/latest') {
         return Promise.resolve(OK({ summary: SUMMARY_DTO, stale: true }));
       }
-      return defaultInvoke()(channel);
+      return defaultInvoke()(channel, {});
     });
     renderScreen();
 
     const badge = await screen.findByTestId('insight-stale-badge');
     // Сохранённый разбор показан сразу (последнее по периоду — §5 «история не нужна»).
-    expect(screen.getByTestId('insight-summary-text').textContent).toContain(
-      'Сохранённый разбор',
-    );
+    expect(screen.getByTestId('insight-summary-text').textContent).toContain('Сохранённый разбор');
     fireEvent.click(badge);
 
     await waitFor(() => expect(payloadsOf('ai/summary/generate')).toHaveLength(1));
@@ -310,7 +324,7 @@ describe('InsightScreen — стейлс-бейдж и пустое состоя
       if (channel === 'ai/summary/latest') {
         return Promise.resolve(OK(undefined));
       }
-      return defaultInvoke()(channel);
+      return defaultInvoke()(channel, {});
     });
     renderScreen();
 
@@ -324,7 +338,7 @@ describe('InsightScreen — BUSY и модель не настроена (§13/A
       if (channel === 'ai/summary/generate') {
         return Promise.resolve(FAIL('AI/BUSY', 'errors.AI_BUSY'));
       }
-      return defaultInvoke()(channel);
+      return defaultInvoke()(channel, {});
     });
     renderScreen();
 
@@ -340,7 +354,7 @@ describe('InsightScreen — BUSY и модель не настроена (§13/A
       if (channel === 'prefs/get') {
         return Promise.resolve(OK(PREFS({ aiSettings: { dismissed: true, includeNotes: false } })));
       }
-      return defaultInvoke()(channel);
+      return defaultInvoke()(channel, {});
     });
     const onGoToModel = vi.fn();
     renderScreen({ onGoToModel });
@@ -371,11 +385,15 @@ describe('InsightScreen — гонки генерации (§13)', () => {
         MemoryRouter,
         { initialEntries: ['/?tab=insight'] },
         createElement(
-          QueryClientProvider,
-          { client: createQueryClient() },
-          createElement(InsightScreen, { onGoToModel: () => undefined }),
+          ToastProvider,
+          null,
+          createElement(
+            QueryClientProvider,
+            { client: createQueryClient() },
+            createElement(InsightScreen, { onGoToModel: () => undefined }),
+          ),
         ),
-      ) as never,
+      ),
     );
     fireEvent.click(await screen.findByTestId('insight-generate'));
     await waitFor(() => expect(payloadsOf('ai/summary/generate')).toHaveLength(1));

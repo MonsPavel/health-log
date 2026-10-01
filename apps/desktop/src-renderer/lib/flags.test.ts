@@ -29,7 +29,7 @@ const DEFAULT_PREFS: Prefs = {
   // TASK-074: состояние задач планировщика — новое поле документа (дефолт схемы).
   jobState: { jobs: {}, shown: {} },
   // TASK-081: настройки ИИ — новое поле документа (дефолт схемы).
-  aiSettings: { dismissed: false },
+  aiSettings: { dismissed: false, includeNotes: false },
 };
 
 const OK_ENVELOPE = (data: unknown) => ({ v: 1, ok: true, data });
