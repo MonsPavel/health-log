@@ -607,6 +607,18 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
 
     // 7. События (TASK-009): боевая категория events вместо консольного дефолта.
     const events = new EventBus(createLogger('events'));
+    //    TASK-088 §12: доменные события Measurement мостятся в окна — рендерер
+    //    перечитывает данные после правок журнала (стейлс-бейдж резюме §12, превью
+    //    AC-5.5; прецеденты подписок ['trend']/['stats'] 057/059). ТОЛЬКО эти два
+    //    имени: стрим/статусы ИИ (076), прогресс моделей (080), net:activity (075)
+    //    и финал 'ai/summary/result' (087) публикуются своими источниками НАПРЯМУЮ
+    //    через broadcastToWindows — общий форвардер задваивал бы доставку.
+    events.on('measurement:changed', (payload) => {
+      broadcastToWindows('measurement:changed', payload);
+    });
+    events.on('data:versionBumped', (payload) => {
+      broadcastToWindows('data:versionBumped', payload);
+    });
 
     // 7.5. Прикладные use case'ы (§23, место помечено TASK-027): use case'ам нужны
     //      репозиторий (п. 6) и шина событий (п. 7), поэтому — между ними и IPC.

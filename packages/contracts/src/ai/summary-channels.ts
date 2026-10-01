@@ -130,3 +130,9 @@ export const AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA = z.object({}).strict();
 
 /** Ответ delete-all (§5): null — очистка выполнена. */
 export const AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA = z.null();
+
+/** Запрос delete-all (§5 088). */
+export type AiSummaryDeleteAllRequest = z.infer<typeof AI_SUMMARY_DELETE_ALL_REQUEST_SCHEMA>;
+
+/** Ответ delete-all (§5 088). */
+export type AiSummaryDeleteAllResponse = z.infer<typeof AI_SUMMARY_DELETE_ALL_RESPONSE_SCHEMA>;

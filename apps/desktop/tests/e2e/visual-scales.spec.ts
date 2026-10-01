@@ -85,7 +85,9 @@ function readyLocator(window: Page, path: string): Locator {
     case '/journal':
       return window.getByTestId('empty-history');
     case '/ai':
-      return window.getByRole('heading', { name: 'ИИ' });
+      // TASK-088 §6: вкладка «Разбор» — содержательный маркер экрана (заголовок
+      // «ИИ» перестал быть уникальным — внутри вкладки есть «Что передаётся ИИ»).
+      return window.getByTestId('insight-screen');
     case '/reports':
       return window.getByRole('heading', { name: 'Отчёты' });
     case '/settings':

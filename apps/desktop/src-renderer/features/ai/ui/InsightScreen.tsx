@@ -208,6 +208,15 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
       ? t('measurement.filters.period.all')
       : t(PERIOD_KEY[period.state.period]);
 
+  // §5 cache-hit: use case НЕ стримит текст из кэша (движок не трогается, решение
+  // 087) — после cache-hit-финала показываем сохранённый текст из latest (финал
+  // инвалидирует latest, §12; до refetch — пустой стрим-текст на миг).
+  const cachedSummary = final?.cached === true ? latest.data?.summary : undefined;
+  const displayedText = cachedSummary !== undefined ? cachedSummary.contentMd : generation.text;
+  const displayedDisclaimer =
+    cachedSummary !== undefined ? cachedSummary.disclaimerText : t('ai.insight.disclaimer');
+  const displayedPeriodText = cachedSummary !== undefined ? cachedSummary.periodText : periodLabel;
+
   const handleNotesToggle = (next: boolean): void => {
     // prefs.aiSettings — объект ЦЕЛИКОМ (семантика патча контракта, §5 047).
     setPreferences.mutate({
@@ -394,12 +403,12 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
           Дисклеймер внутри SummaryView несъёмный (AC-5.2). */}
       {showStream ? (
         <SummaryView
-          text={generation.text}
+          text={displayedText}
           streaming={streaming}
           cached={final?.cached === true}
           refusal={refusal}
-          disclaimerText={t('ai.insight.disclaimer')}
-          periodText={periodLabel}
+          disclaimerText={displayedDisclaimer}
+          periodText={displayedPeriodText}
           onStaleClick={handleGenerate}
         />
       ) : latest.data?.summary !== undefined ? (

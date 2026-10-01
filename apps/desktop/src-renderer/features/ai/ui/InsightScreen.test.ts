@@ -269,15 +269,24 @@ describe('InsightScreen — генерация: стрим, финал, «Сто
     expect(screen.queryByTestId('insight-stop')).toBeNull();
   });
 
-  it('финал cache-hit — бейдж «из кэша» (§5)', async () => {
+  it('финал cache-hit — бейдж «из кэша» + текст из latest (кэш не стримится, решение 087)', async () => {
     renderScreen();
     fireEvent.click(await screen.findByTestId('insight-generate'));
     await waitFor(() => expect(payloadsOf('ai/summary/generate')).toHaveLength(1));
 
-    emit('ai:token', { requestId: 'r1', text: 'Разбор из кэша.' });
+    // Кэш-hit стримом текст НЕ идёт (движок не трогается): финал → latest refetch.
     emit('ai/summary/result', { requestId: 'r1', summaryId: 's1', cached: true, stale: false });
 
     await waitFor(() => expect(screen.getByTestId('insight-cached-badge')).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByTestId('insight-summary-text').textContent).toContain(
+        'Сохранённый разбор',
+      ),
+    );
+    // Дисклеймер — из DTO сохранённой записи (несъёмный и в кэше, AC-5.2).
+    expect(screen.getByTestId('insight-disclaimer').textContent).toContain(
+      'Это не медицинская консультация.',
+    );
   });
 
   it('«Стоп» во время генерации → ai/cancel invoke (FR-5.7/EC-16)', async () => {
