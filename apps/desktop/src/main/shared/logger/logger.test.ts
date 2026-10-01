@@ -97,7 +97,7 @@ describe('редакция PHI в реальном лог-файле (§19 ко�
       durationMs: 12,
     });
 
-    const [line] = parseLines(readLog(dir));
+    const line = parseLines(readLog(dir))[0]!;
     expect(line['measurement']).toBe(PHI_CENSOR);
     expect(line['durationMs']).toBe(12);
     expect(readLog(dir)).not.toContain('болит');
@@ -107,7 +107,7 @@ describe('редакция PHI в реальном лог-файле (§19 ко�
     await initFileLogging(options(dir));
     createLogger('app').info('read', { sys: 125, op: 'read' });
 
-    const [line] = parseLines(readLog(dir));
+    const line = parseLines(readLog(dir))[0]!;
     expect(line['sys']).toBe(PHI_CENSOR);
     expect(line['op']).toBe('read');
   });
@@ -246,7 +246,7 @@ describe('logDiagnostic (§5, §20: stack без PHI cause)', () => {
     await initFileLogging(options(dir));
     logDiagnostic(createLogger('db'), new Error('boom', { cause: { sys: 125, hint: 'ctx' } }));
 
-    const [line] = parseLines(readLog(dir));
+    const line = parseLines(readLog(dir))[0]!;
     const err = line['err'] as {
       type: string;
       message: string;
@@ -267,7 +267,7 @@ describe('logDiagnostic (§5, §20: stack без PHI cause)', () => {
       cause: new Error('inner', { cause: { note: 'секрет' } }),
     });
 
-    const [line] = parseLines(readLog(dir));
+    const line = parseLines(readLog(dir))[0]!;
     const err = line['err'] as {
       code: string;
       messageKey: string;
@@ -297,7 +297,7 @@ describe('logDiagnostic (§5, §20: stack без PHI cause)', () => {
 
     expect(() => logDiagnostic(createLogger('app'), cyclic)).not.toThrow();
 
-    const [line] = parseLines(readLog(dir));
+    const line = parseLines(readLog(dir))[0]!;
     const err = line['err'] as { message: string; cause: unknown };
     expect(err.message).toBe('outer');
     expect(err.cause).toBe(PHI_CENSOR);
@@ -311,7 +311,7 @@ describe('logDiagnostic (§5, §20: stack без PHI cause)', () => {
     b.cause = a;
     logDiagnostic(createLogger('ipc'), a);
 
-    const [line] = parseLines(readLog(dir));
+    const line = parseLines(readLog(dir))[0]!;
     const err = line['err'] as { code: string; cause: { code: string; cause: unknown } };
     expect(err.code).toBe('A/X');
     expect(err.cause.code).toBe('B/Y');
@@ -327,7 +327,7 @@ describe('logDiagnostic (§5, §20: stack без PHI cause)', () => {
 
     expect(() => logDiagnostic(createLogger('db'), deep)).not.toThrow();
 
-    const [line] = parseLines(readLog(dir));
+    const line = parseLines(readLog(dir))[0]!;
     let node = line['err'] as { message: string; cause?: unknown };
     // уровни 0..MAX_REDACT_DEPTH видны, хвост (глубже предела) — цензура
     for (let i = 0; i <= MAX_REDACT_DEPTH; i += 1) {

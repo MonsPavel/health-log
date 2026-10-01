@@ -19,9 +19,18 @@ import { AppError } from '@hl/kernel';
 import {
   createChannelRegistry,
   installChannelBridge,
+  type ChannelHandler,
   type ChannelRegistry,
+  type ChannelName,
   type IpcLogger,
 } from './register-channel.js';
+
+/**
+ * Синтетическое имя тестового канала: каркас типизирован боевым union ChannelName,
+ * тест каналов NOT регистрирует — cast зеркалит транспортную реальность (dispatch
+ * сам приводит строку рендерера к ChannelName, register-channel.ts §13).
+ */
+const testChannel = (name: string): ChannelName => name as ChannelName;
 
 // vi.mock хойстится выше const-объявлений — сам мок создаётся в vi.hoisted (§19: mock ipcMain).
 const ipcMainHandle = vi.hoisted(() => vi.fn());
@@ -41,10 +50,10 @@ function fakeLogger(): { logger: IpcLogger; warn: Mock; error: Mock } {
 
 function registryWithEchoHandler(
   logger: IpcLogger,
-  handler: (payload: { value: string }) => { value: string },
+  handler: ChannelHandler<{ value: string }, { value: string }>,
 ): ChannelRegistry {
   const registry = createChannelRegistry(logger, { isDev: false });
-  registry.register('test/echo', echoSchemas, handler);
+  registry.register(testChannel('test/echo'), echoSchemas, handler);
   return registry;
 }
 
@@ -184,11 +193,11 @@ describe('dispatch п.1 — неизвестный канал и битый за
 describe('register — дисциплина реестра (§9)', () => {
   it('повторная регистрация канала — fail fast', () => {
     const registry = createChannelRegistry(fakeLogger(), { isDev: false });
-    registry.register('test/echo', echoSchemas, (payload) => payload);
+    registry.register(testChannel('test/echo'), echoSchemas, (payload) => payload);
 
-    expect(() => registry.register('test/echo', echoSchemas, (payload) => payload)).toThrow(
-      /test\/echo/,
-    );
+    expect(() =>
+      registry.register(testChannel('test/echo'), echoSchemas, (payload) => payload),
+    ).toThrow(/test\/echo/);
   });
 });
 
@@ -203,7 +212,7 @@ describe('лимит payload 5 МБ (§5/§11: dev-режим — предупр
     const { logger, warn } = fakeLogger();
     const handler = vi.fn((payload: { blob: string }) => payload);
     const registry = createChannelRegistry(logger, { isDev: true });
-    registry.register('test/big', bigSchemas, handler);
+    registry.register(testChannel('test/big'), bigSchemas, handler);
 
     await expect(registry.dispatch({ channel: 'test/big', payload: bigPayload })).resolves.toEqual({
       v: API_ENVELOPE_VERSION,
@@ -212,13 +221,13 @@ describe('лимит payload 5 МБ (§5/§11: dev-режим — предупр
     });
     expect(handler).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][1]).toMatchObject({ channel: 'test/big' });
+    expect(warn.mock.calls[0]![1]).toMatchObject({ channel: 'test/big' });
   });
 
   it('не в dev: предупреждения нет (боевое окно не спамит лог)', async () => {
     const { logger, warn } = fakeLogger();
     const registry = createChannelRegistry(logger, { isDev: false });
-    registry.register('test/big', bigSchemas, (payload) => payload);
+    registry.register(testChannel('test/big'), bigSchemas, (payload) => payload);
 
     await registry.dispatch({ channel: 'test/big', payload: bigPayload });
 
@@ -240,7 +249,7 @@ describe('installChannelBridge — mock ipcMain (§19)', () => {
     }));
     installChannelBridge(registry);
 
-    const bridgeHandler = ipcMainHandle.mock.calls[0][1] as (
+    const bridgeHandler = ipcMainHandle.mock.calls[0]![1] as (
       event: unknown,
       request: unknown,
     ) => Promise<ApiEnvelope<unknown>>;
