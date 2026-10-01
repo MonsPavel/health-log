@@ -80,8 +80,8 @@ describe('PreferencesService — getPrefs (§5/§8/§19)', () => {
       // TASK-075: modelsDownload — новое согласие схемы, дефолт false (§5).
       netConsents: { updatesCheck: false, modelsDownload: false },
       jobState: { jobs: {}, shown: {} },
-      // TASK-081: aiSettings — выбранной модели нет, «настроить позже» не нажат (§5).
-      aiSettings: { dismissed: false },
+      // TASK-081/088: aiSettings — модели нет, «позже» не нажат, заметки выключены.
+      aiSettings: { dismissed: false, includeNotes: false },
     });
     expect(store.setCalls).toHaveLength(0);
   });
@@ -107,8 +107,8 @@ describe('PreferencesService — getPrefs (§5/§8/§19)', () => {
       netConsents: { updatesCheck: true, modelsDownload: false },
       // Усечённый документ (до расширения TASK-074) — jobState из zod-дефолта (§22).
       jobState: { jobs: {}, shown: {} },
-      // Усечённый документ (до TASK-081) — aiSettings из zod-дефолта (§22).
-      aiSettings: { dismissed: false },
+      // Усечённый документ (до TASK-088) — aiSettings из zod-дефолта (§22).
+      aiSettings: { dismissed: false, includeNotes: false },
     });
   });
 
@@ -142,9 +142,10 @@ describe('PreferencesService — setPrefs (§7/§9/§11/§20)', () => {
       textScale: '112.5',
       dateFormat: 'dmy',
       advancedMode: true,
+      // TASK-088: includeNotes — дефолт схемы для усечённого документа.
+      aiSettings: { dismissed: false, includeNotes: false },
       netConsents: { updatesCheck: true, modelsDownload: false },
       jobState: { jobs: {}, shown: {} },
-      aiSettings: { dismissed: false },
     });
   });
 
@@ -185,20 +186,20 @@ describe('PreferencesService — setPrefs (§7/§9/§11/§20)', () => {
     //    dismissed из zod-дефолта (выбор не сбрасывает решение «позже»).
     await service.setPrefs({ aiSettings: { dismissed: false, modelId: 'dev-ru' } });
     expect(JSON.parse(store.rows.get(PREFS_STORAGE_KEY) as string)).toMatchObject({
-      aiSettings: { modelId: 'dev-ru', dismissed: false },
+      aiSettings: { modelId: 'dev-ru', dismissed: false, includeNotes: false },
     });
 
     // 2. «Настроить позже»: dismissed=true целиком (modelId при отсутствии — нет).
     await service.setPrefs({ aiSettings: { dismissed: true } });
     expect(JSON.parse(store.rows.get(PREFS_STORAGE_KEY) as string)).toMatchObject({
-      aiSettings: { dismissed: true },
+      aiSettings: { dismissed: true, includeNotes: false },
     });
 
     // 3. Чужой patch (theme) не затирает aiSettings (merge §9).
     await service.setPrefs({ theme: 'dark' });
     expect(JSON.parse(store.rows.get(PREFS_STORAGE_KEY) as string)).toMatchObject({
       theme: 'dark',
-      aiSettings: { dismissed: true },
+      aiSettings: { dismissed: true, includeNotes: false },
     });
     expect(events.emit).toHaveBeenLastCalledWith('prefs:changed', { patchKeys: ['theme'] });
   });

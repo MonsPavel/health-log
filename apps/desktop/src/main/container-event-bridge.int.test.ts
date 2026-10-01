@@ -70,7 +70,11 @@ afterAll(() => {
 
 describe('мост EventBus → окна: доменные события Measurement (TASK-088 §12)', () => {
   it('measurements/add доставляет в окна measurement:changed и data:versionBumped', async () => {
-    const container = await buildContainer({ userDataPath: dir, clock, vault: () => new MockVault() });
+    const container = await buildContainer({
+      userDataPath: dir,
+      clock,
+      vault: () => new MockVault(),
+    });
     try {
       const response = await container.channels.dispatch({
         channel: 'measurements/add',
@@ -96,7 +100,11 @@ describe('мост EventBus → окна: доменные события Measur
   });
 
   it('стримовые события ИИ через шину НЕ дублируются (их публикуют напрямую, §12)', async () => {
-    const container = await buildContainer({ userDataPath: dir, clock, vault: () => new MockVault() });
+    const container = await buildContainer({
+      userDataPath: dir,
+      clock,
+      vault: () => new MockVault(),
+    });
     try {
       await container.channels.dispatch({
         channel: 'measurements/add',
