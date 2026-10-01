@@ -61,11 +61,11 @@ interface Fixture {
   consents: NetConsents;
 }
 
-const makeFixture = (): Fixture => {
+const makeFixture = async (): Promise<Fixture> => {
   const dir = mkdtempSync(join(tmpdir(), 'hl-egress-checkpermission-int-'));
   dirs.push(dir);
   const db = openEncrypted(join(dir, 'egress.sqlite'), randomBytes(32).toString('hex'));
-  new MigrationRunner({ migrations: MIGRATIONS }).migrate(db);
+  await new MigrationRunner({ migrations: MIGRATIONS }).migrate(db);
   const consents: NetConsents = { updatesCheck: true, modelsDownload: true };
   const { target, envelopes } = makeFakeWindow();
   const notify = createBroadcastToWindows({
@@ -99,7 +99,7 @@ const journalRows = (db: EncryptedDatabase): {
 
 describe('EgressGateway.checkPermission — единая точка решения + журнал (TASK-096 §4/§6)', () => {
   it('(1) op вне белого списка → {allowed: false}, blocked-запись, лента; журнал-заглушка строгая (§9/AC1)', async () => {
-    const fx = makeFixture();
+    const fx = await makeFixture();
     fx.consents.updatesCheck = true;
 
     const permission = await fx.gateway.checkPermission('site.sync');
@@ -123,7 +123,7 @@ describe('EgressGateway.checkPermission — единая точка решени
   });
 
   it('(2) согласие не выдано (updatesCheck=false) → {allowed: false}, blocked-запись kind updates.check (AC1, §13 «журнал blocked — как в 075»)', async () => {
-    const fx = makeFixture();
+    const fx = await makeFixture();
     fx.consents.updatesCheck = false;
 
     const permission = await fx.gateway.checkPermission('updates.check');
@@ -136,7 +136,7 @@ describe('EgressGateway.checkPermission — единая точка решени
   });
 
   it('(3) разрешено → journal.start пишет running (endpoint фида) + лента; ok() обновляет ТУ ЖЕ запись; байты updater-а не наблюдаемы — NULL (§22)', async () => {
-    const fx = makeFixture();
+    const fx = await makeFixture();
 
     const permission = await fx.gateway.checkPermission('updates.check');
     expect(permission.allowed).toBe(true);
@@ -167,7 +167,7 @@ describe('EgressGateway.checkPermission — единая точка решени
   });
 
   it('(4) journal.failed() — сетевая неудача проверки → failed-запись (§9: статус error, журнал failed)', async () => {
-    const fx = makeFixture();
+    const fx = await makeFixture();
 
     const permission = await fx.gateway.checkPermission('updates.check');
     permission.journal.start('https://releases.example.com/latest');
@@ -185,7 +185,7 @@ describe('EgressGateway.checkPermission — единая точка решени
   });
 
   it('(5) нарушения контракта журнала — TypeError: двойной start, ok без start, повторный финал (§13)', async () => {
-    const fx = makeFixture();
+    const fx = await makeFixture();
 
     const permission = await fx.gateway.checkPermission('updates.check');
     expect(() => permission.journal.ok()).toThrow(TypeError);
@@ -198,7 +198,7 @@ describe('EgressGateway.checkPermission — единая точка решени
   });
 
   it('(6) разрешение перечитывает согласие на каждый вызов — отзыв мгновенно блокирует следующую проверку (§14)', async () => {
-    const fx = makeFixture();
+    const fx = await makeFixture();
 
     expect((await fx.gateway.checkPermission('updates.check')).allowed).toBe(true);
     fx.consents.updatesCheck = false;

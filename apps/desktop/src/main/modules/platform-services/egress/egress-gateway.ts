@@ -20,6 +20,13 @@
  * маппинг в NET/*-коды — дело потребителей TASK-080/096; наружу из gateway идёт
  * только NET/BLOCKED_BY_POLICY).
  *
+ * TASK-096 §4/§6: для потребителей, чья сеть выполняется ВНУТРИ стороннего
+ * исполнителя (electron-updater — через request() физически не провести), —
+ * checkPermission(op): решение политики/согласия (те же ветки §13, отказ —
+ * blocked-запись и лента) + gateway-journal API {start → ok|failed} для записи
+ * исхода операции, которую потребитель выполняет САМ после allowed (сеть
+ * наблюдаема, но инициируем и журналируем мы — аудиторская оговорка §22 TASK-096).
+ *
  * Журнал — ТОЛЬКО метаданные (kind/endpoint/status/bytes/at, §7): URL не содержит
  * PHI (эндпоинты — CDN моделей/сервер обновлений); тела запросов/ответов не
  * журналируются никогда. bytes — content-length ответа, если отдаёт; иначе NULL
@@ -79,6 +86,35 @@ export interface NetworkEventRow {
   readonly bytes: number | null;
   /** Момент записи (старт запроса; обновляется по завершении), epoch ms. */
   readonly atUtc: number;
+}
+
+/**
+ * Журнал ОДНОЙ разрешённой операции вне request() (TASK-096 §6 «gateway-journal
+ * API»): жизненный цикл записи тот же, что у request() — running → ok|failed,
+ * обновляется ОДНА строка network_event (§5 п. 3). Контракт строгий (§13,
+ * прецедент listRecent): нарушение порядка вызовов — TypeError.
+ */
+export interface EgressOperationJournal {
+  /** Открывает running-запись (endpoint — адрес сервера обновлений/фид). */
+  start(endpoint: string): void;
+  /** Успешный исход; bytes — если наблюдаемы (updater-трафик внутренний — NULL, §22 TASK-096). */
+  ok(bytes?: number | null): void;
+  /** Сетевая неудача операции. */
+  failed(): void;
+}
+
+/**
+ * Решение политики/согласия без выполнения запроса (TASK-096 §4/§6): потребитель,
+ * чья сеть идёт внутри стороннего исполнителя (electron-updater), получает
+ * разрешение здесь и вызывает сеть САМ — только после allowed. При отказе
+ * blocked-запись и лента уже написаны checkPermission'ом (честность журнала, §9),
+ * journal — строгая заглушка.
+ */
+export interface EgressPermission {
+  /** true — операция в белом списке И согласие выдано; false — отказ (запись blocked уже в журнале). */
+  readonly allowed: boolean;
+  /** Журналирование разрешённой операции; при allowed=start обязателен до ok/failed. */
+  readonly journal: EgressOperationJournal;
 }
 
 /** Зависимости gateway (§5): сборка — контейнер, подмена — тесты (§19). */
@@ -213,6 +249,71 @@ export class EgressGateway {
     }));
   }
 
+  /**
+   * Единая точка решения для потребителей с «внутренней» сетью (TASK-096 §4):
+   * electron-updater выполняет трафик сам — через request() его физически не
+   * провести; честная модель — решение политики/согласия + журналирование ЗДЕСЬ,
+   * вызов updater'а у потребителя ТОЛЬКО при allowed. Отказ (вне списка/без
+   * согласия) — blocked-запись и лента (§9: журнал честен и про отказы), наружу
+   * {allowed: false}; throwing AppError — дело потребителя (маппинг — §13 096).
+   * Endpoint при отказе неизвестен (updater-knows-only) — пустая строка: адрес не
+   * наблюдаем gateway'ем (§22 TASK-096 — аудиторская оговорка).
+   */
+  async checkPermission(op: string): Promise<EgressPermission> {
+    const policyEntry = (EgressPolicy.ALLOWED as Readonly<Record<string, EgressPolicyEntry>>)[op];
+    const consents = policyEntry === undefined ? undefined : await this.deps.consents();
+    if (policyEntry === undefined || consents?.[policyEntry.consentKey] !== true) {
+      this.journalBlocked(op, '', this.deps.clock.nowMs());
+      return { allowed: false, journal: deniedJournal(op) };
+    }
+    return { allowed: true, journal: this.operationJournal(op) };
+  }
+
+  /**
+   * Журнал разрешённой операции (§5 п. 3 — тот же жизненный цикл, что у request()):
+   * running-запись при start(), финал ok/failed обновляет ТУ ЖЕ строку. Нарушение
+   * порядка вызовов — TypeError (программная ошибка потребителя, прецедент listRecent).
+   */
+  private operationJournal(op: string): EgressOperationJournal {
+    const id = uuidV7();
+    let state: 'idle' | 'running' | 'finished' = 'idle';
+    return {
+      start: (endpoint: string) => {
+        if (state !== 'idle') {
+          throw new TypeError(
+            `gateway journal: повторный start для ${op} (нарушение контракта — программная ошибка, TASK-096 §6)`,
+          );
+        }
+        state = 'running';
+        this.deps.db
+          .prepare(INSERT_EVENT_SQL)
+          .run(id, op, endpoint, 'running', null, this.deps.clock.nowMs());
+        this.notifyActivity(op, endpoint);
+        this.deps.logger.info('net operation started', { kind: op, endpoint });
+      },
+      ok: (bytes: number | null = null) => {
+        if (state !== 'running') {
+          throw new TypeError(
+            `gateway journal: ok без start/повторный финал для ${op} (нарушение контракта — программная ошибка, TASK-096 §6)`,
+          );
+        }
+        state = 'finished';
+        this.deps.db.prepare(FINISH_SQL).run('ok', bytes, this.deps.clock.nowMs(), id);
+        this.deps.logger.info('net operation done', { kind: op, status: 'ok' });
+      },
+      failed: () => {
+        if (state !== 'running') {
+          throw new TypeError(
+            `gateway journal: failed без start/повторный финал для ${op} (нарушение контракта — программная ошибка, TASK-096 §6)`,
+          );
+        }
+        state = 'finished';
+        this.deps.db.prepare(FINISH_SQL).run('failed', null, this.deps.clock.nowMs(), id);
+        this.deps.logger.warn('net operation failed', { kind: op, status: 'failed' });
+      },
+    };
+  }
+
   /** Blocked-запись (§9: отказ тоже в журнале — честность пользовательского журнала). */
   private journalBlocked(kind: string, endpoint: string, atUtc: number): void {
     // Сразу финальным статусом: сети не было — running-фаза отсутствует.
@@ -259,4 +360,18 @@ function parseContentLength(value: string | null): number | null {
     return null;
   }
   return Number(value);
+}
+
+/**
+ * Заглушка журнала ОТКАЗАННОЙ операции (TASK-096 §6): blocked-запись уже написана
+ * checkPermission'ом; любой вызов — программная ошибка потребителя (журнал отказа
+ * не должен притворяться рабочим — прецедент строгости listRecent).
+ */
+function deniedJournal(op: string): EgressOperationJournal {
+  const denied = (): never => {
+    throw new TypeError(
+      `gateway journal: операция ${op} не разрешена — журналирование недоступно (нарушение контракта — программная ошибка, TASK-096 §6)`,
+    );
+  };
+  return { start: () => denied(), ok: () => denied(), failed: () => denied() };
 }
