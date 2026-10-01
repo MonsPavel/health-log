@@ -11,8 +11,10 @@ import { createSecondInstanceHandler, ensureSingleInstance } from './single-inst
 import { resolveUserDataPath } from './user-data-override.js';
 import {
   buildContainer,
+  evalHeadlessEnabled,
   fakeLlmDelayMs,
   fakeLlmEnabled,
+  HL_EVAL_HEADLESS_ENV,
   HL_TEST_MODEL_FILE_ENV,
   testModelFileEnabled,
   type Container,
@@ -141,7 +143,15 @@ if (gotSingleInstanceLock) {
       );
     }
     installChannelBridge(container.channels);
-    createWindow();
+    // TASK-092 §4/§5: headless-режим eval (env HL_EVAL_HEADLESS=1, гард
+    // evalHeadlessEnabled — только не-packaged, §14) — BrowserWindow не создаётся:
+    // ночной CI-прогон eval работает с use case'ами напрямую, без дисплея
+    // (ubuntu-runner, xvfb не нужен). Лог — наблюдаемость факта пропуска (AC §20.4).
+    if (evalHeadlessEnabled(process.env, app.isPackaged)) {
+      createLogger('app').info('window skipped', { reason: HL_EVAL_HEADLESS_ENV });
+    } else {
+      createWindow();
+    }
     // TASK-074 §9: tick планировщика при старте — ПОСЛЕ контейнера (запись
     // jobState в prefs не соревнуется с prefs-вызовами сборки/первыми каналами
     // рендерера). Падения задач изолированы в scheduler'е; сбой store — лог:
