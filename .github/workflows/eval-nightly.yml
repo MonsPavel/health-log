@@ -90,9 +90,12 @@ jobs:
       # проверяет sha256 манифеста (гейт, AC §20.3). На cache-hit скрипт
       # НЕ скачивает — только перепроверяет sha256 кэша (лог пропуска, AC §20.2).
       # Путь модели — в GITHUB_OUTPUT (steps.model.outputs.model-path).
+      # --id — ДЕТЕРМИНИРОВАННЫЙ выбор dev-модели манифеста (пост-мердж фикс
+      # живого прогона 01.10: по умолчанию скрипт берёт первую запись — реестр
+      # 079 ведёт реальной моделью, но не полагаемся на порядок).
       - name: Fetch eval model (manifest + sha256 gate)
         id: model
-        run: node tools/scripts/fetch-eval-model.mjs
+        run: node tools/scripts/fetch-eval-model.mjs --id llama-3.2-1b
 
       # §5: прогон «красного набора» с отчётом. Отклонение от буквальной записи
       # §5 «--report out»: флаг CLI eval (TASK-091) называется --out-dir.
