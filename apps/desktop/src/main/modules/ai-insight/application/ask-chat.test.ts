@@ -407,8 +407,9 @@ describe('AskChat — полный поток US-19 (TASK-089 §19)', () => {
     const [user, assistant] = lastPair(repo);
     expect(user.content).toBe('Как дела?');
     expect(assistant.refusalClass).toBe('emergency');
-    // Полный текст FR-7.4 (086): призыв немедленной помощи с порогом криза.
-    expect(assistant.content).toContain('140');
+    // Полный текст FR-7.4 (086): порог криза и призыв немедленной помощи.
+    expect(assistant.content).toContain('180/120');
+    expect(assistant.content).toContain('Немедленно обратитесь');
   });
 
   it('(4) BUSY §9: генерация резюме идёт → чат-вопрос AI/BUSY ДО префильтра, история не тронута', async () => {

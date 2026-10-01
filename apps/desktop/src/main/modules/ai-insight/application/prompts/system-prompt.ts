@@ -138,3 +138,25 @@ export function buildSystemPrompt(policy: GuardrailPolicy, contextMeta: PromptCo
     tone,
   ].join('\n\n');
 }
+
+/**
+ * Чат-вариант system prompt (TASK-089 §5): ТА ЖЕ политика + строка «это диалог,
+ * отвечай на последний вопрос с учётом истории» — секция ДИАЛОГ в конце (после
+ * ТОН, структура секций резюме не меняется — golden-снапшот 084 честен). Контекст
+ * периода включается в КАЖДЫЙ вопрос (§4), история — только для связности
+ * последних сообщений (CHAT_HISTORY_DEPTH=6). Правка текста шаблона резюме
+ * (buildSystemPrompt) → бамп PROMPT_TEMPLATE_VERSION (правило §13 в шапке файла);
+ * чат-секция в contextHash 083 не входит (кэш резюме не затрагивает).
+ */
+export function buildChatSystemPrompt(
+  policy: GuardrailPolicy,
+  contextMeta: PromptContextMeta,
+): string {
+  const dialog = [
+    'ДИАЛОГ:',
+    'Это диалог, отвечай на последний вопрос с учётом истории; сообщения пользователя ниже ' +
+      'содержат контекст периода и последние сообщения диалога.',
+  ].join('\n');
+
+  return `${buildSystemPrompt(policy, contextMeta)}\n\n${dialog}`;
+}
