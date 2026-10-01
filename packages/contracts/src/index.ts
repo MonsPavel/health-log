@@ -48,3 +48,4 @@ export * from './report/index.js';
 export * from './scales.js';
 export * from './stats/index.js';
 export * from './trends.js';
+export * from './updates.js';

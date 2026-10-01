@@ -103,6 +103,19 @@ export interface HlEventMap {
     readonly requestId: string;
     readonly messageId?: string;
   };
+  /**
+   * TASK-096 §5/§11: доступно обновление приложения (UpdatesService; проверка —
+   * только по согласию и после разрешения/журнала gateway, §4). version — версия
+   * из фида обновлений (метаданные, без PHI).
+   */
+  'update:available': { readonly version: string };
+  /**
+   * TASK-096 §5/§11: прогресс загрузки обновления — процент 0..100 (обновление
+   * одно, событий немного — без батчинга; карточка обновления — UI 097).
+   */
+  'update:progress': { readonly percent: number };
+  /** TASK-096 §5/§11: обновление скачано и готово к установке (установка — по кнопке, §5). */
+  'update:ready': Record<string, never>;
   /** Технологическое событие журнала main (§18): только ключ сообщения, без PHI. */
   'app:log': { readonly level: HlLogLevel; readonly messageKey: string };
 }
@@ -123,6 +136,9 @@ export const HL_EVENT_PAYLOAD_KEYS = {
   'ai:progress': ['modelId', 'downloadedBytes', 'totalBytes', 'state'],
   'ai/summary/result': ['requestId', 'summaryId', 'cached', 'stale'],
   'ai/chat/result': ['requestId', 'messageId'],
+  'update:available': ['version'],
+  'update:progress': ['percent'],
+  'update:ready': [],
   'app:log': ['level', 'messageKey'],
 } as const satisfies {
   readonly [K in keyof HlEventMap]: readonly (keyof HlEventMap[K])[];

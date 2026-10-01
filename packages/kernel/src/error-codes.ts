@@ -93,6 +93,9 @@ export const ERROR_CODES = [
   'AI/DISK_FULL',
   'AI/HASH_MISMATCH',
   'AI/DOWNLOAD_BUSY',
+  // TASK-096 §13/§20: UpdatesService — установка обновления без скачанного
+  // (quitAndInstall только при status ready; отказ видимый, не тихий).
+  'UPD/NOT_READY',
 ] as const;
 
 /** Машинный код ошибки приложения (§7). */
