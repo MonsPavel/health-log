@@ -97,7 +97,7 @@
 | TASK-089 | done | | смержена |
 | TASK-090 | done | | смержена |
 | TASK-091 | done | | смержена вручную 01.10 после квота-остановки прогона 13 на фазе приёмки: ревью дифа выполнено основным агентом, gate — typecheck + pnpm test 267 файлов/2843 passed (+4 [model]-skip); AC5 — отчёт docs/dev/eval-reports (1B, 22/22 passed, exit 0) |
-| TASK-092 | todo | | |
+| TASK-092 | blocked | task/TASK-092 | заблокирована конвейером, не смержена; ветка с наработками (eval-nightly.yml, fetch-eval-model.mjs, headless-гард) сохранена |
 | TASK-093 | todo | | |
 | TASK-094 | todo | | |
 | TASK-095 | todo | | |
