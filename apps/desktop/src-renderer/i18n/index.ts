@@ -59,6 +59,9 @@ import about from './ru/about.json';
 // TASK-101 §17: ключи recovery.* — полноэкранный режим восстановления
 // (повреждение БД/провал миграции): спокойный тон, варианты, подтверждения.
 import recovery from './ru/recovery.json';
+// TASK-103 §17: ключи diag.* — секция «Диагностика» настроек (сборка диагпакета,
+// предпросмотр, golden-предупреждение «в пакет не входят ваши измерения и заметки»).
+import diag from './ru/diag.json';
 
 const resources = {
   ru: {
@@ -79,6 +82,7 @@ const resources = {
       privacy,
       about,
       recovery,
+      diag,
     },
   },
 } as const;
