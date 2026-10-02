@@ -114,6 +114,13 @@ import { createBuildPdfReportHandler } from './ipc/handlers/report-pdf.js';
 import { createRevealPathHandler } from './ipc/handlers/reveal.js';
 import { createSearchNotesHandler } from './ipc/handlers/search.js';
 import { createGetPrefsHandler, createSetPrefsHandler } from './ipc/handlers/prefs.js';
+// TASK-100 §5/§11: каналы сампроверки и «О приложении» — app/selfcheck (снимок),
+// app/meta (версии), app/integrity-full (полная проверка по кнопке).
+import {
+  createAppIntegrityFullHandler,
+  createAppMetaHandler,
+  createAppSelfcheckHandler,
+} from './ipc/handlers/app-info.js';
 import { createGetActiveScaleHandler } from './ipc/handlers/scales.js';
 import { createGetPeriodStatisticsHandler } from './ipc/handlers/stats.js';
 import { createTrendSeriesHandler } from './ipc/handlers/trends.js';
@@ -1745,6 +1752,32 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       'app/heartbeat',
       CHANNEL_SCHEMAS['app/heartbeat'],
       createHeartbeatHandler(vaultService),
+    );
+    // TASK-100 §5/§11: сампроверка старта и «О приложении» — selfcheck (снимок из
+    // памяти; null до unlock), meta (версии: приложение/схема/шкала/модель —
+    // modelMeta 087 выше), integrity-full (полная проверка по кнопке, secure).
+    channels.register(
+      'app/selfcheck',
+      CHANNEL_SCHEMAS['app/selfcheck'],
+      createAppSelfcheckHandler(selfcheck),
+    );
+    channels.register(
+      'app/meta',
+      CHANNEL_SCHEMAS['app/meta'],
+      createAppMetaHandler({
+        appVersion,
+        selfcheck,
+        scales: async () => {
+          const scale = await scaleService.getActiveScale();
+          return { code: scale.code, version: scale.version };
+        },
+        model: modelMeta,
+      }),
+    );
+    channels.register(
+      'app/integrity-full',
+      CHANNEL_SCHEMAS['app/integrity-full'],
+      createAppIntegrityFullHandler(selfcheck),
     );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
