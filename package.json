@@ -34,6 +34,7 @@
     "test:watch": "vitest",
     "test:llm-model": "vitest run llama-engine",
     "test:coverage": "vitest run --coverage",
+    "test:crash": "tsx tools/scripts/crash-test.mjs",
     "test:vault-real": "pnpm --filter @hl/kernel run build && pnpm --filter @hl/desktop run test:vault-real",
     "test:lint-rules": "tsx scripts/test-lint-rules.ts",
     "test:depcruise-rules": "tsx scripts/test-depcruise-rules.ts",
