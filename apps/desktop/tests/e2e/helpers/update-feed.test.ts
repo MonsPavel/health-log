@@ -71,7 +71,11 @@ const sha512Base64 = (file: string): string =>
 describe('update-feed — строка-доказательство §20-1 (кроссплатформенно)', () => {
   it('buildSigningEvidenceLine: Valid помечается явно (для лога прогона/PR-описания)', () => {
     expect(
-      buildSigningEvidenceLine({ status: 0, subject: 'CN=Health Log Test, O=Health Log, C=RU', fileName: 'health-log-setup-1.0.1.exe' }),
+      buildSigningEvidenceLine({
+        status: 0,
+        subject: 'CN=Health Log Test, O=Health Log, C=RU',
+        fileName: 'health-log-setup-1.0.1.exe',
+      }),
     ).toBe(
       '[TASK-104 §20-1] test-cert подпись: Status=0 (Valid), Subject=CN=Health Log Test, O=Health Log, C=RU, file=health-log-setup-1.0.1.exe',
     );
@@ -265,11 +269,13 @@ describe.skipIf(process.platform !== 'win32')(
         expect(status.status).toBe(0);
         expect(status.signerSubject).toBe(cert.subjectDn);
         // Строка-доказательство §20-1 — в лог прогона (для PR-описания, §20-1).
-        console.info(buildSigningEvidenceLine({
-          status: status.status,
-          subject: status.signerSubject ?? '',
-          fileName: basename(downloaded[0] as string),
-        }));
+        console.info(
+          buildSigningEvidenceLine({
+            status: status.status,
+            subject: status.signerSubject ?? '',
+            fileName: basename(downloaded[0] as string),
+          }),
+        );
       } finally {
         cert.remove();
       }
