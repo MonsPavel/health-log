@@ -71,6 +71,9 @@ import { AppError, err, ok, SystemClock, type Clock, type Result } from '@hl/ker
 import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 
 import { createLogClientErrorHandler } from './app/global-errors.js';
+// TASK-100 §5/§9: сампроверка старта — снимок SelfCheckReport после открытия БД
+// (разделение «обнаружить» (самчек) и «реагировать» (recovery 101)).
+import { SelfCheckService } from './app/selfcheck.js';
 import { EventBus } from './events/event-bus.js';
 import { broadcastToWindows } from './events/broadcast.js';
 import { ElectronFileSaver } from './platform/file-saver.js';
@@ -111,6 +114,13 @@ import { createBuildPdfReportHandler } from './ipc/handlers/report-pdf.js';
 import { createRevealPathHandler } from './ipc/handlers/reveal.js';
 import { createSearchNotesHandler } from './ipc/handlers/search.js';
 import { createGetPrefsHandler, createSetPrefsHandler } from './ipc/handlers/prefs.js';
+// TASK-100 §5/§11: каналы сампроверки и «О приложении» — app/selfcheck (снимок),
+// app/meta (версии), app/integrity-full (полная проверка по кнопке).
+import {
+  createAppIntegrityFullHandler,
+  createAppMetaHandler,
+  createAppSelfcheckHandler,
+} from './ipc/handlers/app-info.js';
 import { createGetActiveScaleHandler } from './ipc/handlers/scales.js';
 import { createGetPeriodStatisticsHandler } from './ipc/handlers/stats.js';
 import { createTrendSeriesHandler } from './ipc/handlers/trends.js';
@@ -586,6 +596,14 @@ export interface Container {
    * §13); потребитель — хендлер ai/chat/clear (диалог подтверждения — UI 090).
    */
   readonly clearChat: ClearChat;
+  /**
+   * SelfCheckService (TASK-100 §5/§7): сампроверка старта — иммутабельный снимок
+   * SelfCheckReport (quick_check, schema_version, vault-режим, llm-воркер, prefs),
+   * выполняется после миграций (mode=none — при сборке, passphrase — в openDatabase
+   * после unlock). Потребители — каналы app/selfcheck|meta|integrity-full (§11),
+   * далее recovery 101 и диагпакет 103.
+   */
+  readonly selfcheck: SelfCheckService;
   /**
    * UpdatesService (TASK-096 §5/§9): electron-updater в ручном режиме за согласием
    * prefs.netConsents.updatesCheck (NFR-11) — разрешение и журнал через
@@ -1311,10 +1329,30 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     });
     const clearChat = new ClearChat({ repo: chatRepo });
 
+    //    TASK-100 §5/§9: SelfCheckService — снимок старта. Порты: vault-режим
+    //    зафиксирован при сборке (KEY_MISSING в отчёт не попадает принципиально —
+    //    отказ vault-а роняет сборку раньше, §13); статус llm-воркера — клиент
+    //    `llm` выше (spawn ленивый: на старте честное 'starting'); prefsOk — чтение
+    //    PreferencesService (zod при чтении — флаг §5). Отчёт БЕЗ путей/PHI (§14):
+    //    только факты/версии — безопасен для recovery 101 и диагпакета 103.
+    const selfcheck = new SelfCheckService({
+      db,
+      clock,
+      logger,
+      vaultMode,
+      workerState: () => llm.state,
+      prefsOk: async () => {
+        await preferencesService.getPrefs();
+        return true;
+      },
+    });
+
     //    TASK-093 §9: открытие БД по требованию (режим passphrase): «unlock →
     //    ensureKey → открытие БД». В mode=none БД уже открыта — ok немедленно.
     //    До unlock ensureKey даёт VAULT/LOCKED; после — миграции (с hook-снапшотом)
     //    и активация шкалы; успех логируется как обычный «container ready» (§18).
+    //    TASK-100 §5/§6: самчек выполняется после миграций — в openDatabase для
+    //    режима passphrase (снимок старта появляется только у открытой БД).
     //    err не кэшируется — повтор после unlock работает (прецедент ensureKey §13).
     let opening: Promise<Result<void, AppError>> | undefined;
     const openDatabase = async (): Promise<Result<void, AppError>> => {
@@ -1336,6 +1374,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
           keyCreated = ensured.value.created;
           const versions = await applyMigrations(connection);
           await scaleService.ensureActivated();
+          await selfcheck.run();
           logger.info('container ready', {
             db: basename(dbPath),
             schemaVersion: versions.schemaVersion,
@@ -1387,6 +1426,15 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //    не через tick: запись jobState в prefs каждые 30 с будила бы
     //    prefs:changed → перечитывание → IPC → активность → простой не копился).
     scheduler.register(createAutolockJob({ service: vaultService }));
+
+    //    TASK-100 §5/§9/§18: запуск сампроверки (mode=none — БД уже открыта и
+    //    промигрирована; в passphrase снимок появится в openDatabase после unlock).
+    //    Сбой quick_check НЕ прерывает старт: dbOk=false — реакцию решает recovery
+    //    TASK-101 (разделение «обнаружить» и «реагировать», тест 100); резюме старта —
+    //    одна строка лога (§18 — пишет сам сервис: dbOk, schemaVersion, startupMs).
+    if (!locked) {
+      await selfcheck.run();
+    }
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
     //    прикладных use case'ов. ping (TASK-008) — время из Clock контейнера
@@ -1705,6 +1753,32 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       CHANNEL_SCHEMAS['app/heartbeat'],
       createHeartbeatHandler(vaultService),
     );
+    // TASK-100 §5/§11: сампроверка старта и «О приложении» — selfcheck (снимок из
+    // памяти; null до unlock), meta (версии: приложение/схема/шкала/модель —
+    // modelMeta 087 выше), integrity-full (полная проверка по кнопке, secure).
+    channels.register(
+      'app/selfcheck',
+      CHANNEL_SCHEMAS['app/selfcheck'],
+      createAppSelfcheckHandler(selfcheck),
+    );
+    channels.register(
+      'app/meta',
+      CHANNEL_SCHEMAS['app/meta'],
+      createAppMetaHandler({
+        appVersion,
+        selfcheck,
+        scales: async () => {
+          const scale = await scaleService.getActiveScale();
+          return { code: scale.code, version: scale.version };
+        },
+        model: modelMeta,
+      }),
+    );
+    channels.register(
+      'app/integrity-full',
+      CHANNEL_SCHEMAS['app/integrity-full'],
+      createAppIntegrityFullHandler(selfcheck),
+    );
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
@@ -1740,6 +1814,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       clearChat,
       updates,
       privacy: privacyQueries,
+      selfcheck,
       vaultService,
       openDatabase,
       close(): void {

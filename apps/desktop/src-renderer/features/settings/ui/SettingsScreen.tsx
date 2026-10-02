@@ -12,6 +12,8 @@
  * §6: секция «Обновления» (UpdatesSection) — после «Защиты паролем», до
  * «Продвинутых». TASK-099 §5/§22: секция «Приватность» (PrivacyScreen) — после
  * «Обновлений», до «Продвинутых»; НЕ в advanced (важность выше простоты, §22).
+ * TASK-100 §5: секция «О приложении» (AboutSection) — после «Приватности», до
+ * «Продвинутых»: версии (NFR-10), статус сампроверки, полная проверка БД.
  */
 import { useTranslation } from 'react-i18next';
 
@@ -21,6 +23,7 @@ import { AdvancedSection } from './AdvancedSection';
 import { AppearanceSection } from './AppearanceSection';
 import { UpdatesSection } from './UpdatesSection';
 import { PrivacyScreen } from './PrivacyScreen';
+import { AboutSection } from './AboutSection';
 import { SecuritySettings } from '../../security/ui/SecuritySettings';
 
 export function SettingsScreen(): JSX.Element {
@@ -75,6 +78,9 @@ export function SettingsScreen(): JSX.Element {
       {/* TASK-099 §5/§6: секция «Приватность» — обещание, операции/согласия
           (privacy/* 098), живая лента net:activity, инструкция самопроверки. */}
       <PrivacyScreen />
+      {/* TASK-100 §5: секция «О приложении» — версии (app/meta), статус сампроверки
+          (app/selfcheck), полная проверка БД (app/integrity-full). */}
+      <AboutSection />
       {/* §5/§16: условный рендер — скрытая секция отсутствует в DOM. */}
       {flags.advancedMode ? <AdvancedSection /> : null}
     </section>

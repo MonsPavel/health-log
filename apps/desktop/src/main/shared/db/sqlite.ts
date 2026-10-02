@@ -14,8 +14,11 @@
  *   2. `key = "x'<hex>'"` — raw-ключ 32 байта, KDF не применяется (ключ и так
  *      случайный, §6 арх. 04; строка прагмы никогда не логируется, §14);
  *   3. `quick_check` — проверочное чтение первой страницы (§13): неверный ключ и
- *      чужой файл дают SQLITE_NOTADB ещё на открытии, а не крипто-мусор при первом
- *      запросе; заодно детект повреждения при старте (полный сценарий — TASK-100/101);
+ *      чужой файл дают исключение SQLITE_NOTADB ещё на открытии (маппится в
+ *      STORAGE/BAD_KEY). НЕ-исключение quick_check ≠ 'ok' (повреждение при верном
+ *      ключе) соединение НЕ закрывает: с TASK-100 обнаружение повреждения —
+ *      ответственность сампроверки (SelfCheckService, dbOk=false — §9 «обнаружить
+ *      отделено от реагировать», recovery-экран 101), БД остаётся открытой;
  *   4. `journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL` (§8: баланс
  *      durability/скорости — WAL+NORMAL переживает краш процесса; решение в ADR-0002).
  *
@@ -24,8 +27,9 @@
  *   SQLITE_NOTADB            → STORAGE/BAD_KEY  (неверный/отсутствующий ключ);
  *   SQLITE_BUSY/SQLITE_LOCKED→ STORAGE/LOCKED   (файл занят другим процессом;
  *                         защита — single-instance TASK-012, здесь только код);
- *   quick_check ≠ 'ok'       → STORAGE/CORRUPT;
  *   остальное                → APP/INTERNAL (детали в cause для логов).
+ *   (повреждение при верном ключе — quick_check ≠ 'ok' без исключения — ошибкой
+ *   открытия НЕ является с TASK-100: см. п. 3 выше.)
  *
  * Ключ (§14): валидируется ДО обращения к файлу (dev-контракт: TypeError в точке
  * вызова, прецедент §20 — скоуп profileId TASK-021); JS-гарантий обнуления строки
@@ -45,7 +49,9 @@ export type EncryptedDatabase = InstanceType<typeof Database>;
 /** Ключи i18n-каталога по конвенции арх. 05 §29 (`errors.<КОД_С_ПОДЧЁРКИВАНИЯМИ>`); тексты — TASK-101. */
 export const STORAGE_BAD_KEY_MESSAGE_KEY = 'errors.STORAGE_BAD_KEY';
 export const STORAGE_LOCKED_MESSAGE_KEY = 'errors.STORAGE_LOCKED';
-export const STORAGE_CORRUPT_MESSAGE_KEY = 'errors.STORAGE_CORRUPT';
+// STORAGE/CORRUPT с TASK-100 не выбрасывается обёрткой: обнаружение повреждения —
+// сампроверка (SelfCheckService, dbOk=false §9); ключ для кода остаётся у своих
+// потребителей (scale-service — повреждённый data_json шкалы).
 
 /** Ключ APP/INTERNAL из контракта каркаса (contracts, app-error-dto.ts TASK-008). */
 const APP_INTERNAL_MESSAGE_KEY = 'errors.internal';
@@ -104,20 +110,10 @@ export function openEncrypted(path: string, keyHex: string): EncryptedDatabase {
     // Raw-ключ hex: KDF не применяется (ключ случайный 32 байта). Не логируется (§14).
     db.pragma(`key = "x'${normalizedKeyHex}'"`);
     // Проверочное чтение первой страницы (§13): неверный ключ → SQLITE_NOTADB;
-    // чужая блокировка → SQLITE_BUSY; повреждение → non-'ok' отчёт без исключения.
-    const quickCheck = db.pragma('quick_check', { simple: true });
-    if (quickCheck !== 'ok') {
-      // Контракт §7: обёртка сигнализирует ошибкой типа AppError (не Error) —
-      // как хендлеры каркаса (прецедент register-channel.test.ts §13 п. 3);
-      // правилу only-throw-error это объяснено здесь.
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw AppError.of(
-        'STORAGE/CORRUPT',
-        STORAGE_CORRUPT_MESSAGE_KEY,
-        undefined,
-        `PRAGMA quick_check: ${String(quickCheck)}`,
-      );
-    }
+    // чужая блокировка → SQLITE_BUSY. Повреждение при верном ключе (не-исключение
+    // quick_check ≠ 'ok') НЕ бросает — соединение остаётся открытым, повреждение
+    // фиксирует сампроверка TASK-100 (SelfCheckService → dbOk=false, §9).
+    db.pragma('quick_check', { simple: true });
     // Прагмы окружения (§8). WAL обязателен (§15: без него вставки в 10+ раз медленнее).
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
