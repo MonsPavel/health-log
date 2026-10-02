@@ -133,8 +133,8 @@ describe('update-feed — контракт подписи electron-builder.yml (
     const scalars = [...config.matchAll(/^[ \t]*publisherName:[ \t]+(\S.*?)[ \t]*$/gm)].map(
       (match) => match[1]?.trim(),
     );
-    const listItems = [...config.matchAll(/^[ \t]*-[ \t]+(CN=\S.*?)[ \t]*$/gm)].map(
-      (match) => match[1]?.trim(),
+    const listItems = [...config.matchAll(/^[ \t]*-[ \t]+(CN=\S.*?)[ \t]*$/gm)].map((match) =>
+      match[1]?.trim(),
     );
     const values = [...scalars, ...listItems];
     expect(values.length).toBe(2);
