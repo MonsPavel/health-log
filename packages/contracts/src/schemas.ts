@@ -8,11 +8,14 @@ import { z } from 'zod';
 import { BENCH_SEED_REQUEST_SCHEMA, BENCH_SEED_RESPONSE_SCHEMA } from './bench.js';
 import type { ChannelName } from './channels.js';
 // TASK-100 §5/§11: сампроверка старта и версии «О приложении» (схемы — app-info.ts).
+// TASK-101 §5/§9/§11: «Открыть папку с копиями» recovery-экрана (app-info.ts).
 import {
   APP_INTEGRITY_FULL_REQUEST_SCHEMA,
   APP_INTEGRITY_FULL_RESPONSE_SCHEMA,
   APP_META_REQUEST_SCHEMA,
   APP_META_RESPONSE_SCHEMA,
+  APP_REVEAL_BACKUPS_REQUEST_SCHEMA,
+  APP_REVEAL_BACKUPS_RESPONSE_SCHEMA,
   APP_SELFCHECK_REQUEST_SCHEMA,
   APP_SELFCHECK_RESPONSE_SCHEMA,
 } from './app-info.js';
@@ -51,6 +54,8 @@ import {
   BACKUP_CREATE_RESPONSE_SCHEMA,
   BACKUP_RESTORE_REQUEST_SCHEMA,
   BACKUP_RESTORE_RESPONSE_SCHEMA,
+  DATA_DISCARD_DB_REQUEST_SCHEMA,
+  DATA_DISCARD_DB_RESPONSE_SCHEMA,
   DATA_WIPE_REQUEST_SCHEMA,
   DATA_WIPE_RESPONSE_SCHEMA,
 } from './data-care/schemas.js';
@@ -321,6 +326,16 @@ export const CHANNEL_SCHEMAS = {
     response: APP_META_RESPONSE_SCHEMA,
   },
   /**
+   * TASK-101 §5/§9/§11: «Открыть папку с копиями» recovery-экрана — {} → null
+   * (fire-and-forget, прецедент app/reveal-path). НЕ secure: путь каталога копий
+   * строит main (userData с именем Windows-пользователя renderer'у не известен, §14),
+   * запрос параметров не несёт.
+   */
+  'app/reveal-backups': {
+    request: APP_REVEAL_BACKUPS_REQUEST_SCHEMA,
+    response: APP_REVEAL_BACKUPS_RESPONSE_SCHEMA,
+  },
+  /**
    * TASK-100 §4/§11: полная проверка БД по кнопке — {} → {ok, details} (вывод
    * PRAGMA integrity_check; progress не нужен: <10 с, §11). secure: БД-канал —
    * при locked соединение закрыто (гвардия даёт честный VAULT/LOCKED).
@@ -345,11 +360,25 @@ export const CHANNEL_SCHEMAS = {
    * TASK-071 §6/§11: восстановление из копии (Data Care) — двухфазный канал:
    * фаза 1 {file, passphrase, confirmed: false} → {plan} (предупреждения — UI
    * показывает до подтверждения); фаза 2 {…, confirmed: true} → {restarting: true}
-   * (замена БД + отложенный relaunch, §9). Регистрация хендлера — TASK-073.
+   * (замена БД + отложенный relaunch, §9). TASK-101 §11: третий вариант
+   * {…, recovery: true} — recovery-выполнение без фазы plan и без страховки
+   * (сравнение с повреждённой текущей БД пропускается). Разрешён в recovery-режиме
+   * (allowlist гвардии каркаса — §9). Регистрация хендлера — TASK-073.
    */
   'backup/restore': {
     request: BACKUP_RESTORE_REQUEST_SCHEMA,
     response: BACKUP_RESTORE_RESPONSE_SCHEMA,
+    secure: true,
+  },
+  /**
+   * TASK-101 §5/§9/§11: «начать заново» на recovery-экране — wipe-подмножество:
+   * {} → {restarting: true} (main закрывает соединение, удаляет ТОЛЬКО db/-wal/-shm
+   * и перезапускает; ключ/копии/логи остаются — EC-14). secure — файловая операция;
+   * регистрируется ТОЛЬКО в recovery-режиме (в здоровом — «неизвестный канал»).
+   */
+  'data/discard-db': {
+    request: DATA_DISCARD_DB_REQUEST_SCHEMA,
+    response: DATA_DISCARD_DB_RESPONSE_SCHEMA,
     secure: true,
   },
   /**

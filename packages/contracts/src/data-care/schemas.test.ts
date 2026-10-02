@@ -19,6 +19,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import type { ChannelName } from '../channels.js';
+import { CHANNEL_SCHEMAS } from '../schemas.js';
 import {
   BACKUP_CREATE_REQUEST_SCHEMA,
   BACKUP_CREATE_RESPONSE_SCHEMA,
@@ -26,6 +28,8 @@ import {
   BACKUP_RESTORE_PLAN_SCHEMA,
   BACKUP_RESTORE_REQUEST_SCHEMA,
   BACKUP_RESTORE_RESPONSE_SCHEMA,
+  DATA_DISCARD_DB_REQUEST_SCHEMA,
+  DATA_DISCARD_DB_RESPONSE_SCHEMA,
   DATA_WIPE_PLAN_SCHEMA,
   DATA_WIPE_REQUEST_SCHEMA,
   DATA_WIPE_RESPONSE_SCHEMA,
@@ -250,6 +254,33 @@ describe('BACKUP_RESTORE_REQUEST_SCHEMA (TASK-071 §11: две фазы по con
       }).success,
     ).toBe(false);
   });
+
+  it('TASK-101 §11: recovery-вариант {recovery: true, file, passphrase} разбирается (без фазы plan — сравнение с текущей БД пропускается)', () => {
+    expect(
+      BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({
+        recovery: true,
+        file: 'C:\\backup\\health-log-backup.hlbackup',
+        passphrase: 'пароль-копии',
+      }).success,
+    ).toBe(true);
+    // recovery: true не смешивается с фазами confirmed (разные формы, strict).
+    expect(
+      BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({
+        recovery: true,
+        confirmed: true,
+        file: 'x.hlbackup',
+        passphrase: 'p',
+      }).success,
+    ).toBe(false);
+    // recovery: false — не валидная форма (literal true).
+    expect(
+      BACKUP_RESTORE_REQUEST_SCHEMA.safeParse({
+        recovery: false,
+        file: 'x.hlbackup',
+        passphrase: 'p',
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('BACKUP_RESTORE_RESPONSE_SCHEMA (TASK-071 §11: plan | restarting)', () => {
@@ -336,5 +367,28 @@ describe('DATA_WIPE_RESPONSE_SCHEMA (TASK-072 §11: plan | restarting)', () => {
     expect(
       DATA_WIPE_RESPONSE_SCHEMA.safeParse({ plan: validWipePlan, restarting: true }).success,
     ).toBe(false);
+  });
+});
+
+describe('DATA_DISCARD_DB_SCHEMA (TASK-101 §5/§9: «начать заново» — wipe-подмножество recovery)', () => {
+  it('запрос {} strict — команде нечего передавать (пути повреждённых файлов знает только main, §14)', () => {
+    expect(DATA_DISCARD_DB_REQUEST_SCHEMA.safeParse({}).success).toBe(true);
+    expect(DATA_DISCARD_DB_REQUEST_SCHEMA.safeParse({ paths: ['..'] }).success).toBe(false);
+  });
+
+  it('ответ {restarting: true} — unlink db/-wal/-shm + отложенный relaunch (§5); остальные формы — отказ', () => {
+    expect(DATA_DISCARD_DB_RESPONSE_SCHEMA.safeParse({ restarting: true }).success).toBe(true);
+    expect(DATA_DISCARD_DB_RESPONSE_SCHEMA.safeParse({ restarting: false }).success).toBe(false);
+    expect(DATA_DISCARD_DB_RESPONSE_SCHEMA.safeParse({}).success).toBe(false);
+  });
+
+  it('канал data/discard-db в реестре и secure — файловая операция данных (гвардии recovery и requireUnlocked)', () => {
+    expect(Object.keys(CHANNEL_SCHEMAS)).toContain('data/discard-db');
+    expect((CHANNEL_SCHEMAS['data/discard-db'] as { secure?: boolean }).secure).toBe(true);
+  });
+
+  it('имя канала входит в union ChannelName', () => {
+    const channel: ChannelName = 'data/discard-db';
+    expect(channel).toBe('data/discard-db');
   });
 });

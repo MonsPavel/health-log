@@ -84,10 +84,18 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * сампроверка старта и «О приложении» `app/selfcheck|meta|integrity-full` —
  * TASK-100 §5/§11 (схемы — app-info.ts): selfcheck {} → SelfCheckReport | null —
  * иммутабельный снимок старта из памяти main (null — самчек ещё не выполнялся);
- * meta {} → {appVersion, schemaVersion, scale, model?} — строки версий UI; оба НЕ
- * secure (БД не читают напрямую / канал версий-режима — recovery 101 §9);
- * integrity-full {} → {ok, details} — полная проверка БД по кнопке (secure:
- * PRAGMA integrity_check на открытом соединении).
+ * meta {} → {appVersion, schemaVersion, scale?, model?, recovery?} — строки версий
+ * UI + опциональный контекст recovery-режима (TASK-101 §10: гейт App проверяет
+ * режим до роутера); оба НЕ secure (БД не читают напрямую / канал версий-режима —
+ * recovery 101 §9); integrity-full {} → {ok, details} — полная проверка БД по
+ * кнопке (secure: PRAGMA integrity_check на открытом соединении).
+ * recovery-экран `app/reveal-backups` и `data/discard-db` — TASK-101 §5/§9/§11
+ * (схемы — app-info.ts и data-care/schemas.ts): «Открыть папку с копиями»
+ * ({} → null, путь строит main — renderer пути не знает, §14) и «начать заново»
+ * ({} → {restarting: true} — unlink db/-wal/-shm + relaunch; канал регистрируется
+ * ТОЛЬКО в recovery-режиме; secure — файловая операция). В recovery-режиме
+ * secure-каналы вне разрешённого набора (backup/restore, data/discard-db)
+ * отклоняются гвардией каркаса STORAGE/RECOVERY_MODE (§5/§14 — инвентарь-тест).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -134,8 +142,14 @@ export type ChannelName =
   | 'app/selfcheck'
   | 'app/meta'
   | 'app/integrity-full'
+  // TASK-101 §5/§9/§11: «Открыть папку с копиями» recovery-экрана ({} → null,
+  // путь строит main; НЕ secure).
+  | 'app/reveal-backups'
   | 'backup/create'
   | 'backup/restore'
+  // TASK-101 §5/§9/§11: «начать заново» — wipe-подмножество ({} → {restarting: true};
+  // регистрация только в recovery-режиме; secure — файловая операция).
+  | 'data/discard-db'
   | 'data/wipe'
   | 'file/open-dialog'
   | 'measurements/add'

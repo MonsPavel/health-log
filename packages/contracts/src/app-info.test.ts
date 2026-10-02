@@ -19,6 +19,8 @@ import {
   APP_INTEGRITY_FULL_RESPONSE_SCHEMA,
   APP_META_REQUEST_SCHEMA,
   APP_META_RESPONSE_SCHEMA,
+  APP_REVEAL_BACKUPS_REQUEST_SCHEMA,
+  APP_REVEAL_BACKUPS_RESPONSE_SCHEMA,
   APP_SELFCHECK_REQUEST_SCHEMA,
   APP_SELFCHECK_RESPONSE_SCHEMA,
   SELF_CHECK_REPORT_SCHEMA,
@@ -133,9 +135,15 @@ describe('канал app/meta — версии для «О приложении�
     expect(APP_META_RESPONSE_SCHEMA.safeParse(META).success).toBe(true);
   });
 
-  it('model опционален («модель id+version если есть»), остальные поля обязательны', () => {
+  it('model опционален («модель id+version если есть»); scale опционален с TASK-101 (в recovery БД-чтений нет — §7/§9), остальные поля обязательны', () => {
     expect(APP_META_RESPONSE_SCHEMA.safeParse({ ...META, model: undefined }).success).toBe(true);
-    expect(APP_META_RESPONSE_SCHEMA.safeParse({ ...META, scale: undefined }).success).toBe(false);
+    expect(APP_META_RESPONSE_SCHEMA.safeParse({ ...META, scale: undefined }).success).toBe(true);
+    expect(APP_META_RESPONSE_SCHEMA.safeParse({ ...META, appVersion: undefined }).success).toBe(
+      false,
+    );
+    expect(APP_META_RESPONSE_SCHEMA.safeParse({ ...META, schemaVersion: undefined }).success).toBe(
+      false,
+    );
   });
 
   it('strict: лишние поля (путь/PHI) отклонены (§14)', () => {
@@ -146,6 +154,89 @@ describe('канал app/meta — версии для «О приложении�
     expect(APP_META_REQUEST_SCHEMA.safeParse({}).success).toBe(true);
     expect(Object.keys(CHANNEL_SCHEMAS)).toContain('app/meta');
     expect((CHANNEL_SCHEMAS['app/meta'] as { secure?: boolean }).secure).not.toBe(true);
+  });
+});
+
+describe('RecoveryContext — контекст recovery-режима в app/meta (TASK-101 §7/§10)', () => {
+  it('corrupt: {reason, details:{quickCheck}} разбирается; details без полей — валиден (обе детали опциональны)', () => {
+    expect(
+      APP_META_RESPONSE_SCHEMA.safeParse({
+        appVersion: '0.1.0',
+        schemaVersion: 9,
+        scale: { code: 'BP-OFFICE-ESC2018', version: '1.0.0' },
+        recovery: {
+          reason: 'corrupt',
+          details: { quickCheck: '*** in database main: On tree page 5: invalid page type' },
+        },
+      }).success,
+    ).toBe(true);
+    expect(
+      APP_META_RESPONSE_SCHEMA.safeParse({
+        appVersion: '0.1.0',
+        schemaVersion: 0,
+        recovery: { reason: 'corrupt', details: {} },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('migration_failed: {reason, details:{migrationVersion}} разбирается; версия — целое ≥ 1', () => {
+    const response = {
+      appVersion: '0.1.0',
+      schemaVersion: 0,
+      recovery: { reason: 'migration_failed', details: { migrationVersion: 7 } },
+    };
+    expect(APP_META_RESPONSE_SCHEMA.safeParse(response).success).toBe(true);
+    expect(
+      APP_META_RESPONSE_SCHEMA.safeParse({
+        ...response,
+        recovery: { reason: 'migration_failed', details: { migrationVersion: 0 } },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('reason — только corrupt|migration_failed; без details/без reason — отказ (§7)', () => {
+    const base = { appVersion: '0.1.0', schemaVersion: 0 };
+    expect(
+      APP_META_RESPONSE_SCHEMA.safeParse({
+        ...base,
+        recovery: { reason: 'unknown', details: {} },
+      }).success,
+    ).toBe(false);
+    expect(
+      APP_META_RESPONSE_SCHEMA.safeParse({ ...base, recovery: { reason: 'corrupt' } }).success,
+    ).toBe(false);
+    expect(APP_META_RESPONSE_SCHEMA.safeParse({ ...base, recovery: {} }).success).toBe(false);
+  });
+
+  it('strict: details не несёт путей/PHI (§14 — инвариант деталей для раскрытия)', () => {
+    expect(
+      APP_META_RESPONSE_SCHEMA.safeParse({
+        appVersion: '0.1.0',
+        schemaVersion: 0,
+        recovery: {
+          reason: 'corrupt',
+          details: { quickCheck: 'ok', dbPath: 'C:\\Users\\me\\health-log.db' },
+        },
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('канал app/reveal-backups — «Открыть папку с копиями» (TASK-101 §5/§9)', () => {
+  it('запрос {} strict; ответ null (fire-and-forget, прецедент app/reveal-path)', () => {
+    expect(APP_REVEAL_BACKUPS_REQUEST_SCHEMA.safeParse({}).success).toBe(true);
+    expect(APP_REVEAL_BACKUPS_REQUEST_SCHEMA.safeParse({ path: 'C:\\x' }).success).toBe(false);
+    expect(APP_REVEAL_BACKUPS_RESPONSE_SCHEMA.safeParse(null).success).toBe(true);
+  });
+
+  it('канал в реестре и НЕ secure — путь строит main (renderer пути не знает, §14)', () => {
+    expect(Object.keys(CHANNEL_SCHEMAS)).toContain('app/reveal-backups');
+    expect((CHANNEL_SCHEMAS['app/reveal-backups'] as { secure?: boolean }).secure).not.toBe(true);
+  });
+
+  it('имя канала входит в union ChannelName', () => {
+    const channel: ChannelName = 'app/reveal-backups';
+    expect(channel).toBe('app/reveal-backups');
   });
 });
 
