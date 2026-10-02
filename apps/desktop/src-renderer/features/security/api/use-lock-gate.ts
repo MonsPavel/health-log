@@ -17,6 +17,7 @@ import type { ChannelResponse } from '@hl/contracts';
 
 import { call } from '../../../src/lib/ipc';
 import { useHlEvent } from '../../../lib/events';
+import { APP_META_QUERY_KEY } from '../../settings/api/use-about';
 import { PREFS_QUERY_KEY } from '../../settings/model/use-preferences';
 
 /** Форма статуса vault (ответ канала — контракт vault.ts 094). */
@@ -73,6 +74,9 @@ export function useLockGate(): LockGate {
     void queryClient.invalidateQueries({ queryKey: VAULT_STATUS_QUERY_KEY });
     // prefs при locked отвечали VAULT/LOCKED — перечитать для ThemeProvider (§7 094).
     void queryClient.invalidateQueries({ queryKey: PREFS_QUERY_KEY });
+    // TASK-101 §10: в passphrase recovery вводится В openDatabase (после unlock) —
+    // meta перечитывается, гейт App переключает RecoveryScreen без перезапуска.
+    void queryClient.invalidateQueries({ queryKey: APP_META_QUERY_KEY });
   }, [queryClient]);
 
   const locked = override ?? (data !== undefined ? data.locked : true);

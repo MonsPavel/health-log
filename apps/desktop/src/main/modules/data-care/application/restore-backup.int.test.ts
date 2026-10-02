@@ -748,3 +748,166 @@ describe('cleanupRestoreSafetyCopy (§14: удаление страховки п
     }
   });
 });
+
+describe('recovery-выполнение (TASK-101 §5/§8/§13: {recovery: true} без фазы plan)', () => {
+  it('recovery-путь самодостаточен: подмена файла БД снапшотом копии + relaunch, БЕЗ страховки (§8 «нечего страховать»)', async () => {
+    const { db, file: dbFile } = await openFreshDb('recovery-happy.sqlite');
+    try {
+      insertMeasurements(db, 2);
+      const backupPath = await createBackupFile(db, PASSPHRASE, 'recovery-happy.hlbackup');
+      // БД уже закрыта (recovery-контейнер закрывает соединение при входе в режим):
+      // safe-close харнеса — no-op, как lockCloseDatabase контейнера.
+      db.close();
+      const safetyTmpRoot = newDir('hl-restore-rec-safety-');
+      const safetyFlagPath = join(newDir('hl-restore-rec-flag-'), 'restore-safety.json');
+      const { entries, logger } = recordingLogger();
+      const relaunch = vi.fn();
+      const useCase = new RestoreBackupUseCase({
+        currentDb: db,
+        closeCurrentDb: () => undefined, // уже закрыта — no-op
+        dbPath: dbFile,
+        verifyDatabaseOpens: (path: string) => {
+          openEncrypted(path, KEY_HEX).close();
+        },
+        crypto: newCodec(),
+        logger,
+        queue: new FileOpQueue(),
+        relaunch,
+        safetyFlagPath,
+        safetyTmpRoot,
+        clock: new FixedClock(NOW_MS, TZ),
+        appVersion: APP_VERSION,
+        maxKnownSchemaVersion: MIGRATIONS.at(-1)?.version ?? 0,
+      });
+
+      const result = await useCase.execute({
+        file: backupPath,
+        passphrase: PASSPHRASE,
+        recovery: true,
+      });
+      expect(result.ok).toBe(true);
+      if (result.ok && 'restarting' in result.value) {
+        expect(result.value.restarting).toBe(true);
+      }
+      expect(relaunch).toHaveBeenCalledTimes(1);
+      // Страховки нет: tmp-каталог пуст, флаг-файл не записан (§8).
+      expect(readdirSync(safetyTmpRoot)).toEqual([]);
+      expect(existsSync(safetyFlagPath)).toBe(false);
+      // Файл БД заменён снапшотом копии: счётчик равен копии (2 записи).
+      const probe = openEncrypted(dbFile, KEY_HEX);
+      expect(countRows(probe)).toBe(2);
+      probe.close();
+      // Лог §18: recovery-выполнение различимо.
+      expect(entries.some((entry) => entry.message.includes('recovery'))).toBe(true);
+    } finally {
+      if (db.open) {
+        db.close();
+      }
+    }
+  });
+
+  it('неверный пароль копии → BACKUP/WRONG_PASSPHRASE (инлайн-retry UI §13), файлы БД не тронуты', async () => {
+    const { db, file: dbFile } = await openFreshDb('recovery-wrong-pass.sqlite');
+    try {
+      insertMeasurements(db, 1);
+      const backupPath = await createBackupFile(db, PASSPHRASE, 'recovery-pass.hlbackup');
+      db.close();
+      const bytesBefore = readFileSync(dbFile);
+      const relaunch = vi.fn();
+      const useCase = new RestoreBackupUseCase({
+        currentDb: db,
+        closeCurrentDb: () => undefined,
+        dbPath: dbFile,
+        verifyDatabaseOpens: (path: string) => {
+          openEncrypted(path, KEY_HEX).close();
+        },
+        crypto: newCodec(),
+        logger: recordingLogger().logger,
+        queue: new FileOpQueue(),
+        relaunch,
+        safetyFlagPath: join(newDir('hl-restore-rec-flag2-'), 'restore-safety.json'),
+        clock: new FixedClock(NOW_MS, TZ),
+        appVersion: APP_VERSION,
+        maxKnownSchemaVersion: MIGRATIONS.at(-1)?.version ?? 0,
+      });
+
+      const result = await useCase.execute({
+        file: backupPath,
+        passphrase: 'неверный-пароль',
+        recovery: true,
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('BACKUP/WRONG_PASSPHRASE');
+      }
+      expect(relaunch).not.toHaveBeenCalled();
+      // Повреждённые файлы на месте (пользователь может повторить с верным паролем).
+      expect(readFileSync(dbFile)).toEqual(bytesBefore);
+    } finally {
+      if (db.open) {
+        db.close();
+      }
+    }
+  });
+
+  it('копия новее известной приложению схемы → BACKUP/DB_NEWER ДО подмены (§13 «та же защита 071»)', async () => {
+    const { db, file: dbFile } = await openFreshDb('recovery-db-newer.sqlite');
+    try {
+      insertMeasurements(db, 1);
+      // Копия несёт актуальную schema_version реестра — гард с maxKnown = max − 1
+      // имитирует «копия от приложения новее установленного» (EC-25).
+      const dir = newDir('hl-restore-rec-newer-');
+      const targetPath = join(dir, 'newer.hlbackup');
+      const create = new CreateBackupUseCase({
+        db,
+        clock: new FixedClock(NOW_MS, TZ),
+        logger: recordingLogger().logger,
+        crypto: newCodec(),
+        fileSaver: { save: vi.fn().mockResolvedValue(targetPath) },
+        queue: new FileOpQueue(),
+        backupsDir: newDir('hl-restore-rec-backups-'),
+        appVersion: APP_VERSION,
+        snapshotTmpRoot: newDir('hl-restore-rec-snap-'),
+      });
+      const created = await create.execute({ mode: 'ask', passphrase: PASSPHRASE });
+      if (!created.ok) {
+        throw new Error(`сценарная копия не создалась: ${created.error.code}`);
+      }
+      db.close();
+      const bytesBefore = readFileSync(dbFile);
+      const relaunch = vi.fn();
+      const useCase = new RestoreBackupUseCase({
+        currentDb: db,
+        closeCurrentDb: () => undefined,
+        dbPath: dbFile,
+        verifyDatabaseOpens: (path: string) => {
+          openEncrypted(path, KEY_HEX).close();
+        },
+        crypto: newCodec(),
+        logger: recordingLogger().logger,
+        queue: new FileOpQueue(),
+        relaunch,
+        safetyFlagPath: join(newDir('hl-restore-rec-flag3-'), 'restore-safety.json'),
+        clock: new FixedClock(NOW_MS, TZ),
+        appVersion: APP_VERSION,
+        maxKnownSchemaVersion: (MIGRATIONS.at(-1)?.version ?? 0) - 1,
+      });
+
+      const result = await useCase.execute({
+        file: targetPath,
+        passphrase: PASSPHRASE,
+        recovery: true,
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('BACKUP/DB_NEWER');
+      }
+      expect(relaunch).not.toHaveBeenCalled();
+      expect(readFileSync(dbFile)).toEqual(bytesBefore);
+    } finally {
+      if (db.open) {
+        db.close();
+      }
+    }
+  });
+});

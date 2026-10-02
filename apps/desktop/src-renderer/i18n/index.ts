@@ -17,9 +17,11 @@
  * (features/updates/ru.json — секция «Обновления»); privacy — TASK-099
  * (i18n/ru/privacy.json — секция «Приватность» настроек, ключи privacy.* по §17
  * задачи: descriptionKey операций генерирует main, 098); about — TASK-100
- * (i18n/ru/about.json — секция «О приложении», ключи about.*: версии — параметры).
+ * (i18n/ru/about.json — секция «О приложении», ключи about.*: версии — параметры);
+ * recovery — TASK-101 (i18n/ru/recovery.json — полноэкранный режим восстановления,
+ * ключи recovery.*: спокойный тон — golden-тест без паник-лексики).
  * Один namespace
- * 'translation' с группами common./data./errors./export./lock./measurement./settings./critical./dashboard./ai./security./updates./privacy./about.: ключи в коде совпадают со
+ * 'translation' с группами common./data./errors./export./lock./measurement./settings./critical./dashboard./ai./security./updates./privacy./about./recovery.: ключи в коде совпадают со
  * строками messageKey контрактов ('errors.renderer' — прецедент ErrorBoundary, TASK-011).
  *
  * escapeValue: false — экранирование делает React, ICU-подстановки включатся с
@@ -54,6 +56,9 @@ import privacy from './ru/privacy.json';
 // TASK-100 §17: ключи about.* — секция «О приложении» (версии, статус сампроверки,
 // полная проверка БД; версии — параметры подстановки).
 import about from './ru/about.json';
+// TASK-101 §17: ключи recovery.* — полноэкранный режим восстановления
+// (повреждение БД/провал миграции): спокойный тон, варианты, подтверждения.
+import recovery from './ru/recovery.json';
 
 const resources = {
   ru: {
@@ -73,6 +78,7 @@ const resources = {
       updates,
       privacy,
       about,
+      recovery,
     },
   },
 } as const;

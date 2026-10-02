@@ -194,8 +194,12 @@ describe('buildContainer — сампроверка старта (TASK-100 §19/
     expect(report?.vaultMode).toBe('none');
     expect(report?.prefsOk).toBe(true);
     expect(typeof report?.checkedAtUtc).toBe('number');
-    // БД остаётся ОТКРЫТОЙ (§9): чтение meta работает, recovery 101 решит реагирование.
-    expect(second.db.prepare('SELECT count(*) AS n FROM meta').get()).toBeDefined();
+    // TASK-101 §4/§5: dbOk=false → recovery-режим — реакция отделилась от
+    // обнаружения: соединение ЗАКРЫТО (доступ через прокси — VAULT/LOCKED),
+    // контекст для RecoveryScreen собран (reason corrupt, quick_check в деталях).
+    expect(second.recovery?.reason).toBe('corrupt');
+    expect(second.recovery?.details.quickCheck).toBeDefined();
+    expect(() => second.db.prepare('SELECT count(*) AS n FROM meta').get()).toThrow();
   });
 
   it('passphrase-старт: до unlock отчёта нет; openDatabase выполняет самчек после миграций', async () => {

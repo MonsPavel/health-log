@@ -1,13 +1,16 @@
 /**
- * Корень рендерера (TASK-007 §10; TASK-011 §5/§10; TASK-013 §5/§6; TASK-095 §4/§14):
- * корневой AppErrorBoundary + ToastProvider обёртывают каркас — AppProviders (тема,
- * i18n, QueryClient) и ГЕЙТ блокировки (TASK-095): при locked оверлей LockOverlay
- * верхним слоем, маршруты НЕ монтируются (§14 РЕШЕНИЕ: выгрузка строже aria-hidden+
- * inert — контента в DOM нет вообще, §13 «данные скрыты даже в момент загрузки»);
- * при open — AppRouter как раньше (откат: mode none — оверлей не появляется, §24).
- * Пока статус vault/status неизвестен — loading без контента (§13). Параллельно
- * живёт heartbeat активности (lib/heartbeat, §5: pointerdown/keydown → app/heartbeat,
- * троттл 30 с — корректный автоблок).
+ * Корень рендерера (TASK-007 §10; TASK-011 §5/§10; TASK-013 §5/§6; TASK-095 §4/§14;
+ * TASK-101 §10): корневой AppErrorBoundary + ToastProvider обёртывают каркас —
+ * AppProviders (тема, i18n, QueryClient), ГЕЙТ восстановления (TASK-101: при
+ * recovery-режиме контейнера — RecoveryScreen вместо всего контента: БД не открыта,
+ * secure-каналы закрыты STORAGE/RECOVERY_MODE, маршруты не монтируются) и ГЕЙТ
+ * блокировки (TASK-095): при locked оверлей LockOverlay верхним слоем, маршруты НЕ
+ * монтируются (§14 РЕШЕНИЕ: выгрузка строже aria-hidden+inert — контента в DOM нет
+ * вообще, §13 «данные скрыты даже в момент загрузки»); при open — AppRouter как
+ * раньше (откат: mode none — оверлей не появляется, §24). Пока статус vault/status
+ * неизвестен — loading без контента (§13). Параллельно живёт heartbeat активности
+ * (lib/heartbeat, §5: pointerdown/keydown → app/heartbeat, троттл 30 с — корректный
+ * автоблок).
  */
 import { useTranslation } from 'react-i18next';
 
@@ -17,6 +20,8 @@ import { AppProviders } from '../app/providers';
 import { AppRouter } from '../app/router';
 import { ToastProvider } from '../app/toast';
 import { useHeartbeat } from '../lib/heartbeat';
+import { useRecoveryGate } from '../features/recovery/api/use-recovery-gate';
+import { RecoveryScreen } from '../features/recovery/ui/RecoveryScreen';
 import { useLockGate } from '../features/security/api/use-lock-gate';
 import { LockOverlay } from '../features/security/ui/LockOverlay';
 
@@ -62,12 +67,35 @@ function LockGate(): JSX.Element {
   return <AppRouter />;
 }
 
+/**
+ * Гейт восстановления (TASK-101 §10): режим проверяется ответом app/meta ДО
+ * роутера — при recovery весь контент замещается RecoveryScreen (БД не открыта,
+ * маршруты не монтируются). Пока meta не пришла — нейтральный loading без
+ * контента (§13); в здоровом старте — LockGate без задержек после meta.
+ */
+function RecoveryGate(): JSX.Element {
+  const { t } = useTranslation();
+  const { phase, recovery } = useRecoveryGate();
+
+  if (phase === 'loading') {
+    return (
+      <div role="status" className="flex h-screen items-center justify-center text-accent">
+        {t('common.loading')}
+      </div>
+    );
+  }
+  if (phase === 'recovery' && recovery !== undefined) {
+    return <RecoveryScreen recovery={recovery} />;
+  }
+  return <LockGate />;
+}
+
 export function App(): JSX.Element {
   return (
     <AppErrorBoundary fallback={RendererCrashScreen}>
       <ToastProvider>
         <AppProviders>
-          <LockGate />
+          <RecoveryGate />
         </AppProviders>
       </ToastProvider>
     </AppErrorBoundary>

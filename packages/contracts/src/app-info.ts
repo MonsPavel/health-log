@@ -29,6 +29,8 @@
  */
 import { z } from 'zod';
 
+import type { AppErrorDto } from './app-error-dto.js';
+
 /**
  * Статус llm-воркера (§5 «worker-статус») — зеркало домена AiWorkerState
  * (contracts events.ts, TASK-076: starting → ready → busy; краш → restarting → failed).
@@ -139,6 +141,12 @@ export const APP_REVEAL_BACKUPS_REQUEST_SCHEMA = z.object({}).strict();
 
 export const APP_REVEAL_BACKUPS_RESPONSE_SCHEMA = z.null();
 
+/** Запрос app/reveal-backups — {} (путь каталога копий строит main, §14). */
+export type AppRevealBackupsRequest = z.output<typeof APP_REVEAL_BACKUPS_REQUEST_SCHEMA>;
+
+/** Ответ app/reveal-backups — null (fire-and-forget, прецедент app/reveal-path). */
+export type AppRevealBackupsResponse = z.output<typeof APP_REVEAL_BACKUPS_RESPONSE_SCHEMA>;
+
 /** §11: запрос app/integrity-full — {} (progress не нужен: <10 с, §11). */
 export const APP_INTEGRITY_FULL_REQUEST_SCHEMA = z.object({}).strict();
 
@@ -173,6 +181,19 @@ export type RecoveryDetails = z.infer<typeof RECOVERY_DETAILS_SCHEMA>;
 
 /** TASK-101 §7: контекст recovery-режима (поле recovery ответа app/meta). */
 export type RecoveryContext = z.infer<typeof RECOVERY_CONTEXT_SCHEMA>;
+
+/** Ключ каталога отказа recovery-гвардии (конвенция арх. 05 §29 `errors.<КОД>`). */
+export const STORAGE_RECOVERY_MODE_MESSAGE_KEY = 'errors.STORAGE_RECOVERY_MODE';
+
+/**
+ * TASK-101 §5/§11/§14: DTO отказа secure-канала в recovery-режиме (конверт каркаса,
+ * ЕДИНСТВЕННАЯ обёртка register-channel): БД не открыта, канал вне разрешённого
+ * набора recovery (§9). Зеркало VAULT_LOCKED_ERROR (vault.ts, TASK-094).
+ */
+export const RECOVERY_MODE_ERROR: AppErrorDto = {
+  code: 'STORAGE/RECOVERY_MODE',
+  messageKey: STORAGE_RECOVERY_MODE_MESSAGE_KEY,
+};
 
 /** Запрос app/integrity-full. */
 export type AppIntegrityFullRequest = z.infer<typeof APP_INTEGRITY_FULL_REQUEST_SCHEMA>;

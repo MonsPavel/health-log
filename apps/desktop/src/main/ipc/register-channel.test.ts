@@ -11,6 +11,7 @@ import {
   API_ENVELOPE_VERSION,
   APP_INTERNAL_ERROR,
   HL_INVOKE_CHANNEL,
+  RECOVERY_MODE_ERROR,
   VALIDATION_FAILED_ERROR,
   type ApiEnvelope,
   type ChannelName,
@@ -24,6 +25,9 @@ import {
   type ChannelRegistry,
   type IpcLogger,
 } from './register-channel.js';
+
+/** Конверт отказа recovery-гвардии (точная форма, §11). */
+const RECOVERY_MODE_ENVELOPE = { v: API_ENVELOPE_VERSION, ok: false, error: RECOVERY_MODE_ERROR };
 
 /**
  * Синтетическое имя тестового канала: каркас типизирован боевым union ChannelName,
@@ -304,6 +308,114 @@ describe('гвардия requireUnlocked и idle-трекер (TASK-094 §7/§9/
     // Битый транспортный запрос (не hl.*-форма) активностью не считается.
     await registry.dispatch({ payload: {} });
     expect(onActivity).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('гвардия recovery-режима (TASK-101 §5/§9/§11/§14)', () => {
+  const secureSchemas = {
+    request: z.object({ value: z.string() }).strict(),
+    response: z.object({ value: z.string() }).strict(),
+    secure: true,
+  } as const;
+
+  it('secure-канал вне разрешённого набора при recovery: STORAGE/RECOVERY_MODE до handler (§11)', async () => {
+    const logger = fakeLogger();
+    const handler = vi.fn(() => ({ value: 'x' }));
+    const registry = createChannelRegistry(logger.logger, {
+      isDev: false,
+      isUnlocked: () => true,
+      isRecovery: () => true,
+      recoveryAllowed: ['test/allowed'],
+    });
+    registry.register(testChannel('test/db'), secureSchemas, handler);
+    registry.register(testChannel('test/allowed'), secureSchemas, handler);
+
+    await expect(registry.dispatch({ channel: 'test/db', payload: { value: 'x' } })).resolves.toStrictEqual(
+      RECOVERY_MODE_ENVELOPE,
+    );
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('secure-канал из разрешённого набора при recovery работает (backup/restore, §9)', async () => {
+    const logger = fakeLogger();
+    const handler = vi.fn(() => ({ value: 'x' }));
+    const registry = createChannelRegistry(logger.logger, {
+      isDev: false,
+      isUnlocked: () => true,
+      isRecovery: () => true,
+      recoveryAllowed: ['test/allowed'],
+    });
+    registry.register(testChannel('test/allowed'), secureSchemas, handler);
+
+    await expect(
+      registry.dispatch({ channel: 'test/allowed', payload: { value: 'x' } }),
+    ).resolves.toEqual({ v: API_ENVELOPE_VERSION, ok: true, data: { value: 'x' } });
+  });
+
+  it('не-secure каналы при recovery не гвардятся (app/*, file/open-dialog — §9)', async () => {
+    const logger = fakeLogger();
+    const handler = vi.fn(() => ({ value: 'x' }));
+    const registry = createChannelRegistry(logger.logger, {
+      isDev: false,
+      isUnlocked: () => true,
+      isRecovery: () => true,
+      recoveryAllowed: [],
+    });
+    registry.register(testChannel('test/open'), echoSchemas, handler);
+
+    await expect(
+      registry.dispatch({ channel: 'test/open', payload: { value: 'x' } }),
+    ).resolves.toEqual({ v: API_ENVELOPE_VERSION, ok: true, data: { value: 'x' } });
+  });
+
+  it('вне recovery гвардия прозрачна даже при заданном recoveryAllowed', async () => {
+    const logger = fakeLogger();
+    const handler = vi.fn(() => ({ value: 'x' }));
+    const registry = createChannelRegistry(logger.logger, {
+      isDev: false,
+      isUnlocked: () => true,
+      isRecovery: () => false,
+      recoveryAllowed: ['test/allowed'],
+    });
+    registry.register(testChannel('test/db'), secureSchemas, handler);
+
+    await expect(registry.dispatch({ channel: 'test/db', payload: { value: 'x' } })).resolves.toEqual(
+      { v: API_ENVELOPE_VERSION, ok: true, data: { value: 'x' } },
+    );
+  });
+
+  it('recovery-гвардия ДО валидации payload (поверхность максимальна узкая — §14: для заблокированного канала не работает даже zod)', async () => {
+    const logger = fakeLogger();
+    const handler = vi.fn(() => ({ value: 'x' }));
+    const registry = createChannelRegistry(logger.logger, {
+      isDev: false,
+      isUnlocked: () => true,
+      isRecovery: () => true,
+      recoveryAllowed: [],
+    });
+    registry.register(testChannel('test/db'), secureSchemas, handler);
+
+    await expect(
+      registry.dispatch({ channel: 'test/db', payload: { extra: 1 } }),
+    ).resolves.toStrictEqual(RECOVERY_MODE_ENVELOPE);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('разрешённый secure-канал: валидация payload работает (невалидный — VALIDATION/FAILED, не RECOVERY_MODE)', async () => {
+    const logger = fakeLogger();
+    const handler = vi.fn(() => ({ value: 'x' }));
+    const registry = createChannelRegistry(logger.logger, {
+      isDev: false,
+      isUnlocked: () => true,
+      isRecovery: () => true,
+      recoveryAllowed: ['test/allowed'],
+    });
+    registry.register(testChannel('test/allowed'), secureSchemas, handler);
+
+    await expect(
+      registry.dispatch({ channel: 'test/allowed', payload: { extra: 1 } }),
+    ).resolves.toEqual({ v: API_ENVELOPE_VERSION, ok: false, error: VALIDATION_FAILED_ERROR });
+    expect(handler).not.toHaveBeenCalled();
   });
 });
 

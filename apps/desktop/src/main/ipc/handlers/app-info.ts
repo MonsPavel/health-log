@@ -11,6 +11,7 @@ import type {
   AppMetaResponse,
   AppSelfcheckRequest,
   AppSelfcheckResponse,
+  RecoveryContext,
 } from '@hl/contracts';
 
 import type { SelfCheckService } from '../../app/selfcheck.js';
@@ -32,26 +33,44 @@ export interface AppMetaPorts {
   /** Сервис сампроверки: schemaVersion — из снимка старта (статичен за сессию). */
   readonly selfcheck: SelfCheckService;
   /** Активная шкала (code+version) — ScaleService (кэш в памяти, §15 051). */
-  readonly scales: () => Promise<{ code: string; version: string }>;
+  readonly scales?: () => Promise<{ code: string; version: string }>;
   /** Активная модель (id+версия) — мета prefs+реестра 079 ('' — не выбрана). */
-  readonly model: () => Promise<{ modelId: string; modelVersion: string }>;
+  readonly model?: () => Promise<{ modelId: string; modelVersion: string }>;
+  /**
+   * TASK-101 §10: контекст recovery-режима — ЛЕНИВОЕ чтение состояния контейнера
+   * (в passphrase-режиме recovery вводится после unlock — позже сборки; гейт App
+   * перечитывает meta). undefined/отсутствие — обычный старт.
+   */
+  readonly recovery?: () => RecoveryContext | undefined;
 }
 
 /**
  * Фабрика хендлера `app/meta` (§5/§11): строки версий «О приложении».
  * model входит в ответ ТОЛЬКО при непустых id И версии («модель id+version если
  * есть» — §5): выбранная модель без найденного дескриптора честно опускается.
+ *
+ * TASK-101 §9/§10: в recovery-режиме — форма {appVersion, schemaVersion, recovery}
+ * БЕЗ чтений БД (шкала/модель недоступны — соединение закрыто; опускание полей —
+ * контракт схемы, §7). Чтение порта recovery — ленивое (см. AppMetaPorts).
  */
 export function createAppMetaHandler(
   ports: AppMetaPorts,
 ): (payload: AppMetaRequest) => Promise<AppMetaResponse> {
   return async () => {
-    const scale = await ports.scales();
-    const { modelId, modelVersion } = await ports.model();
+    const recovery = ports.recovery?.();
+    if (recovery !== undefined) {
+      return {
+        appVersion: ports.appVersion,
+        schemaVersion: ports.selfcheck.report?.schemaVersion ?? 0,
+        recovery,
+      };
+    }
+    const scale = await ports.scales?.();
+    const { modelId, modelVersion } = (await ports.model?.()) ?? { modelId: '', modelVersion: '' };
     return {
       appVersion: ports.appVersion,
       schemaVersion: ports.selfcheck.report?.schemaVersion ?? 0,
-      scale: { code: scale.code, version: scale.version },
+      ...(scale === undefined ? {} : { scale: { code: scale.code, version: scale.version } }),
       ...(modelId !== '' && modelVersion !== ''
         ? { model: { id: modelId, version: modelVersion } }
         : {}),
