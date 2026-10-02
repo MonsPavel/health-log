@@ -113,7 +113,8 @@ describe('живая лента — net:activity → refetch (§12/AC4)', () => 
   it('событие инвалидирует journal: повторный вызов канала, новые данные в кэше', async () => {
     const { journal } = renderPrivacy();
     await waitFor(() => expect(journal.result.current.data).toBeDefined());
-    expect(invoke).toHaveBeenCalledTimes(1);
+    const journalCalls = () => invoke.mock.calls.filter(([channel]) => channel === 'privacy/journal');
+    expect(journalCalls()).toHaveLength(1);
 
     const UPDATED: PrivacyJournalResponse = {
       entries: [
@@ -139,7 +140,7 @@ describe('живая лента — net:activity → refetch (§12/AC4)', () => 
     });
 
     await waitFor(() => expect(journal.result.current.data?.entries).toHaveLength(2));
-    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(journalCalls()).toHaveLength(2);
     expect(invoke).toHaveBeenLastCalledWith('privacy/journal', { limit: 50 });
   });
 });
