@@ -143,9 +143,9 @@ describe('privacy/journal — схемы канала (TASK-098 §5/§11)', () =
     expect(PRIVACY_JOURNAL_RESPONSE_SCHEMA.safeParse({ entries: [], ops: [] }).success).toBe(true);
     expect(PRIVACY_JOURNAL_RESPONSE_SCHEMA.safeParse({ entries: [entry] }).success).toBe(false);
     expect(PRIVACY_JOURNAL_RESPONSE_SCHEMA.safeParse({ ops: [op] }).success).toBe(false);
-    expect(PRIVACY_JOURNAL_RESPONSE_SCHEMA.safeParse({ entries: [], ops: [], extra: 1 }).success).toBe(
-      false,
-    );
+    expect(
+      PRIVACY_JOURNAL_RESPONSE_SCHEMA.safeParse({ entries: [], ops: [], extra: 1 }).success,
+    ).toBe(false);
   });
 
   it('типы выводятся из схем (z.infer, §23)', () => {
@@ -180,9 +180,9 @@ describe('privacy/consents — схемы канала (TASK-098 §5/§11/§14)'
   it('запрос: {} — чтение; {patch: Partial<Consents>} — переключение; patch опционален', () => {
     expect(PRIVACY_CONSENTS_REQUEST_SCHEMA.safeParse({}).success).toBe(true);
     expect(PRIVACY_CONSENTS_REQUEST_SCHEMA.safeParse({ patch: {} }).success).toBe(true);
-    expect(PRIVACY_CONSENTS_REQUEST_SCHEMA.safeParse({ patch: { updatesCheck: true } }).success).toBe(
-      true,
-    );
+    expect(
+      PRIVACY_CONSENTS_REQUEST_SCHEMA.safeParse({ patch: { updatesCheck: true } }).success,
+    ).toBe(true);
     expect(
       PRIVACY_CONSENTS_REQUEST_SCHEMA.safeParse({
         patch: { updatesCheck: false, modelsDownload: true },

@@ -55,7 +55,10 @@ const CONSENTS: Consents = { updatesCheck: false, modelsDownload: true };
 
 const OK_ENVELOPE = (data: unknown) => ({ v: 1, ok: true, data });
 
-let invoke: ReturnType<typeof vi.fn>;
+/** Мок моста с сигнатурой канала (прецедент AiPage.test: no-misused-promises на mockImplementation). */
+type InvokeMock = ReturnType<typeof vi.fn<(channel: string) => Promise<unknown>>>;
+
+let invoke: InvokeMock;
 let listener: ((payload: { kind: string; endpoint: string }) => void) | undefined;
 
 function renderPrivacy() {
@@ -71,7 +74,7 @@ function renderPrivacy() {
 
 beforeEach(() => {
   listener = undefined;
-  invoke = vi.fn().mockImplementation((channel: string) => {
+  invoke = vi.fn<(channel: string) => Promise<unknown>>((channel) => {
     if (channel === 'privacy/journal') {
       return Promise.resolve(OK_ENVELOPE(JOURNAL));
     }
@@ -82,14 +85,12 @@ beforeEach(() => {
     writable: true,
     value: {
       invoke,
-      on: vi.fn(
-        (name: string, cb: (payload: { kind: string; endpoint: string }) => void) => {
-          if (name === 'net:activity') {
-            listener = cb;
-          }
-          return () => undefined;
-        },
-      ),
+      on: vi.fn((name: string, cb: (payload: { kind: string; endpoint: string }) => void) => {
+        if (name === 'net:activity') {
+          listener = cb;
+        }
+        return () => undefined;
+      }),
     },
   });
 });
@@ -113,7 +114,8 @@ describe('живая лента — net:activity → refetch (§12/AC4)', () => 
   it('событие инвалидирует journal: повторный вызов канала, новые данные в кэше', async () => {
     const { journal } = renderPrivacy();
     await waitFor(() => expect(journal.result.current.data).toBeDefined());
-    const journalCalls = () => invoke.mock.calls.filter(([channel]) => channel === 'privacy/journal');
+    const journalCalls = () =>
+      invoke.mock.calls.filter(([channel]) => channel === 'privacy/journal');
     expect(journalCalls()).toHaveLength(1);
 
     const UPDATED: PrivacyJournalResponse = {
@@ -128,7 +130,7 @@ describe('живая лента — net:activity → refetch (§12/AC4)', () => 
       ],
       ops: JOURNAL.ops,
     };
-    invoke.mockImplementation((channel: string) => {
+    invoke.mockImplementation((channel: string): Promise<unknown> => {
       if (channel === 'privacy/journal') {
         return Promise.resolve(OK_ENVELOPE(UPDATED));
       }

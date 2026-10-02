@@ -190,11 +190,14 @@ describe('container + PrivacyQueries (TASK-098 §9/§19/§20)', () => {
 
     expect(journal.entries).toHaveLength(1);
     const blocked = journal.entries[0]!;
+    // atUtc — присутствующее число (поле DTO полное, AC1).
+    const { atUtc } = blocked;
+    expect(atUtc).toBeTypeOf('number');
     expect(blocked).toEqual({
       kind: 'updates.check',
       endpoint: '', // отказ checkPermission: адрес не наблюдаем gateway'ем (§22 096)
       status: 'blocked',
-      atUtc: expect.any(Number),
+      atUtc,
     });
     expect(blocked.bytes).toBeUndefined(); // NULL журнала → поле отсутствует (§5)
   });
@@ -215,12 +218,15 @@ describe('container + PrivacyQueries (TASK-098 §9/§19/§20)', () => {
     const journal = await okData<PrivacyJournalResponse>('privacy/journal', { limit: 1 });
 
     // desc (AC1): лимит 1 — только САМАЯ новая запись (ok, позже blocked).
+    const [entry] = journal.entries;
+    const { atUtc } = entry ?? {};
+    expect(atUtc).toBeTypeOf('number');
     expect(journal.entries).toEqual([
       {
         kind: 'updates.check',
         endpoint: FEED_URL,
         status: 'ok',
-        atUtc: expect.any(Number),
+        atUtc,
       },
     ]);
     // enabled операций отражает текущие согласия.

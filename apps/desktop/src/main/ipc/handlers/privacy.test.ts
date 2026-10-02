@@ -19,9 +19,7 @@ const makeQueries = (): {
   patchConsents: ReturnType<typeof vi.fn>;
 } => {
   const journal = vi.fn(() => Promise.resolve(EMPTY_JOURNAL));
-  const getConsents = vi.fn(() =>
-    Promise.resolve({ updatesCheck: false, modelsDownload: false }),
-  );
+  const getConsents = vi.fn(() => Promise.resolve({ updatesCheck: false, modelsDownload: false }));
   const patchConsents = vi.fn((patch: { updatesCheck?: boolean }) =>
     Promise.resolve({ updatesCheck: patch.updatesCheck ?? false, modelsDownload: false }),
   );
@@ -43,9 +41,9 @@ describe('хендлеры privacy/* (TASK-098 §11)', () => {
     );
     expect(journal).toHaveBeenCalledWith(50);
 
-    await expect(handler(CHANNEL_SCHEMAS['privacy/journal'].request.parse({ limit: 7 }))).resolves.toBe(
-      EMPTY_JOURNAL,
-    );
+    await expect(
+      handler(CHANNEL_SCHEMAS['privacy/journal'].request.parse({ limit: 7 })),
+    ).resolves.toBe(EMPTY_JOURNAL);
     expect(journal).toHaveBeenLastCalledWith(7);
   });
 

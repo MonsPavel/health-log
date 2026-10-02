@@ -86,10 +86,12 @@ describe('PrivacyQueries.journal — агрегация (TASK-098 §2/§5)', () 
 
     // «Добавили сетевую операцию в политику» — тот же класс, ops обязана вырасти
     // САМА (генерация из карты, не ручной список): +1 операция без правок queries.
-    const after = await fx.withPolicy({
-      ...EgressPolicy.ALLOWED,
-      'chat.sync': { consentKey: 'modelsDownload' },
-    }).journal(50);
+    const after = await fx
+      .withPolicy({
+        ...EgressPolicy.ALLOWED,
+        'chat.sync': { consentKey: 'modelsDownload' },
+      })
+      .journal(50);
 
     expect(after.ops).toHaveLength(3);
     expect(after.ops).toEqual(

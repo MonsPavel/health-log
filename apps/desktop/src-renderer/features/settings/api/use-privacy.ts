@@ -16,7 +16,12 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { ApiResult, Consents, PrivacyConsentsPatch, PrivacyJournalResponse } from '@hl/contracts';
+import type {
+  ApiResult,
+  Consents,
+  PrivacyConsentsPatch,
+  PrivacyJournalResponse,
+} from '@hl/contracts';
 
 import { call } from '../../../src/lib/ipc';
 import { useHlEvent } from '../../../lib/events';
@@ -77,7 +82,12 @@ export function usePrivacyConsents() {
 
   const query = useQuery({ queryKey: PRIVACY_CONSENTS_QUERY_KEY, queryFn: loadConsents });
 
-  const setConsents = useMutation<Consents, Error, PrivacyConsentsPatch, { previous: Consents | undefined }>({
+  const setConsents = useMutation<
+    Consents,
+    Error,
+    PrivacyConsentsPatch,
+    { previous: Consents | undefined }
+  >({
     mutationFn: patchConsents,
     // §10 optimistic: patch в кэш сразу; previous — в контекст для отката.
     onMutate: async (patch) => {
