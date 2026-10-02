@@ -188,46 +188,61 @@ async function runIteration({ index, seed, batch, calibration, killMinMs, killMa
     }
 
     // (3) Рабочий цикл: батчи подряд; окно килла — детерминированная задержка
-    // от конца калибровки; батч, отправленный на момент истечения окна, — «в полёте».
+    // от конца калибровки. Учёт честный: ack/batchInFlight двигает только
+    // обработчик урегулированного вызова.
+    const onBatchSettled = (data) => {
+      ack = data.committedTotal;
+      batchInFlight = false;
+    };
+    const onBatchLost = () => {
+      // ack не доехал (процесс убит) — ack остаётся прежним (оракул §2)
+    };
     const deadline = Date.now() + killDelayMs;
+    let pending = null;
     for (;;) {
       const remainingMs = deadline - Date.now();
       if (remainingMs <= 0) {
         break;
       }
       batchInFlight = true;
-      const batchPromise = withTimeout(
+      pending = withTimeout(
         invokeChannel(window, '__test/insert-batch', { count: batch }),
         TIMEOUT_INVOKE_MS,
         'батч',
-      ).then(
-        (data) => {
-          ack = data.committedTotal;
-          batchInFlight = false;
-        },
-        () => {
-          // ack не доехал (процесс убит) — ack остаётся прежним (оракул §2)
-        },
-      );
-      await Promise.race([batchPromise, sleep(remainingMs)]);
+      ).then(onBatchSettled, onBatchLost);
+      await Promise.race([pending, sleep(remainingMs)]);
       if (Date.now() >= deadline) {
-        break; // килл по окну: batchInFlight честно отражает, ждал ли мы ack
+        break; // окно истекло — режимный блок ниже решает, что летит в килл
       }
-      await batchPromise;
+      await pending; // урегулирован (ack учтён) — следующий батч
+      pending = null;
     }
-    // Сценарий in-flight (§8): батч отправлен, ack не ждаём — kill -9 сразу.
+    // Батч, оставшийся в полёте при выходе из цикла, дожидается ДО килла:
+    // фиксируются ack/batchInFlight на момент килла (иначе его ack придёт во
+    // время taskkill и рассинхронизирует счёт — поймано прогоном N=10, §24).
+    if (pending !== null) {
+      await pending;
+      pending = null;
+    }
+    // Сценарий in-flight (§8): батч с полным учётом отправлен, ack не ждаём —
+    // kill -9 сразу; его ack, если успеет ДО фактической смерти процесса,
+    // честно входит в ack (батч подтвердён), иначе остаётся «в полёте».
     if (killMode === 'in-flight') {
-      batchInFlight = true;
-      withTimeout(
+      pending = withTimeout(
         invokeChannel(window, '__test/insert-batch', { count: batch }),
         TIMEOUT_INVOKE_MS,
         'батч-в-полёте',
-      ).catch(() => undefined); // ack не доедет — процесс убит (оракул §2 не двигается)
+      ).then(onBatchSettled, onBatchLost);
+      batchInFlight = true;
     }
-
-    // kill -9 (§5: taskkill /F /T /PID на Windows).
+    // kill -9 (§5: taskkill /F /T /PID на Windows), затем урегулирование всех
+    // вызовов — ack/batchInFlight замерзают в финальном честном состоянии.
     await killHard(first);
     first = undefined; // закрыт жёстко — страховке ниже делать нечего
+    if (pending !== null) {
+      await pending;
+      pending = null;
+    }
 
     // (4) Перезапуск: ГРАЦИОЗНЫЙ запуск НОВОГО процесса (не переиспользование, §13).
     second = await withTimeout(launchApp({ userData, testHooks: true }), TIMEOUT_LAUNCH_MS, 'запуск 2');
