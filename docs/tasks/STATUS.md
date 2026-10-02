@@ -102,7 +102,7 @@
 | TASK-094 | done | | смержена |
 | TASK-095 | done | | смержена |
 | TASK-096 | done | | смержена |
-| TASK-097 | todo | | |
+| TASK-097 | done | | смержена |
 | TASK-098 | todo | | |
 | TASK-099 | todo | | |
 | TASK-100 | todo | | |
