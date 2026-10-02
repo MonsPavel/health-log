@@ -42,6 +42,8 @@ export * from './bench.js';
 // TASK-102 §5/§11: TEST-ONLY каналы крэш-теста потери питания (__test/*).
 export * from './test-hooks.js';
 export * from './data-care/index.js';
+// TASK-103 §5/§11: каналы диагностического пакета (DiagContent, diag/preview|save).
+export * from './diag/index.js';
 export * from './export/index.js';
 export * from './file.js';
 export * from './measurement/index.js';
