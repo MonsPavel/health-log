@@ -100,22 +100,29 @@ describe('AboutSection — строки версий (TASK-100 §5/§19, AC «О
     const list = await screen.findByTestId('about-versions');
     expect(list.tagName).toBe('DL'); // §16: definition-list семантика
 
-    expect(screen.getByTestId('about-version-app')).toHaveTextContent('0.1.0');
-    expect(screen.getByTestId('about-version-schema')).toHaveTextContent('9');
-    expect(screen.getByTestId('about-version-scale')).toHaveTextContent('BP-OFFICE-ESC2018');
-    expect(screen.getByTestId('about-version-scale')).toHaveTextContent('1.0.0');
-    expect(screen.getByTestId('about-version-model')).toHaveTextContent('qwen3-4b');
-    expect(screen.getByTestId('about-version-model')).toHaveTextContent('1.0');
-    expect(screen.getByTestId('about-startup')).toHaveTextContent('12');
+    // Квери каналов асинхронны — ждём фактического появления версий (§19).
+    await waitFor(() =>
+      expect(screen.getByTestId('about-version-app').textContent).toContain('0.1.0'),
+    );
+    expect(screen.getByTestId('about-version-schema').textContent).toContain('9');
+    expect(screen.getByTestId('about-version-scale').textContent).toContain('BP-OFFICE-ESC2018');
+    expect(screen.getByTestId('about-version-scale').textContent).toContain('1.0.0');
+    expect(screen.getByTestId('about-version-model').textContent).toContain('qwen3-4b');
+    expect(screen.getByTestId('about-version-model').textContent).toContain('1.0');
+    expect(screen.getByTestId('about-startup').textContent).toContain('12');
   });
 
   it('модель не выбрана — строка модели отсутствует, остальные на месте', async () => {
     makeHl({ meta: { ...META, model: undefined } });
     renderSection();
 
-    await screen.findByTestId('about-version-app');
+    // Ждём загрузки версий (квери асинхронны): строка приложения появилась —
+    // строки модели нет (модель не выбрана), остальные на месте.
+    await waitFor(() =>
+      expect(screen.getByTestId('about-version-app').textContent).toContain('0.1.0'),
+    );
     expect(screen.queryByTestId('about-version-model')).toBeNull();
-    expect(screen.getByTestId('about-version-scale')).toBeInTheDocument();
+    expect(screen.getByTestId('about-version-scale').textContent).toContain('BP-OFFICE-ESC2018');
   });
 });
 
@@ -125,8 +132,8 @@ describe('AboutSection — статус сампроверки (§5/§10/§19)',
     renderSection();
 
     const status = await screen.findByTestId('about-selfcheck-status');
-    expect(status).toHaveAttribute('data-state', 'ok');
-    expect(status).toHaveTextContent('Проблем не обнаружено');
+    await waitFor(() => expect(status.getAttribute('data-state')).toBe('ok'));
+    expect(status.textContent).toContain('Проблем не обнаружено');
     expect(screen.queryByTestId('about-selfcheck-details')).toBeNull();
   });
 
@@ -135,12 +142,12 @@ describe('AboutSection — статус сампроверки (§5/§10/§19)',
     renderSection();
 
     const status = await screen.findByTestId('about-selfcheck-status');
-    expect(status).toHaveAttribute('data-state', 'failed');
-    expect(status).toHaveTextContent('Обнаружены проблемы');
+    await waitFor(() => expect(status.getAttribute('data-state')).toBe('failed'));
+    expect(status.textContent).toContain('Обнаружены проблемы');
     const details = screen.getByTestId('about-selfcheck-details');
-    expect(details).toHaveTextContent('повреждение');
+    expect(details.textContent).toContain('повреждение');
     // §10: красный статус читается скринридером (live-область).
-    expect(status.parentElement).toHaveAttribute('aria-live', 'polite');
+    expect(status.parentElement?.getAttribute('aria-live')).toBe('polite');
   });
 
   it('null-отчёт (самчек не выполнялся) — нейтральный честный статус', async () => {
@@ -148,7 +155,7 @@ describe('AboutSection — статус сампроверки (§5/§10/§19)',
     renderSection();
 
     const status = await screen.findByTestId('about-selfcheck-status');
-    expect(status).toHaveAttribute('data-state', 'pending');
+    expect(status.getAttribute('data-state')).toBe('pending');
   });
 });
 
@@ -167,16 +174,14 @@ describe('AboutSection — полная проверка БД (§4/§11/§19, AC
 
     // Долгая операция: pending-статус и блокировка повторного запуска.
     await waitFor(() => expect(button.hasAttribute('disabled')).toBe(true));
-    expect(button).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByTestId('about-full-check-running')).toBeInTheDocument();
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    expect(screen.getByTestId('about-full-check-running')).not.toBeNull();
 
     await act(async () => {
       resolveIntegrity?.({ ok: true, details: 'ok' });
     });
-    await screen.findByTestId('about-full-check-result');
-    expect(screen.getByTestId('about-full-check-result')).toHaveTextContent(
-      'ошибок не найдено',
-    );
+    const result = await screen.findByTestId('about-full-check-result');
+    expect(result.textContent).toContain('ошибок не найдено');
     expect(button.hasAttribute('disabled')).toBe(false);
   });
 
@@ -203,7 +208,9 @@ describe('AboutSection — полная проверка БД (§4/§11/§19, AC
 
     fireEvent.click(await screen.findByTestId('about-full-check'));
     const result = await screen.findByTestId('about-full-check-result');
-    expect(result).toHaveAttribute('data-state', 'failed');
-    expect(screen.getByTestId('about-full-check-details')).toHaveTextContent('invalid page type');
+    expect(result.getAttribute('data-state')).toBe('failed');
+    expect(screen.getByTestId('about-full-check-details').textContent).toContain(
+      'invalid page type',
+    );
   });
 });

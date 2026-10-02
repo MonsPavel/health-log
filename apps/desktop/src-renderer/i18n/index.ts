@@ -16,8 +16,10 @@
  * (features/security/ru.json — секция «Защита паролем»); updates — TASK-097
  * (features/updates/ru.json — секция «Обновления»); privacy — TASK-099
  * (i18n/ru/privacy.json — секция «Приватность» настроек, ключи privacy.* по §17
- * задачи: descriptionKey операций генерирует main, 098). Один namespace
- * 'translation' с группами common./data./errors./export./lock./measurement./settings./critical./dashboard./ai./security./updates./privacy.: ключи в коде совпадают со
+ * задачи: descriptionKey операций генерирует main, 098); about — TASK-100
+ * (i18n/ru/about.json — секция «О приложении», ключи about.*: версии — параметры).
+ * Один namespace
+ * 'translation' с группами common./data./errors./export./lock./measurement./settings./critical./dashboard./ai./security./updates./privacy./about.: ключи в коде совпадают со
  * строками messageKey контрактов ('errors.renderer' — прецедент ErrorBoundary, TASK-011).
  *
  * escapeValue: false — экранирование делает React, ICU-подстановки включатся с
@@ -49,6 +51,9 @@ import updates from '../features/updates/ru.json';
 // TASK-099 §17: ключи privacy.* — секция «Приватность» (обещание, операции,
 // лента, инструкция самопроверки; тексты описаний операций — по descriptionKey 098).
 import privacy from './ru/privacy.json';
+// TASK-100 §17: ключи about.* — секция «О приложении» (версии, статус сампроверки,
+// полная проверка БД; версии — параметры подстановки).
+import about from './ru/about.json';
 
 const resources = {
   ru: {
@@ -67,6 +72,7 @@ const resources = {
       security,
       updates,
       privacy,
+      about,
     },
   },
 } as const;

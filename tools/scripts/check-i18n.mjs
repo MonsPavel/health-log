@@ -44,10 +44,11 @@ const TEST_FILE_PATTERN = /\.test\.tsx?$/;
  * features/<фича>/ru.json; каталоги общих
  * компонентов (первый — critical, TASK-041) — components/<имя>/ru.json;
  * privacy (TASK-099) — каталог i18n/ru/privacy.json (секция «Приватность»);
+ * about (TASK-100) — каталог i18n/ru/about.json (секция «О приложении»);
  * новая группа = добавление своего имени в альтернацию.
  */
 const KEY_LITERAL_PATTERN =
-  /(['"])(common|errors|export|report|data|lock|measurement|settings|critical|dashboard|ai|security|updates|privacy)\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)\1/g;
+  /(['"])(common|errors|export|report|data|lock|measurement|settings|critical|dashboard|ai|security|updates|privacy|about)\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)\1/g;
 
 /** Namespace, чьи ключи приходят динамически и вне unused-проверки (арх. 06 §6). */
 const DYNAMIC_CONSUMPTION_NAMESPACES = new Set(['errors']);
