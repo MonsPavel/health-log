@@ -53,6 +53,8 @@ describe('extractAppVersion — токен Name/version перед « Chrome/» 
   });
 
   it('UA без « Chrome/» вообще (jsdom) — undefined', () => {
-    expect(extractAppVersion('Mozilla/5.0 (win32) AppleWebKit/537.36 jsdom/26.1.0')).toBeUndefined();
+    expect(
+      extractAppVersion('Mozilla/5.0 (win32) AppleWebKit/537.36 jsdom/26.1.0'),
+    ).toBeUndefined();
   });
 });

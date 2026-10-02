@@ -322,7 +322,6 @@ describe('UpdatesSection — бета-канал: заготовка TASK-107 (�
   });
 
   it('снапшот переживает размонтирование секции и возврат после gcTime (ревью 097)', async () => {
-    vi.useFakeTimers();
     makeHl({ consent: true });
     checkData = { status: 'available', version: '1.1.0' };
     // ЕДИНЫЙ клиент на оба монтажа — как в бою (провайдер живёт с окном).
@@ -333,16 +332,22 @@ describe('UpdatesSection — бета-канал: заготовка TASK-107 (�
     const first = render(createElement(UpdatesSection), { wrapper });
     await clickCheck();
     expect(await screen.findByText('Доступна версия 1.1.0')).toBeDefined();
+
+    // Таймеры — только вокруг unmount/advance: RTL waitFor под vitest не умеет
+    // двигать fake-таймеры (ищет глобальный jest), findBy на них зависает.
+    vi.useFakeTimers();
     // Навигация уходит с настроек — секция размонтируется (app/router.tsx);
     // продовый QueryClient собирает кэш через 10 минут простоя
-    // (lib/query-client.ts gcTime). Снапшот main сессионный (updates-service
-    // держит его в памяти до перезапуска) — возврат обязан показать available,
-    // а не seed idle: повторный сетевой цикл не нужен (§2/§3).
+    // (lib/query-client.ts gcTime): gcTime планирует setTimeout при отписке.
     first.unmount();
     act(() => {
       vi.advanceTimersByTime(10 * 60 * 1000 + 1_000);
     });
+    vi.useRealTimers();
 
+    // Снапшот main сессионный (updates-service держит его в памяти до
+    // перезапуска) — возврат обязан показать available, а не seed idle:
+    // повторный сетевой цикл не нужен (§2/§3).
     render(createElement(UpdatesSection), { wrapper });
     expect(await screen.findByText('Доступна версия 1.1.0')).toBeDefined();
     expect(screen.getByRole('button', { name: 'Скачать' })).toBeDefined();

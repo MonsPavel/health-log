@@ -80,6 +80,13 @@ export function useUpdatesStatus(): UseQueryResult<UpdatesStatusSnapshot, Error>
     queryKey: UPDATES_STATUS_QUERY_KEY,
     queryFn: seedStatus,
     staleTime: Number.POSITIVE_INFINITY,
+    // gcTime ∞ (ревью 097): снапшот main живёт в памяти ДО перезапуска (096 §12),
+    // а секция размонтируется при уходе с настроек (app/router.tsx) — дефолтный
+    // gcTime (10 мин, lib/query-client.ts) собрал бы кэш-запись и возврат показал
+    // бы seed idle: карточка available/кнопка install исчезали бы, хотя обновление
+    // скачано и main готов установить его; восстановление — только повторный
+    // сетевой цикл (§2/§3 — прозрачность «что нашли»).
+    gcTime: Number.POSITIVE_INFINITY,
   });
 }
 
