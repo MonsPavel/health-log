@@ -45,6 +45,19 @@ extraResources: []
 # в окружении без VS Build Tools — отключаем штатный rebuild electron-builder.
 npmRebuild: false
 
+# TASK-104 §5: update feed — generic-провайдер поверх permalink «latest» GitHub Releases,
+# канал stable (latest-файл канала: stable.yml; поля version/path/sha512 генерирует
+# builder). publisherName = Subject DN боевого сертификата (OV, ADR-0005) — он же пишется
+# в app-update.yml: updater отвергает установщик, подписанный кем-то другим (NFR-11).
+# До получения боевого сертификата значение — плановый DN; сверить/обновить при
+# контрольной подписи (certificates.md §3). Локальные сборки без env-секретов остаются
+# НЕподписанными (§24 TASK-104), publish не публикует без явного --publish (TASK-105).
+publish:
+  provider: generic
+  url: https://github.com/MonsPavel/health-log/releases/latest/download
+  channel: stable
+  publisherName: CN=Health Log, O=Health Log, C=RU
+
 win:
   target:
     - target: nsis
@@ -53,11 +66,21 @@ win:
   # §5/§6: dev-иконка-заглушка (генератор — 256×256, минимум electron-builder для win);
   # брендовые иконки — post-MVP (§5 «Не включено»).
   icon: build/icon-dev.ico
+  # TASK-104 §5: signtool-конфиг подписи (секреты — НЕ здесь: pfx через env
+  # WIN_CSC_LINK/WIN_CSC_KEY_PASSWORD — GitHub Secrets в CI, локально env-файл вне git,
+  # см. certificates.md; без env сборка продолжается unsigned, как в TASK-034).
+  # rfc3161TimeStampServer ОБЯЗАТЕЛЕН (§13): подпись переживает истечение сертификата.
+  signtoolOptions:
+    signingHashAlgorithms:
+      - sha256
+    rfc3161TimeStampServer: http://timestamp.digicert.com
+    publisherName: CN=Health Log, O=Health Log, C=RU
 
 nsis:
   # §5/§20: per-user установка без прав администратора, с выбором каталога
-  # (не one-click). Подпись (TASK-104) и автообновление (TASK-096) — вне задачи:
-  # SmartScreen на неподписанном инсталляторе — известное ограничение (§14).
+  # (не one-click). Автообновление (TASK-096) — вне задачи; подпись — TASK-104
+  # (win.signtoolOptions выше): SmartScreen первые недели OV — известное
+  # ограничение (§14, коммуникация в release notes — 114).
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true

@@ -83,12 +83,12 @@ describe('update-feed — YAML-строители фида (TASK-104 §13)', () 
     // releaseDate — поле builder'а; без него серверное время не фиксируется в фикстуре.
     expect(yml).toMatch(/^releaseDate: .+$/m);
     // files: единственный файл-установщик с url=имени файла, size и sha512 (§13).
-    expect(yml).toMatch(new RegExp(`- url: ${INSTALLER_NAME}$`, 'm'));
-    expect(yml).toMatch(/^  size: 67056$/m);
-    expect(yml).toMatch(`  sha512: ${sha512}`);
+    expect(yml).toMatch(new RegExp(`^  - url: ${INSTALLER_NAME}$`, 'm'));
+    expect(yml).toMatch(/^    size: 67056$/m);
+    expect(yml).toMatch(`    sha512: ${sha512}`);
   });
 
-  it('buildAppUpdateYml: provider/url/channel/publisherName/updaterCacheDirName — зеркало builder\'а', () => {
+  it("buildAppUpdateYml: provider/url/channel/publisherName/updaterCacheDirName — зеркало builder'а", () => {
     const yml = buildAppUpdateYml({
       url: 'http://127.0.0.1:8123/',
       channel: 'stable',
@@ -127,8 +127,8 @@ describe('update-feed — контракт подписи electron-builder.yml (
   });
 
   it("publisherName задан и совпадает в win.signtoolOptions и publish (требование updater'а §5)", () => {
-    const values = [...config.matchAll(/^\s*publisherName:\s*(\S.*)$/gm)].map(
-      (match) => match[1]?.trim(),
+    const values = [...config.matchAll(/^\s*publisherName:\s*(\S.*)$/gm)].map((match) =>
+      match[1]?.trim(),
     );
     expect(values.length).toBe(2);
     expect(new Set(values).size).toBe(1);
@@ -171,146 +171,34 @@ describe.skipIf(process.platform !== 'win32')(
       return installerSource;
     };
 
-    it(
-      '(AC1+AC3) test-cert: подпись Valid; updater принимает подписанный exe с локального фида и готов устанавливать',
-      (ctx) => {
-        const dir = tmpDir('hl-update-feed-pos-');
-        const installerSource = makeInstallerFixture(dir);
-        const cert = createTestCodeSigningCert(dir, CERT_CN);
-        try {
-          // §5 «доверие в локальном хранилище»: Windows показывает диалог
-          // подтверждения на импорт корня — без HL_TEST_CERT_TRUST_ROOT=1
-          // (и присутствия человека) тест честно пропускается.
-          const trusted =
-            isRootTrusted(cert.thumbprint) ||
-            (process.env['HL_TEST_CERT_TRUST_ROOT'] === '1' &&
-              importRootTrust(cert.cerPath) === 'trusted');
-          if (!trusted) {
-            ctx.skip(
-              'Root-импорт test-cert требует интерактивного подтверждения Windows. ' +
-                'Однократно: HL_TEST_CERT_TRUST_ROOT=1 pnpm exec vitest run ' +
-                'apps/desktop/tests/e2e/helpers/update-feed.test.ts (docs/dev/certificates.md §4)',
-            );
-          }
-
-          signInstaller(installerSource, cert);
-          const feed: UpdateFeedHandle = startLocalUpdateFeed({ dir, installerSource });
-          writeFileSync(
-            join(dir, 'stable.yml'),
-            buildLatestYml({
-              version: UPDATE_VERSION,
-              path: INSTALLER_NAME,
-              sha512: sha512Base64(installerSource),
-              size: readFileSync(installerSource).length,
-            }),
+    it('(AC1+AC3) test-cert: подпись Valid; updater принимает подписанный exe с локального фида и готов устанавливать', async (ctx) => {
+      const dir = tmpDir('hl-update-feed-pos-');
+      const installerSource = makeInstallerFixture(dir);
+      const cert = createTestCodeSigningCert(dir, CERT_CN);
+      try {
+        // §5 «доверие в локальном хранилище»: Windows показывает диалог
+        // подтверждения на импорт корня — без HL_TEST_CERT_TRUST_ROOT=1
+        // (и присутствия человека) тест честно пропускается.
+        const trusted =
+          isRootTrusted(cert.thumbprint) ||
+          (process.env['HL_TEST_CERT_TRUST_ROOT'] === '1' &&
+            importRootTrust(cert.cerPath) === 'trusted');
+        if (!trusted) {
+          ctx.skip(
+            'Root-импорт test-cert требует интерактивного подтверждения Windows. ' +
+              'Однократно: HL_TEST_CERT_TRUST_ROOT=1 pnpm exec vitest run ' +
+              'apps/desktop/tests/e2e/helpers/update-feed.test.ts (docs/dev/certificates.md §4)',
           );
-          writeFileSync(
-            join(dir, 'app-update.yml'),
-            buildAppUpdateYml({
-              url: feed.baseUrl,
-              channel: 'stable',
-              publisherName: cert.subjectDn,
-              updaterCacheDirName: UPDATER_CACHE_DIR_NAME,
-            }),
-          );
-          const updater = createTestUpdater({
-            appUpdateYmlPath: join(dir, 'app-update.yml'),
-            installedVersion: INSTALLED_VERSION,
-            cacheDir: tmpDir('hl-update-feed-cache-'),
-            userDataDir: tmpDir('hl-update-feed-udata-'),
-          });
-          const events: string[] = [];
-          updater.on('update-available', () => events.push('update-available'));
-          updater.on('update-downloaded', () => events.push('update-downloaded'));
-
-          const check = updater.checkForUpdates();
-          expect(check?.isUpdateAvailable).toBe(true);
-          expect(check?.updateInfo.version).toBe(UPDATE_VERSION);
-
-          const downloaded = updater.downloadUpdate();
-          // «Готов устанавливать» (§20-3): событие update-downloaded + путь из кэша updater'а.
-          expect(events).toContain('update-downloaded');
-          expect(downloaded.length).toBeGreaterThan(0);
-          expect(readFileSync(downloaded[0] as string).equals(readFileSync(installerSource))).toBe(
-            true,
-          );
-          // §20-1: подпись скачанного установщика — Valid, наш издатель (лог — в PR-описании).
-          const status = getAuthenticodeStatus(downloaded[0] as string);
-          expect(status.status).toBe(0);
-          expect(status.signerSubject).toBe(cert.subjectDn);
-        } finally {
-          cert.remove();
         }
-      },
-      180_000,
-    );
 
-    it(
-      '(AC4) подмена байта после подписи → updater отвергает: sha512 latest.yml (ERR_CHECKSUM_MISMATCH)',
-      () => {
-        const dir = tmpDir('hl-update-feed-tamper-');
-        const installerSource = makeInstallerFixture(dir);
-        const cert = createTestCodeSigningCert(dir, CERT_CN);
-        try {
-          signInstaller(installerSource, cert); // доверие не нужно: хеш-гейт раньше подписи
-          const feed: UpdateFeedHandle = startLocalUpdateFeed({ dir, installerSource });
-          writeFileSync(
-            join(dir, 'stable.yml'),
-            buildLatestYml({
-              version: UPDATE_VERSION,
-              path: INSTALLER_NAME,
-              sha512: sha512Base64(installerSource), // хеш ПОДЛИННИКА — сервер отдаёт подмену
-              size: readFileSync(installerSource).length,
-            }),
-          );
-          writeFileSync(
-            join(dir, 'app-update.yml'),
-            buildAppUpdateYml({
-              url: feed.baseUrl,
-              channel: 'stable',
-              publisherName: cert.subjectDn,
-              updaterCacheDirName: UPDATER_CACHE_DIR_NAME,
-            }),
-          );
-          // Подмена отдаваемых байтов: инвертируем байт рядом с концом подписанного PE.
-          feed.tamperInstaller((bytes) => {
-            const tampered = Buffer.from(bytes);
-            tampered[tampered.length - 3] ^= 0xff;
-            return tampered;
-          });
-          const updater = createTestUpdater({
-            appUpdateYmlPath: join(dir, 'app-update.yml'),
-            installedVersion: INSTALLED_VERSION,
-            cacheDir: tmpDir('hl-update-feed-cache-'),
-            userDataDir: tmpDir('hl-update-feed-udata-'),
-          });
-          const events: string[] = [];
-          updater.on('update-downloaded', () => events.push('update-downloaded'));
-
-          expect(updater.checkForUpdates()?.isUpdateAvailable).toBe(true);
-          expect(updater.downloadUpdate()).rejects.toMatchObject({
-            code: 'ERR_CHECKSUM_MISMATCH',
-          });
-          expect(events).not.toContain('update-downloaded');
-        } finally {
-          cert.remove();
-        }
-      },
-      90_000,
-    );
-
-    it(
-      '(§14) неподписанный exe при publisherName в app-update.yml → updater отвергает (ERR_UPDATER_INVALID_SIGNATURE)',
-      () => {
-        const dir = tmpDir('hl-update-feed-unsigned-');
-        const installerSource = makeInstallerFixture(dir); // НЕ подписываем
-        const feed: UpdateFeedHandle = startLocalUpdateFeed({ dir, installerSource });
+        signInstaller(installerSource, cert);
+        const feed: UpdateFeedHandle = await startLocalUpdateFeed({ dir, installerSource });
         writeFileSync(
           join(dir, 'stable.yml'),
           buildLatestYml({
             version: UPDATE_VERSION,
             path: INSTALLER_NAME,
-            sha512: sha512Base64(installerSource), // хеш сходится — отклонит именно подпись
+            sha512: sha512Base64(installerSource),
             size: readFileSync(installerSource).length,
           }),
         );
@@ -319,7 +207,67 @@ describe.skipIf(process.platform !== 'win32')(
           buildAppUpdateYml({
             url: feed.baseUrl,
             channel: 'stable',
-            publisherName: 'CN=Health Log, O=Health Log, C=RU',
+            publisherName: cert.subjectDn,
+            updaterCacheDirName: UPDATER_CACHE_DIR_NAME,
+          }),
+        );
+        const updater = createTestUpdater({
+          appUpdateYmlPath: join(dir, 'app-update.yml'),
+          installedVersion: INSTALLED_VERSION,
+          cacheDir: tmpDir('hl-update-feed-cache-'),
+          userDataDir: tmpDir('hl-update-feed-udata-'),
+        });
+        const events: string[] = [];
+        updater.on('update-available', () => events.push('update-available'));
+        updater.on('update-downloaded', () => events.push('update-downloaded'));
+
+        const check = await updater.checkForUpdates();
+        expect(check?.isUpdateAvailable).toBe(true);
+        expect(check?.updateInfo.version).toBe(UPDATE_VERSION);
+
+        const downloaded = await updater.downloadUpdate();
+        // «Готов устанавливать» (§20-3): событие update-downloaded + путь из кэша updater'а.
+        expect(events).toContain('update-downloaded');
+        expect(downloaded.length).toBeGreaterThan(0);
+        expect(readFileSync(downloaded[0] as string).equals(readFileSync(installerSource))).toBe(
+          true,
+        );
+        // §20-1: подпись скачанного установщика — Valid, наш издатель (лог — в PR-описании).
+        const status = getAuthenticodeStatus(downloaded[0] as string);
+        expect(status.status).toBe(0);
+        expect(status.signerSubject).toBe(cert.subjectDn);
+      } finally {
+        cert.remove();
+      }
+    }, 180_000);
+
+    it('(AC3) локальный фид: updater скачивает подписанный exe и готов устанавливать (downloadUpdate → update-downloaded)', async () => {
+      // Автоматизируемая часть §20-3: полный позитивный конвейер фида
+      // (latest-файл → загрузка → sha512 → готовность) на ПОДПИСАННОЙ фикстуре.
+      // app-update.yml без publisherName — updater пропускает проверку подписи
+      // (ветка «нет publisherName» electron-updater), поэтому доверие корня
+      // (интерактивный шаг Windows) не требуется; подпись фикстуры подтверждается
+      // напрямую (signerSubject) и в AC1-тесте выше — вместе с принятием подписи.
+      const dir = tmpDir('hl-update-feed-ready-');
+      const installerSource = makeInstallerFixture(dir);
+      const cert = createTestCodeSigningCert(dir, CERT_CN);
+      try {
+        signInstaller(installerSource, cert);
+        const feed: UpdateFeedHandle = await startLocalUpdateFeed({ dir, installerSource });
+        writeFileSync(
+          join(dir, 'stable.yml'),
+          buildLatestYml({
+            version: UPDATE_VERSION,
+            path: INSTALLER_NAME,
+            sha512: sha512Base64(installerSource),
+            size: readFileSync(installerSource).length,
+          }),
+        );
+        writeFileSync(
+          join(dir, 'app-update.yml'),
+          buildAppUpdateYml({
+            url: feed.baseUrl,
+            channel: 'stable',
             updaterCacheDirName: UPDATER_CACHE_DIR_NAME,
           }),
         );
@@ -332,13 +280,109 @@ describe.skipIf(process.platform !== 'win32')(
         const events: string[] = [];
         updater.on('update-downloaded', () => events.push('update-downloaded'));
 
-        expect(updater.checkForUpdates()?.isUpdateAvailable).toBe(true);
-        expect(updater.downloadUpdate()).rejects.toMatchObject({
-          code: 'ERR_UPDATER_INVALID_SIGNATURE',
+        expect((await updater.checkForUpdates())?.isUpdateAvailable).toBe(true);
+        const downloaded = await updater.downloadUpdate();
+
+        expect(events).toContain('update-downloaded');
+        expect(downloaded.length).toBeGreaterThan(0);
+        expect(readFileSync(downloaded[0] as string).equals(readFileSync(installerSource))).toBe(
+          true,
+        );
+        // Подписанная фикстура доехала до кэша updater'а байт-в-байт: наш издатель.
+        const status = getAuthenticodeStatus(downloaded[0] as string);
+        expect(status.signerSubject).toBe(cert.subjectDn);
+      } finally {
+        cert.remove();
+      }
+    }, 90_000);
+
+    it('(AC4) подмена байта после подписи → updater отвергает: sha512 latest.yml (ERR_CHECKSUM_MISMATCH)', async () => {
+      const dir = tmpDir('hl-update-feed-tamper-');
+      const installerSource = makeInstallerFixture(dir);
+      const cert = createTestCodeSigningCert(dir, CERT_CN);
+      try {
+        signInstaller(installerSource, cert); // доверие не нужно: хеш-гейт раньше подписи
+        const feed: UpdateFeedHandle = await startLocalUpdateFeed({ dir, installerSource });
+        writeFileSync(
+          join(dir, 'stable.yml'),
+          buildLatestYml({
+            version: UPDATE_VERSION,
+            path: INSTALLER_NAME,
+            sha512: sha512Base64(installerSource), // хеш ПОДЛИННИКА — сервер отдаёт подмену
+            size: readFileSync(installerSource).length,
+          }),
+        );
+        writeFileSync(
+          join(dir, 'app-update.yml'),
+          buildAppUpdateYml({
+            url: feed.baseUrl,
+            channel: 'stable',
+            publisherName: cert.subjectDn,
+            updaterCacheDirName: UPDATER_CACHE_DIR_NAME,
+          }),
+        );
+        // Подмена отдаваемых байтов: инвертируем байт рядом с концом подписанного PE.
+        feed.tamperInstaller((bytes) => {
+          const tampered = Buffer.from(bytes);
+          const position = tampered.length - 3;
+          tampered[position] = (tampered[position] ?? 0) ^ 0xff;
+          return tampered;
+        });
+        const updater = createTestUpdater({
+          appUpdateYmlPath: join(dir, 'app-update.yml'),
+          installedVersion: INSTALLED_VERSION,
+          cacheDir: tmpDir('hl-update-feed-cache-'),
+          userDataDir: tmpDir('hl-update-feed-udata-'),
+        });
+        const events: string[] = [];
+        updater.on('update-downloaded', () => events.push('update-downloaded'));
+
+        expect((await updater.checkForUpdates())?.isUpdateAvailable).toBe(true);
+        await expect(updater.downloadUpdate()).rejects.toMatchObject({
+          code: 'ERR_CHECKSUM_MISMATCH',
         });
         expect(events).not.toContain('update-downloaded');
-      },
-      60_000,
-    );
+      } finally {
+        cert.remove();
+      }
+    }, 90_000);
+
+    it('(§14) неподписанный exe при publisherName в app-update.yml → updater отвергает (ERR_UPDATER_INVALID_SIGNATURE)', async () => {
+      const dir = tmpDir('hl-update-feed-unsigned-');
+      const installerSource = makeInstallerFixture(dir); // НЕ подписываем
+      const feed: UpdateFeedHandle = await startLocalUpdateFeed({ dir, installerSource });
+      writeFileSync(
+        join(dir, 'stable.yml'),
+        buildLatestYml({
+          version: UPDATE_VERSION,
+          path: INSTALLER_NAME,
+          sha512: sha512Base64(installerSource), // хеш сходится — отклонит именно подпись
+          size: readFileSync(installerSource).length,
+        }),
+      );
+      writeFileSync(
+        join(dir, 'app-update.yml'),
+        buildAppUpdateYml({
+          url: feed.baseUrl,
+          channel: 'stable',
+          publisherName: 'CN=Health Log, O=Health Log, C=RU',
+          updaterCacheDirName: UPDATER_CACHE_DIR_NAME,
+        }),
+      );
+      const updater = createTestUpdater({
+        appUpdateYmlPath: join(dir, 'app-update.yml'),
+        installedVersion: INSTALLED_VERSION,
+        cacheDir: tmpDir('hl-update-feed-cache-'),
+        userDataDir: tmpDir('hl-update-feed-udata-'),
+      });
+      const events: string[] = [];
+      updater.on('update-downloaded', () => events.push('update-downloaded'));
+
+      expect((await updater.checkForUpdates())?.isUpdateAvailable).toBe(true);
+      await expect(updater.downloadUpdate()).rejects.toMatchObject({
+        code: 'ERR_UPDATER_INVALID_SIGNATURE',
+      });
+      expect(events).not.toContain('update-downloaded');
+    }, 60_000);
   },
 );
