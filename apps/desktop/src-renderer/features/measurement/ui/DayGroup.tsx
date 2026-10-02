@@ -33,13 +33,13 @@ function useDayTitle(group: MeasurementDayGroup, nowMs: number): string {
     : formatDateTime(group.instant, { preset: 'date' });
 }
 
-/** Группа дня журнала (§16: ul по дням → li, заголовки — h3). */
+/** Группа дня журнала (§16: ul по дням → li, заголовки — h2 под h1 экрана, TASK-108). */
 export function DayGroup({ group, nowMs, onRowAction }: DayGroupProps): JSX.Element {
   const title = useDayTitle(group, nowMs);
 
   return (
     <section data-testid="day-group" className="mb-4">
-      <h3 className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">{title}</h3>
+      <h2 className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">{title}</h2>
       <ul className="divide-y divide-neutral-200 dark:divide-neutral-700">
         {group.items.map((measurement) => (
           <MeasurementRow

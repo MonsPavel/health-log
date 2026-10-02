@@ -613,11 +613,13 @@ describe('MeasurementForm — режим edit (TASK-038 §5/§10/§19/§20)', ()
     expect(screen.getByLabelText<HTMLInputElement>('Время').value).toBe('21:30');
   });
 
-  it('режим add: заголовок-подсказка без editTitle (§10)', () => {
+  it('режим add: заголовок «Новое измерение» (h1, TASK-108 page-has-heading-one) и подсказка; editTitle отсутствует (§10)', () => {
     renderForm();
 
     expect(screen.queryByTestId('form-title')).toBeNull();
     expect(screen.getByText(/Первое измерение/u)).toBeDefined();
+    const title = screen.getByRole('heading', { level: 1 });
+    expect(title.textContent).toBe('Новое измерение');
   });
 
   it('правка 125→127: submit вызывает measurements/update с id и новыми значениями (§20 AC1)', async () => {

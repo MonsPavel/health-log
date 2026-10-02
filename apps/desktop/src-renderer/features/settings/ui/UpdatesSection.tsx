@@ -92,7 +92,7 @@ export function UpdatesSection(): JSX.Element {
             </p>
           ) : null}
           {state === 'error' ? (
-            <p role="status" className="text-sm text-red-600">
+            <p role="status" className="text-sm text-status-fail">
               {t('updates.error')}
             </p>
           ) : null}
@@ -160,7 +160,7 @@ export function UpdatesSection(): JSX.Element {
               </button>
               {/* Отказ установки — инлайн-статус, повтор возможен (§10/§16). */}
               {install.isError ? (
-                <p role="alert" className="text-sm text-red-600">
+                <p role="alert" className="text-sm text-status-fail">
                   {t('updates.installError')}
                 </p>
               ) : null}

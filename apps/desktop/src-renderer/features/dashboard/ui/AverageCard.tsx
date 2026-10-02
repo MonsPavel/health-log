@@ -44,9 +44,9 @@ export function AverageCard({ stats }: AverageCardProps): JSX.Element {
 
   return (
     <section data-testid="average-card" className="rounded-md border border-border p-4">
-      <h3 className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
+      <h2 className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
         {t('dashboard.average.title')}
-      </h3>
+      </h2>
       {insufficient && stats.count > 0 && <FewDataNote count={stats.count} />}
       <div className="mt-1 flex flex-col gap-1">
         {stats.sys.avg !== undefined && (

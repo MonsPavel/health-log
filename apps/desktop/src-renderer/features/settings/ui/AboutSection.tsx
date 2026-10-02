@@ -122,9 +122,9 @@ export function AboutSection(): JSX.Element {
             data-state={state}
             className={`flex items-center gap-2 rounded-md border p-3 text-sm font-medium ${
               state === 'ok'
-                ? 'border-border bg-transparent text-green-700'
+                ? 'border-border bg-transparent text-status-ok'
                 : state === 'failed'
-                  ? 'border-red-600 bg-transparent text-red-600'
+                  ? 'border-red-600 bg-transparent text-status-fail'
                   : 'border-border bg-transparent text-accent'
             }`}
           >
@@ -142,7 +142,7 @@ export function AboutSection(): JSX.Element {
           {state === 'failed' && reportSnapshot ? (
             <ul
               data-testid="about-selfcheck-details"
-              className="list-disc space-y-1 pl-5 text-sm text-red-600"
+              className="list-disc space-y-1 pl-5 text-sm text-status-fail"
             >
               {!reportSnapshot.dbOk ? <li>{t('about.selfcheck.dbCorrupt')}</li> : null}
               {!reportSnapshot.prefsOk ? <li>{t('about.selfcheck.prefsFailed')}</li> : null}
@@ -192,7 +192,7 @@ export function AboutSection(): JSX.Element {
                 role="status"
                 data-testid="about-full-check-result"
                 data-state="ok"
-                className="text-sm text-green-700"
+                className="text-sm text-status-ok"
               >
                 {t('about.fullCheck.ok')}
               </p>
@@ -203,10 +203,12 @@ export function AboutSection(): JSX.Element {
                 role="alert"
                 className="flex flex-col gap-1"
               >
-                <p className="text-sm font-medium text-red-600">{t('about.fullCheck.failed')}</p>
+                <p className="text-sm font-medium text-status-fail">
+                  {t('about.fullCheck.failed')}
+                </p>
                 <p
                   data-testid="about-full-check-details"
-                  className="break-words text-sm text-red-600"
+                  className="break-words text-sm text-status-fail"
                 >
                   {full.data.details}
                 </p>
@@ -214,7 +216,7 @@ export function AboutSection(): JSX.Element {
             )
           ) : null}
           {full.isError ? (
-            <p role="alert" className="text-sm text-red-600">
+            <p role="alert" className="text-sm text-status-fail">
               {t('about.fullCheck.error')}
             </p>
           ) : null}

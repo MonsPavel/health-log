@@ -91,11 +91,11 @@ describe('RegularityCard — дни с измерениями за 30 дней (
 });
 
 describe('RegularityCard — структура (§16: секция/заголовок, нейтральный тон)', () => {
-  it('секция с h3 «Регулярность»; серия — не alert/статус (нейтральный акцент §16)', () => {
+  it('секция с h2 «Регулярность»; серия — не alert/статус (нейтральный акцент §16, TASK-108: под h1 экрана)', () => {
     render(createElement(RegularityCard, { stats: stats30d(22, 5) }));
 
     const card = screen.getByTestId('regularity-card');
-    expect(card.querySelector('h3')?.textContent).toBe('Регулярность');
+    expect(card.querySelector('h2')?.textContent).toBe('Регулярность');
     // §16: серия — не «ошибка/успех»: никакого alert-региона в карточке нет.
     expect(card.querySelector('[role="alert"]')).toBeNull();
     expect(card.querySelector('[role="status"]')).toBeNull();

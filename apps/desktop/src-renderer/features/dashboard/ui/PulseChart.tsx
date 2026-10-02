@@ -296,73 +296,77 @@ export function PulseChart({
       {/* §16: резюме для вспомогательных технологий; SVG внутри aria-hidden
           (прецедент TrendChart 057: маркеры скрыты от скринридера). */}
       <figure role="img" aria-label={chartLabel} data-testid="pulse-chart" className="m-0">
-        <div aria-hidden="true" className="overflow-x-auto">
-          <ComposedChart
-            width={width}
-            height={height}
-            data={chartData}
-            margin={{ top: 12, right: 16, bottom: 4, left: 0 }}
-          >
-            <CartesianGrid stroke={REF_STROKE} strokeDasharray="1 4" strokeOpacity={0.6} />
-            <XAxis
-              dataKey={isDaily ? 'wallDate' : 'utcMs'}
-              type={isDaily ? 'category' : 'number'}
-              scale={isDaily ? 'auto' : 'time'}
-              domain={isDaily ? undefined : ['dataMin', 'dataMax']}
-              tickFormatter={isDaily ? dayTickOf : rawTickOf}
-              stroke={REF_STROKE}
-              tick={{ fill: 'var(--hl-text)', fontSize: 11 }}
-              tickLine={false}
-            />
-            <YAxis
-              domain={yDomain}
-              tickFormatter={(value: number) => String(value)}
-              stroke={REF_STROKE}
-              tick={{ fill: 'var(--hl-text)', fontSize: 11 }}
-              tickLine={false}
-              width={40}
-              label={{
-                value: t('dashboard.pulse.unit'),
-                angle: -90,
-                position: 'insideLeft',
-                fill: 'var(--hl-text)',
-                fontSize: 11,
-              }}
-            />
-            <Tooltip content={tooltipContent} isAnimationActive={false} />
+        {/* TASK-108 §5 (aria-hidden-focus): прецедент TrendChart — aria-hidden на
+            внутренней обёртке SVG, скролл-контейнер вне aria-hidden. */}
+        <div className="overflow-x-auto">
+          <div aria-hidden="true">
+            <ComposedChart
+              width={width}
+              height={height}
+              data={chartData}
+              margin={{ top: 12, right: 16, bottom: 4, left: 0 }}
+            >
+              <CartesianGrid stroke={REF_STROKE} strokeDasharray="1 4" strokeOpacity={0.6} />
+              <XAxis
+                dataKey={isDaily ? 'wallDate' : 'utcMs'}
+                type={isDaily ? 'category' : 'number'}
+                scale={isDaily ? 'auto' : 'time'}
+                domain={isDaily ? undefined : ['dataMin', 'dataMax']}
+                tickFormatter={isDaily ? dayTickOf : rawTickOf}
+                stroke={REF_STROKE}
+                tick={{ fill: 'var(--hl-text)', fontSize: 11 }}
+                tickLine={false}
+              />
+              <YAxis
+                domain={yDomain}
+                tickFormatter={(value: number) => String(value)}
+                stroke={REF_STROKE}
+                tick={{ fill: 'var(--hl-text)', fontSize: 11 }}
+                tickLine={false}
+                width={40}
+                label={{
+                  value: t('dashboard.pulse.unit'),
+                  angle: -90,
+                  position: 'insideLeft',
+                  fill: 'var(--hl-text)',
+                  fontSize: 11,
+                }}
+              />
+              <Tooltip content={tooltipContent} isAnimationActive={false} />
 
-            {/* Опорный коридор 60–100 (§5/§10): полупрозрачная полоса + линии-
+              {/* Опорный коридор 60–100 (§5/§10): полупрозрачная полоса + линии-
                 границы ИЗ КОНСТАНТ КОНТРАКТА — справка, не классификация. */}
-            <ReferenceArea
-              y1={PULSE_REF_LOW}
-              y2={PULSE_REF_HIGH}
-              fill={REF_STROKE}
-              fillOpacity={0.15}
-              stroke="none"
-              ifOverflow="extendDomain"
-            />
-            <ReferenceLine
-              y={PULSE_REF_LOW}
-              stroke={REF_STROKE}
-              strokeDasharray="2 4"
-              ifOverflow="extendDomain"
-            />
-            <ReferenceLine
-              y={PULSE_REF_HIGH}
-              stroke={REF_STROKE}
-              strokeDasharray="2 4"
-              ifOverflow="extendDomain"
-            />
+              <ReferenceArea
+                y1={PULSE_REF_LOW}
+                y2={PULSE_REF_HIGH}
+                fill={REF_STROKE}
+                fillOpacity={0.15}
+                stroke="none"
+                ifOverflow="extendDomain"
+              />
+              <ReferenceLine
+                y={PULSE_REF_LOW}
+                stroke={REF_STROKE}
+                strokeDasharray="2 4"
+                ifOverflow="extendDomain"
+              />
+              <ReferenceLine
+                y={PULSE_REF_HIGH}
+                stroke={REF_STROKE}
+                strokeDasharray="2 4"
+                ifOverflow="extendDomain"
+              />
 
-            <Line
-              dataKey={isDaily ? 'pulseAvg' : 'pulse'}
-              stroke={PULSE_STROKE}
-              strokeWidth={2}
-              connectNulls={false}
-              isAnimationActive={false}
-              dot={isDaily ? false : <PulseDot onEditPoint={onEditPoint} />}
-            />
-          </ComposedChart>
+              <Line
+                dataKey={isDaily ? 'pulseAvg' : 'pulse'}
+                stroke={PULSE_STROKE}
+                strokeWidth={2}
+                connectNulls={false}
+                isAnimationActive={false}
+                dot={isDaily ? false : <PulseDot onEditPoint={onEditPoint} />}
+              />
+            </ComposedChart>
+          </div>
         </div>
       </figure>
 

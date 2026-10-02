@@ -221,7 +221,7 @@ export function ModelCard({
             disabled={pending?.download === true}
             aria-label={t('ai.models.aria.download', { name: descriptor.name, size })}
             onClick={onDownload}
-            className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90 disabled:opacity-50"
           >
             {t('ai.models.card.download')}
           </button>
@@ -251,7 +251,7 @@ export function ModelCard({
               percent,
             })}
             onClick={onResume}
-            className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90 disabled:opacity-50"
           >
             {t('ai.models.card.resume')}
           </button>
@@ -293,7 +293,7 @@ export function ModelCard({
               disabled={pending?.select === true}
               aria-label={t('ai.models.aria.select', { name: descriptor.name })}
               onClick={onSelect}
-              className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90 disabled:opacity-50"
             >
               {t('ai.models.card.select')}
             </button>

@@ -9,7 +9,7 @@
  */
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 
 /** Раздел навигации: путь маршрута + ключ подписи из каталога (§17). */
 interface Section {
@@ -29,12 +29,29 @@ const SECTIONS: readonly Section[] = [
 /** Базовые классы ссылки; активный раздел подсвечен акцентом (§20, п. 1). */
 const LINK_BASE_CLASS = 'block rounded-md px-3 py-2 text-base no-underline hover:bg-accent/10';
 
-/** Каркас экрана: Sidebar + контент (children — subtree роутера, §15). */
+/** Каркас экрана: skip-link + Sidebar + контент (children — subtree роутера, §15). */
 export function AppLayout({ children }: { readonly children: ReactNode }): JSX.Element {
   const { t } = useTranslation();
 
+  /**
+   * TASK-108 §16: skip-link «Перейти к содержимому» — первый таб-стоп (до nav).
+   * HashRouter: смена hash = смена МАРШРУТА, поэтому дефолт-переход отменяется —
+   * фокус переносится в <main id="content"> программно (main с tabIndex=-1).
+   */
+  const skipToContent = (event: ReactMouseEvent<HTMLAnchorElement>): void => {
+    event.preventDefault();
+    document.getElementById('content')?.focus();
+  };
+
   return (
     <div className="flex min-h-screen">
+      <a
+        href="#content"
+        onClick={skipToContent}
+        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-bg focus:px-3 focus:py-2 focus:text-base focus:font-semibold focus:text-text"
+      >
+        {t('common.skipToContent')}
+      </a>
       <nav aria-label={t('common.sections')} className="w-60 shrink-0 border-r border-border p-4">
         <ul className="flex flex-col gap-1">
           {SECTIONS.map((section) => (
@@ -53,7 +70,9 @@ export function AppLayout({ children }: { readonly children: ReactNode }): JSX.E
           ))}
         </ul>
       </nav>
-      <main className="min-w-0 flex-1">{children}</main>
+      <main id="content" tabIndex={-1} className="min-w-0 flex-1">
+        {children}
+      </main>
     </div>
   );
 }

@@ -66,11 +66,11 @@ function renderCard(measurement: MeasurementDto, onAdd = (): void => undefined):
 afterEach(() => cleanup());
 
 describe('LastMeasurementCard — значения записи (§5: крупно)', () => {
-  it('давление крупно «125/82», пульс «Пульс 72 уд/мин», h3 «Последнее измерение»', () => {
+  it('давление крупно «125/82», пульс «Пульс 72 уд/мин», h2 «Последнее измерение» (TASK-108)', () => {
     renderCard(dto());
 
     const card = screen.getByTestId('last-measurement-card');
-    expect(card.querySelector('h3')?.textContent).toBe('Последнее измерение');
+    expect(card.querySelector('h2')?.textContent).toBe('Последнее измерение');
     expect(screen.getByTestId('last-bp').textContent).toBe('125/82');
     expect(screen.getByTestId('last-pulse').textContent).toBe('Пульс 72 уд/мин');
   });
