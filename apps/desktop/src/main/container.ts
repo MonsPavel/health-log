@@ -62,7 +62,7 @@
  */
 import { existsSync, mkdirSync } from 'node:fs';
 import { copyFile, mkdir } from 'node:fs/promises';
-import { totalmem } from 'node:os';
+import { totalmem, type as osType, release as osRelease, arch as osArch } from 'node:os';
 import { basename, join } from 'node:path';
 
 import { CHANNEL_SCHEMAS } from '@hl/contracts';
@@ -98,6 +98,19 @@ import { WipeAllDataUseCase } from './modules/data-care/application/wipe-all.js'
 // TASK-101 §5/§9: «начать заново» recovery-экрана — wipe-подмножество (unlink db/-wal/-shm).
 import { DiscardDatabaseUseCase } from './modules/data-care/application/discard-database.js';
 import { FileOpQueue } from './modules/data-care/application/file-op-queue.js';
+// TASK-103 §5/§6/§9: DiagBundleService — диагностический пакет (zip без PHI,
+// предпросмотр до публикации, NFR-12); ротационные задачи logs.rotate/events.rotate —
+// scheduler (арх. 04 §7: retention 30/90/180 дней).
+import {
+  DiagBundleService,
+  createDefaultDiagSaveDialog,
+  type DiagSystemInfo,
+} from './modules/platform-services/diag/diag-service.js';
+import {
+  createEventsRotateJob,
+  createLogsRotateJob,
+} from './modules/platform-services/diag/rotation.js';
+import { createDiagPreviewHandler, createDiagSaveHandler } from './ipc/handlers/diag.js';
 import {
   createAddMeasurementHandler,
   createListMeasurementHandler,
@@ -375,11 +388,20 @@ export function evalHeadlessEnabled(
 /**
  * Профиль дневника (seed миграции v1; bench-seed.ts — тот же идентификатор):
  * счётчик записей задачи backup.reminder считается по нему (§13).
+ * TASK-103: экспортирован для сеяния измерений в интеграционных тестах диагпакета.
  */
-const SEED_PROFILE_ID = 'seed-profile-0001';
+export const SEED_PROFILE_ID = 'seed-profile-0001';
 
 /** Каталог копий в userData (TASK-070 §7 — фикс): `<userData>/backups/`. */
 export const BACKUPS_DIRNAME = 'backups';
+
+/**
+ * Каталог логов (TASK-072 §5: категория logs; diag 103 и logs.rotate — тот же):
+ * bootstrap передаёт app.getPath('logs'); по умолчанию `<userData>/logs`.
+ */
+function resolveLogsDir(logsDirPath: string | undefined, userDataPath: string): string {
+  return logsDirPath ?? join(userDataPath, 'logs');
+}
 
 /**
  * Каталог установленных моделей (TASK-081 §5, арх. 07 §6): `<userData>/models` —
@@ -637,6 +659,13 @@ export interface Container {
    * запись через PreferencesService). Потребители — каналы privacy/* (§11), UI 099.
    */
   readonly privacy: PrivacyQueries;
+  /**
+   * DiagBundleService (TASK-103 §5/§7): сборка диагностического пакета (zip без
+   * PHI, NFR-12) — логи, self-check (100), версии (app/meta), журнал сети (200),
+   * агрегаты app_event за 90 дней, миграции, системная строка; предпросмотр —
+   * ДО сохранения (AC §20-3). Потребители — каналы diag/preview|save (§11), UI.
+   */
+  readonly diag: DiagBundleService;
   /**
    * VaultService (TASK-094 §5/§7): сессия локального входа — unlock/lock/set-
    * passphrase, backoff неудач (§4), автоблок по простою (порог prefs.autoLockMin),
@@ -1064,7 +1093,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       closeCurrentDb,
       dbPath,
       vaultKeyPath: vaultFilePath,
-      logsDir: deps.logsDirPath ?? join(deps.userDataPath, 'logs'),
+      logsDir: resolveLogsDir(deps.logsDirPath, deps.userDataPath),
       backupsDir,
       logger: dbLogger,
       queue: fileOpQueue,
@@ -1351,6 +1380,17 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //      ({status: 'error'}) — lastRun пишется, повтор не чаще 24 ч (+throttle 10
     //      мин сервиса после ошибки, §13).
     scheduler.register(createUpdatesCheckJob({ check: () => updates.check() }));
+    //      TASK-103 §5/§8: ротационные задачи диагностики — при каждом старте
+    //      (runOnStart; живых таймеров нет, §5 074): logs.rotate удаляет >30-дневные
+    //      лог-файлы (pino-roll уже ролирует 5×5 МБ — TASK-010), events.rotate —
+    //      network_event >90д / app_event >180д (арх. 04 §7). Лог — категория job.
+    scheduler.register(
+      createLogsRotateJob({
+        logsDir: resolveLogsDir(deps.logsDirPath, deps.userDataPath),
+        logger: createLogger('job'),
+      }),
+    );
+    scheduler.register(createEventsRotateJob({ db, logger: createLogger('job') }));
     //      TASK-098 §2/§9: PrivacyQueries — агрегатор экрана «Приватность»: журнал —
     //      listRecent gateway (сортировка/лимит — контракт 075 §5); операции —
     //      ГЕНЕРАЦИЯ из карты политики (не ручной список, §4); согласия — срез prefs
@@ -1551,6 +1591,52 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         await preferencesService.getPrefs();
         return true;
       },
+    });
+
+    //    TASK-103 §5/§9: DiagBundleService — сборка диагпакета из уже существующих
+    //    источников графа: логи — каталог logs (§14: имена файлов без путей в пакет);
+    //    self-check — снимок сервиса 100; версии — appVersion/схема/шкала/модель +
+    //    системная строка (os + ленивый app.getLocale — вне Electron-рантайма честный
+    //    'unknown', сборка графа в node-vitest безопасна, §19); журнал сети —
+    //    egress.listRecent (200); агрегаты app_event — SQL по БД (метаданные, окно
+    //    90 дней); миграции — боевой реестр. save-диалог — ленивый electron (§20-
+    //    прецедент DialogFileSaver). Измерения/заметки/чат в deps НЕ входят —
+    //    PHI-инвариант держится структурой графа (§13), скан-тест — страховка.
+    const diagSystemInfo = async (): Promise<DiagSystemInfo> => {
+      let locale = 'unknown';
+      try {
+        const electron = await import('electron');
+        const app = (electron as { app?: { getLocale?: () => string } }).app;
+        locale = app?.getLocale?.() ?? 'unknown';
+      } catch {
+        // вне Electron-рантайма (node-vitest) — 'unknown' (§14: без имён/серийников)
+      }
+      return { os: `${osType()} ${osRelease()}`, arch: osArch(), locale };
+    };
+    const diag = new DiagBundleService({
+      logsDir: resolveLogsDir(deps.logsDirPath, deps.userDataPath),
+      clock,
+      appVersion,
+      selfcheckReport: () => selfcheck.report,
+      schemaVersion: () => readSchemaVersionForLog(db),
+      activeScale: async () => {
+        const scale = await scaleService.getActiveScale();
+        return { code: scale.code, version: scale.version };
+      },
+      model: modelMeta,
+      networkJournal: (limit) => egress.listRecent(limit),
+      appEventTotals: async (sinceUtcMs) => {
+        const rows = db
+          .prepare(
+            'SELECT kind, COUNT(*) AS count FROM app_event WHERE at_utc >= ? GROUP BY kind',
+          )
+          .all(sinceUtcMs) as Array<{ kind: string; count: number }>;
+        return Object.fromEntries(rows.map((row) => [row.kind, row.count]));
+      },
+      migrations: deps.migrations ?? MIGRATIONS,
+      systemInfo: diagSystemInfo,
+      saveDialog: createDefaultDiagSaveDialog(),
+      logger,
     });
 
     //    TASK-093 §9: открытие БД по требованию (режим passphrase): «unlock →
@@ -2067,6 +2153,15 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       CHANNEL_SCHEMAS['app/integrity-full'],
       createAppIntegrityFullHandler(selfcheck),
     );
+    // TASK-103 §5/§11: диагностический пакет — предпросмотр (сборка в памяти main)
+    // и сохранение (zip → save-диалог main → move; путь от renderer не принимается).
+    // Оба secure: чтение БД (network_event, app_event) — при locked VAULT/LOCKED.
+    channels.register(
+      'diag/preview',
+      CHANNEL_SCHEMAS['diag/preview'],
+      createDiagPreviewHandler(diag),
+    );
+    channels.register('diag/save', CHANNEL_SCHEMAS['diag/save'], createDiagSaveHandler(diag));
 
     // 9. Лог готовности (§18): факты без путей (basename файла БД — без имени пользователя).
     logger.info('container ready', {
@@ -2102,6 +2197,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       clearChat,
       updates,
       privacy: privacyQueries,
+      diag,
       selfcheck,
       vaultService,
       openDatabase,
