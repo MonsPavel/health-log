@@ -10,14 +10,15 @@
  *      schemaVersion здорового старта (канал app/meta);
  *  (3) рабочий цикл: батчи идут подряд, ack-и трекаются; момент килла выбран
  *      заранее детерминированным PRNG (seed) — задержка U[50,500] мс от конца
- *      калибровки («окно 50–500 мс», §5/§13); когда окно истекает — kill -9
- *      (Windows: `taskkill /F /T /PID` — /T обязателен: дочерние процессы
- *      Electron держат tmp-userData; §22: жёстче ОС-выключения — flush-шансов
- *      нет). Интерпретация §5 (зафиксировано): килл «между ack'ами» — окно
- *      отсчитывается от последнего ack калибровки, батчи идут без пауз, поэтому
- *      килл обычно попадает ВНУТРЬ очередного батча (случай «батч в полёте» §8);
- *      попадание в микропаузу IPC даёт второй случай («килл в паузе»); оба
- *      разрешены инвариантом;
+ *      калибровки («окно 50–500 мс», §5/§13) и режим килла (idle/in-flight).
+ *      Когда окно истекает — kill -9 (Windows: `taskkill /F /T /PID` — /T
+ *      обязателен: дочерние процессы Electron держат tmp-userData; §22: жёстче
+ *      ОС-выключения — flush-шансов нет). Интерпретация §5 (зафиксировано):
+ *      килл «между ack'ами» — окно отсчитывается от последнего ack калибровки;
+ *      режимы дают оба случая §8 — idle: килл в паузе между батчами (found ==
+ *      ack), in-flight: на истечении окна отправляется ещё батч БЕЗ ожидания
+ *      ack (found == ack или ack + batch — транзакция либо откатилась, либо
+ *      дошла до диска с потерянным ack); оба разрешены инвариантом;
  *  (4) перезапуск: ГРАЦИОЗНЫЙ запуск НОВОГО процесса на той же tmp-userData
  *      (не переиспользование, §13) → канал `__test/db-state` даёт
  *      {count, dataVersion, schemaVersion} (§11); отказ канала = БД не открыта
@@ -152,6 +153,12 @@ async function runIteration({ index, seed, batch, calibration, killMinMs, killMa
   // номер итерации: сцена k-й итерации повторяется от прогона к прогону.
   const next = mulberry32((seed ^ (index * 0x9e3779b9)) >>> 0);
   const killDelayMs = randomIntBetween(next, killMinMs, killMaxMs);
+  // Режим килла (§8 «батч в полёте»): детерминированная пара сценариев по seed —
+  // idle: килл в паузе между батчами (недо-батча нет); in-flight: на истечении
+  // окна отправляется ЕЩЁ один батч БЕЗ ожидания ack и сразу kill -9 —
+  // транзакция либо успевает зафиксироваться (found == ack + batch, ack потерян),
+  // либо откатывается (found == ack) — оба исхода разрешены инвариантом §8.
+  const killMode = next() < 0.5 ? 'idle' : 'in-flight';
   let ack = 0;
   let expectedSchemaVersion = 0;
   let batchInFlight = false;
@@ -208,6 +215,15 @@ async function runIteration({ index, seed, batch, calibration, killMinMs, killMa
       }
       await batchPromise;
     }
+    // Сценарий in-flight (§8): батч отправлен, ack не ждаём — kill -9 сразу.
+    if (killMode === 'in-flight') {
+      batchInFlight = true;
+      withTimeout(
+        invokeChannel(window, '__test/insert-batch', { count: batch }),
+        TIMEOUT_INVOKE_MS,
+        'батч-в-полёте',
+      ).catch(() => undefined); // ack не доедет — процесс убит (оракул §2 не двигается)
+    }
 
     // kill -9 (§5: taskkill /F /T /PID на Windows).
     await killHard(first);
@@ -241,7 +257,7 @@ async function runIteration({ index, seed, batch, calibration, killMinMs, killMa
       dataVersion: state.dataVersion,
       schemaVersion: state.schemaVersion,
       batchInFlight,
-      killMode: batchInFlight ? 'in-flight' : 'idle',
+      killMode,
       durationMs: Date.now() - startedAt,
       verdict,
     };
@@ -256,7 +272,7 @@ async function runIteration({ index, seed, batch, calibration, killMinMs, killMa
       dataVersion: -1,
       schemaVersion: -1,
       batchInFlight,
-      killMode: batchInFlight ? 'in-flight' : 'idle',
+      killMode,
       durationMs: Date.now() - startedAt,
       verdict: evaluateCrashIteration({
         ack,
