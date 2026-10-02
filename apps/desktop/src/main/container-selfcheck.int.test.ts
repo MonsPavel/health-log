@@ -21,7 +21,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { AppError, ok, type Result } from '@hl/kernel';
+import { AppError, ok, unsafeUnwrap, type Result } from '@hl/kernel';
 
 import { buildContainer, DATABASE_FILENAME, type Container } from './container.js';
 import {
@@ -209,14 +209,8 @@ describe('buildContainer — сампроверка старта (TASK-100 §19/
       logger: silentVaultLogger,
       calibrate: () => Promise.resolve(FAST_PARAMS),
     });
-    const ensured = await setup.ensureKey(false);
-    if (!ensured.ok) {
-      throw ensured.error;
-    }
-    const locked = await setup.setPassphrase(PASS);
-    if (!locked.ok) {
-      throw locked.error;
-    }
+    unsafeUnwrap(await setup.ensureKey(false));
+    unsafeUnwrap(await setup.setPassphrase(PASS));
 
     const container = await buildContainer({
       userDataPath: dir,

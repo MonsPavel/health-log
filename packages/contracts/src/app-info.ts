@@ -77,10 +77,11 @@ export const APP_META_RESPONSE_SCHEMA = z
   .object({
     appVersion: z.string().min(1),
     schemaVersion: z.number().int().min(0),
-    scale: z
-      .object({ code: z.string().min(1), version: z.string().min(1) })
-      .strict(),
-    model: z.object({ id: z.string().min(1), version: z.string().min(1) }).strict().optional(),
+    scale: z.object({ code: z.string().min(1), version: z.string().min(1) }).strict(),
+    model: z
+      .object({ id: z.string().min(1), version: z.string().min(1) })
+      .strict()
+      .optional(),
   })
   .strict();
 

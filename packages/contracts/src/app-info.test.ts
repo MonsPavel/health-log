@@ -42,10 +42,14 @@ describe('SelfCheckReport — форма снимка старта (TASK-100 §5
   });
 
   it('worker опционален (§5 «если ИИ-модуль есть»), остальные поля обязательны', () => {
-    const { worker: _worker, ...withoutWorker } = HEALTHY_REPORT;
-    expect(SELF_CHECK_REPORT_SCHEMA.safeParse(withoutWorker).success).toBe(true);
-    const { dbOk: _dbOk, ...withoutDbOk } = HEALTHY_REPORT;
-    expect(SELF_CHECK_REPORT_SCHEMA.safeParse(withoutDbOk).success).toBe(false);
+    // worker: undefined эквивалентен отсутствию (поле опционально); dbOk: undefined —
+    // отказ: поле обязательное (§5).
+    expect(
+      SELF_CHECK_REPORT_SCHEMA.safeParse({ ...HEALTHY_REPORT, worker: undefined }).success,
+    ).toBe(true);
+    expect(SELF_CHECK_REPORT_SCHEMA.safeParse({ ...HEALTHY_REPORT, dbOk: undefined }).success).toBe(
+      false,
+    );
   });
 
   it('strict: неизвестное поле отклонено — инвариант «без путей/PHI» (§14, AC5)', () => {
@@ -74,9 +78,9 @@ describe('SelfCheckReport — форма снимка старта (TASK-100 §5
   });
 
   it('числа целые неотрицательные: checkedAtUtc (мс эпохи), startupMs, schemaVersion', () => {
-    expect(
-      SELF_CHECK_REPORT_SCHEMA.safeParse({ ...HEALTHY_REPORT, startupMs: -1 }).success,
-    ).toBe(false);
+    expect(SELF_CHECK_REPORT_SCHEMA.safeParse({ ...HEALTHY_REPORT, startupMs: -1 }).success).toBe(
+      false,
+    );
     expect(
       SELF_CHECK_REPORT_SCHEMA.safeParse({ ...HEALTHY_REPORT, checkedAtUtc: 1.5 }).success,
     ).toBe(false);
@@ -105,18 +109,15 @@ describe('канал app/selfcheck (TASK-100 §11)', () => {
 
   it('типы запроса/ответа выведены из реестра схем (§23)', () => {
     expectTypeOf<ChannelRequest<'app/selfcheck'>>().toEqualTypeOf<Record<string, never>>();
-    expectTypeOf<ChannelResponse<'app/selfcheck'>>().toEqualTypeOf<
-      | {
-          dbOk: boolean;
-          schemaVersion: number;
-          vaultMode: 'none' | 'passphrase';
-          worker?: { state: 'starting' | 'ready' | 'busy' | 'restarting' | 'failed' };
-          prefsOk: boolean;
-          checkedAtUtc: number;
-          startupMs: number;
-        }
-      | null
-    >();
+    expectTypeOf<ChannelResponse<'app/selfcheck'>>().toEqualTypeOf<{
+      dbOk: boolean;
+      schemaVersion: number;
+      vaultMode: 'none' | 'passphrase';
+      worker?: { state: 'starting' | 'ready' | 'busy' | 'restarting' | 'failed' };
+      prefsOk: boolean;
+      checkedAtUtc: number;
+      startupMs: number;
+    } | null>();
   });
 });
 
@@ -133,10 +134,8 @@ describe('канал app/meta — версии для «О приложении�
   });
 
   it('model опционален («модель id+version если есть»), остальные поля обязательны', () => {
-    const { model: _model, ...withoutModel } = META;
-    expect(APP_META_RESPONSE_SCHEMA.safeParse(withoutModel).success).toBe(true);
-    const { scale: _scale, ...withoutScale } = META;
-    expect(APP_META_RESPONSE_SCHEMA.safeParse(withoutScale).success).toBe(false);
+    expect(APP_META_RESPONSE_SCHEMA.safeParse({ ...META, model: undefined }).success).toBe(true);
+    expect(APP_META_RESPONSE_SCHEMA.safeParse({ ...META, scale: undefined }).success).toBe(false);
   });
 
   it('strict: лишние поля (путь/PHI) отклонены (§14)', () => {
@@ -178,8 +177,6 @@ describe('канал app/integrity-full — полная проверка БД (
     const selfcheck: ChannelName = 'app/selfcheck';
     const meta: ChannelName = 'app/meta';
     const integrity: ChannelName = 'app/integrity-full';
-    expect(selfcheck + meta + integrity).toBe(
-      'app/selfcheckapp/metaapp/integrity-full',
-    );
+    expect(selfcheck + meta + integrity).toBe('app/selfcheckapp/metaapp/integrity-full');
   });
 });

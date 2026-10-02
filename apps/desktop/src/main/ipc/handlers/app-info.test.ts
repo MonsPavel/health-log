@@ -24,11 +24,14 @@ const HEALTHY: SelfCheckReport = {
 };
 
 /** Fake-сервис: шпионы наружу (unbound-method — методы класса не референсим). */
-const makeService = (report: SelfCheckReport | undefined = HEALTHY): {
+const makeService = (
+  report: SelfCheckReport | undefined,
+): {
   service: SelfCheckService;
   runFullIntegrity: ReturnType<typeof vi.fn>;
 } => {
-  const runFullIntegrity = vi.fn(() => Promise.resolve({ ok: true, details: 'ok' }));
+  // runFullIntegrity синхронный (better-sqlite3 синхронный — прецедент арх. 03 §6).
+  const runFullIntegrity = vi.fn(() => ({ ok: true, details: 'ok' }));
   return {
     runFullIntegrity,
     service: {
@@ -46,6 +49,7 @@ describe('хендлеры app-info (TASK-100 §11)', () => {
     const handler = createAppSelfcheckHandler(service);
     await expect(handler({})).resolves.toBe(HEALTHY);
 
+    // Самчек не выполнялся (locked-старт) — снимка нет, канал отвечает null.
     const fresh = makeService(undefined);
     await expect(createAppSelfcheckHandler(fresh.service)({})).resolves.toBeNull();
   });
@@ -93,15 +97,15 @@ describe('хендлеры app-info (TASK-100 §11)', () => {
     expect('model' in parsedNoVersion).toBe(false);
   });
 
-  it('app/integrity-full: вызов порта runFullIntegrity, ответ без изменений', async () => {
-    const { service, runFullIntegrity } = makeService();
+  it('app/integrity-full: вызов порта runFullIntegrity, ответ без изменений (хендлер синхронный)', () => {
+    const { service, runFullIntegrity } = makeService(HEALTHY);
     const handler = createAppIntegrityFullHandler(service);
-    await expect(handler({})).resolves.toEqual({ ok: true, details: 'ok' });
+    expect(handler({})).toEqual({ ok: true, details: 'ok' });
     expect(runFullIntegrity).toHaveBeenCalledTimes(1);
   });
 
   it('каркас: ответ app/selfcheck валиден по схеме (report|null), payload {} strict', async () => {
-    const { service } = makeService();
+    const { service } = makeService(HEALTHY);
     const registry = createChannelRegistry();
     registry.register(
       'app/selfcheck',

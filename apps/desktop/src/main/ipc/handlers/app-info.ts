@@ -62,9 +62,10 @@ export function createAppMetaHandler(
 /**
  * Фабрика хендлера `app/integrity-full` (§4/§11): полная проверка БД по кнопке —
  * PRAGMA integrity_check на открытом соединении (долгий, <10 с — progress не нужен).
+ * Синхронный хендлер (better-sqlite3 синхронный — прецедент арх. 03 §6).
  */
 export function createAppIntegrityFullHandler(
   selfcheck: SelfCheckService,
-): (payload: AppIntegrityFullRequest) => Promise<AppIntegrityFullResponse> {
+): (payload: AppIntegrityFullRequest) => AppIntegrityFullResponse {
   return () => selfcheck.runFullIntegrity();
 }

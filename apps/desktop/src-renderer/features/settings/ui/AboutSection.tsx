@@ -20,7 +20,11 @@ import { formatDateTime } from '../../../lib/i18n-date';
 import { useAppMeta, useIntegrityFull, useSelfcheck } from '../api/use-about';
 
 /** Строка версий (§16: dl — dt/dd пары). */
-function Row(props: { readonly label: string; readonly value: string; readonly testId: string }): JSX.Element {
+function Row(props: {
+  readonly label: string;
+  readonly value: string;
+  readonly testId: string;
+}): JSX.Element {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="text-sm text-accent">{props.label}</dt>
@@ -104,9 +108,7 @@ export function AboutSection(): JSX.Element {
           ) : null}
           <Row
             label={t('about.startup')}
-            value={
-              reportSnapshot ? t('about.startupMs', { ms: reportSnapshot.startupMs }) : '—'
-            }
+            value={reportSnapshot ? t('about.startupMs', { ms: reportSnapshot.startupMs }) : '—'}
             testId="about-startup"
           />
         </dl>

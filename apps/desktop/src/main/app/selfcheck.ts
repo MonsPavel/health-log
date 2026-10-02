@@ -114,17 +114,20 @@ export class SelfCheckService {
    * Полная проверка БД (§4/§8): PRAGMA integrity_check по кнопке — по умолчанию
    * НЕ выполняется на старте (компромисс скорости §4). Отдельный результат в UI,
    * стартовый снимок не мутирует (§7). Сбой соединения → {ok: false, details}.
+   * Синхронна (better-sqlite3 синхронный — прецедент арх. 03 §6): хендлер канала
+   * возвращает значение напрямую.
    */
-  async runFullIntegrity(): Promise<FullIntegrityResult> {
+  runFullIntegrity(): FullIntegrityResult {
     try {
       const rows = this.deps.db.pragma('integrity_check') as Array<
         Record<string, unknown> | string
       >;
-      const lines = rows.map((row) =>
-        typeof row === 'string' ? row : String(row['integrity_check'] ?? ''),
-      );
-      const details = lines.join('\n').slice(0, MAX_DETAILS_LENGTH);
       // integrity_check возвращает 'ok' или список ошибок (строка на проблему).
+      const lines = rows.map((row) => {
+        const value: unknown = typeof row === 'string' ? row : row['integrity_check'];
+        return typeof value === 'string' ? value : '';
+      });
+      const details = lines.join('\n').slice(0, MAX_DETAILS_LENGTH);
       return { ok: lines.length === 1 && lines[0] === 'ok', details };
     } catch (cause) {
       this.deps.logger?.warn('self-check: полная проверка не удалась', {

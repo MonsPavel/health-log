@@ -177,12 +177,44 @@ describe('AboutSection — полная проверка БД (§4/§11/§19, AC
     expect(button.getAttribute('aria-busy')).toBe('true');
     expect(screen.getByTestId('about-full-check-running')).not.toBeNull();
 
-    await act(async () => {
+    act(() => {
       resolveIntegrity?.({ ok: true, details: 'ok' });
     });
     const result = await screen.findByTestId('about-full-check-result');
     expect(result.textContent).toContain('ошибок не найдено');
     expect(button.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('повторный запуск заменяет результат (AC4 «инвалидация»: отдельный результат в UI, §7)', async () => {
+    const deferred: Array<(data: unknown) => void> = [];
+    makeHl({
+      deferIntegrity: (resolve) => {
+        deferred.push(resolve);
+      },
+    });
+    renderSection();
+
+    const button = await screen.findByTestId('about-full-check');
+
+    // Первый запуск → отказ.
+    fireEvent.click(button);
+    await waitFor(() => expect(deferred).toHaveLength(1));
+    act(() => {
+      deferred[0]?.({ ok: false, details: 'page 7 broken' });
+    });
+    const failed = await screen.findByTestId('about-full-check-result');
+    expect(failed.getAttribute('data-state')).toBe('failed');
+
+    // Повторный запуск → ok: предыдущий результат замещён (mutation data).
+    fireEvent.click(button);
+    await waitFor(() => expect(deferred).toHaveLength(2));
+    act(() => {
+      deferred[1]?.({ ok: true, details: 'ok' });
+    });
+    const okResult = await screen.findByTestId('about-full-check-result');
+    expect(okResult.getAttribute('data-state')).toBe('ok');
+    expect(okResult.textContent).toContain('ошибок не найдено');
+    expect(screen.queryByTestId('about-full-check-details')).toBeNull();
   });
 
   it('повреждённая БД → красный результат с текстом integrity_check (details)', async () => {

@@ -46,13 +46,17 @@ afterAll(() => {
 });
 
 /** Логгер с записью вызовов info (§18 — проверка одной строки резюме). */
-const spyLog: { infos: Array<{ message: string; meta?: object }> } = { infos: [] };
-function logger(): SelfCheckLogger & { readonly infos: typeof spyLog.infos } {
-  spyLog.infos = [];
+interface SpyLogger extends SelfCheckLogger {
+  readonly infos: Array<{ message: string; meta?: Record<string, unknown> }>;
+}
+
+function logger(): SpyLogger {
+  const infos: Array<{ message: string; meta?: Record<string, unknown> }> = [];
   return {
-    info: (message, meta) => spyLog.infos.push({ message, meta }),
+    infos,
+    info: (message, meta) => infos.push({ message, meta }),
     warn: () => undefined,
-  } as SelfCheckLogger & { readonly infos: typeof spyLog.infos };
+  };
 }
 
 /**
@@ -67,9 +71,7 @@ function makeHealthyDb(dir: string): {
   const file = join(dir, 'health-log.db');
   const db = openEncrypted(file, KEY);
   // Максимальная версия реестра — как после старта контейнера.
-  db.exec(
-    `CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
-  );
+  db.exec(`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
   db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?)").run(
     String(MIGRATIONS.at(-1)?.version ?? 0),
   );
@@ -108,7 +110,7 @@ describe('SelfCheckService — healthy старт (TASK-100 §19, AC1)', () => {
       clock,
       vaultMode: 'none',
       workerState: () => 'starting',
-      prefsOk: async () => true,
+      prefsOk: () => Promise.resolve(true),
     });
 
     const report = await service.run();
@@ -131,7 +133,11 @@ describe('SelfCheckService — healthy старт (TASK-100 §19, AC1)', () => {
   it('worker без порта — поле отсутствует (§5 «если ИИ-модуль есть»)', async () => {
     const dir = newDir();
     const { db } = makeHealthyDb(dir);
-    const service = new SelfCheckService({ db, clock: new FixedClock(NOW_MS, 180), vaultMode: 'passphrase' });
+    const service = new SelfCheckService({
+      db,
+      clock: new FixedClock(NOW_MS, 180),
+      vaultMode: 'passphrase',
+    });
     const report = await service.run();
     expect(report.worker).toBeUndefined();
     expect(report.vaultMode).toBe('passphrase');
@@ -148,6 +154,7 @@ describe('SelfCheckService — healthy старт (TASK-100 §19, AC1)', () => {
       db,
       clock: new FixedClock(NOW_MS, 180),
       vaultMode: 'none',
+      logger: log,
     });
     await service.run();
     expect(log.infos).toHaveLength(1);
@@ -189,10 +196,10 @@ describe('SelfCheckService — повреждённая БД (TASK-100 §9/§19,
     expect(quick).not.toBe('ok'); // предусловие: фикстура реально повреждена
 
     const service = new SelfCheckService({
-      db: corrupt as unknown as EncryptedDatabase,
+      db: corrupt,
       clock: new FixedClock(NOW_MS, 180),
       vaultMode: 'none',
-      prefsOk: async () => true,
+      prefsOk: () => Promise.resolve(true),
     });
     const report = await service.run();
 
@@ -212,9 +219,7 @@ describe('SelfCheckService — повреждённая БД (TASK-100 §9/§19,
       db,
       clock: new FixedClock(NOW_MS, 180),
       vaultMode: 'none',
-      prefsOk: async () => {
-        throw new Error('STORAGE/BOOM');
-      },
+      prefsOk: () => Promise.reject(new Error('STORAGE/BOOM')),
     });
     const report = await service.run();
     expect(report.dbOk).toBe(true);
@@ -233,13 +238,13 @@ describe('SelfCheckService — полная проверка (TASK-100 §4/§7/�
       vaultMode: 'none',
     });
     const before = await service.run();
-    const full = await service.runFullIntegrity();
+    const full = service.runFullIntegrity();
     expect(full).toEqual({ ok: true, details: 'ok' });
     expect(service.report).toEqual(before);
     db.close();
   });
 
-  it('повреждённая БД → {ok: false, details} с текстом ошибки (для раскрытия 101)', async () => {
+  it('повреждённая БД → {ok: false, details} с текстом ошибки (для раскрытия 101)', () => {
     const dir = newDir();
     const { db, pageSize, file } = makeHealthyDb(dir);
     db.close();
@@ -248,18 +253,18 @@ describe('SelfCheckService — полная проверка (TASK-100 §4/§7/�
     corrupt.pragma("cipher = 'sqlcipher'");
     corrupt.pragma(`key = "x'${KEY}'"`);
     const service = new SelfCheckService({
-      db: corrupt as unknown as EncryptedDatabase,
+      db: corrupt,
       clock: new FixedClock(NOW_MS, 180),
       vaultMode: 'none',
     });
-    const full = await service.runFullIntegrity();
+    const full = service.runFullIntegrity();
     expect(full.ok).toBe(false);
     expect(full.details.length).toBeGreaterThan(0);
     expect(full.details).not.toBe('ok');
     corrupt.close();
   });
 
-  it('полная проверка — отдельный запрос: каждый вызов перечитывает БД (§11)', async () => {
+  it('полная проверка — отдельный запрос: каждый вызов перечитывает БД (§11)', () => {
     const dir = newDir();
     const { db } = makeHealthyDb(dir);
     const pragmaSpy = vi.spyOn(db, 'pragma');
@@ -268,8 +273,8 @@ describe('SelfCheckService — полная проверка (TASK-100 §4/§7/�
       clock: new FixedClock(NOW_MS, 180),
       vaultMode: 'none',
     });
-    await service.runFullIntegrity();
-    await service.runFullIntegrity();
+    service.runFullIntegrity();
+    service.runFullIntegrity();
     const integrityCalls = pragmaSpy.mock.calls.filter(([source]) => source === 'integrity_check');
     expect(integrityCalls).toHaveLength(2);
     db.close();
