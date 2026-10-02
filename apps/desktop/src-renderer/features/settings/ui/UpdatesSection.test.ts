@@ -20,7 +20,7 @@ import { UpdatesSection } from './UpdatesSection';
 
 import '../../../i18n';
 
-type InvokeMock = ReturnType<typeof vi.fn>;
+type InvokeMock = ReturnType<typeof vi.fn<(channel: string) => Promise<unknown>>>;
 
 let invoke: InvokeMock;
 let listeners: Map<string, (payload: unknown) => void>;
@@ -131,7 +131,9 @@ describe('UpdatesSection — статус-строки по фикстурам �
       'никогда',
     );
     expect(screen.queryByTestId('updates-consent-hint')).toBeNull();
-    await waitFor(() => expect(screen.getByTestId('updates-check').hasAttribute('disabled')).toBe(false));
+    await waitFor(() =>
+      expect(screen.getByTestId('updates-check').hasAttribute('disabled')).toBe(false),
+    );
   });
 
   it('checking: «Проверяем…», кнопка «Проверить» disabled (§10 статус-машина)', async () => {
@@ -183,7 +185,9 @@ describe('UpdatesSection — статус-строки по фикстурам �
     await clickCheck();
 
     expect(await screen.findByText('Не удалось проверить обновления')).toBeDefined();
-    await waitFor(() => expect(screen.getByTestId('updates-check').hasAttribute('disabled')).toBe(false));
+    await waitFor(() =>
+      expect(screen.getByTestId('updates-check').hasAttribute('disabled')).toBe(false),
+    );
   });
 });
 
@@ -289,7 +293,7 @@ describe('UpdatesSection — полный цикл: check→available→download
 });
 
 describe('UpdatesSection — бета-канал: заготовка TASK-107 (§5/AC5)', () => {
-  it('select disabled с подписью «каналом beta» (AC5)', async () => {
+  it('select disabled с подписью «каналом beta» (AC5)', () => {
     makeHl();
     renderSection();
 
@@ -305,7 +309,7 @@ describe('UpdatesSection — бета-канал: заготовка TASK-107 (�
     // Seed запроса (idle, §12) должен устояться ДО события — иначе его ответ
     // перезапишет setQueryData события (гонка микротасок, тестовая — в бою seed
     // резолвится при монтировании, события приходят позже).
-    await act(async () => undefined);
+    await act(() => Promise.resolve(undefined));
 
     fire('update:available', { version: '2.0.0' });
 

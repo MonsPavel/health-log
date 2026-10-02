@@ -68,11 +68,7 @@ export function UpdatesSection(): JSX.Element {
   }
 
   return (
-    <section
-      aria-labelledby="updates-section-title"
-      data-testid="updates-section"
-      className="mt-6"
-    >
+    <section aria-labelledby="updates-section-title" data-testid="updates-section" className="mt-6">
       <h2 id="updates-section-title" className="mb-2 text-base font-medium">
         {t('updates.section')}
       </h2>
@@ -84,9 +80,7 @@ export function UpdatesSection(): JSX.Element {
 
         {/* Статус-область: aria-live — смена состояния озвучивается (§16). */}
         <div aria-live="polite" className="flex flex-col gap-3">
-          {state === 'idle' || state === 'latest' || state === 'error' ? (
-            <LastCheckRow />
-          ) : null}
+          {state === 'idle' || state === 'latest' || state === 'error' ? <LastCheckRow /> : null}
           {state === 'checking' ? (
             <p role="status" className="text-sm text-text">
               {t('updates.checking')}
@@ -109,9 +103,7 @@ export function UpdatesSection(): JSX.Element {
               data-testid="updates-available-card"
               className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
             >
-              <p className="text-sm font-medium text-text">
-                {t('updates.available', { version })}
-              </p>
+              <p className="text-sm font-medium text-text">{t('updates.available', { version })}</p>
               <button
                 type="button"
                 data-testid="updates-download"
@@ -242,15 +234,12 @@ function LastCheckRow(): JSX.Element {
     <p data-testid="updates-lastcheck" className="text-sm text-accent">
       {lastCheckMs === undefined
         ? t('updates.never')
-        : t(
-            'updates.lastCheck',
-            {
-              time: formatDateTime(
-                { utcMs: lastCheckMs, tzOffsetMin: -new Date(lastCheckMs).getTimezoneOffset() },
-                { preset: 'datetime' },
-              ),
-            },
-          )}
+        : t('updates.lastCheck', {
+            time: formatDateTime(
+              { utcMs: lastCheckMs, tzOffsetMin: -new Date(lastCheckMs).getTimezoneOffset() },
+              { preset: 'datetime' },
+            ),
+          })}
     </p>
   );
 }

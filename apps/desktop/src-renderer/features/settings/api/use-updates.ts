@@ -31,13 +31,7 @@ import { IpcApiError } from '../../settings/model/use-preferences';
 
 /** Состояние обновления (снапшот main 096 §7 — зеркалим строкой, рендерер не импортирует main). */
 export type UpdatesState =
-  | 'idle'
-  | 'checking'
-  | 'available'
-  | 'latest'
-  | 'downloading'
-  | 'ready'
-  | 'error';
+  'idle' | 'checking' | 'available' | 'latest' | 'downloading' | 'ready' | 'error';
 
 /** Снимок состояния для UI (§7 096): state + версия/прогресс, когда есть. */
 export interface UpdatesStatusSnapshot {
@@ -113,7 +107,7 @@ function writeLastCheckAtMs(nowMs: number, storage: Storage = localStorage): voi
 }
 
 /** Разворот конверта: ok:false — IpcApiError с DTO (§11, прецедент use-preferences). */
-async function unwrap<T>(channel: string, result: ApiResult<T>): Promise<T> {
+function unwrap<T>(result: ApiResult<T>): T {
   if (!result.ok) {
     throw new IpcApiError(result.error);
   }
@@ -140,7 +134,7 @@ export function useUpdatesCheck(): ReturnType<
 > {
   const queryClient = useQueryClient();
   return useMutation<UpdatesStatusResponse, Error, void>({
-    mutationFn: async () => unwrap('updates/check', await call('updates/check', {})),
+    mutationFn: async () => unwrap(await call('updates/check', {})),
     // Старт проверки — мгновенный статус checking (§7 096: сервис ставит его же).
     onMutate: () => {
       queryClient.setQueryData<UpdatesStatusSnapshot>(UPDATES_STATUS_QUERY_KEY, {
@@ -166,7 +160,7 @@ export function useUpdatesDownload(): ReturnType<
 > {
   const queryClient = useQueryClient();
   return useMutation<UpdatesStatusResponse, Error, void>({
-    mutationFn: async () => unwrap('updates/download', await call('updates/download', {})),
+    mutationFn: async () => unwrap(await call('updates/download', {})),
     // Старт скачивания — статус downloading (ход уточняют события update:progress).
     onMutate: () => {
       queryClient.setQueryData<UpdatesStatusSnapshot>(UPDATES_STATUS_QUERY_KEY, (old) => ({
@@ -194,6 +188,6 @@ export function useUpdatesInstall(): ReturnType<
   typeof useMutation<{ restarting: true }, Error, void>
 > {
   return useMutation<{ restarting: true }, Error, void>({
-    mutationFn: async () => unwrap('updates/install', await call('updates/install', {})),
+    mutationFn: async () => unwrap(await call('updates/install', {})),
   });
 }
