@@ -99,6 +99,16 @@ function renderSection(): void {
   render(createElement(UpdatesSection), { wrapper });
 }
 
+/**
+ * Клик «Проверить» с ожиданием активации: пока prefs не загружены, кнопка
+ * disabled (гейт согласия неизвестен, §10) — прецедент SettingsScreen.test.
+ */
+async function clickCheck(): Promise<void> {
+  const button = await screen.findByTestId('updates-check');
+  await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+  fireEvent.click(button);
+}
+
 beforeEach(() => {
   vi.restoreAllMocks();
 });
@@ -132,7 +142,7 @@ describe('UpdatesSection — статус-строки по фикстурам �
         : Promise.resolve(OK(PREFS(true))),
     );
     renderSection();
-    fireEvent.click(await screen.findByTestId('updates-check'));
+    await clickCheck();
 
     expect(await screen.findByText('Проверяем…')).toBeDefined();
     expect(screen.getByTestId('updates-check').hasAttribute('disabled')).toBe(true);
@@ -143,7 +153,7 @@ describe('UpdatesSection — статус-строки по фикстурам �
     makeHl({ consent: true });
     checkData = { status: 'available', version: '1.1.0' };
     renderSection();
-    fireEvent.click(await screen.findByTestId('updates-check'));
+    await clickCheck();
 
     expect(await screen.findByText('Доступна версия 1.1.0')).toBeDefined();
     expect(screen.getByRole('button', { name: 'Скачать' })).toBeDefined();
@@ -157,7 +167,7 @@ describe('UpdatesSection — статус-строки по фикстурам �
     makeHl({ consent: true });
     checkData = { status: 'latest' };
     renderSection();
-    fireEvent.click(await screen.findByTestId('updates-check'));
+    await clickCheck();
 
     expect(await screen.findByText('У вас последняя версия')).toBeDefined();
     expect(await screen.findByTestId('updates-lastcheck').then((el) => el.textContent)).toMatch(
@@ -170,7 +180,7 @@ describe('UpdatesSection — статус-строки по фикстурам �
     makeHl({ consent: true });
     checkData = { status: 'error' };
     renderSection();
-    fireEvent.click(await screen.findByTestId('updates-check'));
+    await clickCheck();
 
     expect(await screen.findByText('Не удалось проверить обновления')).toBeDefined();
     await waitFor(() => expect(screen.getByTestId('updates-check').hasAttribute('disabled')).toBe(false));
@@ -181,7 +191,7 @@ describe('UpdatesSection — согласие на сетевой доступ (
   it('без согласия: клик ведёт к подсказке «Приватность», invoke НЕ вызван (§13)', async () => {
     makeHl({ consent: false });
     renderSection();
-    fireEvent.click(await screen.findByTestId('updates-check'));
+    await clickCheck();
 
     const hint = await screen.findByTestId('updates-consent-hint');
     expect(hint.textContent).toContain('Приватность');
@@ -193,7 +203,7 @@ describe('UpdatesSection — согласие на сетевой доступ (
   it('с согласием: клик вызывает updates/check {} (§13)', async () => {
     makeHl({ consent: true });
     renderSection();
-    fireEvent.click(await screen.findByTestId('updates-check'));
+    await clickCheck();
 
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('updates/check', {}));
     expect(screen.queryByTestId('updates-consent-hint')).toBeNull();
@@ -206,7 +216,7 @@ describe('UpdatesSection — полный цикл: check→available→download
     checkData = { status: 'available', version: '1.1.0' };
     renderSection();
 
-    fireEvent.click(await screen.findByTestId('updates-check'));
+    await clickCheck();
     fireEvent.click(await screen.findByRole('button', { name: 'Скачать' }));
 
     // Прогресс приходит СОБЫТИЕМ (§10/§12), пока download висит.
@@ -233,8 +243,10 @@ describe('UpdatesSection — полный цикл: check→available→download
     checkData = { status: 'available', version: '1.1.0' };
     renderSection();
 
-    fireEvent.click(await screen.findByTestId('updates-check'));
+    await clickCheck();
     fireEvent.click(await screen.findByRole('button', { name: 'Скачать' }));
+    // mutationFn стартует асинхронно — ждём, пока отложенный резолв появится.
+    await waitFor(() => expect(resolveDownload).toBeDefined());
     resolveDownload?.({ status: 'ready', version: '1.1.0' });
     fireEvent.click(await screen.findByTestId('updates-install'));
     await screen.findByTestId('updates-install-dialog');
@@ -266,7 +278,7 @@ describe('UpdatesSection — полный цикл: check→available→download
     });
     renderSection();
 
-    fireEvent.click(await screen.findByTestId('updates-check'));
+    await clickCheck();
     fireEvent.click(await screen.findByRole('button', { name: 'Скачать' }));
     fireEvent.click(await screen.findByTestId('updates-install'));
     fireEvent.click(await screen.findByTestId('updates-install-confirm'));
@@ -290,9 +302,14 @@ describe('UpdatesSection — бета-канал: заготовка TASK-107 (�
     makeHl({ consent: true });
     renderSection();
     await screen.findByTestId('updates-lastcheck');
+    // Seed запроса (idle, §12) должен устояться ДО события — иначе его ответ
+    // перезапишет setQueryData события (гонка микротасок, тестовая — в бою seed
+    // резолвится при монтировании, события приходят позже).
+    await act(async () => undefined);
 
     fire('update:available', { version: '2.0.0' });
 
-    expect(screen.getByText('Доступна версия 2.0.0')).toBeDefined();
+    // Нотификация наблюдателей React Query асинхронна — ждём (как в полном цикле).
+    expect(await screen.findByText('Доступна версия 2.0.0')).toBeDefined();
   });
 });
