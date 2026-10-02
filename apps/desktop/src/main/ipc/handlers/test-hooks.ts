@@ -176,7 +176,9 @@ export function createTestDbStateHandler(
     const countRow = countStmt.get() as { total: number | bigint };
     return TEST_DB_STATE_RESPONSE_SCHEMA.parse({
       count: Number(countRow.total),
-      dataVersion: metaValueToNonNegativeInt(dataVersionStmt.get() as { value: string } | undefined),
+      dataVersion: metaValueToNonNegativeInt(
+        dataVersionStmt.get() as { value: string } | undefined,
+      ),
       schemaVersion: metaValueToNonNegativeInt(
         schemaVersionStmt.get() as { value: string } | undefined,
       ),

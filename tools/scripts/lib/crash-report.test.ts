@@ -101,11 +101,7 @@ describe('evaluateCrashIteration — таблица комбинаций ack/fou
       healthyInput({ found: 100, dataVersion: 3, schemaVersion: 5 }),
     );
     expect(verdict.pass).toBe(false);
-    expect(verdict.violations).toEqual([
-      'LOST_ACK',
-      'DATA_VERSION_MISMATCH',
-      'SCHEMA_MISMATCH',
-    ]);
+    expect(verdict.violations).toEqual(['LOST_ACK', 'DATA_VERSION_MISMATCH', 'SCHEMA_MISMATCH']);
   });
 
   it('PASS при другом размере батча: found == ack + batchSize учитывает batchSize ввода', () => {

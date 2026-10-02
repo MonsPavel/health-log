@@ -22,11 +22,7 @@ export const CRASH_DATA_VERSION_BASE = 1;
 
 /** Коды нарушений инвариантов (§18: попадают в отчёт по-имени). */
 export type CrashViolationCode =
-  | 'LOST_ACK'
-  | 'PARTIAL_BATCH'
-  | 'UNEXPECTED_TAIL'
-  | 'DATA_VERSION_MISMATCH'
-  | 'SCHEMA_MISMATCH';
+  'LOST_ACK' | 'PARTIAL_BATCH' | 'UNEXPECTED_TAIL' | 'DATA_VERSION_MISMATCH' | 'SCHEMA_MISMATCH';
 
 /** Ввод вердикта одной итерации: последний ack и факты `__test/db-state` (§8). */
 export interface CrashIterationInput {
@@ -58,8 +54,15 @@ export interface CrashIterationVerdict {
  * сломалось, а не только первое.
  */
 export function evaluateCrashIteration(input: CrashIterationInput): CrashIterationVerdict {
-  const { ack, found, dataVersion, schemaVersion, expectedSchemaVersion, batchSize, batchInFlight } =
-    input;
+  const {
+    ack,
+    found,
+    dataVersion,
+    schemaVersion,
+    expectedSchemaVersion,
+    batchSize,
+    batchInFlight,
+  } = input;
   const violations: CrashViolationCode[] = [];
 
   // (1) Ничего подтверждённого не потеряно (§2, NFR-3, страх R-4).

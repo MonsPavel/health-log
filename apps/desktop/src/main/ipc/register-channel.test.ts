@@ -330,9 +330,9 @@ describe('гвардия recovery-режима (TASK-101 §5/§9/§11/§14)', ()
     registry.register(testChannel('test/db'), secureSchemas, handler);
     registry.register(testChannel('test/allowed'), secureSchemas, handler);
 
-    await expect(registry.dispatch({ channel: 'test/db', payload: { value: 'x' } })).resolves.toStrictEqual(
-      RECOVERY_MODE_ENVELOPE,
-    );
+    await expect(
+      registry.dispatch({ channel: 'test/db', payload: { value: 'x' } }),
+    ).resolves.toStrictEqual(RECOVERY_MODE_ENVELOPE);
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -379,9 +379,9 @@ describe('гвардия recovery-режима (TASK-101 §5/§9/§11/§14)', ()
     });
     registry.register(testChannel('test/db'), secureSchemas, handler);
 
-    await expect(registry.dispatch({ channel: 'test/db', payload: { value: 'x' } })).resolves.toEqual(
-      { v: API_ENVELOPE_VERSION, ok: true, data: { value: 'x' } },
-    );
+    await expect(
+      registry.dispatch({ channel: 'test/db', payload: { value: 'x' } }),
+    ).resolves.toEqual({ v: API_ENVELOPE_VERSION, ok: true, data: { value: 'x' } });
   });
 
   it('recovery-гвардия ДО валидации payload (поверхность максимальна узкая — §14: для заблокированного канала не работает даже zod)', async () => {

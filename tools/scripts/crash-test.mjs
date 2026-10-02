@@ -114,11 +114,9 @@ async function invokeChannel(window, channel, payload) {
 
 /** Ожидание живого моста рендерера (прецедент waitForBenchBridge bench-chart). */
 async function waitForBridge(window) {
-  await window.waitForFunction(
-    () => globalThis.hl !== undefined,
-    undefined,
-    { timeout: TIMEOUT_INVOKE_MS },
-  );
+  await window.waitForFunction(() => globalThis.hl !== undefined, undefined, {
+    timeout: TIMEOUT_INVOKE_MS,
+  });
 }
 
 /**
@@ -146,7 +144,15 @@ async function killHard(electronApp) {
 }
 
 /** Одна итерация (§5): своя tmp-userData, калибровка → батчи → kill -9 → перезапуск → вердикт. */
-async function runIteration({ index, seed, batch, calibration, killMinMs, killMaxMs, killModeOverride }) {
+async function runIteration({
+  index,
+  seed,
+  batch,
+  calibration,
+  killMinMs,
+  killMaxMs,
+  killModeOverride,
+}) {
   const startedAt = Date.now();
   const userData = await mkdtemp(join(tmpdir(), 'hl-crash-'));
   // Детерминированный план килла (§13): своя ветка PRNG на итерацию — seed +
@@ -169,7 +175,11 @@ async function runIteration({ index, seed, batch, calibration, killMinMs, killMa
   let second;
   try {
     // (1)+(2) Запуск + калибровка (10 батчей ack'нуты, §5).
-    first = await withTimeout(launchApp({ userData, testHooks: true }), TIMEOUT_LAUNCH_MS, 'запуск 1');
+    first = await withTimeout(
+      launchApp({ userData, testHooks: true }),
+      TIMEOUT_LAUNCH_MS,
+      'запуск 1',
+    );
     const window = await withTimeout(first.firstWindow(), TIMEOUT_LAUNCH_MS, 'окно 1');
     await window.waitForLoadState('domcontentloaded');
     await withTimeout(waitForBridge(window), TIMEOUT_INVOKE_MS, 'мост 1');
@@ -246,7 +256,11 @@ async function runIteration({ index, seed, batch, calibration, killMinMs, killMa
     }
 
     // (4) Перезапуск: ГРАЦИОЗНЫЙ запуск НОВОГО процесса (не переиспользование, §13).
-    second = await withTimeout(launchApp({ userData, testHooks: true }), TIMEOUT_LAUNCH_MS, 'запуск 2');
+    second = await withTimeout(
+      launchApp({ userData, testHooks: true }),
+      TIMEOUT_LAUNCH_MS,
+      'запуск 2',
+    );
     const window2 = await withTimeout(second.firstWindow(), TIMEOUT_LAUNCH_MS, 'окно 2');
     await window2.waitForLoadState('domcontentloaded');
     await withTimeout(waitForBridge(window2), TIMEOUT_INVOKE_MS, 'мост 2');

@@ -41,11 +41,13 @@ describe('createTestInsertBatchHandler — транзакционный батч
    * маскирует промах «создал транзакцию, не вызвал»). get считает ПОСЛЕ run:
    * state растёт — COUNT/data_version/schema_version читаются по текущему state.
    */
-  function fakeDb(initial: { count: number; dataVersion: number; schemaVersion: number } = {
-    count: 0,
-    dataVersion: 1,
-    schemaVersion: 7,
-  }) {
+  function fakeDb(
+    initial: { count: number; dataVersion: number; schemaVersion: number } = {
+      count: 0,
+      dataVersion: 1,
+      schemaVersion: 7,
+    },
+  ) {
     const runParams: Record<string, unknown>[] = [];
     const preparedSql: string[] = [];
     let transactions = 0;
@@ -69,7 +71,7 @@ describe('createTestInsertBatchHandler — транзакционный батч
             if (sql.includes('INSERT INTO bp_measurement')) {
               state.count += 1;
               runParams.push(params);
-            } else if (sql.includes("UPDATE meta SET value")) {
+            } else if (sql.includes('UPDATE meta SET value')) {
               state.dataVersion += 1;
             }
             return { changes: 1 };
