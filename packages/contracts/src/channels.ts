@@ -74,6 +74,13 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * невозможен); set-passphrase и БД-каналы помечены secure: true — гвардия
  * requireUnlocked каркаса (§7/§11, AC5; ревью: смена/снятие пароля в locked —
  * неthrottled-оракул секрета).
+ * экран «Приватность» `privacy/journal|consents` — TASK-098 §5/§11 (схемы —
+ * privacy/schemas.ts): journal {limit=50} → {entries: NetworkEventDto[],
+ * ops: OperationInfo[]} — последние записи журнала сети (desc по at_utc) +
+ * перечень ВСЕХ операций из EgressPolicy.ALLOWED с текущим состоянием согласий;
+ * consents {patch?} → Consents — чтение/переключение (patch строгий: неизвестный
+ * ключ — VALIDATION, §14; согласия меняются только этим каналом). Оба secure —
+ * чтение/запись БД (network_event, prefs), §8.
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -125,6 +132,12 @@ export type ChannelName =
   | 'notes/search'
   | 'prefs/get'
   | 'prefs/set'
+  // TASK-098 §5/§11: экран «Приватность» (витрина BG-2) — журнал сети + перечень
+  // операций из политики (privacy/journal) и чтение/переключение согласий
+  // (privacy/consents; схемы — privacy/schemas.ts; согласия меняются ТОЛЬКО этим
+  // каналом — §14).
+  | 'privacy/journal'
+  | 'privacy/consents'
   | 'report/export-csv'
   | 'report/export-json'
   | 'report/pdf'

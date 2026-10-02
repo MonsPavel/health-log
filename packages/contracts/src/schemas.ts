@@ -65,6 +65,14 @@ import {
   PREFS_SET_REQUEST_SCHEMA,
   PREFS_SET_RESPONSE_SCHEMA,
 } from './prefs/schemas.js';
+// TASK-098 §5/§11: каналы экрана «Приватность» (журнал сети + перечень операций
+// из политики; чтение/переключение согласий — единственный канал их изменения).
+import {
+  PRIVACY_CONSENTS_REQUEST_SCHEMA,
+  PRIVACY_CONSENTS_RESPONSE_SCHEMA,
+  PRIVACY_JOURNAL_REQUEST_SCHEMA,
+  PRIVACY_JOURNAL_RESPONSE_SCHEMA,
+} from './privacy/schemas.js';
 import {
   REPORT_EXPORT_REQUEST_SCHEMA,
   REPORT_EXPORT_RESPONSE_SCHEMA,
@@ -378,6 +386,28 @@ export const CHANNEL_SCHEMAS = {
   'prefs/set': {
     request: PREFS_SET_REQUEST_SCHEMA,
     response: PREFS_SET_RESPONSE_SCHEMA,
+    secure: true,
+  },
+  /**
+   * TASK-098 §5/§11: журнал сети приватности — {limit=50} → {entries: desc по
+   * at_utc, ops: перечень операций из EgressPolicy.ALLOWED с enabled-состоянием
+   * согласий}. secure: чтение network_event (БД, §8); живая лента — инвалидация
+   * рендерера по событию net:activity (§12).
+   */
+  'privacy/journal': {
+    request: PRIVACY_JOURNAL_REQUEST_SCHEMA,
+    response: PRIVACY_JOURNAL_RESPONSE_SCHEMA,
+    secure: true,
+  },
+  /**
+   * TASK-098 §5/§14: согласия — {} → Consents (чтение) | {patch} → Consents
+   * (переключение; patch строгий — неизвестный ключ VALIDATION, §14). ЕДИНСТВЕННЫЙ
+   * канал изменения согласий (prefs direct-запись из UI запрещена — конвенция).
+   * secure: prefs в app_setting (БД).
+   */
+  'privacy/consents': {
+    request: PRIVACY_CONSENTS_REQUEST_SCHEMA,
+    response: PRIVACY_CONSENTS_RESPONSE_SCHEMA,
     secure: true,
   },
   /**

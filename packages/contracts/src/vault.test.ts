@@ -125,6 +125,10 @@ const SECURE_CHANNELS: readonly ChannelName[] = [
   'notes/search',
   'prefs/get',
   'prefs/set',
+  // TASK-098 §8/§14: журнал сети (network_event) и согласия (prefs) — чтение/запись
+  // БД; при locked недоступны (гвардия каркаса, прецедент prefs/*).
+  'privacy/journal',
+  'privacy/consents',
   'report/export-csv',
   'report/export-json',
   'report/pdf',

@@ -44,6 +44,7 @@ export * from './measurement/index.js';
 export * from './models.js';
 export * from './notes/index.js';
 export * from './prefs/index.js';
+export * from './privacy/index.js';
 export * from './report/index.js';
 export * from './scales.js';
 export * from './stats/index.js';
