@@ -143,6 +143,9 @@ const SECURE_CHANNELS: readonly ChannelName[] = [
   // секрета (change/remove у порта 093 делают полную проверку пароля Argon2id+GCM
   // без всякого backoff) и молча перепаковывает vault.key на угаданный пароль.
   'vault/set-passphrase',
+  // TASK-100 §4/§11: полная проверка БД (PRAGMA integrity_check) — БД-канал:
+  // при locked соединение закрыто, гвардия даёт честный VAULT/LOCKED.
+  'app/integrity-full',
 ];
 
 /**
@@ -157,6 +160,11 @@ const OPEN_CHANNELS: readonly ChannelName[] = [
   'app/log-client-error',
   'app/ping',
   'app/reveal-path',
+  // TASK-100 §11: сампроверка (отчёт — снимок памяти main, БД не читает) и версии
+  // «О приложении» — без PHI (§14); в recovery-режиме TASK-101 §9 app/meta остаётся
+  // в наборе доступных каналов (определение режима приложения до роутера).
+  'app/selfcheck',
+  'app/meta',
   'file/open-dialog',
   'vault/lock',
   'vault/status',
