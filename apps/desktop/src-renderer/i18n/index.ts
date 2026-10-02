@@ -13,8 +13,9 @@
  * компонентов components/critical/ru.json (TASK-041, группа critical); settings —
  * TASK-047 (features/settings/ru.json); ai — TASK-081 (features/ai/ru.json); lock —
  * TASK-095 (i18n/ru/lock.json — оверлей блокировки); security — TASK-095
- * (features/security/ru.json — секция «Защита паролем»). Один namespace
- * 'translation' с группами common./data./errors./export./lock./measurement./settings./critical./dashboard./ai./security.: ключи в коде совпадают со
+ * (features/security/ru.json — секция «Защита паролем»); updates — TASK-097
+ * (features/updates/ru.json — секция «Обновления»). Один namespace
+ * 'translation' с группами common./data./errors./export./lock./measurement./settings./critical./dashboard./ai./security./updates.: ключи в коде совпадают со
  * строками messageKey контрактов ('errors.renderer' — прецедент ErrorBoundary, TASK-011).
  *
  * escapeValue: false — экранирование делает React, ICU-подстановки включатся с
@@ -41,6 +42,8 @@ import ai from '../features/ai/ru.json';
 // TASK-095 §17: ключи security.passphrase.* / security.autolock.* — секция
 // «Защита паролем» экрана настроек.
 import security from '../features/security/ru.json';
+// TASK-097 §17: ключи updates.* — секция «Обновления» экрана настроек.
+import updates from '../features/updates/ru.json';
 
 const resources = {
   ru: {
@@ -57,6 +60,7 @@ const resources = {
       dashboard,
       ai,
       security,
+      updates,
     },
   },
 } as const;

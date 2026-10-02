@@ -40,13 +40,13 @@ const TEST_FILE_PATTERN = /\.test\.tsx?$/;
  * lock (TASK-095) — каталог i18n/ru/lock.json (оверлей блокировки);
  * feature-namespace'ы (первый — measurement,
  * TASK-031; settings — TASK-047; dashboard — TASK-057; ai — TASK-081; security —
- * TASK-095) — каталоги
+ * TASK-095; updates — TASK-097) — каталоги
  * features/<фича>/ru.json; каталоги общих
  * компонентов (первый — critical, TASK-041) — components/<имя>/ru.json;
  * новая группа = добавление своего имени в альтернацию.
  */
 const KEY_LITERAL_PATTERN =
-  /(['"])(common|errors|export|report|data|lock|measurement|settings|critical|dashboard|ai|security)\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)\1/g;
+  /(['"])(common|errors|export|report|data|lock|measurement|settings|critical|dashboard|ai|security|updates)\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)\1/g;
 
 /** Namespace, чьи ключи приходят динамически и вне unused-проверки (арх. 06 §6). */
 const DYNAMIC_CONSUMPTION_NAMESPACES = new Set(['errors']);
