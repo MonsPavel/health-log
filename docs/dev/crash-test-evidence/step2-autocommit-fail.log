@@ -1,0 +1,13 @@
+
+> health-log@0.0.0 test:crash D:\repositories\health-log
+> tsx tools/scripts/crash-test.mjs "--smoke" "--kill-mode" "in-flight" "--batch" "5000"
+
+#1 [in-flight] ack=15000 found=15465 dv=15466 FAIL(PARTIAL_BATCH) 4292мс
+Крэш-тест потери питания — TASK-102 / NFR-3 (kill -9 во время записи)
+seed=20261002 итераций=1 батч=5000 калибровка=2×5000
+#1 [in-flight] ack=15000 found=15465 dv=15466 schema=7 FAIL(PARTIAL_BATCH) 4292мс
+длительность: 4.5 с
+ИТОГ: FAIL
+report: D:\repositories\health-log\tools\crash-results\2026-10-02T17-34-58-768Z.json
+ ELIFECYCLE  Command failed with exit code 1.
+pnpm exit: 1
