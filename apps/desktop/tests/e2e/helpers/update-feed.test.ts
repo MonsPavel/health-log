@@ -25,13 +25,14 @@
 import { createHash } from 'node:crypto';
 import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import {
   buildAppUpdateYml,
   buildLatestYml,
+  buildSigningEvidenceLine,
   createTestCodeSigningCert,
   createTestUpdater,
   findUnsignedFixtureExe,
@@ -66,6 +67,26 @@ afterAll(() => {
 /** sha512 файла в base64 — кодировка latest-файла electron-builder (§13). */
 const sha512Base64 = (file: string): string =>
   createHash('sha512').update(readFileSync(file)).digest('base64');
+
+describe('update-feed — строка-доказательство §20-1 (кроссплатформенно)', () => {
+  it('buildSigningEvidenceLine: Valid помечается явно (для лога прогона/PR-описания)', () => {
+    expect(
+      buildSigningEvidenceLine({ status: 0, subject: 'CN=Health Log Test, O=Health Log, C=RU', fileName: 'health-log-setup-1.0.1.exe' }),
+    ).toBe(
+      '[TASK-104 §20-1] test-cert подпись: Status=0 (Valid), Subject=CN=Health Log Test, O=Health Log, C=RU, file=health-log-setup-1.0.1.exe',
+    );
+  });
+
+  it('buildSigningEvidenceLine: не-Valid статус не выдаётся за Valid', () => {
+    const line = buildSigningEvidenceLine({
+      status: 1,
+      subject: 'CN=Health Log Test, O=Health Log, C=RU',
+      fileName: 'health-log-setup-1.0.1.exe',
+    });
+    expect(line).toContain('Status=1 (НЕ Valid)');
+    expect(line).not.toContain('(Valid),');
+  });
+});
 
 describe('update-feed — YAML-строители фида (TASK-104 §13)', () => {
   it('buildLatestYml: version/path/sha512 + files[{url,size,sha512}] — как у builder', () => {
@@ -243,6 +264,12 @@ describe.skipIf(process.platform !== 'win32')(
         const status = getAuthenticodeStatus(downloaded[0] as string);
         expect(status.status).toBe(0);
         expect(status.signerSubject).toBe(cert.subjectDn);
+        // Строка-доказательство §20-1 — в лог прогона (для PR-описания, §20-1).
+        console.info(buildSigningEvidenceLine({
+          status: status.status,
+          subject: status.signerSubject ?? '',
+          fileName: basename(downloaded[0] as string),
+        }));
       } finally {
         cert.remove();
       }
