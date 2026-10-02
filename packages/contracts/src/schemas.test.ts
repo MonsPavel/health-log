@@ -138,6 +138,9 @@ describe('CHANNEL_SCHEMAS — дисциплина реестра (§5)', () => 
       // TASK-101 §5/§9: «начать заново» — wipe-подмножество recovery.
       'data/discard-db',
       'data/wipe',
+      // TASK-103 §5/§11: диагностический пакет — предпросмотр и сохранение zip.
+      'diag/preview',
+      'diag/save',
       'file/open-dialog',
       'measurements/add',
       'measurements/list',
