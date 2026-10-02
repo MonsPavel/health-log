@@ -101,6 +101,11 @@ describe('VAULT_LOCKED — ошибка гвардии каркаса (TASK-094 
  */
 const SECURE_CHANNELS: readonly ChannelName[] = [
   '__bench/seed',
+  // TASK-102 §11/§14: TEST-ONLY крэш-тест NFR-3 — батч-вставка (запись БД) и
+  // снимок состояния (чтение БД); регистрация — только при env HL_TEST_HOOKS=1
+  // в не-packaged запуске (гард main, §14 — паттерн benchChannelsEnabled).
+  '__test/insert-batch',
+  '__test/db-state',
   'ai/cancel',
   'ai/chat/clear',
   'ai/chat/list',

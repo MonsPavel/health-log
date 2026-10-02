@@ -284,9 +284,7 @@ export type DataWipeResponse = z.output<typeof DATA_WIPE_RESPONSE_SCHEMA>;
  */
 export const DATA_DISCARD_DB_REQUEST_SCHEMA = z.object({}).strict();
 
-export const DATA_DISCARD_DB_RESPONSE_SCHEMA = z
-  .object({ restarting: z.literal(true) })
-  .strict();
+export const DATA_DISCARD_DB_RESPONSE_SCHEMA = z.object({ restarting: z.literal(true) }).strict();
 
 export type DataDiscardDbRequest = z.output<typeof DATA_DISCARD_DB_REQUEST_SCHEMA>;
 export type DataDiscardDbResponse = z.output<typeof DATA_DISCARD_DB_RESPONSE_SCHEMA>;

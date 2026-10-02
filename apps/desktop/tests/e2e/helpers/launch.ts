@@ -49,10 +49,18 @@ export interface LaunchAppOptions {
    * TASK-081 §22/§20 (AC6): TEST-ONLY путь файла «модели» — запуск с env
    * HL_TEST_MODEL_FILE: bootstrap передаёт путь в контейнер (гард
    * testModelFileEnabled — только не-packaged, §14), ai/models/download ставит
-   * файл мимо сети (§22: dev-модель с PLACEHOLDER-URL манифеста 079 сетевой
-   * путь 080 не проходит). Без опции — обычный запуск.
+   * файл мимо сети (§22: dev-модель с PLACEHOLDER-URL манифеста 079 сетевой путь
+   * 080 не проходит). Без опции — обычный запуск.
    */
   readonly testModelFile?: string;
+  /**
+   * TASK-102 §5/§6: test-хуки крэш-теста NFR-3 — запуск с env HL_TEST_HOOKS=1:
+   * bootstrap регистрирует TEST-ONLY каналы `__test/insert-batch` и
+   * `__test/db-state` (гард testHooksEnabled — только не-packaged, §14; общий
+   * `__test/*` префикс семейства test-hook, §4). Без флага — каналы отсутствуют
+   * (неотличимы от неизвестных, §20 AC4).
+   */
+  readonly testHooks?: boolean;
 }
 
 /** TASK-062 §10: зеркало результата measureChannel preload.cts (§5 шаг 3). */
@@ -110,6 +118,9 @@ export async function launchApp(options: LaunchAppOptions): Promise<ElectronAppl
   }
   if (options.testModelFile !== undefined) {
     env['HL_TEST_MODEL_FILE'] = options.testModelFile;
+  }
+  if (options.testHooks === true) {
+    env['HL_TEST_HOOKS'] = '1';
   }
   delete env['ELECTRON_RENDERER_URL'];
 

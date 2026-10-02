@@ -1,0 +1,12 @@
+
+> health-log@0.0.0 test:crash D:\repositories\health-log
+> tsx tools/scripts/crash-test.mjs "--smoke" "--kill-mode" "in-flight" "--batch" "5000"
+
+#1 [in-flight] ack=35000 found=35000 dv=35001 PASS 1814мс
+Крэш-тест потери питания — TASK-102 / NFR-3 (kill -9 во время записи)
+seed=20261002 итераций=1 батч=5000 калибровка=2×5000
+#1 [in-flight] ack=35000 found=35000 dv=35001 schema=7 PASS 1814мс
+длительность: 2.0 с
+ИТОГ: PASS
+report: D:\repositories\health-log\tools\crash-results\2026-10-02T17-35-15-272Z.json
+pnpm exit: 0

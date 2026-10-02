@@ -106,6 +106,13 @@ import {
   UPDATES_INSTALL_RESPONSE_SCHEMA,
   UPDATES_STATUS_RESPONSE_SCHEMA,
 } from './updates.js';
+// TASK-102 §5/§11: TEST-ONLY каналы крэш-теста NFR-3 (__test/*, гард HL_TEST_HOOKS).
+import {
+  TEST_DB_STATE_REQUEST_SCHEMA,
+  TEST_DB_STATE_RESPONSE_SCHEMA,
+  TEST_INSERT_BATCH_REQUEST_SCHEMA,
+  TEST_INSERT_BATCH_RESPONSE_SCHEMA,
+} from './test-hooks.js';
 // TASK-094 §5/§11: каналы локального входа (VaultService main; НЕ secure —
 // доступны при locked, иначе вход невозможен).
 import {
@@ -148,6 +155,23 @@ export const CHANNEL_SCHEMAS = {
     request: BENCH_SEED_REQUEST_SCHEMA,
     response: BENCH_SEED_RESPONSE_SCHEMA,
     // TASK-094 §11: канал пишет в БД (сидинг) — secure (TEST-ONLY регистрация).
+    secure: true,
+  },
+  /**
+   * TASK-102 §5/§11: TEST-ONLY крэш-тест NFR-3 — батч-вставка одной транзакцией
+   * (ack-оракул «подтверждённое = целое», §2/§8) и снимок состояния БД после
+   * перезапуска. Регистрируются только при env HL_TEST_HOOKS=1 и не в packaged
+   * (двойной гард main §14); без флага — «неизвестный канал» каркаса. Пишут/
+   * читают БД — secure (инвентарь vault.test.ts).
+   */
+  '__test/insert-batch': {
+    request: TEST_INSERT_BATCH_REQUEST_SCHEMA,
+    response: TEST_INSERT_BATCH_RESPONSE_SCHEMA,
+    secure: true,
+  },
+  '__test/db-state': {
+    request: TEST_DB_STATE_REQUEST_SCHEMA,
+    response: TEST_DB_STATE_RESPONSE_SCHEMA,
     secure: true,
   },
   /**

@@ -29,3 +29,6 @@ tools/export-samples/
 
 # TASK-091 §18: eval-отчёты runner «красного набора» (артефакт ручной, в репо не входит)
 tools/eval/reports/
+
+# TASK-102 §18: отчёты крэш-теста NFR-3 (артефакт ручного прогона, в репо не входит)
+tools/crash-results/

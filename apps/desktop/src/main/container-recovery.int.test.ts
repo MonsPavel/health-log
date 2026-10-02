@@ -240,10 +240,18 @@ describe('buildContainer — corrupt-фикстура → recovery-режим (T
     expect(recoveryContainer.recovery).toBeDefined();
 
     const recoveryAllowed = new Set(['backup/restore', 'data/discard-db']);
-    // __bench/seed — TEST-ONLY канал bench-прогонов (§9 062): в боевом реестре
-    // контейнера НЕ регистрируется (APP/INTERNAL) — из инвентаря исключён.
+    // __bench/seed и __test/* — TEST-ONLY каналы (§9 062 bench; §5/§6/§14 102
+    // крэш-тест NFR-3): в боевом реестре контейнера НЕ регистрируются — их
+    // ставит bootstrap по env HL_BENCH/HL_TEST_HOOKS (только не-packaged, §14) —
+    // из инвентаря исключены (вызов был бы APP/INTERNAL «неизвестный канал»).
     const secureChannels = Object.entries(CHANNEL_SCHEMAS)
-      .filter(([name, schemas]) => name !== '__bench/seed' && 'secure' in schemas && schemas.secure)
+      .filter(
+        ([name, schemas]) =>
+          name !== '__bench/seed' &&
+          !name.startsWith('__test/') &&
+          'secure' in schemas &&
+          schemas.secure,
+      )
       .map(([name]) => name);
 
     expect(secureChannels.length).toBeGreaterThan(10);
