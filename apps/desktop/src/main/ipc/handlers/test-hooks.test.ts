@@ -173,6 +173,9 @@ describe('createTestInsertBatchHandler — транзакционный батч
 describe('createTestDbStateHandler — снимок состояния (§8/§11)', () => {
   function stateDb(state: { total: number; dataVersion?: string; schemaVersion?: string }) {
     return {
+      transaction(fn: () => unknown): () => unknown {
+        return fn;
+      },
       prepare(sql: string) {
         return {
           run(): unknown {

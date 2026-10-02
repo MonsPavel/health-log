@@ -182,7 +182,6 @@ describe('buildCrashReportJson/buildCrashReportText — отчёт (§18)', () =
   it('json: итог PASS, exit 0, per-iteration (ack, found, dv, verdict) на месте (§18)', () => {
     const json = buildCrashReportJson({
       seed: 20261002,
-      iterations: 2,
       batchSize: 50,
       calibrationBatches: 10,
       records,
@@ -207,7 +206,6 @@ describe('buildCrashReportJson/buildCrashReportText — отчёт (§18)', () =
     ];
     const json = buildCrashReportJson({
       seed: 20261002,
-      iterations: 2,
       batchSize: 50,
       calibrationBatches: 10,
       records: failed,
@@ -222,7 +220,6 @@ describe('buildCrashReportJson/buildCrashReportText — отчёт (§18)', () =
   it('текст: строка на итерацию (ack/found/dv/verdict) + итог PASS/FAIL (§18: файл + консоль)', () => {
     const json = buildCrashReportJson({
       seed: 20261002,
-      iterations: 2,
       batchSize: 50,
       calibrationBatches: 10,
       records,

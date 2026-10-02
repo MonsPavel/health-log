@@ -127,13 +127,12 @@ export interface CrashIterationRecord {
 /** Машина-контекст отчёта (§18, прецедент bench-report). */
 export type CrashMachineContext = Record<string, string>;
 
-/** JSON-отчёт прогона (§18: файл tools/crash-results + консоль). */
+/** JSON-отчёт прогона (§18: файл tools/crash-results + консоль). `iterations` — записи. */
 export interface CrashReportJson {
   readonly tool: 'crash-test';
   readonly task: 'TASK-102';
   readonly nfr: 'NFR-3';
   readonly seed: number;
-  readonly iterations: number;
   readonly batchSize: number;
   readonly calibrationBatches: number;
   readonly startedAtUtc: string;
@@ -148,7 +147,6 @@ export interface CrashReportJson {
 /** Опции сборки JSON-отчёта (поля прогона + записи итераций). */
 export interface BuildCrashReportJsonOptions {
   readonly seed: number;
-  readonly iterations: number;
   readonly batchSize: number;
   readonly calibrationBatches: number;
   readonly records: readonly CrashIterationRecord[];
@@ -165,7 +163,6 @@ export function buildCrashReportJson(options: BuildCrashReportJsonOptions): Cras
     task: 'TASK-102',
     nfr: 'NFR-3',
     seed: options.seed,
-    iterations: options.iterations,
     batchSize: options.batchSize,
     calibrationBatches: options.calibrationBatches,
     startedAtUtc: new Date(options.startedAtUtc).toISOString(),
@@ -183,7 +180,7 @@ export function buildCrashReportText(report: CrashReportJson): string {
   const lines: string[] = [];
   lines.push('Крэш-тест потери питания — TASK-102 / NFR-3 (kill -9 во время записи)');
   lines.push(
-    `seed=${report.seed} итераций=${report.iterations} батч=${report.batchSize} калибровка=${report.calibrationBatches}×${report.batchSize}`,
+    `seed=${report.seed} итераций=${report.iterations.length} батч=${report.batchSize} калибровка=${report.calibrationBatches}×${report.batchSize}`,
   );
   for (const record of report.iterations) {
     const violations = record.verdict.violations.join(',');

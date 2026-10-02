@@ -315,7 +315,6 @@ export async function crashTestRun(options = {}) {
 
   const json = buildCrashReportJson({
     seed,
-    iterations,
     batchSize: batch,
     calibrationBatches: calibration,
     records,
