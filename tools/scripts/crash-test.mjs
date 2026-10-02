@@ -327,8 +327,66 @@ async function runIteration({
   }
 }
 
+/**
+ * Допустимые режимы килла (§8: пара детерминированных сценариев). Словарь —
+ * ЕДИНСТВЕННОЕ место знания: и CLI-парсер, и программная валидация crashTestRun
+ * сверяются с ним — опечатка в --kill-mode даёт ГРОМКИЙ отказ (usage/exit 2),
+ * а не молчаливую деградацию к idle (замечание ревью TASK-102: демо
+ * чувствительности §20-3 не должно проходить впустую из-за typo).
+ */
+export const CRASH_KILL_MODES = ['idle', 'in-flight'];
+
+/**
+ * CLI-парсер флагов прогона (вынесен из-под guard'а CLI ради юнит-тестов,
+ * ревью TASK-102). Возвращает { options } или { error } — ошибку с именем
+ * флага/значения (usage печатает вызывающий CLI-блок). --smoke применяет
+ * пресет §19 сразу; последующие флаги кладутся поверх пресета.
+ */
+export function parseCrashCliArgs(args) {
+  const options = {};
+  for (let i = 0; i < args.length; i += 1) {
+    const flag = args[i];
+    const next = () => {
+      const value = args[i + 1];
+      i += 1;
+      return value;
+    };
+    if (flag === '--iterations') options.iterations = Number(next());
+    else if (flag === '--batch') options.batch = Number(next());
+    else if (flag === '--calibration') options.calibration = Number(next());
+    else if (flag === '--seed') options.seed = Number(next());
+    else if (flag === '--kill-min-ms') options.killMinMs = Number(next());
+    else if (flag === '--kill-max-ms') options.killMaxMs = Number(next());
+    else if (flag === '--kill-mode') {
+      const mode = next();
+      if (!CRASH_KILL_MODES.includes(mode)) {
+        return { error: `--kill-mode: ожидалось idle|in-flight, получено "${String(mode)}"` };
+      }
+      options.killMode = mode;
+    } else if (flag === '--out-dir') options.outDir = next();
+    else if (flag === '--json') options.json = true;
+    else if (flag === '--smoke') {
+      options.iterations = SMOKE_ITERATIONS;
+      options.calibration = SMOKE_CALIBRATION;
+    } else {
+      return { error: `неизвестный флаг: ${String(flag)}` };
+    }
+  }
+  return { options };
+}
+
 /** Параметры прогона (§5 + точки ввода smoke §19 и демо чувствительности §20-3). */
 export async function crashTestRun(options = {}) {
+  // Валидация killMode — ДО любых шагов прогона (в т.ч. до проверки сборки):
+  // программная опечатка не должна превращать in-flight-демо §20-3 в idle-прогон.
+  if (
+    options.killMode !== undefined &&
+    !CRASH_KILL_MODES.includes(options.killMode)
+  ) {
+    throw new Error(
+      `killMode: ожидалось idle|in-flight, получено "${String(options.killMode)}"`,
+    );
+  }
   const iterations = options.iterations ?? DEFAULT_ITERATIONS;
   const batch = options.batch ?? DEFAULT_BATCH;
   const calibration = options.calibration ?? DEFAULT_CALIBRATION;
@@ -388,57 +446,22 @@ export async function crashTestRun(options = {}) {
   return { exitCode: json.exitCode, json, text, reportPath };
 }
 
-/** CLI (прецедент bench-chart.mjs): флаги прогона + smoke-пресет. */
+/** CLI (прецедент bench-chart.mjs): флаги прогона + smoke-пресет; разбор — parseCrashCliArgs. */
 const scriptPath = fileURLToPath(import.meta.url);
 const invokedPath = argv[1] === undefined ? undefined : resolve(argv[1]);
 if (invokedPath === scriptPath) {
-  let cliIterations;
-  let cliBatch;
-  let cliCalibration;
-  let cliSeed;
-  let cliKillMinMs;
-  let cliKillMaxMs;
-  let cliOutDir;
-  let cliJson = false;
-  let cliSmoke = false;
-  let cliKillMode;
-  for (let i = 2; i < argv.length; i += 1) {
-    const flag = argv[i];
-    const next = () => {
-      const value = argv[i + 1];
-      i += 1;
-      return value;
-    };
-    if (flag === '--iterations') cliIterations = Number(next());
-    else if (flag === '--batch') cliBatch = Number(next());
-    else if (flag === '--calibration') cliCalibration = Number(next());
-    else if (flag === '--seed') cliSeed = Number(next());
-    else if (flag === '--kill-min-ms') cliKillMinMs = Number(next());
-    else if (flag === '--kill-max-ms') cliKillMaxMs = Number(next());
-    else if (flag === '--kill-mode') cliKillMode = next();
-    else if (flag === '--out-dir') cliOutDir = next();
-    else if (flag === '--json') cliJson = true;
-    else if (flag === '--smoke') cliSmoke = true;
-    else {
-      console.error(`неизвестный флаг: ${String(flag)}`);
-      console.error(
-        'usage: pnpm test:crash [--iterations N] [--batch N] [--calibration N] [--seed S] [--kill-min-ms MS] [--kill-max-ms MS] [--kill-mode idle|in-flight] [--out-dir DIR] [--json] [--smoke]',
-      );
-      exit(2);
-    }
+  const parsed = parseCrashCliArgs(argv.slice(2));
+  if (parsed.error !== undefined) {
+    console.error(parsed.error);
+    console.error(
+      'usage: pnpm test:crash [--iterations N] [--batch N] [--calibration N] [--seed S] [--kill-min-ms MS] [--kill-max-ms MS] [--kill-mode idle|in-flight] [--out-dir DIR] [--json] [--smoke]',
+    );
+    exit(2);
   }
+  const cliOptions = parsed.options;
+  const cliJson = cliOptions.json === true;
   try {
-    const result = await crashTestRun({
-      ...(cliSmoke ? { iterations: SMOKE_ITERATIONS, calibration: SMOKE_CALIBRATION } : {}),
-      ...(cliIterations === undefined ? {} : { iterations: cliIterations }),
-      ...(cliBatch === undefined ? {} : { batch: cliBatch }),
-      ...(cliCalibration === undefined ? {} : { calibration: cliCalibration }),
-      ...(cliSeed === undefined ? {} : { seed: cliSeed }),
-      ...(cliKillMinMs === undefined ? {} : { killMinMs: cliKillMinMs }),
-      ...(cliKillMaxMs === undefined ? {} : { killMaxMs: cliKillMaxMs }),
-      ...(cliKillMode === undefined ? {} : { killMode: cliKillMode }),
-      ...(cliOutDir === undefined ? {} : { outDir: cliOutDir }),
-    });
+    const result = await crashTestRun(cliOptions);
     console.log(cliJson ? JSON.stringify(result.json, null, 2) : result.text);
     console.error(`report: ${result.reportPath}`);
     exit(result.exitCode);
