@@ -200,10 +200,16 @@ describe('privacy/consents — схемы канала (TASK-098 §5/§11/§14)'
   });
 
   it('ответ Consents: {updatesCheck, modelsDownload} — оба boolean (форма netConsents prefs, §23 переиспользование)', () => {
-    expect(PRIVACY_CONSENTS_RESPONSE_SCHEMA.safeParse({ updatesCheck: true, modelsDownload: false }).success).toBe(
-      true,
-    );
-    expect(PRIVACY_CONSENTS_RESPONSE_SCHEMA.safeParse({ updatesCheck: true }).success).toBe(false);
+    expect(
+      PRIVACY_CONSENTS_RESPONSE_SCHEMA.safeParse({ updatesCheck: true, modelsDownload: false })
+        .success,
+    ).toBe(true);
+    // усечённый документ (§22 prefs): недостающее согласие — дефолт схемы (false),
+    // без сброса уже выданных (ответ после parse всегда полный).
+    expect(PRIVACY_CONSENTS_RESPONSE_SCHEMA.parse({ updatesCheck: true })).toEqual({
+      updatesCheck: true,
+      modelsDownload: false,
+    });
     expect(
       PRIVACY_CONSENTS_RESPONSE_SCHEMA.safeParse({
         updatesCheck: true,
