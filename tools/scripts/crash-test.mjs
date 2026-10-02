@@ -379,13 +379,8 @@ export function parseCrashCliArgs(args) {
 export async function crashTestRun(options = {}) {
   // Валидация killMode — ДО любых шагов прогона (в т.ч. до проверки сборки):
   // программная опечатка не должна превращать in-flight-демо §20-3 в idle-прогон.
-  if (
-    options.killMode !== undefined &&
-    !CRASH_KILL_MODES.includes(options.killMode)
-  ) {
-    throw new Error(
-      `killMode: ожидалось idle|in-flight, получено "${String(options.killMode)}"`,
-    );
+  if (options.killMode !== undefined && !CRASH_KILL_MODES.includes(options.killMode)) {
+    throw new Error(`killMode: ожидалось idle|in-flight, получено "${String(options.killMode)}"`);
   }
   const iterations = options.iterations ?? DEFAULT_ITERATIONS;
   const batch = options.batch ?? DEFAULT_BATCH;
