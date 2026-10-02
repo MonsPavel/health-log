@@ -37,7 +37,7 @@
  * smoke (1 итерация, калибровка 2 батчей) — механика ≤30 с.
  *
  * ЗАПУСК: `pnpm test:crash [--iterations N] [--batch N] [--calibration N]
- * [--seed S] [--kill-min-ms MS] [--kill-max-ms MS] [--smoke] [--out-dir DIR]
+ * [--seed S] [--kill-min-ms MS] [--kill-max-ms MS] [--kill-mode idle|in-flight] [--smoke] [--out-dir DIR]
  * [--json]`. ПРЕДПОСЫЛКА: собранные dist/main и dist-renderer (§22 — прецедент
  * e2e TASK-035: `pnpm --filter @hl/desktop build`).
  */
@@ -146,7 +146,7 @@ async function killHard(electronApp) {
 }
 
 /** Одна итерация (§5): своя tmp-userData, калибровка → батчи → kill -9 → перезапуск → вердикт. */
-async function runIteration({ index, seed, batch, calibration, killMinMs, killMaxMs }) {
+async function runIteration({ index, seed, batch, calibration, killMinMs, killMaxMs, killModeOverride }) {
   const startedAt = Date.now();
   const userData = await mkdtemp(join(tmpdir(), 'hl-crash-'));
   // Детерминированный план килла (§13): своя ветка PRNG на итерацию — seed +
@@ -158,7 +158,8 @@ async function runIteration({ index, seed, batch, calibration, killMinMs, killMa
   // окна отправляется ЕЩЁ один батч БЕЗ ожидания ack и сразу kill -9 —
   // транзакция либо успевает зафиксироваться (found == ack + batch, ack потерян),
   // либо откатывается (found == ack) — оба исхода разрешены инвариантом §8.
-  const killMode = next() < 0.5 ? 'idle' : 'in-flight';
+  // Переопределение --kill-mode — точка ввода демо чувствительности §20-3.
+  const killMode = killModeOverride ?? (next() < 0.5 ? 'idle' : 'in-flight');
   let ack = 0;
   let expectedSchemaVersion = 0;
   let batchInFlight = false;
@@ -331,7 +332,15 @@ export async function crashTestRun(options = {}) {
 
   const records = [];
   for (let index = 1; index <= iterations; index += 1) {
-    const record = await runIteration({ index, seed, batch, calibration, killMinMs, killMaxMs });
+    const record = await runIteration({
+      index,
+      seed,
+      batch,
+      calibration,
+      killMinMs,
+      killMaxMs,
+      killModeOverride: options.killMode,
+    });
     records.push(record);
     const verdictText = record.verdict.pass
       ? 'PASS'
@@ -378,6 +387,7 @@ if (invokedPath === scriptPath) {
   let cliOutDir;
   let cliJson = false;
   let cliSmoke = false;
+  let cliKillMode;
   for (let i = 2; i < argv.length; i += 1) {
     const flag = argv[i];
     const next = () => {
@@ -391,13 +401,14 @@ if (invokedPath === scriptPath) {
     else if (flag === '--seed') cliSeed = Number(next());
     else if (flag === '--kill-min-ms') cliKillMinMs = Number(next());
     else if (flag === '--kill-max-ms') cliKillMaxMs = Number(next());
+    else if (flag === '--kill-mode') cliKillMode = next();
     else if (flag === '--out-dir') cliOutDir = next();
     else if (flag === '--json') cliJson = true;
     else if (flag === '--smoke') cliSmoke = true;
     else {
       console.error(`неизвестный флаг: ${String(flag)}`);
       console.error(
-        'usage: pnpm test:crash [--iterations N] [--batch N] [--calibration N] [--seed S] [--kill-min-ms MS] [--kill-max-ms MS] [--out-dir DIR] [--json] [--smoke]',
+        'usage: pnpm test:crash [--iterations N] [--batch N] [--calibration N] [--seed S] [--kill-min-ms MS] [--kill-max-ms MS] [--kill-mode idle|in-flight] [--out-dir DIR] [--json] [--smoke]',
       );
       exit(2);
     }
@@ -411,6 +422,7 @@ if (invokedPath === scriptPath) {
       ...(cliSeed === undefined ? {} : { seed: cliSeed }),
       ...(cliKillMinMs === undefined ? {} : { killMinMs: cliKillMinMs }),
       ...(cliKillMaxMs === undefined ? {} : { killMaxMs: cliKillMaxMs }),
+      ...(cliKillMode === undefined ? {} : { killMode: cliKillMode }),
       ...(cliOutDir === undefined ? {} : { outDir: cliOutDir }),
     });
     console.log(cliJson ? JSON.stringify(result.json, null, 2) : result.text);
