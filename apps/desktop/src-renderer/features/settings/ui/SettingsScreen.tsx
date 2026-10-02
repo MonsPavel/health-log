@@ -24,6 +24,7 @@ import { AppearanceSection } from './AppearanceSection';
 import { UpdatesSection } from './UpdatesSection';
 import { PrivacyScreen } from './PrivacyScreen';
 import { AboutSection } from './AboutSection';
+import { DiagSection } from './DiagSection';
 import { SecuritySettings } from '../../security/ui/SecuritySettings';
 
 export function SettingsScreen(): JSX.Element {
@@ -81,6 +82,9 @@ export function SettingsScreen(): JSX.Element {
       {/* TASK-100 §5: секция «О приложении» — версии (app/meta), статус сампроверки
           (app/selfcheck), полная проверка БД (app/integrity-full). */}
       <AboutSection />
+      {/* TASK-103 §5/§6: секция «Диагностика» — сборка диагпакета (diag/preview|save):
+          предпросмотр ДО сохранения, golden-предупреждение, zip без PHI (NFR-12). */}
+      <DiagSection />
       {/* §5/§16: условный рендер — скрытая секция отсутствует в DOM. */}
       {flags.advancedMode ? <AdvancedSection /> : null}
     </section>

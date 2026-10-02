@@ -96,6 +96,13 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * ТОЛЬКО в recovery-режиме; secure — файловая операция). В recovery-режиме
  * secure-каналы вне разрешённого набора (backup/restore, data/discard-db)
  * отклоняются гвардией каркаса STORAGE/RECOVERY_MODE (§5/§14 — инвентарь-тест).
+ * диагностический пакет `diag/preview|save` — TASK-103 §5/§11 (схемы —
+ * diag/schemas.ts): preview {} → DiagContent — сборка в памяти main (логи,
+ * self-check, версии, журнал сети, агрегаты app_event, миграции, системная
+ * строка — всё без PHI, §13) для обязательного предпросмотра ДО публикации
+ * (NFR-12); save {} → {path} | {canceled: true} — zip в tmp → save-диалог main
+ * (паттерн 065, путь от renderer не принимается) → move. Оба secure — читают
+ * БД (network_event/app_event) и пишут файл.
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -163,6 +170,10 @@ export type ChannelName =
   // регистрация только в recovery-режиме; secure — файловая операция).
   | 'data/discard-db'
   | 'data/wipe'
+  // TASK-103 §5/§11: диагностический пакет — предпросмотр содержимого ({} →
+  // DiagContent) и сохранение zip за save-диалогом ({} → {path}|{canceled:true}).
+  | 'diag/preview'
+  | 'diag/save'
   | 'file/open-dialog'
   | 'measurements/add'
   | 'measurements/list'

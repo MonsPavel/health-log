@@ -75,6 +75,10 @@ describe('типы реестра — компилятор выводит payloa
       // TASK-101 §5/§9: «начать заново» — wipe-подмножество (unlink db/-wal/-shm).
       | 'data/discard-db'
       | 'data/wipe'
+      // TASK-103 §5/§11: диагностический пакет — предпросмотр содержимого и
+      // сохранение zip за save-диалогом main.
+      | 'diag/preview'
+      | 'diag/save'
       | 'file/open-dialog'
       | 'measurements/add'
       | 'measurements/list'

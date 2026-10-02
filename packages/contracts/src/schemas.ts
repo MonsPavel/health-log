@@ -59,6 +59,14 @@ import {
   DATA_WIPE_REQUEST_SCHEMA,
   DATA_WIPE_RESPONSE_SCHEMA,
 } from './data-care/schemas.js';
+// TASK-103 §5/§11: каналы диагностического пакета (предпросмотр DiagContent +
+// сохранение zip за save-диалогом main; без PHI — §13, предпросмотр обязателен).
+import {
+  DIAG_PREVIEW_REQUEST_SCHEMA,
+  DIAG_PREVIEW_RESPONSE_SCHEMA,
+  DIAG_SAVE_REQUEST_SCHEMA,
+  DIAG_SAVE_RESPONSE_SCHEMA,
+} from './diag/schemas.js';
 import { FILE_OPEN_DIALOG_REQUEST_SCHEMA, FILE_OPEN_DIALOG_RESPONSE_SCHEMA } from './file.js';
 // TASK-095 §5/§11: канал heartbeat активности (сигнал автоблока; НЕ secure).
 import { HEARTBEAT_REQUEST_SCHEMA, HEARTBEAT_RESPONSE_SCHEMA } from './heartbeat.js';
@@ -416,6 +424,25 @@ export const CHANNEL_SCHEMAS = {
   'data/wipe': {
     request: DATA_WIPE_REQUEST_SCHEMA,
     response: DATA_WIPE_RESPONSE_SCHEMA,
+    secure: true,
+  },
+  /**
+   * TASK-103 §5/§11: диагностический пакет — preview {} → DiagContent (сборка в
+   * памяти main: логи/self-check/версии/журнал сети/агрегаты app_event/миграции/
+   * системная строка — метаданные без PHI, §13; полные тексты файлов наружу не
+   * идут — только списки и превью первых строк) и save {} → {path} |
+   * {canceled: true} (zip в tmp → save-диалог main → move; переиспользование
+   * union 065, §23). Оба secure: чтение БД (network_event, app_event) и запись
+   * файла — при locked честный VAULT/LOCKED (§7).
+   */
+  'diag/preview': {
+    request: DIAG_PREVIEW_REQUEST_SCHEMA,
+    response: DIAG_PREVIEW_RESPONSE_SCHEMA,
+    secure: true,
+  },
+  'diag/save': {
+    request: DIAG_SAVE_REQUEST_SCHEMA,
+    response: DIAG_SAVE_RESPONSE_SCHEMA,
     secure: true,
   },
   /**
