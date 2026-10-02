@@ -207,15 +207,34 @@ describe('PrivacyScreen — переключение согласия (§5/§10/
   });
 
   it('отказ канала — откат: aria-checked вернулся (§10, прецедент use-privacy)', async () => {
-    makeHl();
+    // ops.updatesCheck.enabled=true из канала, документ согласий — false: переключатель
+    // рисуется из ДОКУМЕНТА (§12) — его загрузка детерминированно видна по смене
+    // aria-checked true→false (иначе optimistic-кэшу нечего откатывать).
+    makeHl({
+      journal: {
+        entries: [],
+        ops: [
+          JOURNAL.ops[0],
+          {
+            op: 'updates.check',
+            consentKey: 'updatesCheck',
+            descriptionKey: 'privacy.ops.updates_check',
+            enabled: true,
+          },
+        ],
+      },
+    });
     renderScreen();
     const sw = await screen.findByRole('switch', { name: 'Проверка обновлений' });
+    await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('false'));
+
+    // Отказ канала — ОТЛОЖЕННЫЙ: мгновенный reject слился бы с optimistic-записью
+    // в одном act-флеше (микротаски), промежуточное «true» не наблюдаемо.
+    let rejectSet: (error: unknown) => void = () => undefined;
     invoke.mockImplementation((channel: string) => {
       if (channel === 'privacy/consents') {
-        return Promise.resolve({
-          v: 1,
-          ok: false,
-          error: { code: 'STORAGE/FAILED', messageKey: 'errors.STORAGE_FAILED' },
+        return new Promise((_resolve, reject) => {
+          rejectSet = reject;
         });
       }
       return Promise.resolve(OK(channel === 'privacy/journal' ? JOURNAL : MODELS_IDLE));
@@ -223,7 +242,18 @@ describe('PrivacyScreen — переключение согласия (§5/§10/
 
     fireEvent.click(sw);
 
+    // Optimistic: aria-checked «включён» ДО ответа канала (§5 «мгновенное применение»).
     await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('true'));
+
+    // Отказ канала (§10): откат кэша к прежним согласиям — UI не лжёт.
+    await act(async () => {
+      rejectSet(
+        Object.assign(new Error('IPC: STORAGE/FAILED'), {
+          dto: { code: 'STORAGE/FAILED', messageKey: 'errors.STORAGE_FAILED' },
+        }),
+      );
+      await Promise.resolve(undefined);
+    });
     await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('false'));
   });
 

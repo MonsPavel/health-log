@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { NetworkEventDto } from '@hl/contracts';
 
+import '../../../i18n';
 import { ActivityFeed } from './ActivityFeed';
 
 const T = Date.UTC(2026, 0, 15, 9, 30);
@@ -63,10 +64,11 @@ describe('ActivityFeed — статусы: текст + глиф + цвет (§1
 
     const badges = screen.getAllByTestId('feed-status');
     expect(badges).toHaveLength(3);
+    // textContent = глиф + слово («✓успешно») — слово проверяем вхождением.
     const texts = badges.map((b) => b.textContent ?? '');
-    expect(texts).toContain('успешно');
-    expect(texts).toContain('заблокировано');
-    expect(texts).toContain('ошибка');
+    expect(texts.some((text) => text.includes('успешно'))).toBe(true);
+    expect(texts.some((text) => text.includes('заблокировано'))).toBe(true);
+    expect(texts.some((text) => text.includes('ошибка'))).toBe(true);
     // Не только цветом (§13): у каждого статуса свой глиф.
     const glyphs = badges.map((b) => b.textContent?.trim().charAt(0) ?? '');
     expect(new Set(glyphs).size).toBe(3);
@@ -114,7 +116,9 @@ describe('ActivityFeed — объём и время (§5)', () => {
   it('дата-время строки — Intl настенное до минут (прецедент LastCheckRow)', () => {
     renderFeed([ENTRY_OK]);
 
-    expect(screen.getByTestId('feed-time').textContent).toMatch(/\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/);
+    expect(screen.getByTestId('feed-time').textContent).toMatch(
+      /\d{2}\.\d{2}\.\d{4},? \d{2}:\d{2}/,
+    );
   });
 });
 
