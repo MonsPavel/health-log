@@ -127,9 +127,16 @@ describe('update-feed — контракт подписи electron-builder.yml (
   });
 
   it("publisherName задан и совпадает в win.signtoolOptions и publish (требование updater'а §5)", () => {
-    const values = [...config.matchAll(/^\s*publisherName:\s*(\S.*)$/gm)].map((match) =>
-      match[1]?.trim(),
+    // Схема app-builder-lib: в publish publisherName — только массив (список YAML),
+    // в win.signtoolOptions — скаляр; значения обязаны совпадать. [ \t]* — чтобы
+    // не пересечь перевод строки (ключ publish без значения на той же строке).
+    const scalars = [...config.matchAll(/^[ \t]*publisherName:[ \t]+(\S.*?)[ \t]*$/gm)].map(
+      (match) => match[1]?.trim(),
     );
+    const listItems = [...config.matchAll(/^[ \t]*-[ \t]+(CN=\S.*?)[ \t]*$/gm)].map(
+      (match) => match[1]?.trim(),
+    );
+    const values = [...scalars, ...listItems];
     expect(values.length).toBe(2);
     expect(new Set(values).size).toBe(1);
     expect(values[0]).toMatch(/^CN=/);

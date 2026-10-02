@@ -56,7 +56,11 @@ publish:
   provider: generic
   url: https://github.com/MonsPavel/health-log/releases/latest/download
   channel: stable
-  publisherName: CN=Health Log, O=Health Log, C=RU
+  # Схема app-builder-lib: в publish publisherName — ТОЛЬКО массив строк
+  # (в win.signtoolOptions допустим скаляр). Значения обязаны совпадать —
+  # проверяет конфиг-тест update-feed.test.ts.
+  publisherName:
+    - CN=Health Log, O=Health Log, C=RU
 
 win:
   target:
