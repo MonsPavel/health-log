@@ -122,3 +122,13 @@ describe('SettingsScreen — простой/продвинутый режим (T
     );
   });
 });
+
+describe('SettingsScreen — секция «Обновления» (TASK-097 §6 интеграция)', () => {
+  it('секция обновлений на экране настроек: заголовок и кнопка проверки (§5)', async () => {
+    renderScreen();
+
+    expect(await screen.findByTestId('updates-section')).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Обновления' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Проверить обновления' })).toBeDefined();
+  });
+});
