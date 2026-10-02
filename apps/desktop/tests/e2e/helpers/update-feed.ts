@@ -130,6 +130,25 @@ export function buildLatestYml(info: LatestYmlInfo): string {
   ].join('\n');
 }
 
+/** Аргументы строки-доказательства §20-1. */
+export interface SigningEvidenceParams {
+  /** Код Get-AuthenticodeSignature (0 = Valid). */
+  readonly status: number;
+  /** Subject DN сертификата подписи. */
+  readonly subject: string;
+  /** Имя проверенного установщика (basename). */
+  readonly fileName: string;
+}
+
+/**
+ * Строка-доказательство §20-1 для лога прогона (переносится в PR-описание):
+ * единый формат — Status с явной пометкой Valid/НЕ Valid, издатель и файл.
+ */
+export function buildSigningEvidenceLine(params: SigningEvidenceParams): string {
+  const verdict = params.status === 0 ? 'Valid' : 'НЕ Valid';
+  return `[TASK-104 §20-1] test-cert подпись: Status=${String(params.status)} (${verdict}), Subject=${params.subject}, file=${params.fileName}`;
+}
+
 /** Аргументы app-update.yml — ресурс, updater читает его из установленного приложения. */
 export interface AppUpdateYmlOptions {
   /** Базовый URL фида (generic-провайдер). */

@@ -103,18 +103,27 @@ Get-AuthenticodeSignature и гоняет **боевой NsisUpdater** по ло
   ```
 
 - **§20-1 (подпись = Valid)**: Windows требует интерактивного подтверждения на импорт
-  тестового корня в `Cert:\CurrentUser\Root` (защита от тихой установки корней).
-  Один раз, в присутствии человека:
+  тестового корня в `Cert:\CurrentUser\Root` — защита от тихой установки корней
+  заложена в саму crypt32: диалог показывают ВСЕ пути записи в Root —
+  `Import-Certificate`, `certutil -user -addstore` и даже прямой API-вызов
+  `CertAddCertificateContextToStore` (проверено на этой границе; реестровые
+  обходные пути игнорируются движком доверия). Шаг не автоматизируется —
+  одна команда в присутствии человека:
 
   ```bash
-  HL_TEST_CERT_TRUST_ROOT=1 pnpm exec vitest run \
-    apps/desktop/tests/e2e/helpers/update-feed.test.ts --project desktop-e2e \
-    -t "AC1+AC3"
+  pnpm test:cert
   ```
 
-  На диалог «Security Warning» ответить **Да**; тест очистит хранилища после прогона.
-  Лог проверки (Status: Valid + Subject) — в PR-описание. Если в хранилище остался
-  мусор от прерванного прогона — удалить:
+  На диалог «Security Warning» ответить **Да**; тест очистит хранилища после
+  прогона и напечатает в лог строку-доказательство вида
+
+  ```
+  [TASK-104 §20-1] test-cert подпись: Status=0 (Valid), Subject=CN=…, file=…
+  ```
+
+  — её в PR-описание (§20-1 «лог проверки в PR-описании»). Без человека тест
+  честно `skip` с этой же инструкцией. Если в хранилище остался мусор от
+  прерванного прогона — удалить:
   `certmgr.msc → Личное/Доверенные корневые → CN=Health Log Test Signing <pid>`.
 
 ## 5. signtool вручную (если нужен вне electron-builder)
