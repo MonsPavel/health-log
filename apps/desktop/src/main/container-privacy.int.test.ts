@@ -26,6 +26,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import { AppError, ok, type Clock, type Result } from '@hl/kernel';
 
+import type { ChannelName, Consents, PrivacyJournalResponse } from '@hl/contracts';
+
 import { buildContainer } from './container.js';
 import {
   VAULT_KEY_MISSING_MESSAGE_KEY,
@@ -143,6 +145,15 @@ describe('container + PrivacyQueries (TASK-098 §9/§19/§20)', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  /** Конверт успеха с типизированными данными (dispatch — ApiEnvelope<unknown>). */
+  const okData = async <T>(channel: ChannelName, payload: unknown): Promise<T> => {
+    const envelope = await container!.channels.dispatch({ channel, payload });
+    if (!envelope.ok) {
+      throw new Error(`ожидался конверт успеха канала ${channel}`);
+    }
+    return envelope.data as T;
+  };
+
   it('privacy/journal на чистой сборке: entries [], ops == политике (инвариант AC2), enabled из дефолтных согласий (false)', async () => {
     container = await buildContainer({
       userDataPath: dir,
@@ -151,26 +162,23 @@ describe('container + PrivacyQueries (TASK-098 §9/§19/§20)', () => {
       updatesAdapter: adapter,
     });
 
-    const envelope = await container.channels.dispatch({ channel: 'privacy/journal', payload: {} });
+    const journal = await okData<PrivacyJournalResponse>('privacy/journal', {});
 
-    expect(envelope.ok).toBe(true);
-    if (envelope.ok) {
-      expect(envelope.data.entries).toEqual([]);
-      expect(envelope.data.ops).toEqual([
-        {
-          op: 'models.download',
-          consentKey: 'modelsDownload',
-          descriptionKey: 'privacy.ops.models_download',
-          enabled: false,
-        },
-        {
-          op: 'updates.check',
-          consentKey: 'updatesCheck',
-          descriptionKey: 'privacy.ops.updates_check',
-          enabled: false,
-        },
-      ]);
-    }
+    expect(journal.entries).toEqual([]);
+    expect(journal.ops).toEqual([
+      {
+        op: 'models.download',
+        consentKey: 'modelsDownload',
+        descriptionKey: 'privacy.ops.models_download',
+        enabled: false,
+      },
+      {
+        op: 'updates.check',
+        consentKey: 'updatesCheck',
+        descriptionKey: 'privacy.ops.updates_check',
+        enabled: false,
+      },
+    ]);
   });
 
   it('blocked-мок-операция 075 видна в канале: desc, лимит, поля DTO полные (AC1)', async () => {
@@ -178,62 +186,48 @@ describe('container + PrivacyQueries (TASK-098 §9/§19/§20)', () => {
     const check = await container!.channels.dispatch({ channel: 'updates/check', payload: {} });
     expect(check.ok).toBe(false);
 
-    const envelope = await container!.channels.dispatch({
-      channel: 'privacy/journal',
-      payload: { limit: 5 },
-    });
+    const journal = await okData<PrivacyJournalResponse>('privacy/journal', { limit: 5 });
 
-    expect(envelope.ok).toBe(true);
-    if (envelope.ok) {
-      expect(envelope.data.entries).toHaveLength(1);
-      const blocked = envelope.data.entries[0]!;
-      expect(blocked).toEqual({
-        kind: 'updates.check',
-        endpoint: '', // отказ checkPermission: адрес не наблюдаем gateway'ем (§22 096)
-        status: 'blocked',
-        atUtc: expect.any(Number),
-      });
-      expect(blocked.bytes).toBeUndefined(); // NULL журнала → поле отсутствует (§5)
-    }
+    expect(journal.entries).toHaveLength(1);
+    const blocked = journal.entries[0]!;
+    expect(blocked).toEqual({
+      kind: 'updates.check',
+      endpoint: '', // отказ checkPermission: адрес не наблюдаем gateway'ем (§22 096)
+      status: 'blocked',
+      atUtc: expect.any(Number),
+    });
+    expect(blocked.bytes).toBeUndefined(); // NULL журнала → поле отсутствует (§5)
   });
 
   it('privacy/consents: patch известным ключом применяется и персистентен; ops.enabled отражает; ok-запись сети (AC3/§14)', async () => {
-    const patch = await container!.channels.dispatch({
-      channel: 'privacy/consents',
-      payload: { patch: { updatesCheck: true } },
-    });
-    expect(patch).toMatchObject({ ok: true, data: { updatesCheck: true, modelsDownload: false } });
+    const patched = await okData<Consents>('privacy/consents', { patch: { updatesCheck: true } });
+    expect(patched).toEqual({ updatesCheck: true, modelsDownload: false });
 
     // Персистентность: повторное чтение — из prefs (реальный PreferencesService).
-    const readBack = await container!.channels.dispatch({ channel: 'privacy/consents', payload: {} });
-    expect(readBack).toMatchObject({ ok: true, data: { updatesCheck: true, modelsDownload: false } });
+    const readBack = await okData<Consents>('privacy/consents', {});
+    expect(readBack).toEqual({ updatesCheck: true, modelsDownload: false });
 
     // Согласие, выданное каналом, мгновенно действует: проверка проходит, ok-запись.
     const check = await container!.channels.dispatch({ channel: 'updates/check', payload: {} });
     expect(check).toMatchObject({ ok: true, data: { status: 'latest' } });
     expect(adapter.checkCalls).toBe(1);
 
-    const envelope = await container!.channels.dispatch({
-      channel: 'privacy/journal',
-      payload: { limit: 1 },
-    });
-    expect(envelope.ok).toBe(true);
-    if (envelope.ok) {
-      // desc (AC1): лимит 1 — только САМАЯ новая запись (ok, позже blocked).
-      expect(envelope.data.entries).toEqual([
-        {
-          kind: 'updates.check',
-          endpoint: FEED_URL,
-          status: 'ok',
-          atUtc: expect.any(Number),
-        },
-      ]);
-      // enabled операций отражает текущие согласия.
-      expect(envelope.data.ops).toEqual([
-        expect.objectContaining({ op: 'models.download', enabled: false }),
-        expect.objectContaining({ op: 'updates.check', enabled: true }),
-      ]);
-    }
+    const journal = await okData<PrivacyJournalResponse>('privacy/journal', { limit: 1 });
+
+    // desc (AC1): лимит 1 — только САМАЯ новая запись (ok, позже blocked).
+    expect(journal.entries).toEqual([
+      {
+        kind: 'updates.check',
+        endpoint: FEED_URL,
+        status: 'ok',
+        atUtc: expect.any(Number),
+      },
+    ]);
+    // enabled операций отражает текущие согласия.
+    expect(journal.ops).toEqual([
+      expect.objectContaining({ op: 'models.download', enabled: false }),
+      expect.objectContaining({ op: 'updates.check', enabled: true }),
+    ]);
   });
 
   it('privacy/consents: неизвестный ключ patch → конверт VALIDATION/FAILED, prefs не изменены (§5/§14)', async () => {
@@ -246,7 +240,7 @@ describe('container + PrivacyQueries (TASK-098 §9/§19/§20)', () => {
     if (!envelope.ok) {
       expect(envelope.error.code).toBe('VALIDATION/FAILED');
     }
-    const readBack = await container!.channels.dispatch({ channel: 'privacy/consents', payload: {} });
-    expect(readBack).toMatchObject({ ok: true, data: { updatesCheck: true, modelsDownload: false } });
+    const readBack = await okData<Consents>('privacy/consents', {});
+    expect(readBack).toEqual({ updatesCheck: true, modelsDownload: false });
   });
 });

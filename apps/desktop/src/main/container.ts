@@ -145,6 +145,14 @@ import {
   createDefaultEgressFetch,
   EgressGateway,
 } from './modules/platform-services/egress/egress-gateway.js';
+import { EgressPolicy } from './modules/platform-services/egress/egress-policy.js';
+// TASK-098 §2/§9: PrivacyQueries — агрегатор экрана «Приватность» (журнал сети,
+// перечень операций из политики, согласия) и его хендлеры privacy/*.
+import { PrivacyQueries } from './modules/platform-services/application/privacy-queries.js';
+import {
+  createPrivacyConsentsHandler,
+  createPrivacyJournalHandler,
+} from './ipc/handlers/privacy.js';
 // TASK-096 §5/§9: UpdatesService — electron-updater за согласием (NFR-11):
 // разрешение/журнал через egress.checkPermission, задача авто-проверки — scheduler;
 // боевой адаптер ленивый (§19 — сборка графа в node-vitest безопасна).
@@ -585,6 +593,13 @@ export interface Container {
    * потребители — каналы updates/* (§11) и UI 097.
    */
   readonly updates: UpdatesService;
+  /**
+   * PrivacyQueries (TASK-098 §2/§9): агрегатор экрана «Приватность» — журнал сети
+   * (listRecent gateway), перечень операций (ГЕНЕРАЦИЯ из EgressPolicy.ALLOWED,
+   * §4) и согласия (чтение/переключение; ЕДИНСТВЕННЫЙ канал их изменения — §14,
+   * запись через PreferencesService). Потребители — каналы privacy/* (§11), UI 099.
+   */
+  readonly privacy: PrivacyQueries;
   /**
    * VaultService (TASK-094 §5/§7): сессия локального входа — unlock/lock/set-
    * passphrase, backoff неудач (§4), автоблок по простою (порог prefs.autoLockMin),
@@ -1112,6 +1127,20 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //      ({status: 'error'}) — lastRun пишется, повтор не чаще 24 ч (+throttle 10
     //      мин сервиса после ошибки, §13).
     scheduler.register(createUpdatesCheckJob({ check: () => updates.check() }));
+    //      TASK-098 §2/§9: PrivacyQueries — агрегатор экрана «Приватность»: журнал —
+    //      listRecent gateway (сортировка/лимит — контракт 075 §5); операции —
+    //      ГЕНЕРАЦИЯ из карты политики (не ручной список, §4); согласия — срез prefs
+    //      (чтение) и запись ТОЛЬКО через PreferencesService.setPrefs (§14: другой
+    //      записи согласий из UI нет; валидация схемы + событие prefs:changed — в
+    //      сервисе 047). Хендлеры privacy/* зарегистрированы в п. 8.
+    const privacyQueries = new PrivacyQueries({
+      journal: (limit) => egress.listRecent(limit),
+      consents: async () => (await preferencesService.getPrefs()).netConsents,
+      writeConsents: async (consents) => {
+        await preferencesService.setPrefs({ netConsents: consents });
+      },
+      policy: EgressPolicy.ALLOWED,
+    });
     //      TASK-076 §5/§9: LlmProcessClient — синглтон контейнера. Spawn ленивый
     //      (первая операция — сборка контейнера в node-vitest не спавнит, §19);
     //      боевая фабрика — utilityProcess.fork + MessageChannelMain (ленивый
@@ -1629,6 +1658,19 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       CHANNEL_SCHEMAS['updates/install'],
       createUpdatesInstallHandler(updates),
     );
+    // TASK-098 §5/§11: экран «Приватность» — журнал сети + перечень операций из
+    // политики (living-лента рендерера — инвалидация по net:activity, §12);
+    // согласия — чтение/переключение (ЕДИНСТВЕННЫЙ канал их изменения, §14).
+    channels.register(
+      'privacy/journal',
+      CHANNEL_SCHEMAS['privacy/journal'],
+      createPrivacyJournalHandler(privacyQueries),
+    );
+    channels.register(
+      'privacy/consents',
+      CHANNEL_SCHEMAS['privacy/consents'],
+      createPrivacyConsentsHandler(privacyQueries),
+    );
     // TASK-094 §5/§11: локальный вход — статус/разблокировка (backoff — AppError
     // конвертом отказа, §17)/блокировка/пароль (set|change|remove, консистентность
     // с 093). vault/status|unlock|lock — НЕ secure (минимальный входной набор,
@@ -1697,6 +1739,7 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       askChat,
       clearChat,
       updates,
+      privacy: privacyQueries,
       vaultService,
       openDatabase,
       close(): void {
