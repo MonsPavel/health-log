@@ -142,9 +142,9 @@ export function AboutSection(): JSX.Element {
               data-testid="about-selfcheck-details"
               className="list-disc space-y-1 pl-5 text-sm text-red-600"
             >
-              {!report.dbOk ? <li>{t('about.selfcheck.dbCorrupt')}</li> : null}
-              {!report.prefsOk ? <li>{t('about.selfcheck.prefsFailed')}</li> : null}
-              {report.worker?.state === 'failed' ? (
+              {!reportSnapshot.dbOk ? <li>{t('about.selfcheck.dbCorrupt')}</li> : null}
+              {!reportSnapshot.prefsOk ? <li>{t('about.selfcheck.prefsFailed')}</li> : null}
+              {reportSnapshot.worker?.state === 'failed' ? (
                 <li>{t('about.selfcheck.workerFailed')}</li>
               ) : null}
             </ul>

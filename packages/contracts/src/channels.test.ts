@@ -40,7 +40,7 @@ describe('HL_INVOKE_REQUEST_SCHEMA — форма запроса моста', ()
 });
 
 describe('типы реестра — компилятор выводит payload/ответ из схем (§23: без ручной синхронизации)', () => {
-  it('ChannelName — строковый union прикладных каналов (TASK-011: app/log-client-error; TASK-028: + 4 канала измерений; TASK-045: notes/search; TASK-051: scales/active; TASK-054: stats/period; TASK-056: trend/series; TASK-070: backup/create; TASK-071/072: backup/restore, data/wipe; TASK-062: __bench/seed; TASK-065: report/export-*; TASK-068: report/pdf, app/reveal-path; TASK-073: file/open-dialog; TASK-081: ai/models/*; TASK-083: ai/context/preview; TASK-087/088: ai/summary/*, ai/cancel; TASK-089: ai/chat/*; TASK-094: vault/*; TASK-095: app/heartbeat; TASK-098: privacy/*)', () => {
+  it('ChannelName — строковый union прикладных каналов (TASK-011: app/log-client-error; TASK-028: + 4 канала измерений; TASK-045: notes/search; TASK-051: scales/active; TASK-054: stats/period; TASK-056: trend/series; TASK-070: backup/create; TASK-071/072: backup/restore, data/wipe; TASK-062: __bench/seed; TASK-065: report/export-*; TASK-068: report/pdf, app/reveal-path; TASK-073: file/open-dialog; TASK-081: ai/models/*; TASK-083: ai/context/preview; TASK-087/088: ai/summary/*, ai/cancel; TASK-089: ai/chat/*; TASK-094: vault/*; TASK-095: app/heartbeat; TASK-098: privacy/*; TASK-100: app/selfcheck|meta|integrity-full)', () => {
     expectTypeOf<ChannelName>().toEqualTypeOf<
       | '__bench/seed'
       | 'ai/models/list'
@@ -61,6 +61,10 @@ describe('типы реестра — компилятор выводит payloa
       | 'app/log-client-error'
       | 'app/reveal-path'
       | 'app/heartbeat'
+      // TASK-100 §5/§11: сампроверка старта, версии «О приложении», полная проверка.
+      | 'app/selfcheck'
+      | 'app/meta'
+      | 'app/integrity-full'
       | 'backup/create'
       | 'backup/restore'
       | 'data/wipe'
