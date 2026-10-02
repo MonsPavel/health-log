@@ -59,6 +59,13 @@ import {
   DATA_WIPE_REQUEST_SCHEMA,
   DATA_WIPE_RESPONSE_SCHEMA,
 } from './data-care/schemas.js';
+// TASK-103 §5/§11: каналы диагностического пакета (предпросмотр + zip save-диалогом).
+import {
+  DIAG_PREVIEW_REQUEST_SCHEMA,
+  DIAG_PREVIEW_RESPONSE_SCHEMA,
+  DIAG_SAVE_REQUEST_SCHEMA,
+  DIAG_SAVE_RESPONSE_SCHEMA,
+} from './diag/schemas.js';
 import { FILE_OPEN_DIALOG_REQUEST_SCHEMA, FILE_OPEN_DIALOG_RESPONSE_SCHEMA } from './file.js';
 // TASK-095 §5/§11: канал heartbeat активности (сигнал автоблока; НЕ secure).
 import { HEARTBEAT_REQUEST_SCHEMA, HEARTBEAT_RESPONSE_SCHEMA } from './heartbeat.js';
@@ -403,6 +410,24 @@ export const CHANNEL_SCHEMAS = {
   'data/discard-db': {
     request: DATA_DISCARD_DB_REQUEST_SCHEMA,
     response: DATA_DISCARD_DB_RESPONSE_SCHEMA,
+    secure: true,
+  },
+  /**
+   * TASK-103 §5/§11: диагностический пакет (NFR-12). preview {} → DiagContent —
+   * сборка в памяти main + предпросмотр ДО сохранения (обязательный шаг AC §20-3:
+   * пользователь видит файлы/размеры/агрегаты и предупреждение PHI); save {} →
+   * {path} | {canceled: true} — zip собранного (манифест diag-manifest.json) через
+   * save-диалог ОС main (паттерн 065). Оба secure: сборка читает БД
+   * (app_event/network_event) и каталог логов (§14).
+   */
+  'diag/preview': {
+    request: DIAG_PREVIEW_REQUEST_SCHEMA,
+    response: DIAG_PREVIEW_RESPONSE_SCHEMA,
+    secure: true,
+  },
+  'diag/save': {
+    request: DIAG_SAVE_REQUEST_SCHEMA,
+    response: DIAG_SAVE_RESPONSE_SCHEMA,
     secure: true,
   },
   /**

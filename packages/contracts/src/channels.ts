@@ -81,6 +81,11 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * consents {patch?} → Consents — чтение/переключение (patch строгий: неизвестный
  * ключ — VALIDATION, §14; согласия меняются только этим каналом). Оба secure —
  * чтение/запись БД (network_event, prefs), §8.
+ * диагностический пакет `diag/preview|save` — TASK-103 §5/§11 (схемы — diag/
+ * schemas.ts): preview {} → DiagContent (сборка в памяти + предпросмотр ДО
+ * сохранения — обязательный шаг, §14/§20); save {} → {path} | {canceled: true}
+ * (zip с манифестом → save-диалог ОС main, паттерн 065). Оба secure — сборка
+ * читает БД (app_event/network_event) и каталог логов.
  * сампроверка старта и «О приложении» `app/selfcheck|meta|integrity-full` —
  * TASK-100 §5/§11 (схемы — app-info.ts): selfcheck {} → SelfCheckReport | null —
  * иммутабельный снимок старта из памяти main (null — самчек ещё не выполнялся);
@@ -163,6 +168,10 @@ export type ChannelName =
   // регистрация только в recovery-режиме; secure — файловая операция).
   | 'data/discard-db'
   | 'data/wipe'
+  // TASK-103 §5/§11: диагностический пакет — предпросмотр содержимого и
+  // сохранение zip (схемы — diag/schemas.ts; оба secure — чтение БД/ФС).
+  | 'diag/preview'
+  | 'diag/save'
   | 'file/open-dialog'
   | 'measurements/add'
   | 'measurements/list'

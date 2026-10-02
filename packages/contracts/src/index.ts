@@ -41,6 +41,8 @@ export * from './ai/index.js';
 export * from './bench.js';
 // TASK-102 §5/§11: TEST-ONLY каналы крэш-теста потери питания (__test/*).
 export * from './test-hooks.js';
+// TASK-103 §5/§7/§11: контракты диагностического пакета (DiagContent, diag/*).
+export * from './diag/schemas.js';
 export * from './data-care/index.js';
 export * from './export/index.js';
 export * from './file.js';
