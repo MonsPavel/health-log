@@ -21,7 +21,10 @@
  * Риски хрупкости (§22): шрифты ОС — базлайны Windows (локальный рендер, §19);
  * анимации отключены опцией screenshot (animate-pulse и пр.). TASK-061: /dashboard —
  * домашняя сводка; на пустой БД — приветственное состояние (маркер dashboard-welcome),
- * базлайны маршрута перегенерированы.
+ * базлайны маршрута перегенерированы. TASK-099: /settings получил секцию
+ * «Приватность» (страница скроллится) — снапшот маршрута снят как fullPage
+ * (иначе новая секция ниже фолда не верифицируется вовсе), базлайны маршрута
+ * перегенерированы.
  */
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -164,6 +167,9 @@ test.describe('visual-матрица масштабов текста (TASK-048 �
             await expect(window).toHaveScreenshot(screenshotName(route, theme, scale), {
               animations: 'disabled',
               maxDiffPixelRatio: MAX_DIFF_RATIO,
+              // TASK-099: /settings скроллится (секция «Приватность») — fullPage,
+              // иначе всё ниже фолда выпадает из верификации (§13 TASK-048).
+              ...(route === '/settings' ? { fullPage: true } : {}),
             });
           });
         }
