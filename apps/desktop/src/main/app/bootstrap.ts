@@ -20,6 +20,13 @@ import {
   type Container,
 } from '../container.js';
 import { benchChannelsEnabled, createBenchSeedHandler } from '../ipc/handlers/bench-seed.js';
+// TASK-102 §5/§6: TEST-ONLY test-хуки крэш-теста NFR-3 (__test/*) — регистрация
+// по общему флагу семейства HL_TEST_HOOKS (гард testHooksEnabled — тот же паттерн).
+import {
+  createTestDbStateHandler,
+  createTestInsertBatchHandler,
+  testHooksEnabled,
+} from '../ipc/handlers/test-hooks.js';
 import { installChannelBridge } from '../ipc/register-channel.js';
 import { createLogger, initFileLogging } from '../shared/logger/logger.js';
 import { AUTOLOCK_CHECK_INTERVAL_MS } from '../modules/security/application/vault-service.js';
@@ -156,6 +163,25 @@ if (gotSingleInstanceLock) {
         '__bench/seed',
         CHANNEL_SCHEMAS['__bench/seed'],
         createBenchSeedHandler(container.db),
+      );
+    }
+    // TASK-102 §5/§6/§11/§14: TEST-ONLY test-хуки крэш-теста потери питания
+    // (NFR-3) — каналы `__test/insert-batch` (батч одной транзакцией, ack-оракул)
+    // и `__test/db-state` (снимок состояния БД после перезапуска). ОБЩИЙ флаг
+    // семейства test-hook — HL_TEST_HOOKS=1 (§4: унификация — существующие
+    // HL_BENCH/HL_FAKE_LLM/HL_TEST_MODEL_FILE остаются; консолидация с 062-путём:
+    // тот же паттерн гарда testHooksEnabled — env И не-packaged, двойная защита,
+    // регистрация ДО моста; без флага каналы неотличимы от неизвестных — §20 AC4).
+    if (testHooksEnabled(process.env, app.isPackaged)) {
+      container.channels.register(
+        '__test/insert-batch',
+        CHANNEL_SCHEMAS['__test/insert-batch'],
+        createTestInsertBatchHandler(container.db),
+      );
+      container.channels.register(
+        '__test/db-state',
+        CHANNEL_SCHEMAS['__test/db-state'],
+        createTestDbStateHandler(container.db),
       );
     }
     installChannelBridge(container.channels);

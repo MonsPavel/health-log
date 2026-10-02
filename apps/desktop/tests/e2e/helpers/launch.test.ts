@@ -55,4 +55,15 @@ describe('launchApp — env-проводка fake-LLM (TASK-078 AC3)', () => {
     expect(lastLaunchEnv()['HL_BENCH']).toBe('1');
     expect(lastLaunchEnv()['HL_FAKE_LLM']).toBeUndefined();
   });
+
+  it('testHooks: true → env HL_TEST_HOOKS=1 (TASK-102 §5/§6: крэш-тест); по умолчанию — нет', async () => {
+    await launchApp({ userData: 'C:/tmp/user', testHooks: true });
+    expect(lastLaunchEnv()['HL_TEST_HOOKS']).toBe('1');
+    expect(lastLaunchEnv()['HL_TEST_USER_DATA']).toBe('C:/tmp/user');
+
+    launchMock.mockReset();
+    launchMock.mockResolvedValue({});
+    await launchApp({ userData: 'C:/tmp/user' });
+    expect(lastLaunchEnv()['HL_TEST_HOOKS']).toBeUndefined();
+  });
 });
