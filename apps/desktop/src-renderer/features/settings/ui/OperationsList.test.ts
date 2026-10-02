@@ -72,9 +72,13 @@ describe('OperationsList — ops из канала с описаниями (§19
     renderList();
 
     expect(screen.getByRole('switch', { name: 'Загрузка моделей ИИ' })).toBeDefined();
-    expect(screen.getByText('Скачивает файлы локальных ИИ-моделей с CDN по вашему запросу')).toBeDefined();
+    expect(
+      screen.getByText('Скачивает файлы локальных ИИ-моделей с CDN по вашему запросу'),
+    ).toBeDefined();
     expect(screen.getByRole('switch', { name: 'Проверка обновлений' })).toBeDefined();
-    expect(screen.getByText('Спрашивает сервер обновлений о новой версии приложения')).toBeDefined();
+    expect(
+      screen.getByText('Спрашивает сервер обновлений о новой версии приложения'),
+    ).toBeDefined();
   });
 
   it('aria-checked из документа согласий (optimistic-источник, §12)', () => {
@@ -158,7 +162,9 @@ describe('OperationsList — неизвестная операция (честн
 
     const sw = screen.getByRole('switch', { name: 'future.op' });
     expect(sw).toBeDefined();
-    expect(screen.queryByText('Скачивает файлы локальных ИИ-моделей с CDN по вашему запросу')).toBeNull();
+    expect(
+      screen.queryByText('Скачивает файлы локальных ИИ-моделей с CDN по вашему запросу'),
+    ).toBeNull();
 
     fireEvent.click(sw);
     expect(onToggle).toHaveBeenCalledWith({});

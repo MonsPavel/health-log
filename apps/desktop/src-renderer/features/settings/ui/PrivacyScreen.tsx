@@ -31,9 +31,7 @@ export function PrivacyScreen(): JSX.Element {
   const { consents, setConsents } = usePrivacyConsents();
   // §13: подписка на состояние загрузок ModelStore (ai:progress → кэш — живая).
   const { data: models } = useAiModels();
-  const downloadInProgress = (models?.models ?? []).some(
-    (model) => model.state === 'downloading',
-  );
+  const downloadInProgress = (models?.models ?? []).some((model) => model.state === 'downloading');
   const [selfCheckOpen, setSelfCheckOpen] = useState(false);
 
   return (

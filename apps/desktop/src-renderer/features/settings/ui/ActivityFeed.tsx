@@ -26,7 +26,12 @@ import { operationTitleKey } from './OperationsList';
 const STATUS_VIEW: Readonly<
   Record<
     NetworkEventStatusDto,
-    { readonly glyph: string; readonly className: string; readonly textKey: string; readonly labelKey: string }
+    {
+      readonly glyph: string;
+      readonly className: string;
+      readonly textKey: string;
+      readonly labelKey: string;
+    }
   >
 > = {
   ok: {

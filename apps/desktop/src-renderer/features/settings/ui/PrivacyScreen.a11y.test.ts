@@ -111,7 +111,9 @@ describe('PrivacyScreen — axe: без critical-нарушений (§20)', () 
     await waitFor(() =>
       expect(container.querySelector('[data-testid="privacy-section"]')).not.toBeNull(),
     );
-    await waitFor(() => expect(container.querySelectorAll('[data-testid="feed-row"]')).toHaveLength(3));
+    await waitFor(() =>
+      expect(container.querySelectorAll('[data-testid="feed-row"]')).toHaveLength(3),
+    );
 
     const results = await axe.run(container);
 

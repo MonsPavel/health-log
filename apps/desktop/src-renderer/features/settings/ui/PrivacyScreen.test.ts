@@ -15,7 +15,12 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AiModelsListResponse, Consents, PrivacyJournalResponse } from '@hl/contracts';
+import type {
+  AiModelsListResponse,
+  Consents,
+  OperationInfo,
+  PrivacyJournalResponse,
+} from '@hl/contracts';
 
 import '../../../i18n';
 import { PrivacyScreen } from './PrivacyScreen';
@@ -26,51 +31,52 @@ const T = Date.UTC(2026, 0, 15, 9, 30);
 
 const OK = (data: unknown) => ({ v: 1, ok: true, data });
 
+const OP_MODELS: OperationInfo = {
+  op: 'models.download',
+  consentKey: 'modelsDownload',
+  descriptionKey: 'privacy.ops.models_download',
+  enabled: true,
+};
+
+const OP_UPDATES: OperationInfo = {
+  op: 'updates.check',
+  consentKey: 'updatesCheck',
+  descriptionKey: 'privacy.ops.updates_check',
+  enabled: false,
+};
+
 const JOURNAL: PrivacyJournalResponse = {
   entries: [],
-  ops: [
-    {
-      op: 'models.download',
-      consentKey: 'modelsDownload',
-      descriptionKey: 'privacy.ops.models_download',
-      enabled: true,
-    },
-    {
-      op: 'updates.check',
-      consentKey: 'updatesCheck',
-      descriptionKey: 'privacy.ops.updates_check',
-      enabled: false,
-    },
-  ],
+  ops: [OP_MODELS, OP_UPDATES],
 };
 
 const CONSENTS: Consents = { updatesCheck: false, modelsDownload: true };
 
+const MODEL_VIEW = {
+  descriptor: {
+    id: 'qwen3-4b',
+    name: 'Qwen3 4B',
+    version: '1.0',
+    file: 'qwen3-4b.gguf',
+    url: 'https://cdn.example.com/qwen3-4b.gguf',
+    sha256: 'a'.repeat(64),
+    sizeBytes: 2_400_000_000,
+    languages: ['ru'],
+    minRamGb: 8,
+    license: 'Apache-2.0',
+  },
+  state: 'not_installed' as const,
+};
+
 const MODELS_IDLE: AiModelsListResponse = {
-  models: [
-    {
-      descriptor: {
-        id: 'qwen3-4b',
-        name: 'Qwen3 4B',
-        version: '1.0',
-        file: 'qwen3-4b.gguf',
-        url: 'https://cdn.example.com/qwen3-4b.gguf',
-        sha256: 'a'.repeat(64),
-        sizeBytes: 2_400_000_000,
-        languages: ['ru'],
-        minRamGb: 8,
-        license: 'Apache-2.0',
-      },
-      state: 'not_installed',
-    },
-  ],
+  models: [MODEL_VIEW],
   ramTotalGb: 16,
   uiLanguage: 'ru',
 };
 
 const MODELS_DOWNLOADING: AiModelsListResponse = {
   ...MODELS_IDLE,
-  models: [{ ...MODELS_IDLE.models[0], state: 'downloading' as const, bytesLoaded: 1024 }],
+  models: [{ ...MODEL_VIEW, state: 'downloading' as const, bytesLoaded: 1024 }],
 };
 
 const ENTRY_OK: PrivacyJournalResponse['entries'][number] = {
@@ -133,11 +139,6 @@ function renderScreen(): void {
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
     createElement(QueryClientProvider, { client: queryClient }, children);
   render(createElement(PrivacyScreen), { wrapper });
-}
-
-/** Согласие по названию операции (aria-labelledby — названия из каталога). */
-function switchByName(name: string): HTMLElement {
-  return screen.getByRole('switch', { name });
 }
 
 beforeEach(() => {
@@ -213,15 +214,7 @@ describe('PrivacyScreen — переключение согласия (§5/§10/
     makeHl({
       journal: {
         entries: [],
-        ops: [
-          JOURNAL.ops[0],
-          {
-            op: 'updates.check',
-            consentKey: 'updatesCheck',
-            descriptionKey: 'privacy.ops.updates_check',
-            enabled: true,
-          },
-        ],
+        ops: [OP_MODELS, { ...OP_UPDATES, enabled: true }],
       },
     });
     renderScreen();
@@ -296,9 +289,9 @@ describe('PrivacyScreen — блокировка при активной заг�
     const modelsSwitch = await screen.findByRole('switch', { name: 'Загрузка моделей ИИ' });
     await waitFor(() => expect(modelsSwitch.hasAttribute('disabled')).toBe(true));
     expect(modelsSwitch.getAttribute('title')).toContain('загрузк');
-    expect(screen.getByRole('switch', { name: 'Проверка обновлений' }).hasAttribute('disabled')).toBe(
-      false,
-    );
+    expect(
+      screen.getByRole('switch', { name: 'Проверка обновлений' }).hasAttribute('disabled'),
+    ).toBe(false);
   });
 });
 
@@ -313,7 +306,15 @@ describe('PrivacyScreen — живая лента (§4/§5/AC3)', () => {
 
     const UPDATED: PrivacyJournalResponse = { entries: [ENTRY_OK], ops: JOURNAL.ops };
     invoke.mockImplementation((channel: string) =>
-      Promise.resolve(OK(channel === 'privacy/journal' ? UPDATED : channel === 'privacy/consents' ? CONSENTS : MODELS_IDLE)),
+      Promise.resolve(
+        OK(
+          channel === 'privacy/journal'
+            ? UPDATED
+            : channel === 'privacy/consents'
+              ? CONSENTS
+              : MODELS_IDLE,
+        ),
+      ),
     );
     fire('net:activity', { kind: 'models.download', endpoint: 'https://cdn.example.com' });
 
