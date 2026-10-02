@@ -115,13 +115,17 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   localStorage.clear();
   Object.defineProperty(window, 'hl', { configurable: true, value: undefined, writable: true });
 });
 
 describe('UpdatesSection — статус-строки по фикстурам состояния (§19/AC1)', () => {
   it('idle: секция, версия из UA, «Проверено: никогда», кнопка активна (§5)', async () => {
-    stubUserAgent('Mozilla/5.0 Electron/33.0.0 Safari/537.36 health-log/1.2.3');
+    // Реальный layout UA Electron: токен приложения перед « Chrome/» (ревью 097).
+    stubUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) health-log/1.2.3 Chrome/126.0.0.0 Electron/33.0.0 Safari/537.36',
+    );
     makeHl({ consent: true });
     renderSection();
 
@@ -315,5 +319,32 @@ describe('UpdatesSection — бета-канал: заготовка TASK-107 (�
 
     // Нотификация наблюдателей React Query асинхронна — ждём (как в полном цикле).
     expect(await screen.findByText('Доступна версия 2.0.0')).toBeDefined();
+  });
+
+  it('снапшот переживает размонтирование секции и возврат после gcTime (ревью 097)', async () => {
+    vi.useFakeTimers();
+    makeHl({ consent: true });
+    checkData = { status: 'available', version: '1.1.0' };
+    // ЕДИНЫЙ клиент на оба монтажа — как в бою (провайдер живёт с окном).
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const first = render(createElement(UpdatesSection), { wrapper });
+    await clickCheck();
+    expect(await screen.findByText('Доступна версия 1.1.0')).toBeDefined();
+    // Навигация уходит с настроек — секция размонтируется (app/router.tsx);
+    // продовый QueryClient собирает кэш через 10 минут простоя
+    // (lib/query-client.ts gcTime). Снапшот main сессионный (updates-service
+    // держит его в памяти до перезапуска) — возврат обязан показать available,
+    // а не seed idle: повторный сетевой цикл не нужен (§2/§3).
+    first.unmount();
+    act(() => {
+      vi.advanceTimersByTime(10 * 60 * 1000 + 1_000);
+    });
+
+    render(createElement(UpdatesSection), { wrapper });
+    expect(await screen.findByText('Доступна версия 1.1.0')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Скачать' })).toBeDefined();
   });
 });
