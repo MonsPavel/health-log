@@ -50,6 +50,15 @@ const newUserDataDir = (): string => {
   return dir;
 };
 afterAll(() => {
+  // Сначала закрываем соединения (Windows: открытый дескриптор держит файл —
+  // прецедент очистки container-passphrase.int.test.ts), затем удаляем каталоги.
+  for (const container of containers) {
+    try {
+      container.close();
+    } catch {
+      // закрыт самим сценарием — не важно для очистки
+    }
+  }
   for (const dir of dirs) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -226,8 +235,11 @@ describe('buildContainer — сампроверка старта (TASK-100 §19/
     expect(existsSync(join(dir, DATABASE_FILENAME))).toBe(false);
     expect(container.selfcheck.report).toBeUndefined();
 
-    const unlocked = await container.openDatabase();
+    // Полный путь 094: unlock (проверка пароля портом 093) → openDatabase (§9).
+    const unlocked = await container.vaultService.unlock(PASS);
     expect(unlocked.ok).toBe(true);
+    const opened = await container.openDatabase();
+    expect(opened.ok).toBe(true);
     expect(existsSync(join(dir, DATABASE_FILENAME))).toBe(true);
 
     const report = container.selfcheck.report;
