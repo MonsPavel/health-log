@@ -18,6 +18,8 @@ export {
   toDto,
   type AppErrorDto,
 } from './app-error-dto.js';
+// TASK-100 §5/§11: сампроверка старта и версии «О приложении» (app-info.ts).
+export * from './app-info.js';
 export {
   HL_INVOKE_CHANNEL,
   HL_INVOKE_REQUEST_SCHEMA,

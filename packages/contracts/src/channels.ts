@@ -81,6 +81,13 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * consents {patch?} → Consents — чтение/переключение (patch строгий: неизвестный
  * ключ — VALIDATION, §14; согласия меняются только этим каналом). Оба secure —
  * чтение/запись БД (network_event, prefs), §8.
+ * сампроверка старта и «О приложении» `app/selfcheck|meta|integrity-full` —
+ * TASK-100 §5/§11 (схемы — app-info.ts): selfcheck {} → SelfCheckReport | null —
+ * иммутабельный снимок старта из памяти main (null — самчек ещё не выполнялся);
+ * meta {} → {appVersion, schemaVersion, scale, model?} — строки версий UI; оба НЕ
+ * secure (БД не читают напрямую / канал версий-режима — recovery 101 §9);
+ * integrity-full {} → {ok, details} — полная проверка БД по кнопке (secure:
+ * PRAGMA integrity_check на открытом соединении).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -121,6 +128,12 @@ export type ChannelName =
   // TASK-095 §5/§11: heartbeat пользовательской активности (сигнал автоблока,
   // троттл 30 с в рендерере; схемы — heartbeat.ts; НЕ secure — §9/§11).
   | 'app/heartbeat'
+  // TASK-100 §5/§11: сампроверка старта `app/selfcheck` (отчёт из памяти main),
+  // версии «О приложении» `app/meta` (обе НЕ secure — §11/§14) и полная проверка
+  // БД `app/integrity-full` по кнопке (secure — БД-канал; схемы — app-info.ts).
+  | 'app/selfcheck'
+  | 'app/meta'
+  | 'app/integrity-full'
   | 'backup/create'
   | 'backup/restore'
   | 'data/wipe'

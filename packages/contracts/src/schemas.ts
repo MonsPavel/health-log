@@ -7,6 +7,15 @@ import { z } from 'zod';
 
 import { BENCH_SEED_REQUEST_SCHEMA, BENCH_SEED_RESPONSE_SCHEMA } from './bench.js';
 import type { ChannelName } from './channels.js';
+// TASK-100 §5/§11: сампроверка старта и версии «О приложении» (схемы — app-info.ts).
+import {
+  APP_INTEGRITY_FULL_REQUEST_SCHEMA,
+  APP_INTEGRITY_FULL_RESPONSE_SCHEMA,
+  APP_META_REQUEST_SCHEMA,
+  APP_META_RESPONSE_SCHEMA,
+  APP_SELFCHECK_REQUEST_SCHEMA,
+  APP_SELFCHECK_RESPONSE_SCHEMA,
+} from './app-info.js';
 import {
   AI_MODELS_LIST_REQUEST_SCHEMA,
   AI_MODELS_LIST_RESPONSE_SCHEMA,
@@ -291,6 +300,35 @@ export const CHANNEL_SCHEMAS = {
   'app/heartbeat': {
     request: HEARTBEAT_REQUEST_SCHEMA,
     response: HEARTBEAT_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-100 §5/§11: сампроверка старта — {} → SelfCheckReport | null (иммутабельный
+   * снимок §7: полная проверка — отдельный канал, стартовый отчёт не мутируется).
+   * НЕ secure: отчёт хранится в памяти main (заполнен после открытия БД; до unlock —
+   * null), PHI/путей не содержит (§14 — безопасен для диагпакета 103).
+   */
+  'app/selfcheck': {
+    request: APP_SELFCHECK_REQUEST_SCHEMA,
+    response: APP_SELFCHECK_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-100 §5/§11: версии «О приложении» — {} → {appVersion, schemaVersion, scale,
+   * model?} (модель опциональна — не выбрана). НЕ secure: канал версий/режима —
+   * в recovery-режиме TASK-101 §9 остаётся доступным; данные без PHI (§14).
+   */
+  'app/meta': {
+    request: APP_META_REQUEST_SCHEMA,
+    response: APP_META_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-100 §4/§11: полная проверка БД по кнопке — {} → {ok, details} (вывод
+   * PRAGMA integrity_check; progress не нужен: <10 с, §11). secure: БД-канал —
+   * при locked соединение закрыто (гвардия даёт честный VAULT/LOCKED).
+   */
+  'app/integrity-full': {
+    request: APP_INTEGRITY_FULL_REQUEST_SCHEMA,
+    response: APP_INTEGRITY_FULL_RESPONSE_SCHEMA,
+    secure: true,
   },
   /**
    * TASK-070 §6/§11: создание копии (Data Care) — {mode:'ask', passphrase} |
