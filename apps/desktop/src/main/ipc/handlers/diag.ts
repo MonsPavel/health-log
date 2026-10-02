@@ -5,7 +5,12 @@
  * предпросмотра (AC §20-3); diag/save — outcome сервиса в union канала
  * ({path} | {canceled: true}, §7 065 — отмена диалога не ошибка).
  */
-import type { DiagPreviewRequest, DiagPreviewResponse, DiagSaveRequest, DiagSaveResponse } from '@hl/contracts';
+import type {
+  DiagPreviewRequest,
+  DiagPreviewResponse,
+  DiagSaveRequest,
+  DiagSaveResponse,
+} from '@hl/contracts';
 
 import type { DiagBundleService } from '../../modules/platform-services/diag/diag-service.js';
 

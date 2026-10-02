@@ -47,7 +47,6 @@ export function DiagSection(): JSX.Element {
   const save = useDiagSave();
   const content: DiagContent | undefined = collect.data;
   const savedPath = save.data && 'path' in save.data ? save.data.path : undefined;
-  const canceled = save.data !== undefined && !('path' in save.data);
 
   return (
     <section aria-labelledby="diag-title" data-testid="diag-section" className="mt-6">
@@ -107,7 +106,6 @@ export function DiagSection(): JSX.Element {
           {t('diag.saved')}
         </p>
       ) : null}
-      {canceled ? null : null}
 
       {/* Предпросмотр (§5/§10): таблица семантичная (§16), дерево файлов с размерами. */}
       {content !== undefined ? (

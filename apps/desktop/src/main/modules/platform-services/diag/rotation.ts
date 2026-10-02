@@ -115,7 +115,7 @@ export function createEventsRotateJob(deps: EventsRotateDeps): JobDefinition {
   return {
     name: EVENTS_ROTATE_JOB_NAME,
     runOnStart: true,
-    run: async (ctx: JobCtx): Promise<null> => {
+    run: (ctx: JobCtx): Promise<null> => {
       const networkThreshold = ctx.now.utcMs - NETWORK_EVENT_RETENTION_DAYS * DAY_MS;
       const appThreshold = ctx.now.utcMs - APP_EVENT_RETENTION_DAYS * DAY_MS;
       const networkDeleted = deps.db
@@ -130,7 +130,8 @@ export function createEventsRotateJob(deps: EventsRotateDeps): JobDefinition {
         networkThreshold,
         appThreshold,
       });
-      return null;
+      // better-sqlite3 синхронен — Promise-обёртка контракта каркаса (§5 074).
+      return Promise.resolve(null);
     },
   };
 }

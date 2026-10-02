@@ -59,7 +59,7 @@ describe('хендлеры diag/* (TASK-103 §11)', () => {
   it('каркас (§11): каналы зарегистрированы secure — при locked конверт VAULT/LOCKED ДО хендлера', async () => {
     const { service, collect } = makeService();
     const channels = createChannelRegistry(
-      { info: () => undefined, error: () => undefined },
+      { warn: () => undefined, error: () => undefined },
       { isUnlocked: () => false, onActivity: () => undefined },
     );
     channels.register(

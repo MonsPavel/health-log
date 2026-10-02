@@ -20,13 +20,17 @@ import type { DiagContent } from '@hl/contracts';
 import '../../../i18n';
 import { DiagSection } from './DiagSection';
 
-type InvokeMock = ReturnType<typeof vi.fn<(channel: string) => Promise<unknown>>>;
+type InvokeMock = ReturnType<typeof vi.fn<(channel: string, payload: unknown) => Promise<unknown>>>;
 
 const OK = (data: unknown) => ({ v: 1, ok: true, data });
 
 const CONTENT: DiagContent = {
   files: [
-    { name: 'hl.1.log', sizeBytes: 2048, preview: '{"msg":"container ready"}\n{"msg":"self-check"}' },
+    {
+      name: 'hl.1.log',
+      sizeBytes: 2048,
+      preview: '{"msg":"container ready"}\n{"msg":"self-check"}',
+    },
     { name: 'versions.json', sizeBytes: 300, preview: '{\n  "appVersion": "1.2.3"\n}' },
     { name: 'big.log', sizeBytes: 5 * 1024 * 1024 }, // защитная ветка §9: без preview
   ],
@@ -48,7 +52,8 @@ afterEach(() => {
 
 /** Мост: diag/preview|diag/save (§19, прецедент UpdatesSection.test). */
 function makeHl(): void {
-  invoke = vi.fn((channel: string) => {
+  invoke = vi.fn((channel: string, payload: unknown) => {
+    void payload; // payload ответа не влияет на фейк, но фиксируется в mock.calls
     if (channel === 'diag/preview') {
       return Promise.resolve(OK(previewData));
     }
@@ -157,9 +162,14 @@ describe('DiagSection — предпросмотр до сохранения (TA
   });
 
   it('отказ канала diag/preview — role="alert", секция не падает', async () => {
-    invoke = vi.fn((channel: string) => {
+    invoke = vi.fn((channel: string, payload: unknown) => {
+      void payload;
       if (channel === 'diag/preview') {
-        return Promise.resolve({ v: 1, ok: false, error: { code: 'APP/INTERNAL', messageKey: 'errors.internal' } });
+        return Promise.resolve({
+          v: 1,
+          ok: false,
+          error: { code: 'APP/INTERNAL', messageKey: 'errors.internal' },
+        });
       }
       return Promise.resolve(OK(null));
     });

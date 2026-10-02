@@ -1623,15 +1623,19 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         const scale = await scaleService.getActiveScale();
         return { code: scale.code, version: scale.version };
       },
-      model: modelMeta,
+      // Форма app/meta: modelId '' (не выбрана) → undefined — строка модели в пакет
+      // не входит (§7: versions.json зеркалит app/meta).
+      model: async () => {
+        const meta = await modelMeta();
+        return meta.modelId === '' ? undefined : { id: meta.modelId, version: meta.modelVersion };
+      },
       networkJournal: (limit) => egress.listRecent(limit),
-      appEventTotals: async (sinceUtcMs) => {
+      appEventTotals: (sinceUtcMs) => {
+        // better-sqlite3 синхронен — Promise.resolve контракта порта (§5 103).
         const rows = db
-          .prepare(
-            'SELECT kind, COUNT(*) AS count FROM app_event WHERE at_utc >= ? GROUP BY kind',
-          )
+          .prepare('SELECT kind, COUNT(*) AS count FROM app_event WHERE at_utc >= ? GROUP BY kind')
           .all(sinceUtcMs) as Array<{ kind: string; count: number }>;
-        return Object.fromEntries(rows.map((row) => [row.kind, row.count]));
+        return Promise.resolve(Object.fromEntries(rows.map((row) => [row.kind, row.count])));
       },
       migrations: deps.migrations ?? MIGRATIONS,
       systemInfo: diagSystemInfo,

@@ -59,12 +59,13 @@ export const DIAG_MAX_LOGS_TOTAL_BYTES = 25 * 1024 * 1024;
 /** Первые N строк текстовых файлов в preview (§7). */
 export const DIAG_MAX_PREVIEW_LINES = 20;
 
-/** Структура версий из app/meta (§5): шкала/модель опциональны. */
+/** Структура версий из app/meta (§5): шкала/модель опциональны, система — строка ОС. */
 export interface DiagVersionInfo {
   readonly appVersion: string;
   readonly schemaVersion: number;
   readonly scale?: { readonly code: string; readonly version: string };
   readonly model?: { readonly id: string; readonly version: string };
+  readonly system: DiagSystemInfo;
 }
 
 /** Системная строка (§5): OS/arch/locale — без имени пользователя/серийников (§14). */
@@ -326,7 +327,9 @@ export class DiagBundleService {
         : (file.preview ?? '');
       zip.append(text, { name: file.name });
     }
-    zip.finalize();
+    // archiver v8: finalize возвращает void-подобное значение — финал архива
+    // отслеживается 'finish' приёмника ниже (smoke-прогон §4).
+    void zip.finalize();
     await Promise.race([finished, failure]);
     return (await stat(targetPath)).size;
   }
@@ -341,15 +344,17 @@ export function createDefaultDiagSaveDialog(): DiagSaveDialog {
   return {
     async save(options: { defaultPath: string }): Promise<string | null> {
       const electron = await import('electron');
-      const dialog = (electron as {
-        dialog?: {
-          showSaveDialog(opts: {
-            title?: string;
-            defaultPath?: string;
-            filters?: { name: string; extensions: string[] }[];
-          }): Promise<{ canceled: boolean; filePath?: string }>;
-        };
-      }).dialog;
+      const dialog = (
+        electron as {
+          dialog?: {
+            showSaveDialog(opts: {
+              title?: string;
+              defaultPath?: string;
+              filters?: { name: string; extensions: string[] }[];
+            }): Promise<{ canceled: boolean; filePath?: string }>;
+          };
+        }
+      ).dialog;
       if (dialog === undefined) {
         throw new Error(
           'createDefaultDiagSaveDialog: dialog.showSaveDialog недоступен (запуск вне Electron?)',

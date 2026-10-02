@@ -138,6 +138,10 @@ const SECURE_CHANNELS: readonly ChannelName[] = [
   // БД; при locked недоступны (гвардия каркаса, прецедент prefs/*).
   'privacy/journal',
   'privacy/consents',
+  // TASK-103 §8/§11: диагностический пакет — чтение БД (network_event, app_event)
+  // и запись файла (zip); при locked — честный VAULT/LOCKED до хендлера.
+  'diag/preview',
+  'diag/save',
   'report/export-csv',
   'report/export-json',
   'report/pdf',

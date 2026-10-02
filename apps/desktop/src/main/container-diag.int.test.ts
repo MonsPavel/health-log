@@ -166,7 +166,13 @@ function seedNetworkEvent(container: Container, id: string, ageDays: number): vo
     .prepare(
       'INSERT INTO network_event (id, kind, endpoint, status, bytes, at_utc) VALUES (?, ?, ?, ?, NULL, ?)',
     )
-    .run(id, 'updates.check', 'https://releases.example.com/latest', 'ok', NOW_MS - ageDays * DAY_MS);
+    .run(
+      id,
+      'updates.check',
+      'https://releases.example.com/latest',
+      'ok',
+      NOW_MS - ageDays * DAY_MS,
+    );
 }
 
 /** Сеет строку app_event заданного возраста (дней). */

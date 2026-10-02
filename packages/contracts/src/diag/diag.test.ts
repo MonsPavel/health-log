@@ -4,11 +4,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { CHANNEL_SCHEMAS } from '../schemas.js';
-import {
-  DIAG_CONTENT_SCHEMA,
-  DIAG_FILE_SCHEMA,
-  DIAG_MANIFEST_SCHEMA,
-} from './schemas.js';
+import { DIAG_CONTENT_SCHEMA, DIAG_FILE_SCHEMA, DIAG_MANIFEST_SCHEMA } from './schemas.js';
 
 const PREVIEW = CHANNEL_SCHEMAS['diag/preview'];
 const SAVE = CHANNEL_SCHEMAS['diag/save'];
@@ -75,9 +71,9 @@ describe('DIAG_MANIFEST_SCHEMA — манифест zip-пакета (§5: ве�
     expect(DIAG_MANIFEST_SCHEMA.safeParse({ formatVersion: 0, createdAtUtc: 0 }).success).toBe(
       false,
     );
-    expect(
-      DIAG_MANIFEST_SCHEMA.safeParse({ formatVersion: 1, createdAtUtc: -1 }).success,
-    ).toBe(false);
+    expect(DIAG_MANIFEST_SCHEMA.safeParse({ formatVersion: 1, createdAtUtc: -1 }).success).toBe(
+      false,
+    );
   });
 
   it('strict: отклоняет неизвестные поля', () => {

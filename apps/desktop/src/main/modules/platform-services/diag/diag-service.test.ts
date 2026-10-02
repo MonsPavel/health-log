@@ -18,11 +18,19 @@
  *
  * Время — FixedClock (NFR-10); порты — vi.fn (§19, прецедент PrivacyQueriesDeps).
  */
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import AdmZip from 'adm-zip';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { SelfCheckReport } from '@hl/contracts';
 import type { Clock } from '@hl/kernel';
@@ -85,7 +93,11 @@ interface DepsOverrides {
 }
 
 /** Фабрика зависимостей с портовыми vi.fn (§19); overrides — порог §9. */
-function makeDeps(logsDir: string, tmpDir: string, overrides: DepsOverrides = {}): {
+function makeDeps(
+  logsDir: string,
+  tmpDir: string,
+  overrides: DepsOverrides = {},
+): {
   deps: DiagBundleDeps;
   journalCalls: number[];
   totalsCalls: number[];
@@ -190,9 +202,7 @@ describe('DiagBundleService.collect — состав пакета (TASK-103 §5/
     // §7: preview — первые 20 строк; у трёхстрочного лога — все строки.
     const activeLog = content.files.find((file) => file.name === 'hl.1.log');
     expect(activeLog?.preview).toBe([...NORMAL_LOG_LINES, REDACTED_LOG_LINE].join('\n'));
-    expect(activeLog?.sizeBytes).toBe(
-      statSync(join(logsDir, 'hl.1.log')).size,
-    );
+    expect(activeLog?.sizeBytes).toBe(statSync(join(logsDir, 'hl.1.log')).size);
 
     // Манифест: версия формата 1, дата — момент FixedClock (§5).
     const manifestFile = content.files.find((file) => file.name === DIAG_MANIFEST_FILENAME);
@@ -232,7 +242,7 @@ describe('DiagBundleService.collect — состав пакета (TASK-103 §5/
     const { deps, journalCalls } = makeDeps(logsDir, tmpDir);
     const content = await new DiagBundleService(deps).collect();
 
-    const selfcheck = JSON.parse(
+    const selfcheck: unknown = JSON.parse(
       content.files.find((file) => file.name === 'selfcheck.json')?.preview ?? '',
     );
     expect(selfcheck).toEqual(SELFCHECK);
@@ -377,7 +387,9 @@ describe('DiagBundleService.saveBundle — zip и save-диалог (TASK-103 §
   it('defaultPath диалога — DIAG_BUNDLE_DEFAULT_NAME (имя пакета предлагает main)', async () => {
     const seen: Array<string | null> = [];
     const { deps, dialogResult } = makeDeps(logsDir, tmpDir);
-    const baseDeps = deps as DiagBundleDeps & { saveDialog: { save: (o: { defaultPath: string }) => Promise<string | null> } };
+    const baseDeps = deps as DiagBundleDeps & {
+      saveDialog: { save: (o: { defaultPath: string }) => Promise<string | null> };
+    };
     baseDeps.saveDialog.save = (options) => {
       seen.push(options.defaultPath);
       return Promise.resolve(dialogResult.value);

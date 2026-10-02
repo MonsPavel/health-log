@@ -23,7 +23,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PREFS_SCHEMA, type Prefs } from '@hl/contracts';
+import { PREFS_SCHEMA } from '@hl/contracts';
 import type { Instant } from '@hl/kernel';
 
 import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
@@ -80,7 +80,13 @@ afterEach(() => {
 function seedNetworkEvent(db: EncryptedDatabase, id: string, ageDays: number): void {
   db.prepare(
     'INSERT INTO network_event (id, kind, endpoint, status, bytes, at_utc) VALUES (?, ?, ?, ?, NULL, ?)',
-  ).run(id, 'updates.check', 'https://releases.example.com/latest', 'ok', NOW_MS - ageDays * DAY_MS);
+  ).run(
+    id,
+    'updates.check',
+    'https://releases.example.com/latest',
+    'ok',
+    NOW_MS - ageDays * DAY_MS,
+  );
 }
 
 function seedAppEvent(db: EncryptedDatabase, id: string, ageDays: number): void {
@@ -95,13 +101,19 @@ function seedAppEvent(db: EncryptedDatabase, id: string, ageDays: number): void 
 /** Контекст задачи (§7 074): FixedClock-момент, prefs — дефолт схемы (задачей не читается). */
 function ctxAt(utcMs: number): JobCtx {
   const now: Instant = { utcMs, tzOffsetMin: 180 };
-  return { prefs: PREFS_SCHEMA.parse({}) as Prefs, now };
+  return { prefs: PREFS_SCHEMA.parse({}), now };
 }
+
+/** Типизированные логгер-моки (§18): RotationLogger структурно. */
+type MockRotationLogger = {
+  debug: ReturnType<typeof vi.fn<(message: string, meta?: Record<string, unknown>) => void>>;
+  warn: ReturnType<typeof vi.fn<(message: string, meta?: Record<string, unknown>) => void>>;
+};
 
 describe('events.rotate — пороги 90/180 дней (TASK-103 §8/§19/AC §20-4)', () => {
   let db: EncryptedDatabase;
   let job: JobDefinition;
-  let logger: { debug: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn> };
+  let logger: MockRotationLogger;
 
   beforeEach(async () => {
     db = await freshDb('rot-events.db');
@@ -145,13 +157,13 @@ describe('events.rotate — пороги 90/180 дней (TASK-103 §8/§19/AC �
     expect(job.runOnStart).toBe(true);
     // Факт ротации в логе (§18): счётчики удалённого — наблюдаемость.
     await job.run(ctxAt(NOW_MS));
-    expect(logger.debug).toHaveBeenCalledWith(
-      expect.stringContaining('events.rotate'),
-      expect.objectContaining({
-        networkDeleted: expect.any(Number),
-        appDeleted: expect.any(Number),
-      }),
+    const debugCall = logger.debug.mock.calls.find(([message]) =>
+      message.includes('events.rotate'),
     );
+    expect(debugCall).toBeDefined();
+    const meta = debugCall?.[1] as { networkDeleted: number; appDeleted: number };
+    expect(meta.networkDeleted).toBe(1); // 91-дневная запись
+    expect(meta.appDeleted).toBe(1); // 181-дневная запись
   });
 
   it('идемпотентен: повторный прогон ничего не удаляет и не падает', async () => {
@@ -166,7 +178,7 @@ describe('events.rotate — пороги 90/180 дней (TASK-103 §8/§19/AC �
 describe('logs.rotate — удаление >30-дневных лог-файлов (TASK-103 §5/§19)', () => {
   let logsDir: string;
   let job: JobDefinition;
-  let logger: { debug: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn> };
+  let logger: MockRotationLogger;
 
   beforeEach(() => {
     logsDir = newDir('hl-diag-rotlogs-');
