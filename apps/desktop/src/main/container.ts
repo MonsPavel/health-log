@@ -60,13 +60,13 @@
  * AI-модуль (076+). EgressGateway подключён (075, §9 — singleton). Рост: при >15
  * зависимостях — деление на per-module секции-фабрики (§22).
  */
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { copyFile, mkdir } from 'node:fs/promises';
 import { totalmem } from 'node:os';
 import { basename, join } from 'node:path';
 
 import { CHANNEL_SCHEMAS } from '@hl/contracts';
-import type { BackupCreateRequest } from '@hl/contracts';
+import type { BackupCreateRequest, RecoveryContext } from '@hl/contracts';
 import { AppError, err, ok, SystemClock, type Clock, type Result } from '@hl/kernel';
 import { BP_OFFICE_ESC2018 } from '@hl/scales-data';
 
@@ -95,6 +95,8 @@ import {
   cleanupRestoreSafetyCopy,
 } from './modules/data-care/application/restore-backup.js';
 import { WipeAllDataUseCase } from './modules/data-care/application/wipe-all.js';
+// TASK-101 §5/§9: «начать заново» recovery-экрана — wipe-подмножество (unlink db/-wal/-shm).
+import { DiscardDatabaseUseCase } from './modules/data-care/application/discard-database.js';
 import { FileOpQueue } from './modules/data-care/application/file-op-queue.js';
 import {
   createAddMeasurementHandler,
@@ -105,13 +107,15 @@ import { createDeleteMeasurementHandler } from './ipc/handlers/measurements-dele
 import {
   createBackupCreateHandler,
   createBackupRestoreHandler,
+  createDataDiscardDbHandler,
   createDataWipeHandler,
 } from './ipc/handlers/data-care.js';
 import { createFileOpenDialogHandler } from './ipc/handlers/file-open-dialog.js';
 import { createPingHandler } from './ipc/handlers/ping.js';
 import { createExportCsvHandler, createExportJsonHandler } from './ipc/handlers/report.js';
 import { createBuildPdfReportHandler } from './ipc/handlers/report-pdf.js';
-import { createRevealPathHandler } from './ipc/handlers/reveal.js';
+// TASK-101 §5/§9: «Открыть папку с копиями» recovery-экрана (reveal каталога копий main).
+import { createRevealBackupsHandler, createRevealPathHandler } from './ipc/handlers/reveal.js';
 import { createSearchNotesHandler } from './ipc/handlers/search.js';
 import { createGetPrefsHandler, createSetPrefsHandler } from './ipc/handlers/prefs.js';
 // TASK-100 §5/§11: каналы сампроверки и «О приложении» — app/selfcheck (снимок),
@@ -278,6 +282,7 @@ import {
 } from './modules/security/application/ports/key-vault.js';
 import { VAULT_KEY_FILENAME } from './shared/constants.js';
 import { MigrationRunner } from './shared/db/migration-runner.js';
+import type { Migration } from './shared/db/migration-runner.js';
 import { MIGRATIONS } from './shared/db/migrations/index.js';
 import { openEncrypted, type EncryptedDatabase } from './shared/db/sqlite.js';
 import { createLogger, type HlLogger } from './shared/logger/logger.js';
@@ -416,6 +421,14 @@ function scheduleAppRelaunch(): void {
 /** Версия приложения по умолчанию (манифест копии, TASK-070 §2; bootstrap передаёт app.getVersion()). */
 const DEFAULT_APP_VERSION = '0.0.0';
 
+/**
+ * TASK-101 §9/§14: разрешённый набор secure-каналов recovery-режима (гвардия
+ * каркаса): восстановление из копии (execute без plan-фазы) и «начать заново».
+ * Остальные secure-каналы в recovery → STORAGE/RECOVERY_MODE — инвентарь-тест
+ * контейнера (§19) фиксирует закрытие КАЖДОГО secure-канала реестра.
+ */
+const RECOVERY_ALLOWED_CHANNELS: readonly string[] = ['backup/restore', 'data/discard-db'];
+
 /** Ключ APP/INTERNAL из контракта каркаса (contracts, app-error-dto.ts TASK-008). */
 const APP_INTERNAL_MESSAGE_KEY = 'errors.internal';
 
@@ -490,6 +503,12 @@ export interface ContainerDeps {
    * сборка в node-vitest безопасна); тесты подставляют мок (§19).
    */
   readonly updatesAdapter?: UpdatesAdapter;
+  /**
+   * TASK-101 §19: TEST-ONLY реестр миграций (по умолчанию — боевой MIGRATIONS);
+   * фикстура-миграция с ошибкой в тестах контейнера → ветка MIGRATION_FAILED
+   * recovery-режима. Прецедент переопределяемых фабрик каркаса (workerPool, vault).
+   */
+  readonly migrations?: readonly Migration[];
 }
 
 /**
@@ -626,6 +645,13 @@ export interface Container {
    * проверки 30 с — bootstrap (§9). Потребители — каналы vault/* (§11), UI 095.
    */
   readonly vaultService: VaultService;
+  /**
+   * TASK-101 §4/§7: контекст recovery-режима (повреждение/провал миграции — БД не
+   * открыта); undefined — обычный старт. При mode=none фиксируется при сборке, в
+   * passphrase — в openDatabase (после unlock) — поле читается гейтом App через
+   * канал app/meta (§10) и инвентарь-тестами (§19).
+   */
+  readonly recovery: RecoveryContext | undefined;
   /** Graceful shutdown (§8): wal_checkpoint(TRUNCATE) → close → terminate пула; идемпотентен. */
   close(): void;
   /**
@@ -651,6 +677,38 @@ function readSchemaVersionForLog(db: EncryptedDatabase): number {
   } catch {
     // Свежая БД — «no such table: meta»: миграций не было.
     return 0;
+  }
+}
+
+/**
+ * TASK-101 §5/§7: полный вывод PRAGMA quick_check — детали для раскрытия
+ * «Технические детали» recovery-экрана (служебные строки SQLite, без путей/PHI —
+ * §14, прецедент integrity-full details TASK-100). undefined — вывод нечитаем
+ * (соединение закрыто/сильная порча). Вызывается ДО закрытия соединения при вводе
+ * recovery-режима (§4: БД не входит в recovery).
+ */
+function readQuickCheckText(db: EncryptedDatabase): string | undefined {
+  try {
+    const rows = db.pragma('quick_check') as Array<Record<string, unknown> | string>;
+    const lines = rows.map((row) => {
+      const value: unknown = typeof row === 'string' ? row : row['quick_check'];
+      return typeof value === 'string' ? value : '';
+    });
+    const text = lines.join('\n');
+    return text.length > 0 ? text.slice(0, 4000) : undefined;
+  } catch {
+    // Массивная форма на сильной порче кидает SQLITE_CORRUPT («disk image is
+    // malformed») — простая форма (прецедент SelfCheckService.checkQuick §13 100)
+    // возвращает ПЕРВУЮ строку вывода; её достаточно для раскрытия деталей (§7).
+    try {
+      const first: unknown = db.pragma('quick_check', { simple: true });
+      if (typeof first === 'string' && first.length > 0 && first !== 'ok') {
+        return first.slice(0, 4000);
+      }
+      return undefined;
+    } catch {
+      return undefined; // соединение закрыто/читаемость потеряна — детали пустые
+    }
   }
 }
 
@@ -804,6 +862,92 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
   /** Открытое соединение; в режиме passphrase появляется только после unlock (§9). */
   let openedDb: EncryptedDatabase | undefined;
 
+  /**
+   * TASK-101 §4/§5/§7: состояние recovery-режима. Вводится при dbOk=false (corrupt)
+   * или отказе STORAGE/* на старте, кроме DB_NEWER_THAN_APP («обновите приложение» —
+   * не recovery-случай) и STORAGE/LOCKED (файл занят другим процессом — не порча).
+   * Введённое состояние: БД закрыта (§4 «приложение стартует БЕЗ рабочего
+   * контейнера»), secure-каналы гвардятся каркасом (STORAGE/RECOVERY_MODE), App
+   * рендерит RecoveryScreen вместо Layout (§10).
+   */
+  let recoveryContext: RecoveryContext | undefined;
+
+  /** Безопасное закрытие соединения при вводе recovery (Windows: дескриптор держит файл). */
+  const closeConnectionForRecovery = (): void => {
+    const connection = openedDb;
+    if (connection === undefined) {
+      return;
+    }
+    try {
+      connection.pragma('wal_checkpoint(TRUNCATE)');
+    } catch {
+      // порча может не давать чекпоинта — для recovery это не важно
+    }
+    try {
+      connection.close();
+    } catch {
+      // соединение уже закрыто — не важно для recovery
+    }
+    openedDb = undefined;
+  };
+
+  /** Вводит recovery-режим (§5/§18): контекст + закрытие БД + лог enter. */
+  const engageRecovery = (
+    reason: RecoveryContext['reason'],
+    details: RecoveryContext['details'],
+  ): void => {
+    recoveryContext = { reason, details };
+    closeConnectionForRecovery();
+    logger.info('recovery mode enter', { reason });
+  };
+
+  /**
+   * TASK-101 §5: отказ старта БД → recovery? true — режим введён (старт продолжается
+   * без рабочего контейнера), false — не recovery-исход (проброс выше, диалог 011):
+   *  - STORAGE/MIGRATION_FAILED → reason migration_failed (версия — params, §7);
+   *  - прочие STORAGE/* (CORRUPT/FAILED/CONSTRAINT — открылась, но не стала рабочей)
+   *    → reason corrupt (вывод quick_check — детали раскрытия, §7);
+   *  - STORAGE/DB_NEWER_THAN_APP и STORAGE/LOCKED — НЕ recovery: «обновите
+   *    приложение» (EC-25) и «файл занят другим процессом» — не порча данных.
+   *
+   * Определён ДО открытия БД: вызывается и из ветки открытия (порча заголовка —
+   * отказ openEncrypted), и из catch миграций/активации (§5). quick_check читается
+   * по ЖИВОМУ соединению через прокси (отказ чтения — details {} — §7).
+   */
+  const tryEngageRecoveryFromError = (error: unknown): boolean => {
+    if (!(error instanceof AppError)) {
+      return false;
+    }
+    const code = error.code;
+    if (code === 'STORAGE/DB_NEWER_THAN_APP' || code === 'STORAGE/LOCKED') {
+      return false;
+    }
+    if (!code.startsWith('STORAGE/')) {
+      return false;
+    }
+    if (code === 'STORAGE/MIGRATION_FAILED') {
+      const version = error.params?.['version'];
+      engageRecovery('migration_failed', {
+        ...(typeof version === 'number' ? { migrationVersion: version } : {}),
+      });
+      return true;
+    }
+    const quickCheck = readQuickCheckText(db);
+    engageRecovery('corrupt', quickCheck === undefined ? {} : { quickCheck });
+    return true;
+  };
+
+  /**
+   * TASK-101 §5 (самчек-путь): БД открылась и промигрировалась, но quick_check ≠ ok
+   * (порча страниц данных — миграции не задеты, прецедент corrupt-фикстуры §19) —
+   * recovery с выводом quick_check в деталях (§7). Соединение ещё живо — читается
+   * ДО закрытия (engageRecovery закрывает).
+   */
+  const engageRecoveryFromSelfcheck = (): void => {
+    const quickCheck = readQuickCheckText(db);
+    engageRecovery('corrupt', quickCheck === undefined ? {} : { quickCheck });
+  };
+
   let db: EncryptedDatabase;
   if (locked) {
     // TASK-093 §9: ленивое открытие — граф собирается по прокси (репозитории готовят
@@ -819,11 +963,22 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     }
     keyHex = ensured.value.keyHex;
     keyCreated = ensured.value.created;
-    // 4. БД (§5: openEncrypted(dbPath, keyHex) — единственная точка открытия, TASK-022).
-    openedDb = openEncrypted(dbPath, keyHex);
     // TASK-094 §5/§8: прокси — ВСЕГДА (в т.ч. mode=none): пере-резолв statements при
     // смене соединения делает безопасным путь lock → unlock (повторное открытие).
+    // До открытия: при отказе открытия (ниже) прокси остаётся закрытым — доступ к БД
+    // даёт VAULT/LOCKED (§4 recovery: «приложение стартует БЕЗ рабочего контейнера»).
     db = createLockedDatabaseProxy(() => openedDb);
+    // 4. БД (§5: openEncrypted(dbPath, keyHex) — единственная точка открытия, TASK-022).
+    //    TASK-101 §5: отказ открытия (порча заголовка — STORAGE/* при open) —
+    //    recovery-исход: режим введён, старт продолжается без рабочего контейнера;
+    //    прочие отказы — проброс выше (диалог 011).
+    try {
+      openedDb = openEncrypted(dbPath, keyHex);
+    } catch (error) {
+      if (!tryEngageRecoveryFromError(error)) {
+        throw error;
+      }
+    }
   }
   try {
     // 4.5. Data Care (TASK-070 §5): use case CreateBackup — ДО миграций: hook
@@ -878,7 +1033,16 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     };
     const restoreBackup = new RestoreBackupUseCase({
       currentDb: db,
-      closeCurrentDb,
+      // TASK-101 §5/§8: в recovery соединение УЖЕ закрыто (ввод режима) —
+      // safe-close no-op (lockCloseDatabase); в здоровом режиме — прежний
+      // контракт (сбой закрытия = отказ восстановления ДО подмены файлов).
+      closeCurrentDb: () => {
+        if (recoveryContext !== undefined) {
+          lockCloseDatabase();
+          return;
+        }
+        closeCurrentDb();
+      },
       dbPath,
       verifyDatabaseOpens: (path) => {
         openEncrypted(path, keyHex).close();
@@ -890,6 +1054,10 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       safetyFlagPath: join(deps.userDataPath, RESTORE_SAFETY_FLAG_FILENAME),
       clock,
       appVersion,
+      // TASK-101 §13: гард «копия новее-схемы» против реестра (в recovery текущая БД
+      // нечитаема — сравнивать с ней нечего); §5 — misuse-гард recovery-формы.
+      maxKnownSchemaVersion: (deps.migrations ?? MIGRATIONS).at(-1)?.version ?? 0,
+      isRecoveryMode: () => recoveryContext !== undefined,
     });
     const wipeAllData = new WipeAllDataUseCase({
       db,
@@ -898,6 +1066,18 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       vaultKeyPath: vaultFilePath,
       logsDir: deps.logsDirPath ?? join(deps.userDataPath, 'logs'),
       backupsDir,
+      logger: dbLogger,
+      queue: fileOpQueue,
+      relaunch: scheduleAppRelaunch,
+    });
+    //    TASK-101 §5/§8/§9: «начать заново» recovery-экрана — wipe-подмножество
+    //    (unlink db/-wal/-shm + отложенный relaunch; ключ/копии/логи остаются —
+    //    EC-14). closeCurrentDb — safe-close: в recovery соединение уже закрыто
+    //    (no-op). Канал data/discard-db регистрируется ТОЛЬКО в recovery-режиме
+    //    (registerRecoveryChannels — секция IPC ниже).
+    const discardDatabase = new DiscardDatabaseUseCase({
+      dbPath,
+      closeCurrentDb: lockCloseDatabase,
       logger: dbLogger,
       queue: fileOpQueue,
       relaunch: scheduleAppRelaunch,
@@ -912,21 +1092,40 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     ): Promise<{ schemaVersion: number; migrationsApplied: number }> => {
       const schemaVersionBefore = readSchemaVersionForLog(connection);
       await new MigrationRunner({
-        migrations: MIGRATIONS,
+        // TASK-101 §19: TEST-ONLY реестр (фикстура-миграция с ошибкой — ветка
+        // MIGRATION_FAILED); боевой путь — реестр MIGRATIONS.
+        migrations: deps.migrations ?? MIGRATIONS,
         beforeMigration: createPreMigrationBackupHook(createBackup),
       }).migrate(connection);
-      // После успешного migrate схема на максимальной версии реестра (иначе — throw выше).
-      const schemaVersion = MIGRATIONS.at(-1)?.version ?? schemaVersionBefore;
+      // После успешного migrate схема на максимальной версии РЕЕСТРА (иначе —
+      // throw выше; TEST-ONLY реестр — на его максимуме).
+      const schemaVersion = (deps.migrations ?? MIGRATIONS).at(-1)?.version ?? schemaVersionBefore;
       return { schemaVersion, migrationsApplied: schemaVersion - schemaVersionBefore };
     };
-    const { schemaVersion, migrationsApplied } = locked
-      ? { schemaVersion: 0, migrationsApplied: 0 } // факты лога — в openDatabase (§9)
-      : await applyMigrations(db);
+    let schemaVersion = 0;
+    let migrationsApplied = 0;
+    if (locked) {
+      // факты лога — в openDatabase (§9)
+    } else if (recoveryContext === undefined) {
+      // TASK-101 §5: отказ миграций STORAGE/* → recovery (режим введён — сборка
+      // продолжается без рабочего контейнера); прочие отказы — проброс (диалог 011).
+      try {
+        ({ schemaVersion, migrationsApplied } = await applyMigrations(db));
+      } catch (error) {
+        if (!tryEngageRecoveryFromError(error)) {
+          throw error;
+        }
+      }
+    }
 
     // 5.5. Data Care (TASK-073, подключение §14 071): страховка прошлого
     //      восстановления удаляется при УСПЕШНОМ старте (БД открыта и промигрирована
     //      — она больше не нужна); сбой чистки старт не валит (best-effort boolean).
-    if (cleanupRestoreSafetyCopy(join(deps.userDataPath, RESTORE_SAFETY_FLAG_FILENAME))) {
+    //      TASK-101: в recovery старт неуспешен — страховка остаётся (§8).
+    if (
+      recoveryContext === undefined &&
+      cleanupRestoreSafetyCopy(join(deps.userDataPath, RESTORE_SAFETY_FLAG_FILENAME))
+    ) {
       dbLogger.debug('restoreBackup: страховка прошлого восстановления удалена при старте');
     }
 
@@ -989,11 +1188,18 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //      канала scales/active; кэш в памяти (§15).
     const scaleRepo = new SqliteScaleRepository(db, { clock, logger: dbLogger });
     const scaleService = new ScaleService({ repo: scaleRepo, logger, data: BP_OFFICE_ESC2018 });
-    // Активация — часть старта (§5): отказ STORAGE/* пробрасывается выше →
-    // глобальный хендлер TASK-011 (шкала критична, §7). TASK-093 §9: в режиме
-    // passphrase — в openDatabase (БД ещё закрыта).
-    if (!locked) {
-      await scaleService.ensureActivated();
+    // Активация — часть старта (§5): отказ STORAGE/* — recovery-исход (TASK-101 §5:
+    // «открылась, но не стала рабочей») или проброс выше (диалог 011). TASK-093 §9:
+    // в режиме passphrase — в openDatabase (БД ещё закрыта). В recovery не вызывается
+    // (БД закрыта — чтения недоступны, §4).
+    if (!locked && recoveryContext === undefined) {
+      try {
+        await scaleService.ensureActivated();
+      } catch (error) {
+        if (!tryEngageRecoveryFromError(error)) {
+          throw error;
+        }
+      }
     }
     //      TASK-054: GetPeriodStatistics — use case канала stats/period (тонкая
     //      сборка: период → границы → точки порта → read model 052 + classification
@@ -1356,7 +1562,11 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //    err не кэшируется — повтор после unlock работает (прецедент ensureKey §13).
     let opening: Promise<Result<void, AppError>> | undefined;
     const openDatabase = async (): Promise<Result<void, AppError>> => {
-      if (openedDb !== undefined) {
+      // Уже открыто — ok немедленно (повторный вызов после unlock — не второе
+      // соединение); TASK-101 §5: recovery уже введён — БД не открывается до
+      // восстановления/чистого старта (повторный unlock не пересобирает режим;
+      // гейт App по meta показывает RecoveryScreen — §10).
+      if (openedDb !== undefined || recoveryContext !== undefined) {
         return ok(undefined);
       }
       opening ??= (async (): Promise<Result<void, AppError>> => {
@@ -1365,7 +1575,19 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
           // До unlock — VAULT/LOCKED (§9); прочие коды vault-а — как есть.
           return err(ensured.error);
         }
-        const connection = openEncrypted(dbPath, ensured.value.keyHex);
+        let connection: EncryptedDatabase;
+        try {
+          connection = openEncrypted(dbPath, ensured.value.keyHex);
+        } catch (error) {
+          // TASK-101 §5: отказ ОТКРЫТИЯ (порча заголовка — STORAGE/BAD_KEY и др.) —
+          // recovery-исход: сессия открывается, App по meta показывает
+          // RecoveryScreen (§10); прочие отказы — прежний контракт (наружу AppError).
+          if (tryEngageRecoveryFromError(error)) {
+            registerRecoveryChannels();
+            return ok(undefined);
+          }
+          throw error;
+        }
         // Прокси-граф (в т.ч. hook авто-копий миграций) начинает видеть соединение
         // сразу после открытия — до миграций.
         openedDb = connection;
@@ -1374,7 +1596,15 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
           keyCreated = ensured.value.created;
           const versions = await applyMigrations(connection);
           await scaleService.ensureActivated();
-          await selfcheck.run();
+          const snapshot = await selfcheck.run();
+          // TASK-101 §5 (самчек-путь): открылась и промигрировалась, но quick_check
+          // ≠ ok — recovery (§7: детали — вывод quick_check по живому соединению).
+          // Сессия открывается (пароль верен), гейт App показывает RecoveryScreen.
+          if (!snapshot.dbOk) {
+            engageRecoveryFromSelfcheck();
+            registerRecoveryChannels();
+            return ok(undefined);
+          }
           logger.info('container ready', {
             db: basename(dbPath),
             schemaVersion: versions.schemaVersion,
@@ -1384,6 +1614,13 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
           });
           return ok(undefined);
         } catch (error) {
+          // TASK-101 §5: отказ открытия/миграций STORAGE/* — recovery (§5 «ветка
+          // dbOk=false»); tryEngage читает quick_check по ЖИВОМУ соединению (§7),
+          // затем закрывает его. Сессия открывается, App — RecoveryScreen (§10).
+          if (tryEngageRecoveryFromError(error)) {
+            registerRecoveryChannels();
+            return ok(undefined);
+          }
           // Дескриптор не переживает неудачное открытие (Windows: файл заблокирован);
           // граф возвращается в locked — доступ до успеха даёт LOCKED.
           openedDb = undefined;
@@ -1432,8 +1669,14 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //    Сбой quick_check НЕ прерывает старт: dbOk=false — реакцию решает recovery
     //    TASK-101 (разделение «обнаружить» и «реагировать», тест 100); резюме старта —
     //    одна строка лога (§18 — пишет сам сервис: dbOk, schemaVersion, startupMs).
+    //    TASK-101 §5 (самчек-путь): dbOk=false при здоровых миграциях (порча страниц
+    //    ДАННЫХ — schema не задета) — recovery-исход: контекст с выводом quick_check
+    //    (§7), соединение закрывается, каналы recovery на месте (регистрация ниже).
     if (!locked) {
-      await selfcheck.run();
+      const snapshot = await selfcheck.run();
+      if (recoveryContext === undefined && !snapshot.dbOk) {
+        engageRecoveryFromSelfcheck();
+      }
     }
 
     // 8. IPC-регистрация (§11 — в конце buildContainer): хендлеры каркаса и каналы
@@ -1446,9 +1689,13 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
     //    TASK-094 §7/§9/§11: реестр получает гвардию requireUnlocked (isUnlocked —
     //    состояние VaultService; secure-каналы при locked → VAULT/LOCKED) и
     //    idle-трекер (onActivity — любой вызов hl.* продлевает окно автоблока).
+    //    TASK-101 §5/§9/§14: recovery-гвардия — в recovery secure-каналы вне
+    //    разрешённого набора → STORAGE/RECOVERY_MODE ДО валидации payload.
     const channels = createChannelRegistry(createLogger('ipc'), {
       isUnlocked: () => vaultService.isUnlocked(),
       onActivity: () => vaultService.touchActivity(),
+      isRecovery: () => recoveryContext !== undefined,
+      recoveryAllowed: RECOVERY_ALLOWED_CHANNELS,
     });
     channels.register('app/ping', CHANNEL_SCHEMAS['app/ping'], createPingHandler(clock));
     channels.register(
@@ -1582,6 +1829,26 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       CHANNEL_SCHEMAS['data/wipe'],
       createDataWipeHandler(wipeAllData),
     );
+    //    TASK-101 §5/§9: `data/discard-db` («начать заново», secure) — ТОЛЬКО в
+    //    recovery-режиме: в здоровом канал «неизвестный» (APP/INTERNAL — инвентарь
+    //    healthy-контейнера §19). В passphrase recovery вводится позже (openDatabase
+    //    после unlock) — регистрация откладывается до ввода режима (вызов из
+    //    openDatabase); mode=none recovery уже введён здесь — регистрируем сразу.
+    let recoveryChannelsRegistered = false;
+    const registerRecoveryChannels = (): void => {
+      if (recoveryChannelsRegistered) {
+        return;
+      }
+      recoveryChannelsRegistered = true;
+      channels.register(
+        'data/discard-db',
+        CHANNEL_SCHEMAS['data/discard-db'],
+        createDataDiscardDbHandler(discardDatabase),
+      );
+    };
+    if (recoveryContext !== undefined) {
+      registerRecoveryChannels();
+    }
     channels.register(
       'file/open-dialog',
       CHANNEL_SCHEMAS['file/open-dialog'],
@@ -1594,6 +1861,24 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         void electronRevealPath(path).catch(() => {
           // §18: без путей и причин (userData содержит имя Windows-пользователя).
           logger.warn('app/reveal-path: не удалось открыть папку с файлом');
+        });
+      }),
+    );
+    // TASK-101 §5/§9: «Открыть папку с копиями» recovery-экрана — путь строит main
+    // (§14: renderer пути не знает); каталог создаётся при отсутствии (первый запуск
+    // без копий). Отказ reveal — warn, конверт всегда ok null (fire-and-forget §9).
+    channels.register(
+      'app/reveal-backups',
+      CHANNEL_SCHEMAS['app/reveal-backups'],
+      createRevealBackupsHandler(() => {
+        try {
+          mkdirSync(backupsDir, { recursive: true });
+        } catch {
+          // отсутствующий каталог — не сбой канала: reveal всё равно попытается
+        }
+        void electronRevealPath(backupsDir).catch(() => {
+          // §18: без путей и причин (userData содержит имя Windows-пользователя).
+          logger.warn('app/reveal-backups: не удалось открыть папку с копиями');
         });
       }),
     );
@@ -1772,6 +2057,9 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
           return { code: scale.code, version: scale.version };
         },
         model: modelMeta,
+        // TASK-101 §9/§10: ЛЕНИВОЕ чтение состояния — в passphrase recovery вводится
+        // после unlock (позже регистрации канала), гейт App перечитывает meta.
+        recovery: () => recoveryContext,
       }),
     );
     channels.register(
@@ -1817,6 +2105,11 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       selfcheck,
       vaultService,
       openDatabase,
+      // TASK-101 §4/§7: геттер, не снимок — в passphrase recovery вводится ПОСЛЕ
+      // сборки (openDatabase после unlock), потребители читают актуальное состояние.
+      get recovery() {
+        return recoveryContext;
+      },
       close(): void {
         if (closed) {
           return; // идемпотентность: повторный will-quit — no-op

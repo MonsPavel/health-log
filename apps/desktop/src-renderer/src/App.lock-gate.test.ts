@@ -68,12 +68,17 @@ describe('App — гейт блокировки (TASK-095 §13/§14/§20)', () =
     expect(screen.queryByRole('heading', { name: 'Настройки' })).toBeNull();
     // §15: показ оверлея — без запросов прикладных данных. prefs/get — каркасный
     // вызов провайдера темы (при locked отвечает гвардия VAULT/LOCKED — §7 094),
-    // данных не приносит; vault/status — сам источник гейта; heartbeat — сигнал.
+    // данных не приносит; vault/status — сам источник гейта; app/meta — источник
+    // гейта восстановления TASK-101 §10 (версии/режим, НЕ secure — БД не читает);
+    // heartbeat — сигнал.
     const dataChannels = invoke.mock.calls
       .map((call) => String(call[0]))
       .filter(
         (channel) =>
-          channel !== 'vault/status' && channel !== 'app/heartbeat' && channel !== 'prefs/get',
+          channel !== 'vault/status' &&
+          channel !== 'app/heartbeat' &&
+          channel !== 'prefs/get' &&
+          channel !== 'app/meta',
       );
     expect(dataChannels).toEqual([]);
   });

@@ -116,9 +116,15 @@ describe('ErrorCode: реестр кодов (§5)', () => {
   });
 
   // TASK-094 §4/§13: экспоненциальный rate-limit unlock — попытка в окне backoff
-  // отклоняется ДО проверки пароля (перебор непрактичен, §3); backoffSec в params —
+  // отклоняется ДО проверки пароля (перебор непрактичен, §3/§14); backoffSec в params —
   // текст «Подождите N с» (§17).
   it('код VAULT/RATE_LIMITED присутствует (TASK-094)', () => {
     expect(ERROR_CODES).toContain('VAULT/RATE_LIMITED');
+  });
+
+  // TASK-101 §5/§11/§14: recovery-режим — secure-каналы вне разрешённого набора
+  // отклоняются гвардией каркаса (БД не открыта, поверх LOCKED-семантики).
+  it('код STORAGE/RECOVERY_MODE присутствует (TASK-101)', () => {
+    expect(ERROR_CODES).toContain('STORAGE/RECOVERY_MODE');
   });
 });

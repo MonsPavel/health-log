@@ -166,10 +166,15 @@ export type BackupRestorePlan = z.output<typeof BACKUP_RESTORE_PLAN_SCHEMA>;
  * после явного confirmed=true вторым вызовом — против случайного двойного клика):
  *  - фаза 1 `{file, passphrase, confirmed: false}` → `{plan}`|ошибки;
  *  - фаза 2 `{file, passphrase, confirmed: true}` → `{restarting: true}`.
+ * TASK-101 §5/§11: третий вариант `{file, passphrase, recovery: true}` —
+ * recovery-выполнение из recovery-экрана: фазы plan НЕТ (сравнение с текущей
+ * повреждённой БД пропускается — «нечего сравнивать», §5/§8), страховка текущей БД
+ * не создаётся («нечего страховать», §8). Формы различны по ключам — plain union
+ * (общего discriminator нет), strict.
  * `file` — путь контейнера, выбранного рендерером диалогом (073); пароль копии —
  * обязательное непустое поле (IPC-гигиена §14: лимит длины, как у backup/create).
  */
-export const BACKUP_RESTORE_REQUEST_SCHEMA = z.discriminatedUnion('confirmed', [
+export const BACKUP_RESTORE_REQUEST_SCHEMA = z.union([
   z
     .object({
       confirmed: z.literal(false),
@@ -180,6 +185,13 @@ export const BACKUP_RESTORE_REQUEST_SCHEMA = z.discriminatedUnion('confirmed', [
   z
     .object({
       confirmed: z.literal(true),
+      file: z.string().min(1).max(1024),
+      passphrase: z.string().min(1).max(1024),
+    })
+    .strict(),
+  z
+    .object({
+      recovery: z.literal(true),
       file: z.string().min(1).max(1024),
       passphrase: z.string().min(1).max(1024),
     })
@@ -261,3 +273,20 @@ export type DataWipeFile = z.output<typeof DATA_WIPE_FILE_SCHEMA>;
 export type DataWipePlan = z.output<typeof DATA_WIPE_PLAN_SCHEMA>;
 export type DataWipeRequest = z.output<typeof DATA_WIPE_REQUEST_SCHEMA>;
 export type DataWipeResponse = z.output<typeof DATA_WIPE_RESPONSE_SCHEMA>;
+
+/**
+ * TASK-101 §5/§9/§11: «начать заново» на recovery-экране — wipe-подмножество:
+ * {} → {restarting: true} (main закрывает соединение, удаляет ТОЛЬКО файлы
+ * db/-wal/-shm и перезапускает приложение; ключ, копии и логи остаются — EC-14:
+ * копии пользователя не трогаются, §8). Канал регистрируется ТОЛЬКО в
+ * recovery-режиме (в здоровом — «неизвестный канал»); secure — файловая операция
+ * данных. Пути от renderer не принимаются (§14 — прецедент data/wipe 072).
+ */
+export const DATA_DISCARD_DB_REQUEST_SCHEMA = z.object({}).strict();
+
+export const DATA_DISCARD_DB_RESPONSE_SCHEMA = z
+  .object({ restarting: z.literal(true) })
+  .strict();
+
+export type DataDiscardDbRequest = z.output<typeof DATA_DISCARD_DB_REQUEST_SCHEMA>;
+export type DataDiscardDbResponse = z.output<typeof DATA_DISCARD_DB_RESPONSE_SCHEMA>;

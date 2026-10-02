@@ -36,9 +36,10 @@
  *    данных (AC-5 «данные работоспособны»);
  *  - копия с kdf id 'db-key' (авто-копия hook'а, машиносвязная) паролем не
  *    расшифровывается в принципе → BACKUP/INTEGRITY (cause объясняет вид копии);
- *  - точка расширения TASK-101 (§23): recovery-восстановление при повреждённой
- *    текущей БД переиспользует execute с пропуском plan-сравнения (параметр
- *    recovery) — здесь НЕ реализуется.
+ *  - TASK-101 (§5/§8/§13, реализовано здесь): recovery-выполнение `{recovery: true}`
+ *    — БЕЗ plan-фазы (сравнение с повреждённой текущей БД пропускается) и БЕЗ
+ *    страховки («нечего страховать»); гард «копия новее-схемы» сверяется с максимумом
+ *    РЕЕСТРА миграций (deps.maxKnownSchemaVersion) — текущая-страховка нечитаема.
  *
  * Ошибки (§5/§13): наружу только AppError значением Result (прецедент 070):
  *  - BACKUP/DB_NEWER — копия новее текущей схемы (params {schemaVersion});
@@ -124,14 +125,24 @@ export interface RestoreBackupLogger {
   error(message: string, meta?: Record<string, unknown>): void;
 }
 
-/** Команда восстановления (§11: канал `backup/restore`, discriminated по confirmed). */
+/** Команда восстановления (§11: канал `backup/restore`, формы по confirmed/recovery). */
 export interface RestoreBackupCommand {
   /** Путь контейнера копии (выбор пользователя — диалог 073). */
   readonly file: string;
   /** Пароль копии (§8). */
   readonly passphrase: string;
-  /** false → план (фаза 1); true → замена + перезапуск (фаза 2, §7). */
-  readonly confirmed: boolean;
+  /**
+   * false → план (фаза 1); true → замена + перезапуск (фаза 2, §7). Обязателен
+   * для обычного пути; recovery-форма ({recovery: true}, TASK-101 §5) его НЕ несёт
+   * — фазы plan у recovery-выполнения нет.
+   */
+  readonly confirmed?: boolean;
+  /**
+   * TASK-101 §5/§8/§11: recovery-выполнение (recovery-экран) — фазы plan НЕТ,
+   * сравнение с текущей БД пропускается (повреждённая/несовместимая), страховка
+   * не создаётся («нечего страховать», §8). undefined — обычный двухфазный путь.
+   */
+  readonly recovery?: boolean;
 }
 
 /** Дельта схемы копии против текущей БД (§5/§13). */
@@ -190,6 +201,24 @@ export interface RestoreBackupDeps {
   readonly clock: Clock;
   /** Версия приложения (манифест страховки; bootstrap — app.getVersion()). */
   readonly appVersion: string;
+  /**
+   * TASK-101 §13: максимум версии схемы, известный приложению (реестр MIGRATIONS).
+   * Гард recovery-пути «копия новее-схемы» (та же защита 071): в recovery текущая
+   * БД нечитаема (сравнение с ней пропускается — §5), поэтому копия сверяется с
+   * максимумом РЕЕСТРА. Боевой контейнер передаёт всегда; undefined — гард не
+   * выполняется (допустимо только в тестах).
+   */
+  readonly maxKnownSchemaVersion?: number;
+  /**
+   * TASK-101 §5 (misuse-гард, инвентарь-тест healthy-контейнера): признак
+   * recovery-режима контейнера. recovery-выполнение ({recovery: true}) БЕЗ
+   * сравнения и страховки допустимо ТОЛЬКО в recovery (§5): в здоровом режиме та
+   * же форма отклоняется VALIDATION/FAILED ДО любых файловых операций (обычный
+   * путь — двухфазный 071). Боевой — замыкание состояния контейнера, передаётся
+   * ВСЕГДА; undefined — гард не выполняется (сборки без контейнера — только тесты
+   * use case, прецедент maxKnownSchemaVersion).
+   */
+  readonly isRecoveryMode?: () => boolean;
 }
 
 /**
@@ -203,11 +232,125 @@ export class RestoreBackupUseCase {
   async execute(
     command: RestoreBackupCommand,
   ): Promise<Result<RestoreBackupResultValue, AppError>> {
+    // TASK-101 §5: recovery-путь — файловая операция под очередью, БЕЗ фазы plan.
+    if (command.recovery === true) {
+      // Misuse-гард (§5): форма {recovery: true} допустима ТОЛЬКО в recovery-режиме
+      // контейнера — в здоровом отклоняется до любых файловых операций (обычный
+      // путь восстановления — двухфазный 071, со страховкой и сравнением). Гард
+      // активен только при явном dep (боевая сборка контейнера — всегда).
+      if (this.deps.isRecoveryMode !== undefined && this.deps.isRecoveryMode() !== true) {
+        return {
+          ok: false,
+          error: AppError.of(
+            'VALIDATION/FAILED',
+            'errors.validation',
+            undefined,
+            'recovery-выполнение вне recovery-режима',
+          ),
+        };
+      }
+      return this.deps.queue.run(() => this.runRecoveryExecute(command));
+    }
     // План — только чтение (файл копии + meta текущей БД): без очереди.
     // Execute — файловая операция (страховка/подмена) — строго под FileOpQueue.
     return command.confirmed
       ? this.deps.queue.run(() => this.runExecute(command))
       : this.runPlan(command);
+  }
+
+  /**
+   * TASK-101 §5/§8/§13: recovery-выполнение — единственный вызов, без plan-фазы:
+   *  1. валидация команды + разбор контейнера (манифест zod — как в 071);
+   *  2. гард «копия новее-схемы» (§13 «та же защита 071»): schema_version копии
+   *     против максимума РЕЕСТРА (текущая БД нечитаема — сравнение с ней пропущено,
+   *     §5); отказ DB_NEWER ДО любых файловых операций;
+   *  3. closeCurrentDb (в recovery соединение уже закрыто — safe-close no-op);
+   *  4. GCM-расшифровка копии + sha256 — отказ здесь (неверный пароль, §13
+   *     инлайн-retry) НЕ трогает файлы (подмены ещё не было — пользователь повторяет);
+   *  5. удаление db/-wal/-shm → запись снапшота на место db → verifyDatabaseOpens;
+   *  6. relaunch (§9).
+   * Страховки НЕТ (§8 «нечего страховать» — удалять/заменять нечего, повреждённые
+   * данные нечитаемы); откат не предусмотрен тем же решением.
+   */
+  private async runRecoveryExecute(
+    command: RestoreBackupCommand,
+  ): Promise<Result<RestoreBackupResultValue, AppError>> {
+    const startedAtMs = performance.now();
+    let manifest: BackupManifest;
+    try {
+      const invalid = this.validateCommand(command);
+      if (invalid !== undefined) {
+        return { ok: false, error: invalid };
+      }
+
+      // 1. Разбор контейнера + манифест zod (машиносвязная db-key-копия — INTEGRITY).
+      manifest = await this.readValidatedManifest(command.file);
+
+      // 2. Гард «копия новее-схемы» против реестра (§13; сравнение с текущей БД
+      //    пропущено — она нечитаема). undefined-порог — только тесты (см. deps).
+      if (
+        this.deps.maxKnownSchemaVersion !== undefined &&
+        manifest.schemaVersion > this.deps.maxKnownSchemaVersion
+      ) {
+        return { ok: false, error: errDbNewer(manifest) };
+      }
+
+      this.deps.logger.info('recovery restore execute', {
+        file: basename(command.file),
+        schemaVersion: manifest.schemaVersion,
+      });
+    } catch (error) {
+      this.deps.logger.error('restoreBackup: сбой recovery-восстановления (до подмены)', {
+        code: mapContainerError(error).code,
+        durationMs: Math.round(performance.now() - startedAtMs),
+      });
+      return { ok: false, error: mapContainerError(error) };
+    }
+
+    // 3. Закрытие (в recovery — no-op; в passphrase-recovery соединение уже закрыто).
+    this.deps.closeCurrentDb();
+
+    try {
+      // 4. GCM-расшифровка копии + sha256 (неверный пароль → файлы не тронуты).
+      const contentKey = await this.deps.crypto.contentKeyFor(manifest.kdf, {
+        kind: 'passphrase',
+        passphrase: command.passphrase,
+      });
+      const read = await this.deps.crypto.readContainer({
+        containerPath: command.file,
+        contentKey,
+      });
+      if (sha256Bytes(read.payload) !== manifest.dbSha256) {
+        throw new SnapshotShaMismatchError();
+      }
+
+      // 5. Подмена (§8): файлы db/-wal/-shm удалены, снапшот на место db.
+      this.removeDatabaseFiles();
+      writeFileSync(this.deps.dbPath, read.payload);
+
+      // 6. Открытие копии после подмены (§8) — чужой ключ/порча → отказ (страховки
+      //    нет по решению §8: повреждённые данные нечитаемы, возвращать нечего).
+      this.deps.verifyDatabaseOpens(this.deps.dbPath);
+    } catch (replaceError) {
+      const failed = mapContainerError(replaceError);
+      this.deps.logger.error(
+        'restoreBackup: recovery-восстановление не удалось (файлы не заменены)',
+        {
+          code: failed.code,
+          durationMs: Math.round(performance.now() - startedAtMs),
+        },
+      );
+      return { ok: false, error: failed };
+    }
+
+    this.deps.logger.info('restore success', {
+      file: basename(command.file),
+      schemaVersion: manifest.schemaVersion,
+      recovery: true,
+      durationMs: Math.round(performance.now() - startedAtMs),
+    });
+    this.deps.relaunch();
+    return { ok: true, value: { restarting: true } };
   }
 
   /** Фаза 1 (§5): план. Только чтение — текущая БД не закрывается. */

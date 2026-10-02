@@ -11,6 +11,13 @@
  * TASK-094 §9 (idle-трекер): любой валидный транспортный запрос hl.* обновляет
  * lastActivity (onActivity — один патч каркаса; VaultService продлевает окно автоблока).
  *
+ * TASK-101 §5/§9/§11/§14 (recovery-гвардия): расширение LOCKED-семантики — в
+ * recovery-режиме (БД не открыта) secure-каналы вне разрешённого набора
+ * (`recoveryAllowed`) отклоняются конвертом STORAGE/RECOVERY_MODE ДО валидации
+ * payload (поверхность максимальна узкая — для заблокированного канала не работает
+ * даже zod; инвентарь-тест контейнера фиксирует список разрешённых). Не-secure
+ * каналы каркаса (app/*, file/open-dialog, vault/status|unlock|lock) не гвардятся.
+ *
  * Транспорт: один канал `hl:invoke` (contracts.HL_INVOKE_CHANNEL), в который preload
  * кладёт {channel, payload} — у Electron нет hook на invoke незарегистрированного
  * канала, поэтому проверку «канал существует?» выполняет каркас (§11/§20). Прямые
@@ -22,6 +29,7 @@ import {
   apiFailure,
   apiSuccess,
   APP_INTERNAL_ERROR,
+  RECOVERY_MODE_ERROR,
   VAULT_LOCKED_ERROR,
   VALIDATION_FAILED_ERROR,
   HL_INVOKE_CHANNEL,
@@ -96,6 +104,18 @@ export interface ChannelRegistryOptions {
   readonly isUnlocked?: () => boolean;
   /** TASK-094 §9: idle-трекер — вызывается на КАЖДЫЙ валидный транспортный запрос. */
   readonly onActivity?: () => void;
+  /**
+   * TASK-101 §5/§9: признак recovery-режима (БД не открыта — контейнер); undefined /
+   * false — гвардия не активна (обычный старт). Боевой — состояние recovery
+   * контейнера (замыкание buildContainer).
+   */
+  readonly isRecovery?: () => boolean;
+  /**
+   * TASK-101 §9: secure-каналы, разрешённые в recovery-режиме (backup/restore —
+   * recovery-execute; data/discard-db — «начать заново»). Остальные secure —
+   * STORAGE/RECOVERY_MODE (инвентарь-тест контейнера TASK-101 §19).
+   */
+  readonly recoveryAllowed?: readonly string[];
 }
 
 /** Фабрика реестра: чистая (без Electron) — интеграционные тесты гоняют её напрямую (§19). */
@@ -137,6 +157,18 @@ export function createChannelRegistry(
       if (entry === undefined) {
         logger.error('неизвестный IPC-канал', { channel: transport.data.channel });
         return apiFailure(APP_INTERNAL_ERROR);
+      }
+
+      // (1.5) TASK-101 §5/§9/§11/§14: recovery-гвардия — ДО валидации payload
+      // (поверхность максимальна узкая): secure-канал вне разрешённого набора в
+      // recovery-режиме отклоняется конвертом STORAGE/RECOVERY_MODE (зеркало
+      // requireUnlocked п. 2.5, ЕДИНАЯ обёртка каркаса).
+      if (
+        entry.secure &&
+        options.isRecovery?.() === true &&
+        options.recoveryAllowed?.includes(channel) !== true
+      ) {
+        return apiFailure(RECOVERY_MODE_ERROR);
       }
 
       // (2) payload валиден? — иначе VALIDATION/FAILED, handler не вызывается (§13, §20).

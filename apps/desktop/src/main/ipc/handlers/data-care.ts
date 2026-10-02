@@ -21,6 +21,8 @@ import type {
   BackupRestorePlan,
   BackupRestoreRequest,
   BackupRestoreResponse,
+  DataDiscardDbRequest,
+  DataDiscardDbResponse,
   DataWipeRequest,
   DataWipeResponse,
 } from '@hl/contracts';
@@ -102,5 +104,25 @@ function toPlanDto(plan: RestorePlan): BackupRestorePlan {
     counts: plan.manifest.counts,
     currentCounts: plan.currentCounts,
     warnings: [...plan.warnings],
+  };
+}
+
+/**
+ * Фабрика хендлера `data/discard-db` (TASK-101 §5/§9/§11): «начать заново» на
+ * recovery-экране — {} → {restarting: true} (unlink db/-wal/-shm + отложенный
+ * relaunch, §8). Канал регистрируется ТОЛЬКО в recovery-режиме (в здоровом —
+ * «неизвестный канал» — инвентарь-тест контейнера); подтверждения — забота UI
+ * (двойное подтверждение §13), use case подтверждений не имеет.
+ */
+export function createDataDiscardDbHandler(useCase: {
+  execute(): Promise<Result<DataDiscardDbResponse, AppError>>;
+}): (payload: DataDiscardDbRequest) => Promise<DataDiscardDbResponse> {
+  return async () => {
+    const resolved = await useCase.execute();
+    if (isErr(resolved)) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- наружу только AppError (§9; каркас конвертирует в ApiFailure(toDto), прецедент data/wipe)
+      throw resolved.error;
+    }
+    return resolved.value;
   };
 }

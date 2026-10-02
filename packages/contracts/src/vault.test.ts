@@ -117,6 +117,10 @@ const SECURE_CHANNELS: readonly ChannelName[] = [
   'ai/summary/latest',
   'backup/create',
   'backup/restore',
+  // TASK-101 §5/§9/§14: «начать заново» recovery-экрана — файловая операция данных
+  // (unlink db/-wal/-shm); регистрируется только в recovery-режиме и в его наборе
+  // разрешённых secure-каналов (инвентарь-тест контейнера TASK-101).
+  'data/discard-db',
   'data/wipe',
   'measurements/add',
   'measurements/delete',
@@ -165,6 +169,9 @@ const OPEN_CHANNELS: readonly ChannelName[] = [
   // в наборе доступных каналов (определение режима приложения до роутера).
   'app/selfcheck',
   'app/meta',
+  // TASK-101 §5/§9/§14: «Открыть папку с копиями» recovery-экрана — путь каталога
+  // копий строит main, запрос параметров не несёт (прецедент app/reveal-path).
+  'app/reveal-backups',
   'file/open-dialog',
   'vault/lock',
   'vault/status',

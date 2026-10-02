@@ -65,8 +65,12 @@ describe('типы реестра — компилятор выводит payloa
       | 'app/selfcheck'
       | 'app/meta'
       | 'app/integrity-full'
+      // TASK-101 §5/§9: «Открыть папку с копиями» recovery-экрана (путь строит main).
+      | 'app/reveal-backups'
       | 'backup/create'
       | 'backup/restore'
+      // TASK-101 §5/§9: «начать заново» — wipe-подмножество (unlink db/-wal/-shm).
+      | 'data/discard-db'
       | 'data/wipe'
       | 'file/open-dialog'
       | 'measurements/add'

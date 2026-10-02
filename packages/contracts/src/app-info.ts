@@ -9,10 +9,15 @@
  *  - `app/selfcheck {} → SelfCheckReport | null` — отчёт из памяти main; null —
  *    самчек ещё не выполнялся (старт в locked до unlock). НЕ secure: БД не читает,
  *    PHI/путей не содержит (§14 — безопасен для диагпакета 103);
- *  - `app/meta {} → {appVersion, schemaVersion, scale, model?}` — строки версий UI
- *    «О приложении» (приложение/схема БД/активная шкала code+version/модель
+ *  - `app/meta {} → {appVersion, schemaVersion, scale?, model?, recovery?}` — строки
+ *    версий UI «О приложении» (приложение/схема БД/активная шкала code+version/модель
  *    id+version если есть — §5); model опционален («если есть»). НЕ secure — канал
- *    версий/режима: в recovery-режиме TASK-101 §9 остаётся в наборе доступных;
+ *    версий/режима: в recovery-режиме TASK-101 §9 остаётся в наборе доступных.
+ *    С TASK-101: scale опционален (в recovery БД-чтения недоступны) и recovery? —
+ *    контекст recovery-режима {reason: corrupt|migration_failed, details} для гейта
+ *    App (проверка режима до роутера, TASK-101 §10);
+ *  - `app/reveal-backups {} → null` — TASK-101 §5/§9: «Открыть папку с копиями»
+ *    recovery-экрана; путь каталога копий строит main (НЕ secure, без параметров);
  *  - `app/integrity-full {} → {ok, details}` — полная проверка по кнопке
  *    (PRAGMA integrity_check; §4: quick_check — компромисс скорости, full — по
  *    кнопке). Secure — БД-канал (§7 TASK-094).
@@ -23,6 +28,8 @@
  * уходит в диалог 011/101, самчек после открытия фиксирует только mode).
  */
 import { z } from 'zod';
+
+import type { AppErrorDto } from './app-error-dto.js';
 
 /**
  * Статус llm-воркера (§5 «worker-статус») — зеркало домена AiWorkerState
@@ -70,20 +77,75 @@ export const APP_SELFCHECK_RESPONSE_SCHEMA = SELF_CHECK_REPORT_SCHEMA.nullable()
 export const APP_META_REQUEST_SCHEMA = z.object({}).strict();
 
 /**
- * §5/§11: версии для «О приложении» — appVersion (манифест), schemaVersion (БД),
- * активная шкала code+version, активная модель id+version (опционально — не выбрана).
+ * TASK-101 §7: причина recovery-режима. `corrupt` — БД повреждена (quick_check ≠ ok
+ * или отказ открытия на старте); `migration_failed` — провал миграции схемы.
+ */
+export const RECOVERY_REASON_SCHEMA = z.enum(['corrupt', 'migration_failed']);
+
+/**
+ * TASK-101 §7: детали для раскрытия «Технические детали» (без PHI/путей, §14):
+ *  - `quickCheck` — вывод PRAGMA quick_check повреждённой БД (служебные строки SQLite,
+ *    прецедент integrity-full details TASK-100 §14);
+ *  - `migrationVersion` — версия схемы, на которой прервалась миграция (params
+ *    STORAGE/MIGRATION_FAILED, TASK-024).
+ */
+export const RECOVERY_DETAILS_SCHEMA = z
+  .object({
+    quickCheck: z.string().max(4000).optional(),
+    migrationVersion: z.number().int().min(1).optional(),
+  })
+  .strict();
+
+/**
+ * TASK-101 §7/§10: контекст recovery-режима — поставляется renderer'у ответом
+ * `app/meta` (канал версий/режима, НЕ secure — §9/§14). Оба поля обязательны:
+ * отсутствие details выражается пустым объектом (strict).
+ */
+export const RECOVERY_CONTEXT_SCHEMA = z
+  .object({
+    reason: RECOVERY_REASON_SCHEMA,
+    details: RECOVERY_DETAILS_SCHEMA,
+  })
+  .strict();
+
+/**
+ * §5/§11 + TASK-101: версии для «О приложении» — appVersion (манифест), schemaVersion
+ * (БД), активная шкала code+version, активная модель id+version (опционально — не
+ * выбрана). С TASK-101: `scale` опционален (в recovery-режиме БД-чтений нет —
+ * поля шкалы/модели честно опускаются) и добавлено опциональное `recovery` —
+ * контекст recovery-режима для гейта App (§10: проверка режима до роутера).
  */
 export const APP_META_RESPONSE_SCHEMA = z
   .object({
     appVersion: z.string().min(1),
     schemaVersion: z.number().int().min(0),
-    scale: z.object({ code: z.string().min(1), version: z.string().min(1) }).strict(),
+    scale: z
+      .object({ code: z.string().min(1), version: z.string().min(1) })
+      .strict()
+      .optional(),
     model: z
       .object({ id: z.string().min(1), version: z.string().min(1) })
       .strict()
       .optional(),
+    recovery: RECOVERY_CONTEXT_SCHEMA.optional(),
   })
   .strict();
+
+/**
+ * TASK-101 §5/§9/§11: «Открыть папку с копиями» recovery-экрана — {} → null
+ * (fire-and-forget, прецедент app/reveal-path). НЕ secure: путь каталога копий
+ * строит main (userData содержит имя Windows-пользователя — renderer'у не известен,
+ * §14; в отличие от reveal-path запрос параметров не несёт).
+ */
+export const APP_REVEAL_BACKUPS_REQUEST_SCHEMA = z.object({}).strict();
+
+export const APP_REVEAL_BACKUPS_RESPONSE_SCHEMA = z.null();
+
+/** Запрос app/reveal-backups — {} (путь каталога копий строит main, §14). */
+export type AppRevealBackupsRequest = z.output<typeof APP_REVEAL_BACKUPS_REQUEST_SCHEMA>;
+
+/** Ответ app/reveal-backups — null (fire-and-forget, прецедент app/reveal-path). */
+export type AppRevealBackupsResponse = z.output<typeof APP_REVEAL_BACKUPS_RESPONSE_SCHEMA>;
 
 /** §11: запрос app/integrity-full — {} (progress не нужен: <10 с, §11). */
 export const APP_INTEGRITY_FULL_REQUEST_SCHEMA = z.object({}).strict();
@@ -108,8 +170,30 @@ export type AppSelfcheckResponse = z.infer<typeof APP_SELFCHECK_RESPONSE_SCHEMA>
 /** Запрос app/meta. */
 export type AppMetaRequest = z.infer<typeof APP_META_REQUEST_SCHEMA>;
 
-/** Ответ app/meta — версии «О приложении». */
+/** Ответ app/meta — версии «О приложении» (+ recovery-контекст TASK-101, если есть). */
 export type AppMetaResponse = z.infer<typeof APP_META_RESPONSE_SCHEMA>;
+
+/** TASK-101 §7: причина recovery-режима. */
+export type RecoveryReason = z.infer<typeof RECOVERY_REASON_SCHEMA>;
+
+/** TASK-101 §7: детали recovery-режима для раскрытия (без PHI/путей). */
+export type RecoveryDetails = z.infer<typeof RECOVERY_DETAILS_SCHEMA>;
+
+/** TASK-101 §7: контекст recovery-режима (поле recovery ответа app/meta). */
+export type RecoveryContext = z.infer<typeof RECOVERY_CONTEXT_SCHEMA>;
+
+/** Ключ каталога отказа recovery-гвардии (конвенция арх. 05 §29 `errors.<КОД>`). */
+export const STORAGE_RECOVERY_MODE_MESSAGE_KEY = 'errors.STORAGE_RECOVERY_MODE';
+
+/**
+ * TASK-101 §5/§11/§14: DTO отказа secure-канала в recovery-режиме (конверт каркаса,
+ * ЕДИНСТВЕННАЯ обёртка register-channel): БД не открыта, канал вне разрешённого
+ * набора recovery (§9). Зеркало VAULT_LOCKED_ERROR (vault.ts, TASK-094).
+ */
+export const RECOVERY_MODE_ERROR: AppErrorDto = {
+  code: 'STORAGE/RECOVERY_MODE',
+  messageKey: STORAGE_RECOVERY_MODE_MESSAGE_KEY,
+};
 
 /** Запрос app/integrity-full. */
 export type AppIntegrityFullRequest = z.infer<typeof APP_INTEGRITY_FULL_REQUEST_SCHEMA>;
