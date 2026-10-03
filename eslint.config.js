@@ -372,6 +372,17 @@ export default tseslint.config(
   },
 
   {
+    // TASK-104 §5/§19: test-хелпер локального release-фида — http-сервер 127.0.0.1
+    // и node-executor боевого NsisUpdater (electron-updater). Исключение из D11-запрета
+    // выше скоупится одним файлом: прод-код сети не трогает (EgressGateway не затронут),
+    // тесты ходят только на 127.0.0.1 (guard FR-7.2 fetch-заглушки не задет — node:http).
+    files: ['apps/desktop/tests/e2e/helpers/update-feed.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+
+  {
     // §7: зона renderer — без Node-библиотек. «Голые» билдены вроде `fs` (legacy-CJS стиль)
     // не ловятся намеренно: канон импорта в репо — `node:*`, а вторую сеть даёт TASK-005.
     files: ['apps/desktop/src-renderer/**/*.ts', 'apps/desktop/src-renderer/**/*.tsx'],

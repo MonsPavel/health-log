@@ -32,6 +32,7 @@
     "size:audit": "node tools/scripts/size-audit.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:cert": "node --env-file=./apps/desktop/test-cert.env node_modules/vitest/vitest.mjs run apps/desktop/tests/e2e/helpers/update-feed.test.ts -t AC1",
     "test:llm-model": "vitest run llama-engine",
     "test:coverage": "vitest run --coverage",
     "test:crash": "tsx tools/scripts/crash-test.mjs",
