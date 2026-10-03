@@ -87,7 +87,7 @@ describe('ai/summary/latest — контракт мини-канала стей�
       modelVersion: '1.0.0',
       dataVersion: 3,
       contentMd: 'Разбор',
-      disclaimerText: 'Это не медицинская консультация.',
+      disclaimerText: 'Это не является медицинской консультацией.',
       periodText: 'последние 7 дней',
       createdAtUtc: 5000,
     };

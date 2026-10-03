@@ -136,7 +136,7 @@ test.describe('чат с ИИ на fake-LLM (TASK-090 §20)', () => {
     });
     // Дисклеймер 089 в хвосте каждого assistant-ответа (§20 п.6 089).
     await expect(window.getByTestId('chat-bubble').last()).toContainText(
-      'Это не медицинская консультация.',
+      'Это не является медицинской консультацией.',
     );
     // Финал: сохранённая пара без aria-busy — вставка в polite-ленту озвучивается
     // один раз, целиком (TASK-109 §13).
@@ -149,7 +149,7 @@ test.describe('чат с ИИ на fake-LLM (TASK-090 §20)', () => {
     await window.getByTestId('chat-input').press('Enter');
     const refusalBubble = window.locator('[data-testid="chat-bubble"][data-kind="refusal"]');
     await expect(refusalBubble).toBeVisible();
-    await expect(refusalBubble).toContainText('Это не медицинская консультация.');
+    await expect(refusalBubble).toContainText('Это не является медицинской консультацией.');
     await expect(window.getByTestId('chat-refusal-icon')).toBeVisible();
 
     // (5) BUSY (§20): резюме генерируется (реальный канал; экран разбора не

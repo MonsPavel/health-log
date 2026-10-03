@@ -570,7 +570,7 @@ describe('GenerateSummary — полный поток UC-03 (TASK-087 §19)', ()
     await useCase.execute(BASE_COMMAND);
     const record = onlyRecord(repo);
     // Служебные поля — отдельные от content_md, непустые, дисклеймер — RU-константа.
-    expect(record.disclaimerText).toBe('Это не медицинская консультация.');
+    expect(record.disclaimerText).toBe('Это не является медицинской консультацией.');
     expect(record.periodText).toBe('последние 30 дней');
     expect(record.contentMd).not.toContain(record.disclaimerText);
 
@@ -580,7 +580,7 @@ describe('GenerateSummary — полный поток UC-03 (TASK-087 §19)', ()
       hasGaps: false,
       insufficientData: false,
     });
-    expect(prompt).toContain('Это не медицинская консультация');
+    expect(prompt).toContain('Это не является медицинской консультацией');
     expect(prompt).toContain('Анализируемый период: последние 30 дней.');
   });
 

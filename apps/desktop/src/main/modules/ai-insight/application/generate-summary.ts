@@ -69,8 +69,9 @@ import type { ResponseGuard } from './response-guard.js';
 /** Версия шаблона промпта — для телеметрии §18 (источник — 084 через ре-экспорт 083). */
 const PROMPT_VERSION: string = PROMPT_TEMPLATE_VERSION;
 
-/** Несъёмный дисклеймер (§5/§17: RU-константа main, согласована с промптом 084 — тест §20 п.6). */
-export const AI_SUMMARY_DISCLAIMER_TEXT = 'Это не медицинская консультация.';
+/** Несъёмный дисклеймер (§5/§17: RU-константа main, согласована с промптом 084 — тест §20 п.6).
+ * Формулировка FR-5.6 — канон ревизии TASK-110 (SRS 01 §8); copy-audit: fr56-disclaimer-main-087. */
+export const AI_SUMMARY_DISCLAIMER_TEXT = 'Это не является медицинской консультацией.';
 
 /**
  * Ключ i18n «модель не выбрана» (конвенция арх. 05 §29; тексты — TASK-101). Строка

@@ -33,13 +33,13 @@ describe('ChatBubble — визуальные роли ленты (§5/§10)', (
     render(
       createElement(ChatBubble, {
         role: 'assistant',
-        content: 'Давление стабильное.\n\nЭто не медицинская консультация.',
+        content: 'Давление стабильное.\n\nЭто не является медицинской консультацией.',
       }),
     );
 
     const bubble = screen.getByTestId('chat-bubble');
     expect(bubble.getAttribute('data-kind')).toBe('assistant');
-    expect(bubble.textContent).toContain('Это не медицинская консультация.');
+    expect(bubble.textContent).toContain('Это не является медицинской консультацией.');
     expect(screen.getByText('Помощник:')).toBeDefined();
     expect(screen.queryByTestId('chat-refusal-icon')).toBeNull();
   });
@@ -48,7 +48,7 @@ describe('ChatBubble — визуальные роли ленты (§5/§10)', (
     render(
       createElement(ChatBubble, {
         role: 'assistant',
-        content: 'Я не советую препараты.\n\nЭто не медицинская консультация.',
+        content: 'Я не советую препараты.\n\nЭто не является медицинской консультацией.',
         refusalClass: 'treatment',
       }),
     );

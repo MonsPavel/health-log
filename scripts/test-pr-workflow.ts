@@ -90,6 +90,8 @@ const ORDER_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
   },
   { label: 'pnpm lint', re: /^ {8}run: pnpm lint$/m },
   { label: 'pnpm check:i18n (§16)', re: /^ {8}run: pnpm check:i18n$/m },
+  // TASK-110 §5: copy-audit — шаг lint-семейства (после check:i18n, до typecheck).
+  { label: 'pnpm copy:audit (TASK-110)', re: /^ {8}run: pnpm copy:audit$/m },
   { label: 'pnpm typecheck', re: /^ {8}run: pnpm typecheck$/m },
   { label: 'pnpm depcruise', re: /^ {8}run: pnpm depcruise$/m },
   { label: 'pnpm test:coverage', re: /^ {8}run: pnpm test:coverage/m },

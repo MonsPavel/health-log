@@ -22,6 +22,7 @@
     "dist": "pnpm build && pnpm --filter @hl/desktop dist",
     "build:renderer": "pnpm --filter @hl/kernel --filter @hl/contracts run build && pnpm --filter @hl/desktop run build:renderer",
     "check:i18n": "node tools/scripts/check-i18n.mjs",
+    "copy:audit": "node tools/scripts/copy-audit.mjs",
     "bench:chart": "tsx tools/scripts/bench-chart.mjs",
     "bench:pdf": "tsx tools/scripts/bench-pdf.mjs",
     "eval": "tsx tools/eval/runner.ts",

@@ -117,7 +117,7 @@ describe('ReportBuilder — настройки и состав (§5/§13)', () =
     // §12: подсказка «появится вместе с ИИ-разбором» — видимый текст.
     expect(screen.getByTestId('report-ai-hint').textContent).toContain('ИИ-разбор');
     // §10: tooltip про маркировку в отчёте — title-атрибут (не единственный носитель).
-    expect(checkbox.getAttribute('title')).toContain('не является медицинским заключением');
+    expect(checkbox.getAttribute('title')).toContain('не является медицинской консультацией');
   });
 });
 
