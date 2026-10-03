@@ -178,6 +178,13 @@ messageKey из contracts). Каталог — только `ru` (TD-4); EN — 
 PR, раздел 5). Задача выполнена, только когда зелёный её раздел «Проверка» (§24
 спеки задачи), а не «код написан» (правила карты — `docs/roadmap/README.md`).
 
+Правило актуальности руководства пользователя (TASK-113 §22, с P8-периода):
+фича меняет UX (экраны, диалоги, тексты кнопок) → **правка `docs/user/` в том же
+PR** — включая перегенерацию затронутых скриншотов
+(`HL_DOCS_SHOTS=1 pnpm --filter @hl/desktop exec playwright test user-docs-screenshots`
+после `pnpm build`). Зелёный golden-тест `tools/scripts/docs-user-golden.test.ts`
+ловит устаревание состава (страницы, линки, alt-тексты), но не контента.
+
 ## 8. Required checks main и правило исключений
 
 - Required check ветки `main` (branch protection): **`PR pipeline`** — job из
@@ -200,6 +207,7 @@ PR, раздел 5). Задача выполнена, только когда з
 | `docs/a11y-keyboard.md`     | клавиатурная ревизия потоков (TASK-108) + чек-лист ручного прогона                              |
 | `docs/a11y-nvda.md`         | NVDA-чеклист 7 сценариев + контраст-аудит токенов (TASK-109)                                    |
 | `docs/roadmap/README.md`    | правила карты: новая работа вне карты = сначала ревизия карты                                   |
+| `docs/user/`                | руководство пользователя (TASK-113): 7 страниц + скриншоты; golden — `tools/scripts/docs-user-golden.test.ts` |
 | `docs/tasks/_TEMPLATE.md`   | канонический шаблон задачи; §21 — DoD                                                           |
 | `docs/tasks/STATUS.md`      | реестр статусов реализации                                                                      |
 | `CONTRIBUTING.md`           | этот документ                                                                                   |
