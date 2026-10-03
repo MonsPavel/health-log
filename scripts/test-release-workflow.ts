@@ -74,6 +74,10 @@ const PRESENCE_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
   },
   { label: '§5 ключ кэша по pnpm-lock.yaml', re: /hashFiles\('pnpm-lock\.yaml'\)/m },
   { label: '§13.1 install --frozen-lockfile', re: /^ {8}run: pnpm install --frozen-lockfile$/m },
+  {
+    label: 'сборка пакетов до Lint (typed-lint резолвит @hl/* через dist/*.d.ts — на свежем checkout их нет; ревью TASK-105)',
+    re: /^ {8}run: pnpm --filter @hl\/kernel --filter @hl\/contracts --filter @hl\/scales-data run build$/m,
+  },
   { label: '§5 lint', re: /^ {8}run: pnpm lint$/m },
   { label: '§5 typecheck', re: /^ {8}run: pnpm typecheck$/m },
   { label: '§5 depcruise', re: /^ {8}run: pnpm depcruise$/m },
@@ -138,6 +142,10 @@ const ORDER_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
   { label: 'кэш store', re: /^ {8}uses: actions\/cache@v4$/m },
   { label: 'pnpm fetch', re: /^ {8}run: pnpm fetch$/m },
   { label: 'pnpm install --frozen-lockfile', re: /^ {8}run: pnpm install --frozen-lockfile$/m },
+  {
+    label: 'build packages (typed-lint резолвит @hl/* через dist/*.d.ts, прецедент pr.yml)',
+    re: /^ {8}run: pnpm --filter @hl\/kernel --filter @hl\/contracts --filter @hl\/scales-data run build$/m,
+  },
   { label: 'lint', re: /^ {8}run: pnpm lint$/m },
   { label: 'typecheck', re: /^ {8}run: pnpm typecheck$/m },
   { label: 'depcruise', re: /^ {8}run: pnpm depcruise$/m },
