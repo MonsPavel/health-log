@@ -56,6 +56,13 @@ export interface TestProjectOptions {
    * (таймаут 1 с). Ассерты и таймауты тестов при этом не менялись.
    */
   readonly fileParallelism?: boolean;
+  /**
+   * TASK-105 §20 (урок прогона 3 живой приёмки): дополнительные setup-файлы
+   * проекта поверх общего vitest.setup.ts — например, калибровка asyncUtilTimeout
+   * Testing Library для jsdom-проекта рендерера (дефолтная 1 с findBy не
+   * выдерживает первые монтирования под полной загрузкой windows-runner'а).
+   */
+  readonly extraSetupFiles?: readonly string[];
 }
 
 /** Фабрика тестового проекта: имя (для `vitest --project`) и include-паттерны поверх общих настроек. */
@@ -71,6 +78,9 @@ export function testProject(
       name,
       include,
       environment: options.environment ?? 'node',
+      ...(options.extraSetupFiles === undefined
+        ? {}
+        : { setupFiles: [...setupFiles, ...options.extraSetupFiles] }),
       ...(options.fileParallelism === undefined
         ? {}
         : { fileParallelism: options.fileParallelism }),

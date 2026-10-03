@@ -11,6 +11,8 @@
  * клинический контракт, ошибки эталонов недопустимы); остальные зоны — отчёт без
  * гейта, пороги подключаются задачами своих модулей.
  */
+import { fileURLToPath } from 'node:url';
+
 import { defineConfig } from 'vitest/config';
 
 import { testProject } from './vitest.shared.js';
@@ -59,6 +61,11 @@ export default defineConfig({
       testProject('desktop-renderer', ['apps/desktop/src-renderer/**/*.test.ts'], {
         environment: 'jsdom',
         fileParallelism: false,
+        // TASK-105 §20 (урок прогона 3 живой приёмки): asyncUtilTimeout 3 с —
+        // см. apps/desktop/vitest.renderer.setup.ts.
+        extraSetupFiles: [
+          fileURLToPath(new URL('./apps/desktop/vitest.renderer.setup.ts', import.meta.url)),
+        ],
       }),
       // TASK-034 §24: тест скрипта аудита размера packaged-артефактов (scripts .mjs,
       // чистые функции + прогон run() на tmp-dist).

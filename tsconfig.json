@@ -14,6 +14,7 @@
     "vitest.shared.ts",
     "vitest.setup.ts",
     "vitest.config.ts",
+    "apps/desktop/vitest.renderer.setup.ts",
     "packages/*/src/**/*.test.ts",
     "packages/*/test/**/*.test.ts",
     "apps/desktop/src/main/**/*.test.ts",
