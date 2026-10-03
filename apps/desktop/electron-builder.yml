@@ -17,23 +17,38 @@ extraMetadata:
 asar: true
 # §22 (риск asar+native): нативный модуль не грузится из asar — распаковка по glob
 # **/*.node (smart-unpack выносит пакет better-sqlite3-multiple-ciphers в app.asar.unpacked).
+# Урок прогона 4 живой приёмки TASK-105 §20: бинари llama грузятся LoadLibrary
+# из соседнего каталога (asar не читается) — CPU-пакет llama целиком в unpacked.
 asarUnpack:
   - '**/*.node'
+  - 'node_modules/@node-llama-cpp/win-x64/**'
 
 # §5: только собранные бандлы (+ package.json и prod-зависимости electron-builder
 # собирает сам; workspace @hl/kernel и @hl/contracts подтягиваются как prod-deps
-# вместе со своими dist). §14: исходники проекта в сборку не входят — исключаем src/
+# вместе со своими dist). §14: исходники проекта в состав не входят — исключаем src/
 # workspace-пакетов (их тесты — тоже там); src сторонних npm-пакетов — содержимое
 # их официальных tarball'ов, как у любого Electron-приложения.
 # TASK-079: манифест моделей — внутрь asar (§9 079: чтение ресурса по корню
 # приложения — app.getAppPath()/дефолтный резолв сквозь asar); САМИ файлы
 # моделей в установщик не входят (арх. 10 §2 — см. extraResources ниже).
+#
+# Урок прогона 4 живой приёмки TASK-105 §20 (гейт check-size, NFR-5/D1a
+# ≤200 МБ): pnpm ставит все win-платформенные пакеты node-llama-cpp, и без
+# фильтра в установщик попадают CUDA+CUDA-ext+Vulkan+arm64 — 602 МБ сырых
+# (установщик 404.5 МБ > 200). MVP-инференс — CPU (целевые перфы TASK-077
+# посчитаны на CPU; getLlama без GPU-бэкендов тихо берёт CPU) → CPU-only:
+# исключаем все GPU/arm64-варианты. GPU-сборки — post-MVP, отдельным
+# артефактом при появлении критерия (отчёт D1a в tools/scripts/size-audit).
 files:
   - dist/main
   - dist-renderer
   - resources/models-manifest.json
   - '!node_modules/@hl/kernel/src'
   - '!node_modules/@hl/contracts/src'
+  - '!node_modules/@node-llama-cpp/win-x64-cuda/**'
+  - '!node_modules/@node-llama-cpp/win-x64-cuda-ext/**'
+  - '!node_modules/@node-llama-cpp/win-x64-vulkan/**'
+  - '!node_modules/@node-llama-cpp/win-arm64/**'
 
 # §5: файлы моделей — вне установщика (арх. 10 §2), поэтому extraResources пусто;
 # манифест моделей с TASK-079 идёт внутрь asar (files выше, §9 079).
