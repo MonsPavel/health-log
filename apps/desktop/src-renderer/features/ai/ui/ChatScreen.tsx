@@ -256,11 +256,14 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
           />
         ))}
         {/* §12: оптимистичная пара — user-бабл сразу, стрим в виртуальном
-            assistant-бабле (append deltas, §10); финал заменяет их сохранёнными. */}
+            assistant-бабле (append deltas, §10); финал заменяет их сохранёнными.
+            TASK-109 §13: стрим-бабл с aria-busy — polite-лента не озвучивает
+            дельты токенов; на финале сохранённая пара вставляется в log —
+            одно озвучивание целиком. */}
         {generation.question !== undefined ? (
           <>
             <ChatBubble role="user" content={generation.question} />
-            <ChatBubble role="assistant" content={generation.text} />
+            <ChatBubble role="assistant" content={generation.text} busy />
           </>
         ) : null}
       </div>

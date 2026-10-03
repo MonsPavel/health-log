@@ -71,4 +71,15 @@ describe('ChatBubble — визуальные роли ленты (§5/§10)', (
     expect(assistantBubble.className).not.toContain('ml-auto');
     expect(assistantBubble.className).toContain('bg-neutral-100');
   });
+
+  it('стрим (TASK-109 §13): busy → aria-busy на бабле — дельты не озвучиваются внутри polite-ленты; без busy атрибута нет', () => {
+    const streaming = render(
+      createElement(ChatBubble, { role: 'assistant', content: 'частичный текст', busy: true }),
+    );
+    expect(screen.getByTestId('chat-bubble').getAttribute('aria-busy')).toBe('true');
+    streaming.unmount();
+
+    render(createElement(ChatBubble, { role: 'assistant', content: 'финальный текст' }));
+    expect(screen.getByTestId('chat-bubble').getAttribute('aria-busy')).toBeNull();
+  });
 });

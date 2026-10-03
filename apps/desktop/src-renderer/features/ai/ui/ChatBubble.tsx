@@ -9,7 +9,10 @@
  *  - подписи ролей для скринридера (§16): sr-only «Вы:» / «Помощник:» —
  *    визуальное различение цвета/позиции продублировано текстом;
  *  - контент — как есть, pre-wrap (без markdown-рендера, §5 «не включено»);
- *    дисклеймер в хвосте content ставит use case 089 (§20 п.6 089).
+ *    дисклеймер в хвосте content ставит use case 089 (§20 п.6 089);
+ *  - busy (TASK-109 §13): стрим-бабл с aria-busy — NVDA не озвучивает дельты
+ *    токенов внутри polite-ленты («не буква-за-буквой»); финал приходит
+ *    сохранённой парой (вставка в role="log" polite) — одно озвучивание целиком.
  */
 import { useTranslation } from 'react-i18next';
 
@@ -23,6 +26,8 @@ export interface ChatBubbleProps {
   readonly content: string;
   /** Машинный класс отказа (§7 089); присутствует — серый стиль с иконкой. */
   readonly refusalClass?: ChatRefusalClass;
+  /** Идёт стрим в этот бабл (TASK-109 §13): aria-busy глушит озвучивание дельт. */
+  readonly busy?: boolean;
 }
 
 /** Иконка info отказ-бабла (декоративная — aria-hidden, смысл в тексте). */
@@ -45,7 +50,7 @@ function RefusalIcon(): JSX.Element {
 }
 
 /** Бабл ленты чата (§2): role-label (sr-only) → контент. */
-export function ChatBubble({ role, content, refusalClass }: ChatBubbleProps): JSX.Element {
+export function ChatBubble({ role, content, refusalClass, busy = false }: ChatBubbleProps): JSX.Element {
   const { t } = useTranslation();
   const refusal = refusalClass !== undefined;
   const roleLabel = role === 'user' ? t('ai.chat.roleYou') : t('ai.chat.roleAssistant');
@@ -60,6 +65,7 @@ export function ChatBubble({ role, content, refusalClass }: ChatBubbleProps): JS
     <div
       data-testid="chat-bubble"
       data-kind={refusal ? 'refusal' : role}
+      aria-busy={busy || undefined}
       className={`max-w-[85%] rounded-md border border-transparent px-3 py-2 text-sm ${
         role === 'user' && !refusal ? 'ml-auto' : ''
       } ${tone}`}
