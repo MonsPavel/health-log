@@ -113,7 +113,7 @@
 | TASK-105 | todo | | |
 | TASK-106 | todo | | |
 | TASK-107 | todo | | |
-| TASK-108 | todo | | |
+| TASK-108 | done | | смержена |
 | TASK-109 | todo | | |
 | TASK-110 | todo | | |
 | TASK-111 | todo | | |
