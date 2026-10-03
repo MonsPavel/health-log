@@ -70,6 +70,8 @@ describe('типы реестра — компилятор выводит payloa
       | 'app/integrity-full'
       // TASK-101 §5/§9: «Открыть папку с копиями» recovery-экрана (путь строит main).
       | 'app/reveal-backups'
+      // TASK-113 §5/§8–12: «Помощь» настроек — открыть страницу руководства docs/user.
+      | 'app/open-docs'
       | 'backup/create'
       | 'backup/restore'
       // TASK-101 §5/§9: «начать заново» — wipe-подмножество (unlink db/-wal/-shm).

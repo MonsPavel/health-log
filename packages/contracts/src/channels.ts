@@ -103,6 +103,10 @@ import type { CHANNEL_SCHEMAS } from './schemas.js';
  * (NFR-12); save {} → {path} | {canceled: true} — zip в tmp → save-диалог main
  * (паттерн 065, путь от renderer не принимается) → move. Оба secure — читают
  * БД (network_event/app_event) и пишут файл.
+ * руководство пользователя `app/open-docs` — TASK-113 §5/§8–12 (схемы — docs.ts):
+ * {page} → null (fire-and-forget, прецедент app/reveal-path) — «Помощь» экрана
+ * настроек открывает страницу docs/user; санитизация page — ТОЛЬКО whitelist'ом
+ * DOC_PAGES (§8–12), путь к файлу строит main (renderer пути не присылает, §14).
  *
  * `__bench/seed` — TASK-062 §9/§11/§14, TEST-ONLY: сидинг синтетики perf-bench.
  * Имя вне конвенции `домен/действие` намеренно (двойное подчёркивание — маркер
@@ -164,6 +168,9 @@ export type ChannelName =
   // TASK-101 §5/§9/§11: «Открыть папку с копиями» recovery-экрана ({} → null,
   // путь строит main; НЕ secure).
   | 'app/reveal-backups'
+  // TASK-113 §5/§8–12: «Помощь» экрана настроек — открыть страницу руководства
+  // docs/user ({} → null — нет, {page} → null; whitelist DOC_PAGES — docs.ts).
+  | 'app/open-docs'
   | 'backup/create'
   | 'backup/restore'
   // TASK-101 §5/§9/§11: «начать заново» — wipe-подмножество ({} → {restarting: true};

@@ -20,6 +20,8 @@ export {
 } from './app-error-dto.js';
 // TASK-100 §5/§11: сампроверка старта и версии «О приложении» (app-info.ts).
 export * from './app-info.js';
+// TASK-113 §5/§8–12: канал «Помощь» — открытие страницы руководства docs/user.
+export * from './docs.js';
 export {
   HL_INVOKE_CHANNEL,
   HL_INVOKE_REQUEST_SCHEMA,

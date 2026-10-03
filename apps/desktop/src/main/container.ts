@@ -129,6 +129,9 @@ import { createExportCsvHandler, createExportJsonHandler } from './ipc/handlers/
 import { createBuildPdfReportHandler } from './ipc/handlers/report-pdf.js';
 // TASK-101 §5/§9: «Открыть папку с копиями» recovery-экрана (reveal каталога копий main).
 import { createRevealBackupsHandler, createRevealPathHandler } from './ipc/handlers/reveal.js';
+// TASK-113 §5/§8–12: хендлер «Помощи» — открытие страницы руководства docs/user
+// (whitelist DOC_PAGES — единственная санитизация page-параметра).
+import { createOpenDocsHandler } from './ipc/handlers/open-docs.js';
 import { createSearchNotesHandler } from './ipc/handlers/search.js';
 import { createGetPrefsHandler, createSetPrefsHandler } from './ipc/handlers/prefs.js';
 // TASK-100 §5/§11: каналы сампроверки и «О приложении» — app/selfcheck (снимок),
@@ -302,6 +305,13 @@ import { createLogger, type HlLogger } from './shared/logger/logger.js';
 import { JobScheduler } from './shared/scheduler/scheduler.js';
 import { WorkerPool, type WorkerPoolOptions } from './shared/workerpool/pool.js';
 import { electronRevealPath } from './platform/reveal-path.js';
+// TASK-113 §5/§6: боевой адаптер «Помощи» — открытие страницы руководства
+// docs/user (shell.openPath для локального файла, shell.openExternal — репозиторий).
+import {
+  defaultDocsRoot,
+  electronOpenDocFile,
+  electronOpenDocUrl,
+} from './platform/open-docs.js';
 
 /** Имя файла БД в userData (§8): `<userData>/health-log.db` (+ `-wal`, `-shm`). */
 export const DATABASE_FILENAME = 'health-log.db';
@@ -1974,6 +1984,28 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
           // §18: без путей и причин (userData содержит имя Windows-пользователя).
           logger.warn('app/reveal-backups: не удалось открыть папку с копиями');
         });
+      }),
+    );
+    // TASK-113 §5/§8–12: «Помощь» экрана настроек — открыть страницу руководства
+    // docs/user. page уже санитизирован whitelist'ом DOC_PAGES (каркас, §8–12);
+    // путь строит main (renderer пути не знает, §14). Fire-and-forget §9: отказ
+    // открытия (нет ассоциации .md / браузера) глушится warn-ом — конверт всегда
+    // ok null.
+    channels.register(
+      'app/open-docs',
+      CHANNEL_SCHEMAS['app/open-docs'],
+      createOpenDocsHandler({
+        resolveDocPath: (page) => join(defaultDocsRoot(), `${page}.md`),
+        fileExists: existsSync,
+        openPath: (path) =>
+          electronOpenDocFile(path).catch(() => {
+            // §18: без путей и причин.
+            logger.warn('app/open-docs: не удалось открыть файл руководства');
+          }),
+        openExternal: (url) =>
+          electronOpenDocUrl(url).catch(() => {
+            logger.warn('app/open-docs: не удалось открыть руководство в браузере');
+          }),
       }),
     );
     // TASK-081 §5/§11: витрина моделей — list одним вызовом (§7); download/resume —
