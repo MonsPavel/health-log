@@ -36,3 +36,6 @@ tools/crash-results/
 # TASK-106 §18: raw-прогоны сетевого аудита (артефакт ручного прогона, в репо не входит;
 # отчёт коммитится в docs/architecture/audits/)
 tools/audit-results/
+
+# TASK-106: временные упаковки для живого аудита (в репо не входят)
+apps/desktop/dist-audit*/

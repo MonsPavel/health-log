@@ -293,13 +293,13 @@ export function monitorScriptPs(exeNames, intervalMs = POLL_INTERVAL_MS) {
     `$names=@(${names})`,
     'while($true) {',
     "  $ts=[DateTime]::UtcNow.ToString('o')",
-    "  $ids=@(Get-Process -Name $names -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)",
+    '  $ids=@(Get-Process -Name $names -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)',
     '  $conns=@()',
     '  if($ids.Count -gt 0) {',
     '    $conns=@(Get-NetTCPConnection -ErrorAction SilentlyContinue | Where-Object { $ids -contains $_.OwningProcess })',
     '  }',
     "  $parts=foreach($c in $conns) { $c | Select-Object @{n='pid';e={$_.OwningProcess}},LocalAddress,LocalPort,RemoteAddress,RemotePort,@{n='State';e={[string]$_.State}} | ConvertTo-Json -Compress }",
-    '  [Console]::WriteLine(\'{"ts":"\' + $ts + \'","conns":[\' + ($parts -join \',\') + \']}\')',
+    "  [Console]::WriteLine('{\"ts\":\"' + $ts + '\",\"conns\":[' + ($parts -join ',') + ']}')",
     `  Start-Sleep -Milliseconds ${intervalMs}`,
     '}',
   ].join('\n');
@@ -391,10 +391,14 @@ export function buildTimelineMd(context) {
 
 /** Запуск powershell с -Command (Windows PowerShell 5.1 — есть на любой Windows). */
 function runPowerShell(command, options = {}) {
-  return spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command], {
-    windowsHide: true,
-    ...options,
-  });
+  return spawn(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command],
+    {
+      windowsHide: true,
+      ...options,
+    },
+  );
 }
 
 /**
@@ -450,7 +454,10 @@ export async function run(options = {}) {
 
   // Далее — обращения к ОС: только Windows (§5: Linux/macOS — пост-MVP).
   if (platform !== 'win32') {
-    return { exitCode: 2, error: `net-audit is Windows-only (Get-NetTCPConnection); platform: ${platform}` };
+    return {
+      exitCode: 2,
+      error: `net-audit is Windows-only (Get-NetTCPConnection); platform: ${platform}`,
+    };
   }
 
   const exeNames = options.exeNames ?? DEFAULT_EXE_NAMES;
@@ -478,7 +485,9 @@ export async function run(options = {}) {
       error: `app process(es) not found within ${Math.round(waitAppMs / 1000)} s: ${exeNames.join(', ')}`,
     };
   }
-  console.log(`Monitoring ${processes.length} process(es): ${processes.map((proc) => `pid ${proc.pid}`).join(', ')}`);
+  console.log(
+    `Monitoring ${processes.length} process(es): ${processes.map((proc) => `pid ${proc.pid}`).join(', ')}`,
+  );
 
   // 2. Каталог артефактов + raw-лог.
   const runId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${scenarioKey}`;
@@ -522,8 +531,13 @@ export async function run(options = {}) {
   console.log('');
 
   if (durationMs !== null) {
-    console.log(`Non-interactive mode: --duration ${Math.round(durationMs / 1000)} s (operator acts meanwhile).`);
-    steps.push({ atUtc: new Date().toISOString(), text: `non-interactive run (--duration ${Math.round(durationMs / 1000)} s); operator performed the scenario manually` });
+    console.log(
+      `Non-interactive mode: --duration ${Math.round(durationMs / 1000)} s (operator acts meanwhile).`,
+    );
+    steps.push({
+      atUtc: new Date().toISOString(),
+      text: `non-interactive run (--duration ${Math.round(durationMs / 1000)} s); operator performed the scenario manually`,
+    });
     await sleep(durationMs);
   } else {
     const rl = createInterface({ input: process.stdin });
@@ -549,7 +563,9 @@ export async function run(options = {}) {
   monitor.kill();
   await monitorReady;
 
-  const raw = await import('node:fs/promises').then((fs) => fs.readFile(rawLogPath, 'utf8').catch(() => ''));
+  const raw = await import('node:fs/promises').then((fs) =>
+    fs.readFile(rawLogPath, 'utf8').catch(() => ''),
+  );
   const records = parseMonitorOutput(raw);
   const deduped = dedupConnections(records);
   const hosts = await resolveHosts(deduped.map((row) => row.remoteAddress));
@@ -578,7 +594,9 @@ export async function run(options = {}) {
   console.log(`\nTimeline: ${timelinePath}`);
   console.log(`Raw log:  ${rawLogPath}`);
   console.log(`Polls: ${polls}; connections: ${summary.connections}`);
-  console.log(`Endpoints: ${summary.endpoints.length === 0 ? '(none)' : summary.endpoints.join(', ')}`);
+  console.log(
+    `Endpoints: ${summary.endpoints.length === 0 ? '(none)' : summary.endpoints.join(', ')}`,
+  );
   console.log(
     `Next: reconcile with the app journal (Settings → Privacy / Diagnostics export) per audit-template.md — verdict is manual (§5).`,
   );
@@ -623,7 +641,9 @@ if (invokedPath === scriptPath) {
       index += 1;
     } else {
       console.error(`unknown flag: ${arg}`);
-      console.error('usage: node tools/scripts/net-audit.mjs --scenario <S1|S2|S3|S4> [--exe "Health Log"] [--interval 500] [--out <dir>] [--duration <sec>] [--wait-app <sec>]');
+      console.error(
+        'usage: node tools/scripts/net-audit.mjs --scenario <S1|S2|S3|S4> [--exe "Health Log"] [--interval 500] [--out <dir>] [--duration <sec>] [--wait-app <sec>]',
+      );
       exit(2);
     }
   }
@@ -637,7 +657,8 @@ if (invokedPath === scriptPath) {
             .map((name) => name.trim())
             .filter((name) => name !== ''),
     intervalMs: Number.isFinite(cliInterval) && cliInterval > 0 ? cliInterval : undefined,
-    durationMs: Number.isFinite(cliDurationSec) && cliDurationSec > 0 ? cliDurationSec * 1000 : null,
+    durationMs:
+      Number.isFinite(cliDurationSec) && cliDurationSec > 0 ? cliDurationSec * 1000 : null,
     waitAppMs: Number.isFinite(cliWaitSec) && cliWaitSec > 0 ? cliWaitSec * 1000 : undefined,
     outDir: cliOut,
   });

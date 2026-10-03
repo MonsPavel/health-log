@@ -153,7 +153,9 @@ describe('parseMonitorOutput (многострочный вывод монито
   });
 
   it('игнорирует неизвестные строки без падения', () => {
-    const records = parseMonitorOutput('последовательность jsonl\r\n{"ts":"2026-10-03T12:00:00.000Z","conns":[]}');
+    const records = parseMonitorOutput(
+      'последовательность jsonl\r\n{"ts":"2026-10-03T12:00:00.000Z","conns":[]}',
+    );
     expect(records).toHaveLength(0);
   });
 });
@@ -172,7 +174,11 @@ describe('isRemoteConnection (Listen/loopback — не сетевые событ
   it.each([
     ['внешний Established', { ...base }, true],
     ['внешний TimeWait (закрытое — тоже улика)', { ...base, state: 'TimeWait' }, true],
-    ['слушающий сокет', { ...base, state: 'Listen', remoteAddress: '0.0.0.0', remotePort: 0 }, false],
+    [
+      'слушающий сокет',
+      { ...base, state: 'Listen', remoteAddress: '0.0.0.0', remotePort: 0 },
+      false,
+    ],
     ['loopback IPv4', { ...base, remoteAddress: '127.0.0.1', remotePort: 8080 }, false],
     ['loopback IPv6', { ...base, remoteAddress: '::1', remotePort: 8080 }, false],
     ['unspecified', { ...base, remoteAddress: '0.0.0.0', remotePort: 0 }, false],
@@ -312,7 +318,13 @@ describe('summarizeConnections (сводка для сверки глазами,
   });
 
   it('пустой набор — нули (кейс S1: «ожидание 0 соединений»)', () => {
-    expect(summarizeConnections([])).toEqual({ connections: 0, endpoints: [], hosts: [], ips: [], spanMs: 0 });
+    expect(summarizeConnections([])).toEqual({
+      connections: 0,
+      endpoints: [],
+      hosts: [],
+      ips: [],
+      spanMs: 0,
+    });
   });
 });
 
