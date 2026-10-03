@@ -16,7 +16,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
-import { HL_EVENT_CHANNEL, PREFS_SCHEMA, type NetConsents, type Prefs } from '@hl/contracts';
+import {
+  HL_EVENT_CHANNEL,
+  PREFS_SCHEMA,
+  type NetConsents,
+  type Prefs,
+  type UpdateChannel,
+} from '@hl/contracts';
 import { AppError, type Clock, type Instant } from '@hl/kernel';
 
 import { createBroadcastToWindows, type BroadcastTarget } from '../../../events/broadcast.js';
@@ -77,6 +83,10 @@ class FakeUpdatesAdapter implements UpdatesAdapter {
   checkCalls = 0;
   downloadCalls = 0;
   installCalls = 0;
+  /** TASK-107 §5: журнал применения канала (порядок вызовов относительно check). */
+  channelCalls: UpdateChannel[] = [];
+  /** TASK-107: отказ применения канала (эмуляция сбоя updater'а). */
+  channelFailure: Error | undefined;
 
   private lastAvailableVersion: string | undefined;
   private checkImpl: () => Promise<UpdateCheckOutcome> = () =>
@@ -107,6 +117,14 @@ class FakeUpdatesAdapter implements UpdatesAdapter {
 
   getFeedUrl(): Promise<string> {
     return Promise.resolve(FEED_URL);
+  }
+
+  setChannel(channel: UpdateChannel): Promise<void> {
+    if (this.channelFailure !== undefined) {
+      return Promise.reject(this.channelFailure);
+    }
+    this.channelCalls.push(channel);
+    return Promise.resolve();
   }
 
   async checkForUpdates(): Promise<UpdateCheckOutcome> {
@@ -189,8 +207,12 @@ interface Fixture {
   readonly advance: (ms: number) => void;
 }
 
-/** Полная фикстура: tmp-БД v5 + реальный gateway + fake-окно + adapter-мок. */
-const makeFixture = async (consents: NetConsents): Promise<Fixture> => {
+/** Полная фикстура: tmp-БД v5 + реальный gateway + fake-окно + adapter-мок.
+ *  updateChannel — читатель канала (TASK-107 §5; не задан — дефолт stable). */
+const makeFixture = async (
+  consents: NetConsents,
+  updateChannel?: () => Promise<UpdateChannel>,
+): Promise<Fixture> => {
   const dir = mkdtempSync(join(tmpdir(), 'hl-updates-service-int-'));
   dirs.push(dir);
   const db = openEncrypted(join(dir, 'updates.sqlite'), randomBytes(32).toString('hex'));
@@ -220,6 +242,7 @@ const makeFixture = async (consents: NetConsents): Promise<Fixture> => {
     clock: mutableClock,
     logger: silentLogger(),
     notify,
+    ...(updateChannel === undefined ? {} : { getUpdateChannel: updateChannel }),
   });
   return {
     db,
@@ -316,6 +339,67 @@ describe('UpdatesService — проверка за согласием (TASK-096 
 
     expect(eventNames(fx.envelopes)).not.toContain('update:available');
     expect(fx.service.getStatus().state).toBe('latest');
+    fx.db.close();
+  });
+});
+
+describe('UpdatesService — канал обновлений из prefs (TASK-107 §5/§13)', () => {
+  it('check применяет канал из prefs ПЕРЕД проверкой: beta → setChannel("beta") (§5)', async () => {
+    const fx = await makeFixture({ updatesCheck: true, modelsDownload: false }, () =>
+      Promise.resolve<UpdateChannel>('beta'),
+    );
+    fx.adapter.setCheckOutcome({ available: false });
+
+    await expect(fx.service.check()).resolves.toEqual({ status: 'latest' });
+
+    expect(fx.adapter.channelCalls).toEqual(['beta']);
+    expect(fx.adapter.checkCalls).toBe(1);
+    fx.db.close();
+  });
+
+  it('дефолт (без читателя канала) — stable: setChannel("stable") в каждой проверке (§5)', async () => {
+    const fx = await makeFixture({ updatesCheck: true, modelsDownload: false });
+    fx.adapter.setCheckOutcome({ available: false });
+
+    await fx.service.check();
+    await fx.service.check();
+
+    expect(fx.adapter.channelCalls).toEqual(['stable', 'stable']);
+    fx.db.close();
+  });
+
+  it('переключение канала применяется только СЛЕДУЮЩЕЙ ручной проверкой — авто-перепроверки нет (§13)', async () => {
+    let channel: UpdateChannel = 'stable';
+    const fx = await makeFixture({ updatesCheck: true, modelsDownload: false }, () =>
+      Promise.resolve(channel),
+    );
+    fx.adapter.setCheckOutcome({ available: false });
+
+    await fx.service.check(); // проверка на stable
+    channel = 'beta'; // пользователь переключил канал в prefs — НИКАКИХ сетевых действий
+    expect(fx.adapter.checkCalls).toBe(1);
+    expect(fx.adapter.channelCalls).toEqual(['stable']);
+
+    await fx.service.check(); // ручная перепроверка — канал применён
+    expect(fx.adapter.channelCalls).toEqual(['stable', 'beta']);
+    expect(fx.adapter.checkCalls).toBe(2);
+    fx.db.close();
+  });
+
+  it('отказ применения канала → {status: "error"} без креша, журнал failed (§9, прецедент ошибки сети)', async () => {
+    const fx = await makeFixture({ updatesCheck: true, modelsDownload: false }, () =>
+      Promise.resolve<UpdateChannel>('beta'),
+    );
+    fx.adapter.setCheckOutcome({ available: false });
+    fx.adapter.channelFailure = new Error('channel rejected');
+
+    await expect(fx.service.check()).resolves.toEqual({ status: 'error' });
+
+    expect(fx.adapter.checkCalls).toBe(0); // проверка не начиналась
+    expect(journalRows(fx.db)).toEqual([
+      { kind: 'updates.check', endpoint: FEED_URL, status: 'failed', bytes: null },
+    ]);
+    expect(fx.service.getStatus().state).toBe('error');
     fx.db.close();
   });
 });
@@ -475,6 +559,12 @@ describe('wireElectronUpdater — конфиг и маппинг боевого 
       // BaseUpdater.addQuitHandler ставит обновление молча, если флаг не выключен.
       autoInstallOnAppQuit: true,
       disableWebInstaller: false,
+      // TASK-107 §5/§13: начальные значения боевого autoUpdater — канал не задан
+      // (читается channel из app-update.yml), allowPrerelease — от версии
+      // установки (AppUpdater.js:218), allowDowngrade — false.
+      channel: null,
+      allowPrerelease: false,
+      allowDowngrade: false,
       checkForUpdates: () => Promise.resolve(null),
       downloadUpdate: () => Promise.resolve([]),
       quitAndInstall: () => undefined,
@@ -500,6 +590,23 @@ describe('wireElectronUpdater — конфиг и маппинг боевого 
     // (BaseUpdater.executeDownload→addQuitHandler): без false приложение молча
     // установит обновление при обычном закрытии — мимо кнопки install (§13).
     expect(updater.autoInstallOnAppQuit).toBe(false);
+  });
+
+  it('(TASK-107 §5/§13) setChannel: beta → channel=beta + allowPrerelease; stable → обратно; allowDowngrade=false ВСЕГДА (сеттер channel форсит true — AppUpdater.js)', () => {
+    const updater = makeFakeUpdater();
+    const adapter = wireElectronUpdater(updater, silentLogger());
+
+    return adapter.setChannel('beta').then(() => {
+      expect(updater.channel).toBe('beta'); // GenericProvider читает beta.yml
+      expect(updater.allowPrerelease).toBe(true);
+      expect(updater.allowDowngrade).toBe(false); // §13: даунгрейда нет
+
+      return adapter.setChannel('stable').then(() => {
+        expect(updater.channel).toBe('stable'); // stable.yml (= канал app-update.yml)
+        expect(updater.allowPrerelease).toBe(false);
+        expect(updater.allowDowngrade).toBe(false);
+      });
+    });
   });
 
   it('маппинг исхода: {isUpdateAvailable, updateInfo.version} → {available, version}; null → latest', async () => {

@@ -1373,6 +1373,10 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       clock,
       logger: createLogger('net'),
       notify: broadcastToWindows,
+      //      TASK-107 §5/§13: канал обновлений — срез prefs НА МОМЕНТ проверки
+      //      (перечитывается, как согласия у gateway): переключение в «Обновлениях»
+      //      применяется следующей проверкой — авто-перепроверки при смене нет.
+      getUpdateChannel: async () => (await preferencesService.getPrefs()).updateChannel,
     });
     //      Задача авто-проверки (§5/AC4): интервал 24 ч, без согласия тик молчит
     //      (проверка согласия внутри задачи — §5); отказ согласия/политики внутри

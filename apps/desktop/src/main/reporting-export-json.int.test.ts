@@ -281,7 +281,8 @@ describe('ExportJsonUseCase: roundtrip-слепок на tmp-БД (TASK-064 §19
 
     // prefs (§5): сохранённый частичный документ + zod-дефолты PREFS_SCHEMA
     // (TASK-074: jobState; TASK-075: netConsents.modelsDownload; TASK-081/088:
-    // aiSettings — дефолт схемы, включая includeNotes; TASK-094: autoLockMin).
+    // aiSettings — дефолт схемы, включая includeNotes; TASK-094: autoLockMin;
+    // TASK-107: updateChannel).
     expect(snapshot.prefs).toEqual({
       theme: 'dark',
       textScale: '112.5',
@@ -291,6 +292,7 @@ describe('ExportJsonUseCase: roundtrip-слепок на tmp-БД (TASK-064 §19
       jobState: { jobs: {}, shown: {} },
       aiSettings: { dismissed: false, includeNotes: false },
       autoLockMin: 5,
+      updateChannel: 'stable',
     });
 
     // Скоуп профиля (§14, паритет CSV): чужая запись не просочилась.

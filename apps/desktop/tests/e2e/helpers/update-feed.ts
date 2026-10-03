@@ -596,3 +596,16 @@ export function createTestUpdater(options: TestUpdaterOptions): NsisUpdater {
   updater.logger = silent;
   return updater;
 }
+
+/**
+ * Применение канала обновлений (TASK-107 §5/§13) — ЗЕРКАЛО боевого
+ * wireElectronUpdater.setChannel (updates-service): updater.channel → GenericProvider
+ * запрашивает `<channel>.yml`; allowDowngrade=false ОБЯЗАТЕЛЬНО после сеттера
+ * channel (тот форсит true, d.ts AppUpdater «set channel»); allowPrerelease —
+ * только beta. Держать в синхронизации с updates-service.ts.
+ */
+export function setTestUpdaterChannel(updater: NsisUpdater, channel: 'stable' | 'beta'): void {
+  updater.channel = channel;
+  updater.allowDowngrade = false;
+  updater.allowPrerelease = channel === 'beta';
+}

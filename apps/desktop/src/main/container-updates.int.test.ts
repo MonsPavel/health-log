@@ -24,6 +24,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import { AppError, ok, FixedClock, type Result } from '@hl/kernel';
 
+import type { UpdateChannel } from '@hl/contracts';
+
 import { buildContainer } from './container.js';
 import {
   VAULT_KEY_MISSING_MESSAGE_KEY,
@@ -89,9 +91,16 @@ class FakeAdapter implements UpdatesAdapter {
   checkCalls = 0;
   downloadCalls = 0;
   installCalls = 0;
+  /** TASK-107 §5: каналы, применённые адаптером (порядок вызовов). */
+  channelCalls: UpdateChannel[] = [];
 
   getFeedUrl(): Promise<string> {
     return Promise.resolve(FEED_URL);
+  }
+
+  setChannel(channel: UpdateChannel): Promise<void> {
+    this.channelCalls.push(channel);
+    return Promise.resolve();
   }
 
   checkForUpdates(): Promise<{ available: boolean }> {
@@ -209,5 +218,25 @@ describe('container + UpdatesService (TASK-096 §9/§19/§20)', () => {
       expect(envelope.error.code).toBe('UPD/NOT_READY');
     }
     expect(adapter.installCalls).toBe(0);
+  });
+
+  it('(TASK-107 §20-2) переключение канала через prefs/set: авто-перепроверки нет; СЛЕДУЮЩАЯ ручная проверка применяет beta (§13)', async () => {
+    // До сценария: ручная (AC2) + авто (AC4) проверки — по setChannel('stable') каждая.
+    expect(adapter.channelCalls).toEqual(['stable', 'stable']);
+
+    // Сценарий 1: переключение канала в настройках — только запись prefs, сети нет.
+    const switchChannel = await container!.channels.dispatch({
+      channel: 'prefs/set',
+      payload: { patch: { updateChannel: 'beta' } },
+    });
+    expect(switchChannel.ok).toBe(true);
+    expect(adapter.channelCalls).toEqual(['stable', 'stable']); // не выросло
+    expect(adapter.checkCalls).toBe(2);
+
+    // Сценарий 2: ручная перепроверка — канал из prefs доходит до адаптера.
+    const check = await container!.channels.dispatch({ channel: 'updates/check', payload: {} });
+    expect(check).toMatchObject({ ok: true, data: { status: 'latest' } });
+    expect(adapter.channelCalls).toEqual(['stable', 'stable', 'beta']);
+    expect(adapter.checkCalls).toBe(3);
   });
 });

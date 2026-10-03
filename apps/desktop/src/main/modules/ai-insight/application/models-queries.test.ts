@@ -102,6 +102,7 @@ class FakePrefs {
     aiSettings: { dismissed: false, includeNotes: false },
     // TASK-094: порог автоблока — новое поле документа (дефолт схемы 5).
     autoLockMin: 5,
+    updateChannel: 'stable', // TASK-107: дефолт схемы
   };
   readonly setSpy = vi.fn((patch: PrefsPatch) => {
     this.document = { ...this.document, ...patch };

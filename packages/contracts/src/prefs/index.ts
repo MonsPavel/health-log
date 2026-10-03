@@ -18,6 +18,7 @@ export {
   PREFS_SET_RESPONSE_SCHEMA,
   TEXT_SCALE_SCHEMA,
   THEME_SCHEMA,
+  UPDATE_CHANNEL_SCHEMA,
 } from './schemas.js';
 export type {
   AiSettings,
@@ -30,4 +31,5 @@ export type {
   PrefsPatch,
   PrefsSetRequest,
   PrefsSetResponse,
+  UpdateChannel,
 } from './types.js';

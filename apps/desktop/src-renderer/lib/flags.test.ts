@@ -32,6 +32,8 @@ const DEFAULT_PREFS: Prefs = {
   aiSettings: { dismissed: false, includeNotes: false },
   // TASK-094: порог автоблока — новое поле документа (дефолт схемы 5).
   autoLockMin: 5,
+  // TASK-107: канал обновлений — дефолт схемы (stable).
+  updateChannel: 'stable',
 };
 
 const OK_ENVELOPE = (data: unknown) => ({ v: 1, ok: true, data });

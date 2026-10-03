@@ -141,6 +141,20 @@ describe('update-feed — YAML-строители фида (TASK-104 §13)', () 
 describe('update-feed — контракт подписи electron-builder.yml (TASK-104 §20-2, §5, §14)', () => {
   const config = readFileSync(join(APP_ROOT, 'electron-builder.yml'), 'utf-8');
 
+  /**
+   * Элементы списка publish (TASK-107 §5: список записей «один артефакт,
+   * разные фиды»): блок от строки `publish:` ДО следующей секции верхнего
+   * уровня (буква в первой колонке — `win:` и т.п.), разбитый по `  - `
+   * (отступ элемента списка первого уровня внутри ключа).
+   */
+  const publishEntries = (yaml: string): string[] => {
+    const start = yaml.search(/^publish:\r?\n/m) + 'publish:'.length;
+    const rest = yaml.slice(start);
+    const nextSection = rest.search(/^[a-zA-Z][^\n]*:\r?\n/m);
+    const block = nextSection === -1 ? rest : rest.slice(0, nextSection);
+    return block.split(/^  - /m).slice(1);
+  };
+
   it('(AC2) RFC3161 timestamp-server присутствует в signtoolOptions (подпись переживает истечение сертификата)', () => {
     expect(config).toMatch(/^  signtoolOptions:$/m);
     expect(config).toMatch(/^    rfc3161TimeStampServer: https?:\/\/\S+$/m);
@@ -167,13 +181,33 @@ describe('update-feed — контракт подписи electron-builder.yml (
     expect(values[0]).toMatch(/^CN=/);
   });
 
-  it('publish: generic-провайдер на GitHub Releases latest, канал stable (§5)', () => {
+  it('publish: generic-провайдер на GitHub Releases latest, канал stable — ПЕРВАЯ запись (§5 104; app-update.yml собирается из publishConfigs[0])', () => {
     expect(config).toMatch(/^publish:$/m);
-    expect(config).toMatch(/^  provider: generic$/m);
+    // TASK-107 §5: publish — список записей («один артефакт, разные фиды»);
+    // первая — stable с publisherName: именно она становится app-update.yml
+    // (PublishManager.getAppUpdatePublishConfiguration → publishConfigs[0]).
+    const entries = publishEntries(config);
+    expect(config).toMatch(/^  - provider: generic$/m);
     expect(config).toMatch(
-      /^  url: https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/releases\/latest\/download$/m,
+      /^    url: https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/releases\/latest\/download$/m,
     );
-    expect(config).toMatch(/^  channel: stable$/m);
+    expect(config).toMatch(/^    channel: stable$/m);
+    expect(entries[0]).toContain('channel: stable');
+    expect(entries[0]).toContain('publisherName');
+  });
+
+  it('(TASK-107 §5) publish: вторая запись — beta-канал, тот же URL, без publisherName (publisherName app-update.yml — из первой, §14)', () => {
+    const entries = publishEntries(config);
+    expect(entries.length).toBe(2);
+    const betaEntry = entries[1];
+    expect(betaEntry).toContain('provider: generic');
+    expect(betaEntry).toContain(
+      'url: https://github.com/MonsPavel/health-log/releases/latest/download',
+    );
+    expect(betaEntry).toContain('channel: beta');
+    // §14: подпись/издатель артефактов идентична для обоих каналов; publisherName
+    // в app-update.yml — ровно один (из stable-записи) — NFR-11 не ослабляется.
+    expect(betaEntry).not.toContain('publisherName');
   });
 
   it('(§14) updater-проверка подписи не отключена (verifyUpdateCodeSignature — дефолт)', () => {
