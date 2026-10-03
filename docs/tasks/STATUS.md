@@ -119,7 +119,7 @@
 | TASK-111 | blocked | task/TASK-111 | заблокирована конвейером: гейт размера установщика BLOCKED (SAC); perf-базовая линия NFR-4/5 готова — 5 целей PASS, наработки сохранены в ветке |
 | TASK-112 | todo | | |
 | TASK-113 | blocked | task/TASK-113 | заблокирована конвейером, НЕ смержена; руководство пользователя (docs/user) и приёмочные фиксы — наработки сохранены в ветке |
-| TASK-114 | todo | | |
+| TASK-114 | blocked | task/TASK-114 | заблокирована конвейером, НЕ смержена; release-notes (§19/§20-2/§24) — наработки сохранены в ветке |
 | TASK-115 | todo | | |
 | TASK-116 | done | | смержена вручную 01.10: корневой tsc 137 ошибок → 0 (53 файла, type-only), счётчики тестов прежние (267ф/2843+4skip), gate+lint зелёные; отступление от §5 — 3 eslint-disable prefer-promise-reject-errors (прецедент llm-process-client, AppError не Error по TASK-006); НАХОДКА: зеркало типов classifier — домен шире пакета по code (string vs union ScaleCategoryCode), тест ослаблен до toExtend, решение о строгом зеркале — отдельно; follow-up 01.10: корневой tsc добавлен в `pnpm typecheck` (фон не накапливается, §23 спеки выполнено) |
 | TASK-117 | done | | смержена 01.10: доменный ScaleCategoryCode переобъявлен union-зеркалом пакета, ScaleCategory.code сужен до него; тип-тест возвращён к toEqualTypeOf (дрейф ловится в обе стороны); импорта пакета в домене нет (domain-purity); gate+lint зелёные, счётчики тестов прежние |
