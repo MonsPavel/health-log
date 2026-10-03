@@ -1,0 +1,264 @@
+# TASK-105: тег-пайплайн релиза (build→sign→test→draft→publish) на windows-latest.
+# Спека: docs/tasks/TASK-105-release-pipeline.md; каркас CI — TASK-014 (pr.yml);
+# подпись и секреты — TASK-104 (docs/dev/certificates.md §2.1); гейты — арх. 10 §4.
+#
+# §5: на тег v* — Windows-runner: полная сборка → подпись → пакетирование → полный
+# E2E (Windows) + крэш-тест + size-audit гейт → draft release с артефактами и
+# заготовкой notes. От тега до draft — без ручных шагов; публикация — ВСЕГДА
+# ручная (кнопка в Releases; арх. 10 §3 «человек публикует релиз»).
+#
+# §5: eval в пайплайн НЕ входит — полный eval на полной модели стоит денег и не
+# автоматизируется: это ручной предрелизный чеклист (ночью 1B-модель покрывает
+# eval-nightly.yml, TASK-092).
+name: Release
+
+# §5/§22: единственный триггер — пуш тега v*. PR-триггеров нет сознательно
+# (OWASP CI/CD: чужой код не исполняется в привилегированном контексте — job
+# пишет в Releases и держит секреты подписи; fork-PR секретов не получает).
+on:
+  push:
+    tags:
+      - 'v*'
+
+# §14: минимальные права на уровне workflow; write — только job'у релиза.
+permissions:
+  contents: read
+
+# Повторный пуш того же тега отменяет устаревший прогон (отладка §19/§24).
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Release (windows)
+    runs-on: windows-latest
+    # §15: бюджет прогона ≤40 мин (E2E ~15 + crash ~5 + сборка ~10 + тесты ~5);
+    # 40 мин — жёсткий предел, превышение = шардировать (§23).
+    timeout-minutes: 40
+    # §14: секреты подписи — только в release-окружении (environment secrets;
+    # WIN_CSC_LINK/WIN_CSC_KEY_PASSWORD — см. docs/dev/certificates.md §2.1).
+    environment: release
+    # §14: write нужен только на черновик релиза; публикация остаётся ручной.
+    permissions:
+      contents: write
+    defaults:
+      run:
+        # Windows-раннер: bash (Git Bash) — POSIX-синтаксис шагов, как в pr.yml;
+        # pwsh-исключение — только шаг самопроверки подписи (PowerShell-cmdlets).
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Прецедент pr.yml: Node 24 (dependency-cruiser 18 / локальный toolchain),
+      # pnpm 9 из packageManager через corepack.
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Enable corepack (pnpm 9 — packageManager)
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+
+      - name: Get pnpm store path
+        id: pnpm-store
+        run: echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      # §4: кэш pnpm как в 014/092 — ключ по pnpm-lock.yaml.
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
+      - name: Fetch dependencies
+        run: pnpm fetch
+
+      # §13.1 (прецедент pr.yml): frozen-lockfile — сборка воспроизводима.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # §13: гейты-порядок — ранние дешёвые (lint/test) → тяжёлые (E2E/crash) →
+      # сборка артефактов → size. Падение любого шага валит job → draft не
+      # создаётся (одиночный job = fail-fast).
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Dependency cruiser
+        run: pnpm depcruise
+
+      # §5: unit/integration (vitest, весь монорепо). junit — артефакт §18/§20.
+      - name: Unit/integration tests
+        id: unit
+        run: pnpm test --reporter=default --reporter=junit --outputFile=test-results/junit.xml
+
+      # Версия релиза = тег: electron-builder берёт версию из package.json
+      # (@hl/desktop 0.0.0 в репо) — установщик «Health Log Setup <версия>.exe»
+      # и stable.yml updater'а обязаны совпадать с тегом. Правка runner-локальная,
+      # в git не попадает.
+      - name: Set release version from tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          pnpm --filter @hl/desktop exec npm pkg set "version=$version"
+          echo "release version: $version"
+
+      # §5: полная сборка → подпись → пакетирование. electron-builder читает
+      # секреты подписи из env (TASK-104: WIN_CSC_LINK — base64 .pfx,
+      # WIN_CSC_KEY_PASSWORD) сам; без секретов сборка уйдёт неподписанной —
+      # шаг самопроверки подписи ниже этого не пропустит (§14).
+      #
+      # Отступление от буквального `pnpm dist`: флаг --publish never нельзя
+      # прокинуть через скрипт dist (`electron-builder --win && node
+      # scripts/check-size.mjs`) — pnpm 9 добавляет аргументы к ПОСЛЕДНЕЙ
+      # команде цепочки (проверено на pnpm 9.15.9). А флаг ОБЯЗАТЕЛЕН:
+      # electron-builder 26 в CI на теге неявно включает publish=onTag
+      # («Implicit publishing triggered by git tag», исходник PublishManager) —
+      # публикация в этом проекте всегда ручная (§5), повторяем состав dist
+      # (build → electron-builder → check-size) с явным --publish never.
+      - name: Package installer (build → sign → check-size)
+        id: dist
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          pnpm build
+          pnpm --filter @hl/desktop exec electron-builder --win --publish never
+          pnpm --filter @hl/desktop exec node scripts/check-size.mjs
+
+      # §14: самопроверка пайплайна — подпись артефакта проверяется в job-шаге
+      # ДО attach. NotSigned/HashMismatch — красный гейт (неподписанный exe
+      # SmartScreen-паника + блок updater'а, NFR-11). NotTrusted (цепочка не
+      # до доверенного корня) допускается ТОЛЬКО для пробных тегов с test-cert
+      # (certificates.md §4) — боевой релиз обязан быть Valid: это пункт
+      # предрелизного чеклиста (TASK-114).
+      - name: Sign self-check (Get-AuthenticodeSignature)
+        id: sign
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem 'apps/desktop/dist' -Filter '*.exe' |
+            Where-Object { $_.Name -match ' Setup ' } | Select-Object -First 1
+          if ($null -eq $exe) {
+            Write-Error 'установщик * Setup *.exe не найден в apps/desktop/dist'
+            exit 1
+          }
+          $sig = Get-AuthenticodeSignature $exe.FullName
+          Write-Host "sign: $($sig.Status) — $($sig.SignerCertificate.Subject)"
+          "status=$($sig.Status)" >> $env:GITHUB_OUTPUT
+          if ($sig.Status -eq 'NotSigned' -or $sig.Status -eq 'HashMismatch') {
+            Write-Error "подпись отсутствует или битая ($($sig.Status)) — гейт §14, draft не создаётся"
+            exit 1
+          }
+          if ($sig.Status -ne 'Valid' -and $sig.Status -ne 'NotTrusted') {
+            Write-Error "неожиданный статус подписи: $($sig.Status)"
+            exit 1
+          }
+
+      # §5: полный E2E на Windows-runner (целевая ОС; TD-6) — все спеки,
+      # включая data-care/recovery/edge (testMatch **/*.spec.ts). §13: ретраи —
+      # только инфраструктурные флаки e2e, ровно один (--retries=1 поверх
+      # retries: 0 локального конфига; гейт-тесты ниже — без ретраев).
+      - name: E2E (все спеки)
+        id: e2e
+        run: pnpm test:e2e --retries=1
+
+      # §5: крэш-тест N=10 (дефолт TASK-102), без ретраев (гейт).
+      - name: Crash test (N=10)
+        id: crash
+        run: pnpm test:crash
+
+      # §5: гейт размера ≤200 МБ — exit-код (TASK-036 §13: exceeded → 1);
+      # --json — машиночитаемый вывод для артефактов/summary (TASK-036 §20).
+      - name: Size audit (гейт ≤200 МБ)
+        id: size
+        run: pnpm size:audit --dist apps/desktop/dist --json
+
+      # §5: release notes — заготовка из шаблона (TASK-114: .github/release-template.md)
+      # + автоген changelog-коммитов (generate_release_notes у draft-шага).
+      # Пока шаблона нет — минимальная заготовка-заглушка.
+      - name: Prepare release notes
+        run: |
+          template='.github/release-template.md'
+          out='release-notes.md'
+          if [ -f "$template" ]; then
+            cp "$template" "$out"
+          else
+            printf '# Release %s\n\nЧерновик релиза: заготовка notes — по шаблону .github/release-template.md (TASK-114); changelog-коммиты добавит GitHub ниже (generate_release_notes).\n' "$GITHUB_REF_NAME" > "$out"
+          fi
+
+      # §5: draft release с тегом, артефактами (установщик + update-feed *.yml
+      # + blockmap) и notes; публикация — вручную кнопкой в Releases. Данные
+      # генерируются при сборке: канал stable (electron-builder.yml) — stable.yml.
+      - name: Create draft release
+        id: draft
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/*.yml
+            apps/desktop/dist/*.blockmap
+
+      # §18: Job Summary — таблица гейтов (unit/e2e/crash/size/sign) — читаемый
+      # протокол релиза. if: always() — таблица видна и при красном гейте
+      # (недошедшие шаги — «не дошёл»); draft-ссылка только при полном зелёном.
+      - name: Job summary (таблица гейтов)
+        if: always()
+        env:
+          GATE_UNIT: ${{ steps.unit.outcome }}
+          GATE_E2E: ${{ steps.e2e.outcome }}
+          GATE_CRASH: ${{ steps.crash.outcome }}
+          GATE_SIZE: ${{ steps.size.outcome }}
+          GATE_SIGN: ${{ steps.sign.outcome }}
+          SIGN_STATUS: ${{ steps.sign.outputs.status }}
+          DRAFT_URL: ${{ steps.draft.outputs.url }}
+        run: |
+          mark() {
+            case "$1" in
+              success) echo '✅ pass' ;;
+              skipped) echo '⏭ не дошёл (гейт выше красный)' ;;
+              *) echo '❌ fail' ;;
+            esac
+          }
+          {
+            echo "## Release ${GITHUB_REF_NAME} — протокол гейтов (§18)"
+            echo
+            echo '| гейт | итог |'
+            echo '|---|---|'
+            echo "| unit/integration (vitest) | $(mark "$GATE_UNIT") |"
+            echo "| e2e (Playwright, все спеки) | $(mark "$GATE_E2E") |"
+            echo "| crash (N=10) | $(mark "$GATE_CRASH") |"
+            echo "| size (≤200 МБ) | $(mark "$GATE_SIZE") |"
+            echo "| sign (Get-AuthenticodeSignature) | $(mark "$GATE_SIGN") — статус: $SIGN_STATUS |"
+            echo
+            if [ -n "$DRAFT_URL" ]; then
+              echo "Draft: $DRAFT_URL — публикация вручную (кнопка в Releases; арх. 10 §3)."
+            else
+              echo 'Draft не создан: падение гейта (§13 — падение любого → draft не создаётся).'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Отчёты — диагностические: грузятся и при красном гейте (§5, прецедент
+      # pr.yml), на статус не влияют.
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-reports
+          path: |
+            test-results/junit.xml
+            tools/crash-results/
+            apps/desktop/dist/size-audit-report.txt
+          if-no-files-found: warn
