@@ -124,7 +124,24 @@ export async function launchApp(options: LaunchAppOptions): Promise<ElectronAppl
   }
   delete env['ELECTRON_RENDERER_URL'];
 
-  return _electron.launch({ args: [MAIN_ENTRY], cwd: APP_ROOT, env });
+  const app = await _electron.launch({ args: [MAIN_ENTRY], cwd: APP_ROOT, env });
+
+  // Урок прогона 7 живой приёмки TASK-105 §20: размер КОНТЕНТА окна машино-зависим —
+  // на windows-runner GUI-сессия ~1024×768, окно зажалось до minWidth/minHeight
+  // (контент 1008×655), локально 1440×900 → 1424×835 — скриншот-базлайны
+  // (toHaveScreenshot, спеки 048/081/108) падают по размерности на любой машине,
+  // кроме базлайн-машины. Пиним content-size детерминированно: 1008×655 —
+  // гарантированно влезает и в раннер, и в dev-экран; setContentSize задаёт
+  // размер контента НАПРЯМУЮ (не зависит от высоты заголовка Windows 10/11).
+  // Внешний размер при этом 1024×720 = minWidth/minHeight приложения.
+  await app.firstWindow();
+  await app.evaluate(
+    ({ BrowserWindow }, size) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(size[0], size[1]);
+    },
+    [1008, 655] as const,
+  );
+  return app;
 }
 
 /**

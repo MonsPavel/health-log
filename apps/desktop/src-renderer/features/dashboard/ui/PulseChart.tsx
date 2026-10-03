@@ -301,7 +301,7 @@ export function PulseChart({
             accessibilityLayer=false — клавиатурный слой recharts 3 внутри
             aria-hidden недостижим и даёт serious-нарушение (a11y — aria-label
             фигуры + таблица). */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0}>
           <div aria-hidden="true">
             <ComposedChart
               width={width}

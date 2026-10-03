@@ -60,10 +60,14 @@ test.describe('витрина моделей (TASK-081 §20 AC6)', () => {
     await window.getByRole('link', { name: 'ИИ' }).click();
     await expect(window.getByTestId('ai-banner')).toBeVisible();
     await window.getByTestId('ai-tab-model').click();
-    const card = window.getByTestId('model-card');
+    // С фикса манифеста 079 (731c2c5, приёмка TASK-092) в витрине ДВЕ карточки —
+    // реальная llama-3.2-1b и dev-placeholder: целимся в карточку плейсхолдера
+    // и скоупим ВСЕ карточные testid к ней (strict mode против дублей).
+    const card = window.getByTestId('model-card').filter({ hasText: 'Dev Placeholder Model' });
     await expect(card).toBeVisible();
-    await expect(window.getByTestId('model-name')).toHaveText('Dev Placeholder Model');
-    const download = window.getByTestId('model-download');
+    const name = card.getByTestId('model-name');
+    await expect(name).toHaveText('Dev Placeholder Model');
+    const download = card.getByTestId('model-download');
     await expect(download).toHaveText('Скачать');
 
     // (2) Первый «Скачать» → согласие-диалог ДО сети (§14); host — из URL манифеста.
@@ -74,13 +78,13 @@ test.describe('витрина моделей (TASK-081 §20 AC6)', () => {
 
     // Подтверждение → prefs/set согласия → download (TEST-INSTALL §22) → installed.
     await window.getByTestId('consent-confirm').click();
-    await expect(window.getByTestId('model-select')).toHaveText('Выбрать');
+    await expect(card.getByTestId('model-select')).toHaveText('Выбрать');
     // Файл установлен в <userData>/models под именем дескриптора (§22).
     expect(existsSync(join(tmpUserData, 'models', 'dev-placeholder.gguf'))).toBe(true);
 
     // (3) «Выбрать» → бейдж «Выбрана» (prefs.aiSettings.modelId через prefs/set §9).
-    await window.getByTestId('model-select').click();
-    await expect(window.getByTestId('model-selected-badge')).toHaveText('Выбрана');
-    await expect(window.getByTestId('model-select')).toHaveCount(0);
+    await card.getByTestId('model-select').click();
+    await expect(card.getByTestId('model-selected-badge')).toHaveText('Выбрана');
+    await expect(card.getByTestId('model-select')).toHaveCount(0);
   });
 });

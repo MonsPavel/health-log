@@ -318,7 +318,7 @@ export function TrendChart({
             accessibilityLayer=false: клавиатурный слой recharts 3 даёт tabIndex=0
             внутри aria-hidden = serious-нарушение; a11y графика — на уровне экрана
             (aria-label фигуры + таблица ?as=table, TASK-059). */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0}>
           <div aria-hidden="true">
             <ComposedChart
               width={width}
