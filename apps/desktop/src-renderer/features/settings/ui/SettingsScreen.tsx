@@ -14,6 +14,9 @@
  * «Обновлений», до «Продвинутых»; НЕ в advanced (важность выше простоты, §22).
  * TASK-100 §5: секция «О приложении» (AboutSection) — после «Приватности», до
  * «Продвинутых»: версии (NFR-10), статус сампроверки, полная проверка БД.
+ * TASK-113 §5/§6: секция «Помощь» (HelpSection) — ПЕРВАЯ секцией экрана, до
+ * переключателя простого режима (новичку видна всегда — вне advanced-гейта, §13):
+ * открытие руководства docs/user каналом app/open-docs {page:'index'}.
  */
 import { useTranslation } from 'react-i18next';
 
@@ -25,6 +28,7 @@ import { UpdatesSection } from './UpdatesSection';
 import { PrivacyScreen } from './PrivacyScreen';
 import { AboutSection } from './AboutSection';
 import { DiagSection } from './DiagSection';
+import { HelpSection } from './HelpSection';
 import { SecuritySettings } from '../../security/ui/SecuritySettings';
 
 export function SettingsScreen(): JSX.Element {
@@ -41,6 +45,9 @@ export function SettingsScreen(): JSX.Element {
       <h1 id="settings-title" className="mb-4 text-xl font-semibold">
         {t('settings.title')}
       </h1>
+      {/* TASK-113 §5/§6: «Помощь» — первая секция (заметность для новичка, §13);
+          открытие руководства — канал app/open-docs {page:'index'} (§8–12). */}
+      <HelpSection />
       {/* §16: switch-паттерн с aria-checked и подписью; имя switch — из label по id.
           §22: ключ в t() — литерал (динамические ключи запрещены). */}
       <div className="mb-6 flex items-center justify-between gap-4 rounded-md border border-border p-3">
