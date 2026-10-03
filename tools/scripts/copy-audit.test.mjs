@@ -218,6 +218,59 @@ describe('фикстуры → находки (§19: юнит-таблицы)', 
     expect(audit.forbidden[0].root).toBe('страдаете');
   });
 
+  it('запрет-корень в файле i18n/ru/<имя>.json (имя ≠ ru.json, каталог = ru) → находка (ревью TASK-110)', async () => {
+    // Регресс discovery: файлы вида i18n/ru/common.json — это те же RU-каталоги
+    // (namespace = имя файла); фильтр «только ru.json» их терял (10 файлов /
+    // 205 значений = 37% корпуса мимо гейта).
+    const root = await makeFixtureWithMain({
+      'renderer-src/i18n/ru/lock.json': JSON.stringify({
+        title: 'У вас гипертония — введите пароль',
+      }),
+    });
+    const audit = auditFixture(root);
+    expect(audit.scanned.catalogs).toBe(2); // каркасный common.json + lock.json
+    expect(audit.forbidden).toHaveLength(1);
+    expect(audit.forbidden[0]).toMatchObject({
+      file: 'renderer-src/i18n/ru/lock.json',
+      key: 'lock.title',
+      root: 'у вас гипертония',
+    });
+  });
+
+  it('params-дрейф в файле i18n/ru/<имя>.json ловится (namespace = имя файла)', async () => {
+    const root = await makeFixtureWithMain({
+      'renderer-src/i18n/ru/report.json': JSON.stringify({
+        done: 'Файл сохранён: {{basename}} и {{lost}}',
+      }),
+      'renderer-src/ui/screen.tsx':
+        "const t = x; export const A = t('report.done', { basename: 'f' });",
+    });
+    const audit = auditFixture(root);
+    expect(audit.params).toEqual([
+      {
+        file: 'renderer-src/i18n/ru/report.json',
+        key: 'report.done',
+        param: 'lost',
+        direction: 'missing-in-usage',
+      },
+    ]);
+  });
+
+  it('discovery: раскладка i18n/ru/* + features/* + components/* — все RU-каталоги в скане', async () => {
+    const root = await makeFixtureWithMain({
+      'renderer-src/i18n/ru/data.json': JSON.stringify({ title: 'Данные' }),
+      'renderer-src/features/p/ru.json': JSON.stringify({ title: 'Раздел' }),
+      'renderer-src/components/critical/ru.json': JSON.stringify({ panel: { title: 'Панель' } }),
+      'renderer-src/i18n/ru/common.json': JSON.stringify({ ok: 'Спокойный текст' }),
+    });
+    // Каркас уже кладёт i18n/ru/common.json — он перезаписан выше; итого 3 каталога.
+    const audit = auditFixture(root);
+    expect(audit.scanned.catalogs).toBe(3);
+    const keys = [];
+    // Плоские ключи доступны только через находки/params — проверяем счётчиком значений.
+    expect(audit.scanned.catalogValues).toBe(4); // title, title, panel.title, ok
+  });
+
   it('обязательная подстрока отсутствует → находка; на месте → ok без влияния на вердикт', async () => {
     const root = await makeFixtureWithMain({
       'cat/good.json': JSON.stringify({ d: 'Это не является медицинской консультацией.' }),
@@ -446,6 +499,14 @@ describe('таблицы скрипта по умолчанию (§13: ключ�
 
 describe('ГЕЙТ §19/§20: полный прогон по реальным каталогам монорепо', () => {
   const result = run({});
+
+  it('discovery покрывает ВЕСЬ RU-корпус: 17 каталогов / 556 значений (ревью TASK-110)', () => {
+    // 7 = features/* + components/* (файлы «ru.json») + 10 = i18n/ru/*.json
+    // (namespace = имя файла); 351 + 205 = 556 — сходится с check:i18n.
+    // При ДОБАВЛЕНИИ каталога цифры правятся осознанным коммитом вместе с отчётом.
+    expect(result.json.scanned.catalogs).toBe(17);
+    expect(result.json.scanned.catalogValues).toBe(556);
+  });
 
   it('0 запрет-находок вне whitelist (§20 AC1)', () => {
     expect(result.json.forbidden).toEqual([]);
