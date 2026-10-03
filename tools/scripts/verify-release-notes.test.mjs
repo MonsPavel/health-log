@@ -125,8 +125,7 @@ describe('verifyDraftBody — сверка тела draft с шаблоном (�
   });
 
   it('секция удалена при заполнении → не ok', () => {
-    const body = TEMPLATE_FIXTURE
-      .replace('## Версии внутри', '## Чем внутри')
+    const body = TEMPLATE_FIXTURE.replace('## Версии внутри', '## Чем внутри')
       .replaceAll('{{app}}', '1')
       .replaceAll('{{perf}}', 'x');
     const verdict = verifyDraftBody(TEMPLATE_FIXTURE, body, { filled: true });
@@ -140,9 +139,13 @@ describe('verifyDraftBody — сверка тела draft с шаблоном (�
     );
     expect(verifyDraftBody(TEMPLATE_FIXTURE, stripped).ok).toBe(false);
     expect(
-      verifyDraftBody(TEMPLATE_FIXTURE, stripped.replaceAll('{{app}}', '1').replaceAll('{{perf}}', 'x'), {
-        filled: true,
-      }).ok,
+      verifyDraftBody(
+        TEMPLATE_FIXTURE,
+        stripped.replaceAll('{{app}}', '1').replaceAll('{{perf}}', 'x'),
+        {
+          filled: true,
+        },
+      ).ok,
     ).toBe(false);
   });
 });
@@ -183,7 +186,11 @@ describe('run() — инъекция gh, без сети (§14 тестов)', (
     expect(result.exitCode).toBe(0);
     expect(lines.join('\n')).toContain('OK');
     // Оба endpoint'а: шаблон именно в коммите тега (урок rc.0) и список релизов.
-    expect(gh.calls.some((args) => args.some((arg) => arg.includes('/contents/') && arg.includes('ref=v0.9.0-rc.1')))).toBe(true);
+    expect(
+      gh.calls.some((args) =>
+        args.some((arg) => arg.includes('/contents/') && arg.includes('ref=v0.9.0-rc.1')),
+      ),
+    ).toBe(true);
     expect(gh.calls.some((args) => args.some((arg) => arg.endsWith('/releases')))).toBe(true);
   });
 
