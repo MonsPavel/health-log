@@ -40,7 +40,14 @@ const test = base.extend<{
   launch: async ({}, use) => {
     const apps: ElectronApplication[] = [];
     await use(async (userData: string, fakeModelPath: string) => {
-      const app = await launchApp({ userData, fakeLlm: true, testModelFile: fakeModelPath });
+      // TASK-109: delayMs 25 — окно стрима ≈1 с, иначе стрим завершается между
+      // кадрами и aria-live off/aria-busy (§13) неуловимы (прецедент ai-chat).
+      const app = await launchApp({
+        userData,
+        fakeLlm: true,
+        fakeLlmDelayMs: 25,
+        testModelFile: fakeModelPath,
+      });
       apps.push(app);
       return app;
     });
@@ -70,11 +77,17 @@ test.describe('разбор периода на fake-LLM (TASK-088 §20)', () =>
     await expect(window.getByTestId('insight-generate')).toHaveCount(0);
 
     // (2) «Модель»: скачать (согласие ДО сети, §14) → выбрать.
+    // TASK-109 (сопутств. фикс среды прогона): каталог non-packaged содержит и
+    // реальную Llama, и Dev Placeholder — strict mode двух model-download падал
+    // на main; сужаем до карточки Dev (намерение спека — TEST-INSTALL dev-модели).
+    const devCard = window
+      .locator('[data-testid="model-card"]')
+      .filter({ hasText: 'Dev Placeholder Model' });
     await window.getByTestId('ai-tab-model').click();
-    await window.getByTestId('model-download').click();
+    await devCard.getByTestId('model-download').click();
     await window.getByTestId('consent-dialog').waitFor();
     await window.getByTestId('consent-confirm').click();
-    await window.getByTestId('model-select').click();
+    await devCard.getByTestId('model-select').click();
     await expect(window.getByTestId('model-selected-badge')).toHaveText('Выбрана');
 
     // (3) «Разбор»: превью точного текста (пустой период — валидная проекция).
@@ -97,9 +110,20 @@ test.describe('разбор периода на fake-LLM (TASK-088 §20)', () =>
 
     // (4) Генерация: стрим с [FAKE] (детерминированный движок) → несъёмный футер.
     await window.getByTestId('insight-generate').click();
+    // TASK-109 §13 (ключевой NVDA-кейс): во время стрима регион НЕ озвучивает
+    // дельты (aria-live off + aria-busy); на финале — polite, текст-узел
+    // перемонтирован (вставка в polite-регион = одно озвучивание целиком).
+    await expect(window.getByTestId('insight-summary-text')).toHaveAttribute(
+      'aria-live',
+      'off',
+      { timeout: 15_000 },
+    );
+    await expect(window.getByTestId('insight-summary-text')).toHaveAttribute('aria-busy', 'true');
     await expect(window.getByTestId('insight-summary-text')).toContainText('[FAKE]', {
       timeout: 15_000,
     });
+    await expect(window.getByTestId('insight-summary-text')).toHaveAttribute('aria-live', 'polite');
+    await expect(window.getByTestId('insight-summary-text')).not.toHaveAttribute('aria-busy');
     const disclaimer = window.getByTestId('insight-disclaimer');
     await expect(disclaimer).toContainText('Это не медицинская консультация.');
     await expect(disclaimer).toContainText('Период анализа:');
