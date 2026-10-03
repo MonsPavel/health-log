@@ -61,7 +61,7 @@ const record = (over: Partial<SummaryRecord> = {}): SummaryRecord => ({
   modelVersion: '1.0.0',
   dataVersion: 3,
   contentMd: 'Разбор периода',
-  disclaimerText: 'Это не медицинская консультация.',
+  disclaimerText: 'Это не является медицинской консультацией.',
   periodText: 'последние 7 дней',
   createdAtUtc: 5000,
   ...over,

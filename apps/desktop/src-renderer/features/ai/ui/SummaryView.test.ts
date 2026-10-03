@@ -20,7 +20,7 @@ afterEach(cleanup);
 
 const BASE = {
   text: 'Среднее СДА 124 — значения в целевой зоне.',
-  disclaimerText: 'Это не медицинская консультация.',
+  disclaimerText: 'Это не является медицинской консультацией.',
   periodText: 'последние 30 дней',
 };
 
@@ -42,7 +42,7 @@ describe('SummaryView — несъёмный футер дисклеймера �
 
       const footer = screen.getByTestId('insight-disclaimer');
       expect(footer.getAttribute('role')).toBe('note');
-      expect(footer.textContent).toContain('Это не медицинская консультация.');
+      expect(footer.textContent).toContain('Это не является медицинской консультацией.');
       expect(footer.textContent).toContain('последние 30 дней');
 
       cleanup();

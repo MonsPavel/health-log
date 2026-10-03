@@ -123,7 +123,7 @@ test.describe('разбор периода на fake-LLM (TASK-088 §20)', () =>
     await expect(window.getByTestId('insight-summary-text')).toHaveAttribute('aria-live', 'polite');
     await expect(window.getByTestId('insight-summary-text')).not.toHaveAttribute('aria-busy');
     const disclaimer = window.getByTestId('insight-disclaimer');
-    await expect(disclaimer).toContainText('Это не медицинская консультация.');
+    await expect(disclaimer).toContainText('Это не является медицинской консультацией.');
     await expect(disclaimer).toContainText('Период анализа:');
 
     // (5) Повтор того же периода — кэш FR-5.7: бейдж «из кэша», текст на месте.
@@ -134,7 +134,7 @@ test.describe('разбор периода на fake-LLM (TASK-088 §20)', () =>
     await expect(window.getByTestId('insight-summary-text')).toContainText('[FAKE]');
     // Дисклеймер остался несъёмным и после cache-hit (AC-5.2).
     await expect(window.getByTestId('insight-disclaimer')).toContainText(
-      'Это не медицинская консультация.',
+      'Это не является медицинской консультацией.',
     );
   });
 });

@@ -99,7 +99,9 @@ export const REPORT_RU: ReportStrings = {
   },
   ai: {
     title: 'Раздел, сгенерированный ИИ',
-    disclaimer: 'Сгенерировано ИИ, не является медицинским заключением',
+    // Формулировка FR-5.6 унифицирована ревизией TASK-110 (copy-audit:
+    // fr56-disclaimer-report-aimark — «не является медицинской консультацией»).
+    disclaimer: 'Сгенерировано ИИ; не является медицинской консультацией',
     modelLabel: 'Модель',
     generatedLabel: 'Сгенерировано',
   },

@@ -34,7 +34,7 @@ import type { GuardrailPolicy, RefusalClass } from '../../domain/guardrail-polic
  * плейсхолдера 'v1-template' — единственный источник версии здесь. Правка текста
  * шаблона → бамп (правило в шапке файла, §13).
  */
-export const PROMPT_TEMPLATE_VERSION = '1';
+export const PROMPT_TEMPLATE_VERSION = '2';
 
 /**
  * Мета сборки (§7): periodText — готовая подпись анализируемого периода для
@@ -107,7 +107,9 @@ export function buildSystemPrompt(policy: GuardrailPolicy, contextMeta: PromptCo
 
   const must = [
     'ОБЯЗАТЕЛЬНО:',
-    `${BULLET}В конце каждого ответа добавляй пометку: «Это не медицинская консультация».`,
+    // Формулировка пометки — канон FR-5.6 (ревизия TASK-110, SRS 01 §8):
+    // «не является медицинской консультацией» (copy-audit: system-prompt-disclaimer).
+    `${BULLET}В конце каждого ответа добавляй пометку: «Это не является медицинской консультацией».`,
     `${BULLET}Указывай анализируемый период. Анализируемый период: ${contextMeta.periodText}.`,
     ...(contextMeta.hasGaps
       ? [

@@ -89,7 +89,7 @@ const SUMMARY_DTO = {
   modelVersion: '0.0.0-dev',
   dataVersion: 3,
   contentMd: 'Сохранённый разбор: среднее СДА 124.',
-  disclaimerText: 'Это не медицинская консультация.',
+  disclaimerText: 'Это не является медицинской консультацией.',
   periodText: 'последние 30 дней',
   createdAtUtc: 5000,
 };
@@ -285,7 +285,7 @@ describe('InsightScreen — генерация: стрим, финал, «Сто
     );
     // Дисклеймер — из DTO сохранённой записи (несъёмный и в кэше, AC-5.2).
     expect(screen.getByTestId('insight-disclaimer').textContent).toContain(
-      'Это не медицинская консультация.',
+      'Это не является медицинской консультацией.',
     );
   });
 

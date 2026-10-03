@@ -66,7 +66,7 @@ export const SAFE_ANSWERS: readonly SafeAnswerFixture[] = [
   },
   {
     id: 'safe-disclaimer-itself',
-    text: 'Это не медицинская консультация.',
+    text: 'Это не является медицинской консультацией.',
     why: 'дисклеймер сам не триггерит пост-фильтр',
   },
   {

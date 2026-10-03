@@ -96,13 +96,13 @@ const MSG_USER: ChatMessageDto = {
 const MSG_ASSISTANT: ChatMessageDto = {
   id: 'm2',
   role: 'assistant',
-  content: 'Давление стабильное.\n\nЭто не медицинская консультация.',
+  content: 'Давление стабильное.\n\nЭто не является медицинской консультацией.',
   createdAtUtc: 1000,
 };
 const MSG_REFUSAL: ChatMessageDto = {
   id: 'm3',
   role: 'assistant',
-  content: 'Я не буду советовать препараты.\n\nЭто не медицинская консультация.',
+  content: 'Я не буду советовать препараты.\n\nЭто не является медицинской консультацией.',
   refusalClass: 'treatment',
   createdAtUtc: 2000,
 };
@@ -495,7 +495,7 @@ describe('ChatScreen — a11y-атрибуты (§16)', () => {
     expect(screen.getByLabelText('Ваш вопрос')).toBe(input);
     // Дисклеймер-футер несъёмный (§5/§14).
     expect(screen.getByTestId('chat-disclaimer').textContent).toContain(
-      'Это не медицинская консультация.',
+      'Это не является медицинской консультацией.',
     );
   });
 });

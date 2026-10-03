@@ -136,7 +136,7 @@ describe('состав PDF == чек-листу «Состав отчёта» (T
     expect(texts).not.toContain(REPORT_RU.ai.disclaimer);
   });
 
-  it('включённый ИИ-раздел промаркирован дисклеймером (§14: «не является медицинским заключением»)', async () => {
+  it('включённый ИИ-раздел промаркирован дисклеймером (§14: «не является медицинской консультацией»)', async () => {
     const payload = await buildPayload(true);
     const texts = collectTexts(createReportDocument(payload));
 
