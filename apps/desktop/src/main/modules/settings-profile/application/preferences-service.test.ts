@@ -89,6 +89,8 @@ describe('PreferencesService — getPrefs (§5/§8/§19)', () => {
       aiSettings: { dismissed: false, includeNotes: false },
       // TASK-094: порог автоблока — новое поле документа (дефолт схемы 5).
       autoLockMin: 5,
+      // TASK-107: канал обновлений — дефолт схемы stable.
+      updateChannel: 'stable',
     });
     expect(store.setCalls).toHaveLength(0);
   });
@@ -118,6 +120,8 @@ describe('PreferencesService — getPrefs (§5/§8/§19)', () => {
       aiSettings: { dismissed: false, includeNotes: false },
       // Усечённый документ (до TASK-094) — autoLockMin из zod-дефолта (§22).
       autoLockMin: 5,
+      // Усечённый документ (до TASK-107) — updateChannel из zod-дефолта (§22).
+      updateChannel: 'stable',
     });
   });
 
@@ -157,6 +161,30 @@ describe('PreferencesService — setPrefs (§7/§9/§11/§20)', () => {
       jobState: { jobs: {}, shown: {} },
       // TASK-094: autoLockMin — дефолт схемы для усечённого документа.
       autoLockMin: 5,
+      // TASK-107: updateChannel — дефолт схемы для усечённого документа.
+      updateChannel: 'stable',
+    });
+  });
+
+  it('updateChannel (TASK-107 §5) — merge: patch применяется, чужой patch не затирает', async () => {
+    const store = new FakeStore();
+    const { service, events } = makeService(store);
+
+    // 1. Переключение на beta: patch применён merge'ем, patchKeys — имя поля.
+    const result = await service.setPrefs({ updateChannel: 'beta' });
+    expect(result.updateChannel).toBe('beta');
+    expect(JSON.parse(store.rows.get(PREFS_STORAGE_KEY) as string)).toMatchObject({
+      updateChannel: 'beta',
+    });
+    expect(events.emit).toHaveBeenLastCalledWith('prefs:changed', {
+      patchKeys: ['updateChannel'],
+    });
+
+    // 2. Чужой patch (theme) не сбрасывает канал обратно на stable.
+    await service.setPrefs({ theme: 'dark' });
+    expect(JSON.parse(store.rows.get(PREFS_STORAGE_KEY) as string)).toMatchObject({
+      theme: 'dark',
+      updateChannel: 'beta',
     });
   });
 

@@ -129,6 +129,8 @@ export class PreferencesService {
       aiSettings: validPatch.aiSettings ?? current.aiSettings,
       // TASK-094 §5: порог автоблока (5|15|60|0) — UI настроек защиты (095).
       autoLockMin: validPatch.autoLockMin ?? current.autoLockMin,
+      // TASK-107 §5: канал обновлений (stable|beta) — select «Обновлений» (097).
+      updateChannel: validPatch.updateChannel ?? current.updateChannel,
     };
 
     // 3. Валидация результата (§9): инвариант, defensive-ветка (APP/INTERNAL).

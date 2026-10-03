@@ -52,7 +52,11 @@ import { NET_BLOCKED_BY_POLICY_MESSAGE_KEY } from '../egress/egress-policy.js';
 import { EgressGateway, type EgressNotify } from '../egress/egress-gateway.js';
 import type { HlLogger } from '../../../shared/logger/logger.js';
 import type { JobCtx, JobDefinition, JobShowAction } from '../../../shared/scheduler/scheduler.js';
-import type { UpdatesInstallResponse, UpdatesStatusResponse } from '@hl/contracts';
+import type {
+  UpdateChannel,
+  UpdatesInstallResponse,
+  UpdatesStatusResponse,
+} from '@hl/contracts';
 
 /** Имя сетевой операции белого списка (EgressPolicy 075) и журнала (§18). */
 export const UPDATES_CHECK_OP = 'updates.check';
@@ -96,6 +100,15 @@ export interface UpdateCheckOutcome {
 export interface UpdatesAdapter {
   /** URL фида обновлений (журнал/лента — §18); '' — фид не настроен (до TASK-104). */
   getFeedUrl(): Promise<string>;
+  /**
+   * Применение канала обновлений (TASK-107 §5): beta — updater читает beta.yml
+   * (штатная channel-механика GenericProvider: updater.channel || config.channel)
+   * с allowPrerelease; stable — канальный файл app-update.yml. Вызывается сервисом
+   * ПЕРЕД каждой проверкой — переключение канала в prefs применяется next-check
+   * (§13: перезапуск проверки вручную, без авто-перепроверки). Отказ — reject
+   * (сервис маппит в {status:'error'}).
+   */
+  setChannel(channel: UpdateChannel): Promise<void>;
   /** Проверка обновления; сетевая неудача — reject (сервис маппит в {status:'error'}). */
   checkForUpdates(): Promise<UpdateCheckOutcome>;
   /** Загрузка; резолв — после update-downloaded; неудача — reject. */
@@ -117,6 +130,12 @@ export interface UpdatesServiceDeps {
   readonly logger: HlLogger;
   /** Мост событий renderer'у (§11): боевой broadcastToWindows / fake в тестах. */
   readonly notify: EgressNotify;
+  /**
+   * Канал обновлений (TASK-107 §5): боевой — срез prefs.updateChannel на момент
+   * проверки (контейнер), дефолт stable — «ещё не включено» без читателя (§22:
+   * старый документ парсится с дефолтом; читателя нет — поведение 096).
+   */
+  readonly getUpdateChannel?: () => Promise<UpdateChannel>;
 }
 
 /** UpdatesService (§5): singleton контейнера; каналы updates/* — потребители (§11). */
@@ -125,9 +144,12 @@ export class UpdatesService {
   private status: UpdateStatus = { state: 'idle' };
   /** Момент последней НЕУДАЧНОЙ проверки (backoff §13); undefined — ошибок не было. */
   private lastFailureAtUtc: number | undefined;
+  /** Читатель канала (TASK-107 §5): дефолт stable при не заданном deps.getUpdateChannel. */
+  private readonly getChannel: () => Promise<UpdateChannel>;
 
   constructor(deps: UpdatesServiceDeps) {
     this.deps = deps;
+    this.getChannel = deps.getUpdateChannel ?? (() => Promise.resolve('stable'));
     // События updater'а → снапшот §7 + события рендереру (§11). Боевой autoUpdater
     // эмитит их сам в ходе check/download; дублирования нет — check() результат
     // канала маппит из исхода, не из события.
@@ -188,6 +210,10 @@ export class UpdatesService {
     permission.journal.start(endpoint);
     this.status = { state: 'checking' };
     try {
+      // TASK-107 §5/§13: канал из prefs — перед КАЖДОЙ проверкой (переключение в
+      // настройках применяется next-check, авто-перепроверки нет). Отказ — исход
+      // {status:'error'} (журнал failed), как сетевая неудача.
+      await this.deps.adapter.setChannel(await this.getChannel());
       const outcome = await this.deps.adapter.checkForUpdates();
       permission.journal.ok(); // байты updater-а не наблюдаемы — NULL (§22)
       if (outcome.available && outcome.version !== undefined) {
@@ -291,6 +317,15 @@ export interface ElectronUpdaterLike {
   disableWebInstaller: boolean;
   /** Дефолт electron-updater — true (AppUpdater.js:114); всегда выключается, §2/§5/§13. */
   autoInstallOnAppQuit: boolean;
+  /**
+   * Канал обновлений (TASK-107 §5): null — не задан (читается channel из
+   * app-update.yml); сеттер форсит allowDowngrade=true — см. wireElectronUpdater.
+   */
+  channel: string | null;
+  /** Пре-релизы фида (TASK-107 §5): разрешены только beta-каналу. */
+  allowPrerelease: boolean;
+  /** Даунгрейд (TASK-107 §13): всегда false — updater не откатывает версию. */
+  allowDowngrade: boolean;
   checkForUpdates(): Promise<unknown>;
   downloadUpdate(): Promise<unknown>;
   quitAndInstall(): void;
@@ -329,6 +364,19 @@ export function wireElectronUpdater(
     getFeedUrl(): Promise<string> {
       const url = updater.getFeedURL();
       return Promise.resolve(typeof url === 'string' ? url : '');
+    },
+    setChannel(channel: UpdateChannel): Promise<void> {
+      // §5: штатная механика каналов electron-updater — GenericProvider запрашивает
+      // `<channel>.yml` (updater.channel || config.channel); beta → beta.yml,
+      // stable → канальный файл app-update.yml (channel: stable у 104).
+      updater.channel = channel;
+      // §13: сеттер channel ставит allowDowngrade=true (док-комментарий AppUpdater
+      // «set channel») — даунгрейд beta→stable запрещён: updater не откатывает
+      // (предупреждение при переключении — UI 107; возврат — со следующим stable).
+      updater.allowDowngrade = false;
+      // §5: allowPrerelease = beta — пре-релизные версии фида только beta-каналу.
+      updater.allowPrerelease = channel === 'beta';
+      return Promise.resolve();
     },
     async checkForUpdates(): Promise<UpdateCheckOutcome> {
       const result = (await updater.checkForUpdates()) as {
@@ -420,6 +468,7 @@ export function createDefaultUpdatesAdapter(logger: HlLogger): UpdatesAdapter {
   };
   return {
     getFeedUrl: () => resolve().then((adapter) => adapter.getFeedUrl()),
+    setChannel: (channel) => resolve().then((adapter) => adapter.setChannel(channel)),
     checkForUpdates: () => resolve().then((adapter) => adapter.checkForUpdates()),
     downloadUpdate: () => resolve().then((adapter) => adapter.downloadUpdate()),
     quitAndInstall: () => resolve().then((adapter) => adapter.quitAndInstall()),
