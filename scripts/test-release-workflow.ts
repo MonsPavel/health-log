@@ -47,7 +47,7 @@ const PRESENCE_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
   { label: '§14 права workflow — contents: read', re: /^permissions:\n {2}contents: read$/m },
   {
     label: '§14 права job — contents: write (черновик релиза)',
-    re: /^ {6}permissions:\n {8}contents: write$/m,
+    re: /^ {4}permissions:\n {6}contents: write$/m,
   },
   {
     label: '§14 секреты подписи — release-окружение',

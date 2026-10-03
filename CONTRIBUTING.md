@@ -51,23 +51,24 @@ pnpm test
 
 ### Команды корневого `package.json`
 
-| Команда                     | Что делает                                                                              |
-| --------------------------- | --------------------------------------------------------------------------------------- |
-| `pnpm dev`                  | dev-режим desktop: сборка kernel+contracts, затем Vite + Electron конкурентно           |
-| `pnpm build`                | сборка всех пакетов монорепо (`pnpm -r build`: kernel, contracts, scales-data, desktop) |
-| `pnpm build:renderer`       | сборка kernel+contracts, затем vite-сборка рендерера desktop                            |
-| `pnpm test`                 | `vitest run` — один прогон всех тестов                                                  |
-| `pnpm test:watch`           | vitest в watch-режиме                                                                   |
-| `pnpm test:coverage`        | прогон тестов с покрытием (v8)                                                          |
-| `pnpm lint`                 | eslint (`--max-warnings 0`, включая правила границ) + `prettier --check`                |
-| `pnpm lint:fix`             | авто-исправление eslint + `prettier --write`                                            |
-| `pnpm typecheck`            | `tsc -b` по tsconfig kernel, contracts, scales-data, desktop                            |
-| `pnpm depcruise`            | dependency-cruiser по `.dependency-cruiser.cjs` — границы зависимостей                  |
-| `pnpm check:i18n`           | сверка i18n-ключей исходников с каталогом `ru` (`tools/scripts/check-i18n.mjs`)         |
-| `pnpm check-strict`         | фикстурный тест строгости TS: strict + `noUncheckedIndexedAccess` реально действуют     |
-| `pnpm test:lint-rules`      | тест зонных правил ESLint на фикстурах (`tools/lint-fixtures`)                          |
-| `pnpm test:depcruise-rules` | тест правил dependency-cruiser на фикстурах (`tools/depcruise-fixtures`)                |
-| `pnpm test:pr-workflow`     | тест структурного контракта `.github/workflows/pr.yml`                                  |
+| Команда                      | Что делает                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------------- |
+| `pnpm dev`                   | dev-режим desktop: сборка kernel+contracts, затем Vite + Electron конкурентно           |
+| `pnpm build`                 | сборка всех пакетов монорепо (`pnpm -r build`: kernel, contracts, scales-data, desktop) |
+| `pnpm build:renderer`        | сборка kernel+contracts, затем vite-сборка рендерера desktop                            |
+| `pnpm test`                  | `vitest run` — один прогон всех тестов                                                  |
+| `pnpm test:watch`            | vitest в watch-режиме                                                                   |
+| `pnpm test:coverage`         | прогон тестов с покрытием (v8)                                                          |
+| `pnpm lint`                  | eslint (`--max-warnings 0`, включая правила границ) + `prettier --check`                |
+| `pnpm lint:fix`              | авто-исправление eslint + `prettier --write`                                            |
+| `pnpm typecheck`             | `tsc -b` по tsconfig kernel, contracts, scales-data, desktop                            |
+| `pnpm depcruise`             | dependency-cruiser по `.dependency-cruiser.cjs` — границы зависимостей                  |
+| `pnpm check:i18n`            | сверка i18n-ключей исходников с каталогом `ru` (`tools/scripts/check-i18n.mjs`)         |
+| `pnpm check-strict`          | фикстурный тест строгости TS: strict + `noUncheckedIndexedAccess` реально действуют     |
+| `pnpm test:lint-rules`       | тест зонных правил ESLint на фикстурах (`tools/lint-fixtures`)                          |
+| `pnpm test:depcruise-rules`  | тест правил dependency-cruiser на фикстурах (`tools/depcruise-fixtures`)                |
+| `pnpm test:pr-workflow`      | тест структурного контракта `.github/workflows/pr.yml`                                  |
+| `pnpm test:release-workflow` | тест структурного контракта `.github/workflows/release.yml` (TASK-105)                  |
 
 Отдельно и вручную (Windows — целевая платформа): `pnpm test:vault-real` — real-smoke
 KeyVault на безопасном хранилище ОС (Electron safeStorage / DPAPI): создание ключа,
@@ -217,3 +218,29 @@ PR, раздел 5). Задача выполнена, только когда з
 
 Провал любого пункта — блокер релиза (исправление или строка в реестре отложенных
 `docs/a11y-deferred.md` с обоснованием).
+
+## 11. Релиз (тег-пайплайн, TASK-105)
+
+Пайплайн — `.github/workflows/release.yml`, триггер — пуш тега `v*`
+(Windows-runner): lint → typecheck → depcruise → unit/integration → сборка +
+подпись установщика (секреты release-окружения — `docs/dev/certificates.md` §2.1)
+→ самопроверка подписи → полный E2E (все спеки) → крэш-тест (N=10) → size-гейт
+(≤200 МБ) → **draft release** с артефактами (установщик, `stable.yml` updater'а,
+blockmap) и заготовкой notes. Протокол гейтов — таблица в Job Summary; от тега до
+draft — без ручных шагов; полный eval на модели в пайплайн не входит (ручной
+предрелизный чеклист; ночью 1B — `eval-nightly.yml`).
+
+Шаги ПОСЛЕ draft (публикация — всегда ручная, арх. 10 §3):
+
+1. Открыть draft в Releases и заполнить notes по шаблону
+   `.github/release-template.md` (TASK-114): фичи/фиксы, версии шкал и моделей,
+   ссылка на сетевой аудит; changelog-коммиты уже сгенерированы пайплайном.
+2. Сверить артефакты: подпись `Valid` (`Get-AuthenticodeSignature`), версия
+   установщика = тегу; пройти предрелизный чеклист TASK-114 — для мажорных/
+   минорных релизов включая a11y-прогон раздела 10 и полный eval.
+3. Опубликовать кнопкой «Publish release» — permalink «latest» update-feed'а
+   (`electron-builder.yml` → publish.url) подхватит выпуск.
+4. Гигиена: пробный тег после отладки удалить (§24 спеки — тег и rc-релиз);
+   при устойчивом сбое workflow отключить (откат §24).
+
+Контракт пайплайна проверяется локально: `pnpm test:release-workflow`.

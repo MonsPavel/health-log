@@ -36,17 +36,26 @@ electron-builder (26.x) читает env сам:
 локальная dev-сборка `pnpm dist` не требует секретов. Пароль никогда не попадает в
 логи (electron-builder печатает только факт подписи и имя сертификата).
 
-### 2.1 CI (GitHub)
+### 2.1 CI (GitHub — секреты в release-окружении, TASK-105)
 
 1. `base64 -w0 certificate.pfx > certificate.pfx.b64` (Git Bash; без переносов строк).
-2. Репозиторий → Settings → Secrets and variables → **Actions** → New repository
-   secret:
+2. Репозиторий → Settings → Environments → **release** (создаётся автоматически
+   первым прогоном `.github/workflows/release.yml` по тегу; при необходимости —
+   вручную) → Add environment secret:
    - Имя `WIN_CSC_LINK`, значение — содержимое `certificate.pfx.b64`;
    - Имя `WIN_CSC_KEY_PASSWORD`, значение — пароль `.pfx`.
-3. Секреты доступны только job'ам релизного workflow (TASK-105) — пайплайн подписи
-   изолируется туда; PR-workflow секреты не получает (OWASP CI/CD: код PR не
-   исполняется в привилегированном контексте).
-4. `.pfx`/base64-файл после загрузки в секреты удалить; в git они не попадают —
+3. Секреты живут только в release-окружении job'а релизного workflow
+   (`environment: release`, TASK-105 §14) — пайплайн подписи изолирован туда;
+   триггер workflow — только пуш тега `v*`, PR-workflow секреты не получает
+   (OWASP CI/CD: код PR не исполняется в привилегированном контексте).
+4. Самопроверка пайплайна (§14 TASK-105): шаг «Sign self-check» гоняет
+   `Get-AuthenticodeSignature` по установщику ДО attach — `NotSigned`/
+   `HashMismatch` → красный гейт, draft не создаётся. `NotTrusted` допускается
+   только для пробных тегов с test-cert (§4 ниже); боевой релиз обязан быть
+   `Valid` (пункт предрелизного чеклиста, TASK-114). Публикация всегда ручная:
+   electron-builder вызывается с `--publish never` — черновик создаёт
+   release.yml, выпуск — кнопкой в Releases.
+5. `.pfx`/base64-файл после загрузки в секреты удалить; в git они не попадают —
    корневой `.gitignore` исключает `*.pfx`, `*.pem`.
 
 ### 2.2 Локально (контрольная подпись перед релизом)
