@@ -13,3 +13,6 @@ apps/desktop/release/
 # AiContextBuilder (байт-тест снапшота); markdown-форматирование меняет байты
 # и семантику строк (сдвиг «Примечание» в элемент списка).
 apps/desktop/src/main/modules/ai-insight/application/__fixtures__/context-golden.md
+
+# TASK-111: packaged-сборка perf-прогона — артефакты сборки мимо форматтера (прецедент dist/)
+apps/desktop/dist-perf/

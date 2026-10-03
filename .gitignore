@@ -39,3 +39,8 @@ tools/audit-results/
 
 # TASK-106: временные упаковки для живого аудита (в репо не входят)
 apps/desktop/dist-audit*/
+
+# TASK-111: packaged-сборка perf-прогона (артефакт ручного прогона, в репо не входит;
+# вывод electron-builder перенапрявлялся CLI-оверрайдом -c.directories.output —
+# штатный dist/win-unpacked.tmp был залочен внешним процессом, docs/release/perf-mvp.md §8)
+apps/desktop/dist-perf/
