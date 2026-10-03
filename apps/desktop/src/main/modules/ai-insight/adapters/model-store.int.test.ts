@@ -47,7 +47,7 @@ import { createBroadcastToWindows, type BroadcastTarget } from '../../../events/
 import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite.js';
 import { MigrationRunner } from '../../../shared/db/migration-runner.js';
 import { MIGRATIONS } from '../../../shared/db/migrations/index.js';
-import { EgressGateway } from '../../platform-services/egress/egress-gateway.js';
+import { EgressGateway } from '../../platform-services/index.js';
 import { ModelsRegistry } from './models-registry.js';
 import { ModelStore } from './model-store.js';
 import { silentLogger } from '../../../shared/logger/silent-logger.js';
