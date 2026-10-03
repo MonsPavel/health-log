@@ -75,7 +75,8 @@ const PRESENCE_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
   { label: '§5 ключ кэша по pnpm-lock.yaml', re: /hashFiles\('pnpm-lock\.yaml'\)/m },
   { label: '§13.1 install --frozen-lockfile', re: /^ {8}run: pnpm install --frozen-lockfile$/m },
   {
-    label: 'сборка пакетов до Lint (typed-lint резолвит @hl/* через dist/*.d.ts — на свежем checkout их нет; ревью TASK-105)',
+    label:
+      'сборка пакетов до Lint (typed-lint резолвит @hl/* через dist/*.d.ts — на свежем checkout их нет; ревью TASK-105)',
     re: /^ {8}run: pnpm --filter @hl\/kernel --filter @hl\/contracts --filter @hl\/scales-data run build$/m,
   },
   { label: '§5 lint', re: /^ {8}run: pnpm lint$/m },

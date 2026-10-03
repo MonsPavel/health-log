@@ -83,6 +83,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Typed-lint (TASK-003 §15, projectService) резолвит @hl/* через dist/*.d.ts
+      # (package.json types) — на свежем checkout их нет (dist в .gitignore), Lint
+      # до сборки даёт ложные «type that cannot be resolved» (блокер из ревью
+      # TASK-105: сотни ошибок eslint на worktree без сборки). Эмит пакетов до
+      # Lint — прецедент pr.yml «Build packages»; scales-data тоже: desktop
+      # зависит от @hl/scales-data. Экономит и сборку в dist-шаге ниже.
+      - name: Build packages
+        run: pnpm --filter @hl/kernel --filter @hl/contracts --filter @hl/scales-data run build
+
       # §13: гейты-порядок — ранние дешёвые (lint/test) → тяжёлые (E2E/crash) →
       # сборка артефактов → size. Падение любого шага валит job → draft не
       # создаётся (одиночный job = fail-fast).
