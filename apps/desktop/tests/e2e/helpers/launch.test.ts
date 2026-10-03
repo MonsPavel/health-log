@@ -27,7 +27,13 @@ function lastLaunchEnv(): NodeJS.ProcessEnv {
 
 beforeEach(() => {
   launchMock.mockReset();
-  launchMock.mockResolvedValue({});
+  // Урок прогона 8 живой приёмки TASK-105 §20: launchApp после пина content-size
+  // (детерминированный размер окна для скриншот-базлайнов) вызывает
+  // app.firstWindow() + app.evaluate(setContentSize) — фейк обязан их иметь.
+  launchMock.mockResolvedValue({
+    firstWindow: () => Promise.resolve({}),
+    evaluate: () => Promise.resolve(undefined),
+  });
 });
 
 describe('launchApp — env-проводка fake-LLM (TASK-078 AC3)', () => {
@@ -50,7 +56,10 @@ describe('launchApp — env-проводка fake-LLM (TASK-078 AC3)', () => {
     expect(lastLaunchEnv()['HL_FAKE_LLM']).toBe('1');
 
     launchMock.mockReset();
-    launchMock.mockResolvedValue({});
+    launchMock.mockResolvedValue({
+      firstWindow: () => Promise.resolve({}),
+      evaluate: () => Promise.resolve(undefined),
+    });
     await launchApp({ userData: 'C:/tmp/user', bench: true });
     expect(lastLaunchEnv()['HL_BENCH']).toBe('1');
     expect(lastLaunchEnv()['HL_FAKE_LLM']).toBeUndefined();
@@ -62,7 +71,10 @@ describe('launchApp — env-проводка fake-LLM (TASK-078 AC3)', () => {
     expect(lastLaunchEnv()['HL_TEST_USER_DATA']).toBe('C:/tmp/user');
 
     launchMock.mockReset();
-    launchMock.mockResolvedValue({});
+    launchMock.mockResolvedValue({
+      firstWindow: () => Promise.resolve({}),
+      evaluate: () => Promise.resolve(undefined),
+    });
     await launchApp({ userData: 'C:/tmp/user' });
     expect(lastLaunchEnv()['HL_TEST_HOOKS']).toBeUndefined();
   });
