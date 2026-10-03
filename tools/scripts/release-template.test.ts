@@ -197,3 +197,21 @@ describe('TASK-114: пайплайн 105 заливает шаблон в draft 
     expect(workflow).toMatch(/^ {10}generate_release_notes: true$/mu);
   });
 });
+
+/**
+ * Урок живой приёмки rc.0 (run 37132708817, тег v0.9.0-rc.0): шаблона в коммите
+ * тега не было (gh api contents → 404), фолбэк-заглушка release.yml молча дала
+ * draft с телом-заглушкой — сверить §19 было не с чем, критерий §20-2 не
+ * подтверждён. Заглушки больше нет: отсутствие шаблона в коммите тега —
+ * жёсткий отказ шага, draft не создаётся (fail-fast §13), ошибка видна сразу.
+ */
+describe('TASK-114: пайплайн 105 — draft по заглушке невозможен (§20-2)', () => {
+  it('фолбэк-заглушки в «Prepare release notes» нет', () => {
+    expect(workflow).not.toContain("printf '# Release");
+  });
+
+  it('отсутствие шаблона в коммите тега — жёсткий отказ шага (exit 1)', () => {
+    expect(workflow).toMatch(/^ {10}if \[ ! -f "\$template" \]; then$/m);
+    expect(workflow).toMatch(/^ {12}exit 1$/m);
+  });
+});
