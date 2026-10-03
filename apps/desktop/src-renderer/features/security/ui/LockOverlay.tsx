@@ -168,7 +168,7 @@ export function LockOverlay({ onUnlocked }: LockOverlayProps): JSX.Element {
           data-testid="lock-unlock"
           disabled={unlock.isPending || waiting}
           aria-busy={unlock.isPending}
-          className="mt-2 flex min-h-11 items-center justify-center gap-2 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-2 flex min-h-11 items-center justify-center gap-2 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
         >
           {unlock.isPending ? <Spinner /> : null}
           {buttonLabel}

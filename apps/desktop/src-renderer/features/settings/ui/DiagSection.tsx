@@ -84,7 +84,7 @@ export function DiagSection(): JSX.Element {
           disabled={content === undefined || save.isPending}
           aria-busy={save.isPending}
           onClick={() => save.mutate()}
-          className="min-h-11 rounded-md bg-accent px-4 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-11 rounded-md bg-accent px-4 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
         >
           {save.isPending ? t('diag.saving') : t('diag.save')}
         </button>

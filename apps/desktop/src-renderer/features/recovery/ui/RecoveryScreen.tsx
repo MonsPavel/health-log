@@ -203,7 +203,7 @@ export function RecoveryScreen({ recovery }: RecoveryScreenProps): JSX.Element {
                         restore.mutate({ file: backupPath, passphrase });
                       }
                     }}
-                    className="flex min-h-11 items-center justify-center rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex min-h-11 items-center justify-center rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
                   >
                     {restore.isPending ? t('recovery.restoreRunning') : t('recovery.restoreSubmit')}
                   </button>

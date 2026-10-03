@@ -154,7 +154,7 @@ export function UpdatesSection(): JSX.Element {
                 disabled={install.isPending}
                 aria-busy={install.isPending}
                 onClick={() => setConfirmOpen(true)}
-                className="min-h-11 rounded-md bg-accent px-4 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-md bg-accent px-4 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
               >
                 {t('updates.install')}
               </button>
@@ -298,7 +298,7 @@ function InstallConfirmDialog({
               disabled={pending}
               aria-busy={pending}
               onClick={onConfirm}
-              className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
             >
               {t('updates.restartAccept')}
             </button>

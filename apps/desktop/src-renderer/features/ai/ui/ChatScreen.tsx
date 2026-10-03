@@ -353,7 +353,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
                 data-testid="chat-send"
                 onClick={submit}
                 disabled={question.trim() === ''}
-                className="min-h-11 shrink-0 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 shrink-0 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
               >
                 {t('ai.chat.send')}
               </button>
@@ -415,7 +415,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
                   data-testid="chat-clear-confirm"
                   disabled={clearChat.isPending}
                   onClick={handleClear}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {t('ai.chat.clearConfirm')}
                 </button>

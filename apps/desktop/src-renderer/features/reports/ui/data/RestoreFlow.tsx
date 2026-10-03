@@ -238,7 +238,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   disabled={busy}
                   aria-busy={pickMutation.isPending}
                   onClick={() => pickMutation.mutate()}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {t('data.restore.pickButton')}
                 </button>
@@ -299,7 +299,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   disabled={busy}
                   aria-busy={planMutation.isPending}
                   onClick={() => planMutation.mutate()}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {t('data.restore.next')}
                 </button>
@@ -390,7 +390,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   disabled={!acknowledged || busy}
                   aria-busy={executeMutation.isPending}
                   onClick={() => executeMutation.mutate()}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {t('data.restore.execute')}
                 </button>
