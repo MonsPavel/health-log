@@ -90,21 +90,14 @@ describe('TASK-114: шаблон .github/release-template.md — секции §
 
   it('версии внутри — все 4 строки §5 (приложение/схема/шкала/модель) в секции «Версии внутри»', () => {
     const versions = sectionOf(template, '## Версии внутри');
-    for (const marker of [
-      'Приложение:',
-      'Схема БД:',
-      'Справочная шкала:',
-      'ИИ-модель:',
-    ]) {
+    for (const marker of ['Приложение:', 'Схема БД:', 'Справочная шкала:', 'ИИ-модель:']) {
       expect(versions, `строка версий не найдена: ${marker}`).toContain(marker);
     }
   });
 
   it('плейсхолдеры {{}} — ровно ожидаемый набор §5, без чужих', () => {
     const found = collectPlaceholders(template);
-    expect(found.length, 'каждый плейсхолдер встречается ровно один раз').toBe(
-      new Set(found).size,
-    );
+    expect(found.length, 'каждый плейсхолдер встречается ровно один раз').toBe(new Set(found).size);
     expect(found).toEqual([...EXPECTED_PLACEHOLDERS].sort());
   });
 
