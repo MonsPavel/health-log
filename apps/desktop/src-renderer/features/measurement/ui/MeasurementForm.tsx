@@ -611,7 +611,7 @@ export function MeasurementForm({
           <button
             type="submit"
             disabled={!isValid || mutation.isPending || updateMutation.isPending}
-            className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:opacity-50"
+            className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:opacity-80"
           >
             {mutation.isPending || updateMutation.isPending
               ? t('measurement.form.saving')

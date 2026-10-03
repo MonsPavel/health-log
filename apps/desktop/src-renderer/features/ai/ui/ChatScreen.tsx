@@ -256,11 +256,14 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
           />
         ))}
         {/* §12: оптимистичная пара — user-бабл сразу, стрим в виртуальном
-            assistant-бабле (append deltas, §10); финал заменяет их сохранёнными. */}
+            assistant-бабле (append deltas, §10); финал заменяет их сохранёнными.
+            TASK-109 §13: стрим-бабл с aria-busy — polite-лента не озвучивает
+            дельты токенов; на финале сохранённая пара вставляется в log —
+            одно озвучивание целиком. */}
         {generation.question !== undefined ? (
           <>
             <ChatBubble role="user" content={generation.question} />
-            <ChatBubble role="assistant" content={generation.text} />
+            <ChatBubble role="assistant" content={generation.text} busy />
           </>
         ) : null}
       </div>
@@ -353,7 +356,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
                 data-testid="chat-send"
                 onClick={submit}
                 disabled={question.trim() === ''}
-                className="min-h-11 shrink-0 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 shrink-0 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
               >
                 {t('ai.chat.send')}
               </button>
@@ -415,7 +418,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
                   data-testid="chat-clear-confirm"
                   disabled={clearChat.isPending}
                   onClick={handleClear}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {t('ai.chat.clearConfirm')}
                 </button>

@@ -337,7 +337,7 @@ function PassphraseDialog({ kind, onClose }: PassphraseDialogProps): JSX.Element
               disabled={submitDisabled}
               aria-busy={mutation.isPending}
               onClick={handleSubmit}
-              className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
             >
               {t('security.passphrase.submit')}
             </button>

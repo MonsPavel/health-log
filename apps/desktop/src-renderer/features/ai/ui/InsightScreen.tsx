@@ -468,7 +468,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
                   data-testid="insight-clear-confirm"
                   disabled={deleteSummaries.isPending}
                   onClick={handleDelete}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {t('ai.insight.clear.confirm')}
                 </button>

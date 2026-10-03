@@ -9,8 +9,10 @@
  *    текст отказа приходит стримом (086) — блок лишь помечает его визуально;
  *  - стейлс: жёлтый бейдж НАД текстом, клик = перегенерация (§10/§12);
  *  - «из кэша» — финал cache-hit (FR-5.7);
- *  - стрим: aria-live="polite" (§16), авто-скролл вниз ТОЛЬКО если пользователь у
- *    низа — ручной скролл вверх не дёргается (§10).
+ *  - стрим: дельты НЕ озвучиваются (aria-live off + aria-busy), финал — polite
+ *    с перемонтированным текст-узлом: одно озвучивание целиком (TASK-109 §13),
+ *    авто-скролл вниз ТОЛЬКО если пользователь у низа — ручной скролл вверх не
+ *    дёргается (§10).
  */
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -97,7 +99,17 @@ export function SummaryView({
       <div
         ref={scrollRef}
         data-testid="insight-summary-text"
-        aria-live={streaming ? 'polite' : 'off'}
+        /*
+         * TASK-109 §13 (NVDA-кейс): во время стрима регион НЕ озвучивает дельты
+         * (aria-live="off" + aria-busy — иначе NVDA читает текст «буква-за-буквой»
+         * на каждом токене); на финале регион снова polite, а текст-узел
+         * ПЕРЕМОНТИРОВАН (data-phase/key по фазе) — вставка узла в polite-регион
+         * озвучивается ОДИН раз, целиком (в т.ч. стоп/кэш/отказ, где статус-тоста
+         * нет). Сохранённый разбор рендерится в polite-регионе сразу — монтирование
+         * региона само по себе не объявляется.
+         */
+        aria-live={streaming ? 'off' : 'polite'}
+        aria-busy={streaming || undefined}
         data-kind={refusal ? 'refusal' : undefined}
         className={`max-h-96 overflow-y-auto rounded-md border p-3 ${
           refusal
@@ -106,12 +118,22 @@ export function SummaryView({
         }`}
       >
         {refusal ? (
-          <div className="flex items-start gap-2">
+          <div
+            key={streaming ? 'stream' : 'final'}
+            data-phase={streaming ? 'stream' : 'final'}
+            className="flex items-start gap-2"
+          >
             <RefusalIcon />
             <div className="whitespace-pre-wrap break-words text-sm">{text}</div>
           </div>
         ) : (
-          <div className="whitespace-pre-wrap break-words text-base">{text}</div>
+          <div
+            key={streaming ? 'stream' : 'final'}
+            data-phase={streaming ? 'stream' : 'final'}
+            className="whitespace-pre-wrap break-words text-base"
+          >
+            {text}
+          </div>
         )}
       </div>
 

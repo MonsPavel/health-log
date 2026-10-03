@@ -5,7 +5,9 @@
  *    «отсутствия способа скрыть»);
  *  - отказ-ответ — серый блок с info-иконкой, различимый от обычного разбора (§10);
  *  - бейджи: «из кэша» (финал cache-hit) и стейлс (жёлтый, клик = перегенерация §10);
- *  - стрим: aria-live="polite", после финала — "off" (§16).
+ *  - стрим (TASK-109 §13): aria-live="off" + aria-busy — дельты НЕ озвучиваются
+ *    («не буква-за-буквой»); финал — region снова polite, текст-узел
+ *    перемонтирован: вставка в polite-регион = одно озвучивание целиком.
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
@@ -83,11 +85,35 @@ describe('SummaryView — отказ-стиль, бейджи, aria-live (§5/§
     expect(screen.queryByTestId('insight-stale-badge')).toBeNull();
   });
 
-  it('стрим: aria-live polite; финал — off (§16: живой текст, без спама после done)', () => {
+  it('стрим (TASK-109 §13): aria-live off + aria-busy — дельты НЕ озвучиваются', () => {
+    render(createElement(SummaryView, { ...BASE, streaming: true }));
+    const container = screen.getByTestId('insight-summary-text');
+    expect(container.getAttribute('aria-live')).toBe('off');
+    expect(container.getAttribute('aria-busy')).toBe('true');
+    // Внутренний текст-узел помечен фазой стрима.
+    expect(container.querySelector('[data-phase="stream"]')).not.toBeNull();
+  });
+
+  it('финал (TASK-109 §13): region снова polite, текст-узел ПЕРЕМОНТИРОВАН — вставка в polite-регион озвучивается один раз, целиком', () => {
     const { rerender } = render(createElement(SummaryView, { ...BASE, streaming: true }));
-    expect(screen.getByTestId('insight-summary-text').getAttribute('aria-live')).toBe('polite');
+    const before = screen.getByTestId('insight-summary-text').querySelector('[data-phase]');
+    expect(before).not.toBeNull();
 
     rerender(createElement(SummaryView, { ...BASE }));
-    expect(screen.getByTestId('insight-summary-text').getAttribute('aria-live')).toBe('off');
+    const container = screen.getByTestId('insight-summary-text');
+    expect(container.getAttribute('aria-live')).toBe('polite');
+    expect(container.getAttribute('aria-busy')).toBeNull();
+    const after = container.querySelector('[data-phase="final"]');
+    expect(after).not.toBeNull();
+    // Перемонтирование: узел финала — НЕ тот же, что узел стрима.
+    expect(after).not.toBe(before);
+  });
+
+  it('сохранённый разбор (без стрима): aria-live polite с первого рендера — без объявлений при монтировании', () => {
+    render(createElement(SummaryView, { ...BASE }));
+    const container = screen.getByTestId('insight-summary-text');
+    expect(container.getAttribute('aria-live')).toBe('polite');
+    expect(container.getAttribute('aria-busy')).toBeNull();
+    expect(container.querySelector('[data-phase="final"]')).not.toBeNull();
   });
 });

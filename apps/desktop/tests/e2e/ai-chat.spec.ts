@@ -90,11 +90,17 @@ test.describe('чат с ИИ на fake-LLM (TASK-090 §20)', () => {
     await expect(window.getByTestId('chat-chip')).toHaveCount(3);
 
     // (2) «Модель»: скачать (согласие ДО сети, §14) → выбрать.
+    // TASK-109 (сопутств. фикс среды прогона): каталог non-packaged содержит и
+    // реальную Llama, и Dev Placeholder — strict mode двух model-download падал
+    // на main; сужаем до карточки Dev (намерение спека — TEST-INSTALL dev-модели).
+    const devCard = window
+      .locator('[data-testid="model-card"]')
+      .filter({ hasText: 'Dev Placeholder Model' });
     await window.getByTestId('ai-tab-model').click();
-    await window.getByTestId('model-download').click();
+    await devCard.getByTestId('model-download').click();
     await window.getByTestId('consent-dialog').waitFor();
     await window.getByTestId('consent-confirm').click();
-    await window.getByTestId('model-select').click();
+    await devCard.getByTestId('model-select').click();
     await expect(window.getByTestId('model-selected-badge')).toHaveText('Выбрана');
 
     // Сидинг 8 измерений (контекст периода/порог малых данных 086 — как 088 e2e).
@@ -117,6 +123,13 @@ test.describe('чат с ИИ на fake-LLM (TASK-090 §20)', () => {
     await window.getByTestId('chat-input').press('Enter');
 
     await expect(window.getByTestId('chat-bubble')).toHaveCount(2);
+    // TASK-109 §13 (ключевой NVDA-кейс): во время стрима assistant-бабл aria-busy —
+    // polite-лента (role="log") не озвучивает дельты токенов («не буква-за-буквой»).
+    // Окно стрима ~1 с (25 мс/слово, шапка) — полл expect попадает в него.
+    await expect(window.locator('[data-testid="chat-bubble"]').last()).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
     await expect(window.getByTestId('chat-bubble').first()).toContainText('Как менялось давление?');
     await expect(window.getByTestId('chat-bubble').last()).toContainText('[FAKE]', {
       timeout: 15_000,
@@ -124,6 +137,11 @@ test.describe('чат с ИИ на fake-LLM (TASK-090 §20)', () => {
     // Дисклеймер 089 в хвосте каждого assistant-ответа (§20 п.6 089).
     await expect(window.getByTestId('chat-bubble').last()).toContainText(
       'Это не медицинская консультация.',
+    );
+    // Финал: сохранённая пара без aria-busy — вставка в polite-ленту озвучивается
+    // один раз, целиком (TASK-109 §13).
+    await expect(window.locator('[data-testid="chat-bubble"]').last()).not.toHaveAttribute(
+      'aria-busy',
     );
 
     // (4) Отказ (AC-5.1): «Какие таблетки…» → серый refusal-бабл с дисклеймером.

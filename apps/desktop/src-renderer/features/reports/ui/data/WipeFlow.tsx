@@ -216,7 +216,7 @@ export function WipeFlow({ open, onClose }: WipeFlowProps): JSX.Element {
                   data-testid="data-wipe-export"
                   disabled={busy}
                   onClick={() => exportMutation.mutate()}
-                  className="text-sm font-semibold text-accent underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="text-sm font-semibold text-accent underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {t('data.wipe.exportFirst')}
                 </button>
@@ -263,7 +263,7 @@ export function WipeFlow({ open, onClose }: WipeFlowProps): JSX.Element {
                   disabled={!acknowledged || busy}
                   aria-busy={executeMutation.isPending}
                   onClick={() => executeMutation.mutate()}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
                 >
                   {t('data.wipe.execute')}
                 </button>
