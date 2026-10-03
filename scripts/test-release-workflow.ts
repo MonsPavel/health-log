@@ -129,6 +129,13 @@ const PRESENCE_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
     re: /^ {12}apps\/desktop\/dist\/\*\.yml$/m,
   },
   {
+    // TASK-107 §5/§20-4: beta-фид (вторая запись publish) — electron-builder 26
+    // пишет update-info второй и последующих конфигов в outDir/<provider>/,
+    // поэтому beta.yml попадает в draft отдельным glob'ом.
+    label: 'TASK-107 файлы-артефакты: beta-фид (generic/*.yml)',
+    re: /^ {12}apps\/desktop\/dist\/generic\/\*\.yml$/m,
+  },
+  {
     label: '§5 draft не создаётся при отсутствии артефактов',
     re: /^ {10}fail_on_unmatched_files: true$/m,
   },

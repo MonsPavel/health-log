@@ -241,7 +241,11 @@ jobs:
 
       # §5: draft release с тегом, артефактами (установщик + update-feed *.yml
       # + blockmap) и notes; публикация — вручную кнопкой в Releases. Данные
-      # генерируются при сборке: канал stable (electron-builder.yml) — stable.yml.
+      # генерируются при сборке: канал stable (первая запись publish,
+      # electron-builder.yml) — stable.yml; TASK-107 §5/§20-4: вторая запись —
+      # beta.yml, который electron-builder 26 пишет в dist/generic/ (update-info
+      # второй и последующих конфигов — в outDir/<provider>/), поэтому отдельный
+      # glob: rc-тег уходит в draft с beta-фидом (§20-4 «rc-тег → beta-фид»).
       - name: Create draft release
         id: draft
         uses: softprops/action-gh-release@v2
@@ -255,6 +259,7 @@ jobs:
           files: |
             apps/desktop/dist/*.exe
             apps/desktop/dist/*.yml
+            apps/desktop/dist/generic/*.yml
             apps/desktop/dist/*.blockmap
 
       # §18: Job Summary — таблица гейтов (unit/e2e/crash/size/sign) — читаемый

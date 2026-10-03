@@ -60,22 +60,29 @@ extraResources: []
 # в окружении без VS Build Tools — отключаем штатный rebuild electron-builder.
 npmRebuild: false
 
-# TASK-104 §5: update feed — generic-провайдер поверх permalink «latest» GitHub Releases,
-# канал stable (latest-файл канала: stable.yml; поля version/path/sha512 генерирует
-# builder). publisherName = Subject DN боевого сертификата (OV, ADR-0005) — он же пишется
-# в app-update.yml: updater отвергает установщик, подписанный кем-то другим (NFR-11).
-# До получения боевого сертификата значение — плановый DN; сверить/обновить при
-# контрольной подписи (certificates.md §3). Локальные сборки без env-секретов остаются
-# НЕподписанными (§24 TASK-104), publish не публикует без явного --publish (TASK-105).
+# TASK-104 §5: update feed — generic-провайдер поверх permalink «latest» GitHub Releases.
+# TASK-107 §5: ДВЕ записи publish — «один артефакт, разные фиды» (решение §5):
+# каждая сборка кладёт в дистрибутив ОБА канальных файла (computeChannelNames —
+# по записи: stable.yml и beta.yml; release.yml 105 attach'ит dist/*.yml к draft).
+# app-update.yml в приложении собирается из ПЕРВОЙ записи (PublishManager.
+# getAppUpdatePublishConfiguration → publishConfigs[0]): канал stable +
+# publisherName (NFR-11 не ослабляется, §14 107 — подпись артефактов идентична).
+# Вторая запись даёт beta.yml артефакта: пре-релизный тег vX.Y.Z-beta.N/-rc.N
+# уходит в beta-фид (β-клиенты — updater.channel=beta, TASK-107); у stable-сборки
+# beta.yml = той же стабильной версии — beta-клиент не отстаёт от stable.
+# publisherName во второй записи не дублируется (конфиг-тест считает вхождения).
 publish:
-  provider: generic
-  url: https://github.com/MonsPavel/health-log/releases/latest/download
-  channel: stable
-  # Схема app-builder-lib: в publish publisherName — ТОЛЬКО массив строк
-  # (в win.signtoolOptions допустим скаляр). Значения обязаны совпадать —
-  # проверяет конфиг-тест update-feed.test.ts.
-  publisherName:
-    - CN=Health Log, O=Health Log, C=RU
+  - provider: generic
+    url: https://github.com/MonsPavel/health-log/releases/latest/download
+    channel: stable
+    # Схема app-builder-lib: в publish publisherName — ТОЛЬКО массив строк
+    # (в win.signtoolOptions допустим скаляр). Значения обязаны совпадать —
+    # проверяет конфиг-тест update-feed.test.ts.
+    publisherName:
+      - CN=Health Log, O=Health Log, C=RU
+  - provider: generic
+    url: https://github.com/MonsPavel/health-log/releases/latest/download
+    channel: beta
 
 win:
   target:
