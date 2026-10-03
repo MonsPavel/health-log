@@ -32,3 +32,7 @@ tools/eval/reports/
 
 # TASK-102 §18: отчёты крэш-теста NFR-3 (артефакт ручного прогона, в репо не входит)
 tools/crash-results/
+
+# TASK-106 §18: raw-прогоны сетевого аудита (артефакт ручного прогона, в репо не входит;
+# отчёт коммитится в docs/architecture/audits/)
+tools/audit-results/
