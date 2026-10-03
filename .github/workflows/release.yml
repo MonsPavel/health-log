@@ -105,9 +105,14 @@ jobs:
         run: pnpm depcruise
 
       # §5: unit/integration (vitest, весь монорепо). junit — артефакт §18/§20.
+      # НЕ `pnpm test` с флагами (урок прогона 2 живой приёмки §20): голый test
+      # для pnpm 9 — встроенная команда, она парсит флаги сама и падает
+      # «Unknown option: 'outputFile'» до запуска vitest (воспроизведено зондом
+      # локально). Неизвестное слово (pnpm test:coverage — прецедент pr.yml) или
+      # явный exec проходят дословно.
       - name: Unit/integration tests
         id: unit
-        run: pnpm test --reporter=default --reporter=junit --outputFile=test-results/junit.xml
+        run: pnpm exec vitest run --reporter=default --reporter=junit --outputFile=test-results/junit.xml
 
       # Версия релиза = тег: electron-builder берёт версию из package.json
       # (@hl/desktop 0.0.0 в репо) — установщик «Health Log Setup <версия>.exe»

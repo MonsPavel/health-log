@@ -83,8 +83,9 @@ const PRESENCE_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
   { label: '§5 typecheck', re: /^ {8}run: pnpm typecheck$/m },
   { label: '§5 depcruise', re: /^ {8}run: pnpm depcruise$/m },
   {
-    label: '§5 unit/integration (vitest) с junit-отчётом',
-    re: /^ {8}run: pnpm test --reporter=default --reporter=junit --outputFile=test-results\/junit\.xml$/m,
+    label:
+      '§5 unit/integration (vitest) с junit-отчётом — pnpm exec vitest (голый pnpm test — встроенная команда pnpm 9, съедает флаги: урок прогона 2 живой приёмки)',
+    re: /^ {8}run: pnpm exec vitest run --reporter=default --reporter=junit --outputFile=test-results\/junit\.xml$/m,
   },
   {
     label: '§5 версия релиза = тег (npm pkg set в @hl/desktop)',
@@ -150,7 +151,10 @@ const ORDER_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
   { label: 'lint', re: /^ {8}run: pnpm lint$/m },
   { label: 'typecheck', re: /^ {8}run: pnpm typecheck$/m },
   { label: 'depcruise', re: /^ {8}run: pnpm depcruise$/m },
-  { label: 'unit/integration (vitest)', re: /^ {8}run: pnpm test --reporter=default/m },
+  {
+    label: 'unit/integration (vitest)',
+    re: /^ {8}run: pnpm exec vitest run --reporter=default/m,
+  },
   { label: 'версия релиза из тега', re: /npm pkg set "version=\$version"/ },
   {
     label: 'сборка+подпись установщика (electron-builder --publish never)',
@@ -223,6 +227,14 @@ function collectFailures(text: string): string[] {
   if (text.includes('continue-on-error')) {
     failures.push(
       '§13: найден continue-on-error — гейт не имеет права глотать сбой (падение любого → draft не создаётся)',
+    );
+  }
+  // Урок прогона 2 живой приёмки §20: голый `pnpm test` — встроенная команда
+  // pnpm 9, она парсит флаги сама («Unknown option: 'outputFile'») до запуска
+  // vitest. Флаги — только через pnpm exec vitest / колоночные скрипты (pr.yml).
+  if (/^ {8}run: pnpm test --/m.test(text)) {
+    failures.push(
+      "§5: найден 'run: pnpm test --' — встроенная команда pnpm съедает флаги; используйте pnpm exec vitest run … (урок прогона 2)",
     );
   }
 
