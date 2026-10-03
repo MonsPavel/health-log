@@ -81,6 +81,7 @@ function fakePrefs(doc?: Partial<Prefs>): ModelsPrefsPort & { setSpy: ReturnType
     aiSettings: { dismissed: false, includeNotes: false },
     // TASK-094: порог автоблока — новое поле документа (дефолт схемы 5).
     autoLockMin: 5,
+    updateChannel: 'stable', // TASK-107: дефолт схемы
     ...doc,
   };
   const setSpy = vi.fn((patch: PrefsPatch) => {

@@ -24,7 +24,6 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import {
@@ -36,9 +35,6 @@ import {
   sha512Base64,
   type UpdateFeedHandle,
 } from './update-feed.js';
-
-/** Корень пакета @hl/desktop (tests/e2e/helpers/* → три уровня вверх). */
-const APP_ROOT = join(fileURLToPath(new URL('../../..', import.meta.url)));
 
 const UPDATER_CACHE_DIR_NAME = 'hl-updater-beta-test';
 const STABLE_VERSION = '0.9.0';
@@ -74,7 +70,10 @@ async function makeTwoChannelFeed(): Promise<TwoChannelFeed> {
   // но путь из yml обязан существовать (изоляция пути фида — хелпер 104).
   writeFileSync(stableInstaller, `fake-installer ${STABLE_VERSION}`, 'utf-8');
   writeFileSync(betaInstaller, `fake-installer ${BETA_VERSION}`, 'utf-8');
-  const feed: UpdateFeedHandle = await startLocalUpdateFeed({ dir, installerSource: betaInstaller });
+  const feed: UpdateFeedHandle = await startLocalUpdateFeed({
+    dir,
+    installerSource: betaInstaller,
+  });
   writeFileSync(
     join(dir, 'stable.yml'),
     buildLatestYml({
@@ -159,11 +158,7 @@ describe('update-feed beta — каналовая механика electron-upda
     setTestUpdaterChannel(updater, 'stable');
     await updater.checkForUpdates(); // возврат — тоже next-check'ом
 
-    expect(channelFileRequests(feedInfo.feed)).toEqual([
-      '/stable.yml',
-      '/beta.yml',
-      '/stable.yml',
-    ]);
+    expect(channelFileRequests(feedInfo.feed)).toEqual(['/stable.yml', '/beta.yml', '/stable.yml']);
     await feedInfo.feed.close();
   });
 

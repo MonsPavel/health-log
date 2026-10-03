@@ -52,11 +52,7 @@ import { NET_BLOCKED_BY_POLICY_MESSAGE_KEY } from '../egress/egress-policy.js';
 import { EgressGateway, type EgressNotify } from '../egress/egress-gateway.js';
 import type { HlLogger } from '../../../shared/logger/logger.js';
 import type { JobCtx, JobDefinition, JobShowAction } from '../../../shared/scheduler/scheduler.js';
-import type {
-  UpdateChannel,
-  UpdatesInstallResponse,
-  UpdatesStatusResponse,
-} from '@hl/contracts';
+import type { UpdateChannel, UpdatesInstallResponse, UpdatesStatusResponse } from '@hl/contracts';
 
 /** Имя сетевой операции белого списка (EgressPolicy 075) и журнала (§18). */
 export const UPDATES_CHECK_OP = 'updates.check';

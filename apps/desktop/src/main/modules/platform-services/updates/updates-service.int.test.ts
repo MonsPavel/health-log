@@ -209,7 +209,10 @@ interface Fixture {
 
 /** Полная фикстура: tmp-БД v5 + реальный gateway + fake-окно + adapter-мок.
  *  updateChannel — читатель канала (TASK-107 §5; не задан — дефолт stable). */
-const makeFixture = async (consents: NetConsents, updateChannel?: () => Promise<UpdateChannel>): Promise<Fixture> => {
+const makeFixture = async (
+  consents: NetConsents,
+  updateChannel?: () => Promise<UpdateChannel>,
+): Promise<Fixture> => {
   const dir = mkdtempSync(join(tmpdir(), 'hl-updates-service-int-'));
   dirs.push(dir);
   const db = openEncrypted(join(dir, 'updates.sqlite'), randomBytes(32).toString('hex'));
@@ -342,9 +345,8 @@ describe('UpdatesService — проверка за согласием (TASK-096 
 
 describe('UpdatesService — канал обновлений из prefs (TASK-107 §5/§13)', () => {
   it('check применяет канал из prefs ПЕРЕД проверкой: beta → setChannel("beta") (§5)', async () => {
-    const fx = await makeFixture(
-      { updatesCheck: true, modelsDownload: false },
-      () => Promise.resolve<UpdateChannel>('beta'),
+    const fx = await makeFixture({ updatesCheck: true, modelsDownload: false }, () =>
+      Promise.resolve<UpdateChannel>('beta'),
     );
     fx.adapter.setCheckOutcome({ available: false });
 
@@ -368,9 +370,8 @@ describe('UpdatesService — канал обновлений из prefs (TASK-10
 
   it('переключение канала применяется только СЛЕДУЮЩЕЙ ручной проверкой — авто-перепроверки нет (§13)', async () => {
     let channel: UpdateChannel = 'stable';
-    const fx = await makeFixture(
-      { updatesCheck: true, modelsDownload: false },
-      () => Promise.resolve(channel),
+    const fx = await makeFixture({ updatesCheck: true, modelsDownload: false }, () =>
+      Promise.resolve(channel),
     );
     fx.adapter.setCheckOutcome({ available: false });
 
@@ -386,9 +387,8 @@ describe('UpdatesService — канал обновлений из prefs (TASK-10
   });
 
   it('отказ применения канала → {status: "error"} без креша, журнал failed (§9, прецедент ошибки сети)', async () => {
-    const fx = await makeFixture(
-      { updatesCheck: true, modelsDownload: false },
-      () => Promise.resolve<UpdateChannel>('beta'),
+    const fx = await makeFixture({ updatesCheck: true, modelsDownload: false }, () =>
+      Promise.resolve<UpdateChannel>('beta'),
     );
     fx.adapter.setCheckOutcome({ available: false });
     fx.adapter.channelFailure = new Error('channel rejected');
