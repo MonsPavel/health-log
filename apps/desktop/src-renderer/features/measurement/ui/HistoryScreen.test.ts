@@ -201,12 +201,13 @@ describe('HistoryScreen — данные и группировка (§5/§13/§1
     ];
   }
 
-  it('заголовки «Сегодня»/«Вчера» по h3; сегодня-группа первая; 3 строки', async () => {
+  it('заголовки «Сегодня»/«Вчера» по h2 (TASK-108: заголовок экрана — h1, без пропусков уровней); сегодня-группа первая; 3 строки', async () => {
     invoke.mockResolvedValue(LIST_OK({ items: fixture(), total: 3 }));
     renderHistory();
 
     await waitFor(() => expect(screen.getAllByTestId('day-group')).toHaveLength(2));
-    const headers = screen.getAllByRole('heading', { level: 3 });
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Журнал');
+    const headers = screen.getAllByRole('heading', { level: 2 });
     expect(headers.map((h) => h.textContent)).toEqual(['Сегодня', 'Вчера']);
     expect(screen.getAllByTestId('measurement-row')).toHaveLength(3);
   });
@@ -263,13 +264,14 @@ describe('HistoryScreen — данные и группировка (§5/§13/§1
     expect(screen.queryByTestId('day-group')).toBeNull();
   });
 
-  it('a11y-семантика: списки по дням — list/listitem, заголовки — h3 (§16)', async () => {
+  it('a11y-семантика: списки по дням — list/listitem, заголовки дней — h2 под h1 экрана (§16, TASK-108)', async () => {
     invoke.mockResolvedValue(LIST_OK({ items: fixture(), total: 3 }));
     renderHistory();
 
     await waitFor(() => expect(screen.getAllByRole('list')).toHaveLength(2));
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(2);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Журнал');
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(2);
   });
 });
 

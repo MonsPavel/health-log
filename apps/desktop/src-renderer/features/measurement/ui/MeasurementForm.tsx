@@ -531,14 +531,19 @@ export function MeasurementForm({
         handleCancel();
       }}
     >
-      {/* TASK-038 §10: в режиме edit заголовок «Изменение записи» вместо подсказки. */}
+      {/* TASK-038 §10 + TASK-108 §5 (page-has-heading-one): у формы есть
+          заголовок h1 в обоих режимах — «Новое измерение» (add) / «Изменение
+          записи» (edit, form-title); классы не менялись — вид прежний. */}
       {editingId === null ? (
-        /* FR-9.2: обучающая подсказка над формой (§10). */
-        <p className="text-sm text-accent">{t('measurement.form.hint')}</p>
+        <>
+          {/* FR-9.2: обучающая подсказка над формой (§10). */}
+          <h1 className="text-lg font-semibold text-text">{t('measurement.form.addTitle')}</h1>
+          <p className="text-sm text-accent">{t('measurement.form.hint')}</p>
+        </>
       ) : (
-        <h2 data-testid="form-title" className="text-lg font-semibold text-text">
+        <h1 data-testid="form-title" className="text-lg font-semibold text-text">
           {t('measurement.form.editTitle')}
-        </h2>
+        </h1>
       )}
 
       {/* Мгновенное подтверждение (§10): role="status" — polite для скринридера. */}

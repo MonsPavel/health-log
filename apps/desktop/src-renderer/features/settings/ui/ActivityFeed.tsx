@@ -36,7 +36,7 @@ const STATUS_VIEW: Readonly<
 > = {
   ok: {
     glyph: '✓',
-    className: 'text-green-700',
+    className: 'text-status-ok',
     textKey: 'privacy.feed.statusOk',
     labelKey: 'privacy.feed.statusOkFull',
   },
@@ -48,7 +48,7 @@ const STATUS_VIEW: Readonly<
   },
   failed: {
     glyph: '✕',
-    className: 'text-red-600',
+    className: 'text-status-fail',
     textKey: 'privacy.feed.statusFailed',
     labelKey: 'privacy.feed.statusFailedFull',
   },

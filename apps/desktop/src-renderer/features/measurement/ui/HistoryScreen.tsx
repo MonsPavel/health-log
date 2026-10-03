@@ -350,7 +350,8 @@ export function HistoryScreen(): JSX.Element {
   if (isSearching ? search.isError : measurements.isError) {
     return (
       <section className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-        <h2 className="text-lg font-semibold">{t('common.nav.journal')}</h2>
+        {/* TASK-108 §5 (page-has-heading-one): заголовок экрана — h1 (и в ошибке). */}
+        <h1 className="text-lg font-semibold">{t('common.nav.journal')}</h1>
         <button
           type="button"
           onClick={() => void (isSearching ? search.refetch() : measurements.refetch())}
@@ -377,11 +378,13 @@ export function HistoryScreen(): JSX.Element {
   return (
     <section className="p-4">
       <header className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{t('common.nav.journal')}</h2>
+        {/* TASK-108 §5 (page-has-heading-one): заголовок экрана — h1; группы дней —
+            h2 (DayGroup) — без пропуска уровней. */}
+        <h1 className="text-lg font-semibold">{t('common.nav.journal')}</h1>
         <button
           type="button"
           onClick={() => setView('form')}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-bg hover:opacity-90"
         >
           {t('measurement.history.add')}
         </button>

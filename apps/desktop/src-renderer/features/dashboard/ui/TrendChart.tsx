@@ -312,102 +312,111 @@ export function TrendChart({
         data-testid="trend-chart"
         className="m-0"
       >
-        <div aria-hidden="true" className="overflow-x-auto">
-          <ComposedChart
-            width={width}
-            height={height}
-            data={chartData}
-            margin={{ top: 12, right: 16, bottom: 4, left: 0 }}
-          >
-            <CartesianGrid stroke="var(--hl-border)" strokeDasharray="1 4" strokeOpacity={0.6} />
-            <XAxis
-              dataKey={isDaily ? 'wallDate' : 'utcMs'}
-              type={isDaily ? 'category' : 'number'}
-              scale={isDaily ? 'auto' : 'time'}
-              domain={isDaily ? undefined : ['dataMin', 'dataMax']}
-              tickFormatter={isDaily ? dayTickOf : rawTickOf}
-              stroke="var(--hl-border)"
-              tick={{ fill: 'var(--hl-text)', fontSize: 11 }}
-              tickLine={false}
-            />
-            <YAxis
-              domain={yDomain}
-              tickFormatter={(value: number) => String(value)}
-              stroke="var(--hl-border)"
-              tick={{ fill: 'var(--hl-text)', fontSize: 11 }}
-              tickLine={false}
-              width={40}
-              label={{
-                value: 'мм рт. ст.',
-                angle: -90,
-                position: 'insideLeft',
-                fill: 'var(--hl-text)',
-                fontSize: 11,
-              }}
-            />
-            <Tooltip content={tooltipContent} isAnimationActive={false} />
+        {/* TASK-108 §5 (aria-hidden-focus): скролл-контейнер остаётся вне
+            aria-hidden (Chromium делает скролл-области фокусируемыми); aria-hidden —
+            на внутренней обёртке SVG (ADR-0003 §2/§7: маркеры скрыты от скринридера).
+            accessibilityLayer=false: клавиатурный слой recharts 3 даёт tabIndex=0
+            внутри aria-hidden = serious-нарушение; a11y графика — на уровне экрана
+            (aria-label фигуры + таблица ?as=table, TASK-059). */}
+        <div className="overflow-x-auto">
+          <div aria-hidden="true">
+            <ComposedChart
+              width={width}
+              height={height}
+              data={chartData}
+              margin={{ top: 12, right: 16, bottom: 4, left: 0 }}
+              accessibilityLayer={false}
+            >
+              <CartesianGrid stroke="var(--hl-border)" strokeDasharray="1 4" strokeOpacity={0.6} />
+              <XAxis
+                dataKey={isDaily ? 'wallDate' : 'utcMs'}
+                type={isDaily ? 'category' : 'number'}
+                scale={isDaily ? 'auto' : 'time'}
+                domain={isDaily ? undefined : ['dataMin', 'dataMax']}
+                tickFormatter={isDaily ? dayTickOf : rawTickOf}
+                stroke="var(--hl-border)"
+                tick={{ fill: 'var(--hl-text)', fontSize: 11 }}
+                tickLine={false}
+              />
+              <YAxis
+                domain={yDomain}
+                tickFormatter={(value: number) => String(value)}
+                stroke="var(--hl-border)"
+                tick={{ fill: 'var(--hl-text)', fontSize: 11 }}
+                tickLine={false}
+                width={40}
+                label={{
+                  value: 'мм рт. ст.',
+                  angle: -90,
+                  position: 'insideLeft',
+                  fill: 'var(--hl-text)',
+                  fontSize: 11,
+                }}
+              />
+              <Tooltip content={tooltipContent} isAnimationActive={false} />
 
-            {isDaily ? (
-              <>
-                {/* Коридор min–max (§5/§20.5): range-Area [min, max] — ADR-0003 §2. */}
-                <Area
-                  dataKey={(day: DayPoint) => [day.sysMin, day.sysMax] as [number, number]}
-                  stroke="var(--hl-border)"
-                  strokeDasharray="2 4"
-                  fill="var(--hl-border)"
-                  fillOpacity={0.25}
-                  isAnimationActive={false}
-                  dot={false}
-                />
-                <Area
-                  dataKey={(day: DayPoint) => [day.diaMin, day.diaMax] as [number, number]}
-                  stroke="var(--hl-border)"
-                  strokeDasharray="2 4"
-                  fill="var(--hl-border)"
-                  fillOpacity={0.25}
-                  isAnimationActive={false}
-                  dot={false}
-                />
-                <Line
-                  dataKey="sysAvg"
-                  stroke={SYS_STROKE}
-                  strokeWidth={2}
-                  dot={false}
-                  isAnimationActive={false}
-                />
-                <Line
-                  dataKey="diaAvg"
-                  stroke={DIA_STROKE}
-                  strokeWidth={2}
-                  strokeDasharray="6 3"
-                  dot={false}
-                  isAnimationActive={false}
-                />
-              </>
-            ) : (
-              <>
-                <Line
-                  dataKey="sys"
-                  stroke={SYS_STROKE}
-                  strokeWidth={2}
-                  isAnimationActive={false}
-                  dot={<PartDot channel="sys" onEditPoint={onEditPoint} />}
-                />
-                <Line
-                  dataKey="dia"
-                  stroke={DIA_STROKE}
-                  strokeWidth={2}
-                  strokeDasharray="6 3"
-                  isAnimationActive={false}
-                  dot={<PartDot channel="dia" onEditPoint={onEditPoint} />}
-                />
-              </>
-            )}
+              {isDaily ? (
+                <>
+                  {/* Коридор min–max (§5/§20.5): range-Area [min, max] — ADR-0003 §2. */}
+                  <Area
+                    dataKey={(day: DayPoint) => [day.sysMin, day.sysMax] as [number, number]}
+                    stroke="var(--hl-border)"
+                    strokeDasharray="2 4"
+                    fill="var(--hl-border)"
+                    fillOpacity={0.25}
+                    isAnimationActive={false}
+                    dot={false}
+                  />
+                  <Area
+                    dataKey={(day: DayPoint) => [day.diaMin, day.diaMax] as [number, number]}
+                    stroke="var(--hl-border)"
+                    strokeDasharray="2 4"
+                    fill="var(--hl-border)"
+                    fillOpacity={0.25}
+                    isAnimationActive={false}
+                    dot={false}
+                  />
+                  <Line
+                    dataKey="sysAvg"
+                    stroke={SYS_STROKE}
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    dataKey="diaAvg"
+                    stroke={DIA_STROKE}
+                    strokeWidth={2}
+                    strokeDasharray="6 3"
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </>
+              ) : (
+                <>
+                  <Line
+                    dataKey="sys"
+                    stroke={SYS_STROKE}
+                    strokeWidth={2}
+                    isAnimationActive={false}
+                    dot={<PartDot channel="sys" onEditPoint={onEditPoint} />}
+                  />
+                  <Line
+                    dataKey="dia"
+                    stroke={DIA_STROKE}
+                    strokeWidth={2}
+                    strokeDasharray="6 3"
+                    isAnimationActive={false}
+                    dot={<PartDot channel="dia" onEditPoint={onEditPoint} />}
+                  />
+                </>
+              )}
 
-            {/* Опорные линии из шкалы (§13) — ТОЛЬКО SVG-узлы Recharts (ревью 057:
+              {/* Опорные линии из шкалы (§13) — ТОЛЬКО SVG-узлы Recharts (ревью 057:
                 дети ComposedChart монтируются внутрь <svg>, HTML там не рендерится). */}
-            <ReferenceLines scale={scale} />
-          </ComposedChart>
+              <ReferenceLines scale={scale} />
+            </ComposedChart>
+          </div>
         </div>
       </figure>
 

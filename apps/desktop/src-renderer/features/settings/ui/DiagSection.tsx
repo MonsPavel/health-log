@@ -91,12 +91,12 @@ export function DiagSection(): JSX.Element {
       </div>
 
       {collect.isError ? (
-        <p role="alert" className="mt-2 text-sm text-red-600">
+        <p role="alert" className="mt-2 text-sm text-status-fail">
           {t('diag.collectError')}
         </p>
       ) : null}
       {save.isError ? (
-        <p role="alert" className="mt-2 text-sm text-red-600">
+        <p role="alert" className="mt-2 text-sm text-status-fail">
           {t('diag.saveError')}
         </p>
       ) : null}

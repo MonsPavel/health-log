@@ -47,7 +47,7 @@ export function BackupReminderBanner({
           type="button"
           data-testid="backup-reminder-create"
           onClick={onCreate}
-          className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-white hover:opacity-90"
+          className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90"
         >
           {t('dashboard.banner.backup.create')}
         </button>

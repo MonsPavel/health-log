@@ -57,7 +57,7 @@ export function EmptyChartState({
         type="button"
         data-testid="empty-chart-add"
         onClick={onAdd}
-        className="mt-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+        className="mt-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-bg hover:opacity-90"
       >
         {t('dashboard.empty.add')}
       </button>

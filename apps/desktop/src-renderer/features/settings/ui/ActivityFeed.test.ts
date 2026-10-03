@@ -72,13 +72,14 @@ describe('ActivityFeed — статусы: текст + глиф + цвет (§1
     // Не только цветом (§13): у каждого статуса свой глиф.
     const glyphs = badges.map((b) => b.textContent?.trim().charAt(0) ?? '');
     expect(new Set(glyphs).size).toBe(3);
-    // Цвет — класс (ok зелёный, blocked серый/нейтральный, failed красный).
+    // Цвет — класс-токен (ok зелёный/статусный, blocked серый/нейтральный, failed
+    // красный/статусный; TASK-108: токены status-ok/status-fail — следуют теме).
     const classes = badges.map((b) => b.className);
     expect(new Set(classes).size).toBe(3);
-    expect(classes[0]).toContain('green');
-    expect(classes[1]).not.toContain('green');
-    expect(classes[1]).not.toContain('red');
-    expect(classes[2]).toContain('red');
+    expect(classes[0]).toContain('text-status-ok');
+    expect(classes[1]).not.toContain('text-status-ok');
+    expect(classes[1]).not.toContain('text-status-fail');
+    expect(classes[2]).toContain('text-status-fail');
   });
 
   it('aria-метка статуса полная (§16) и различна у всех трёх статусов', () => {

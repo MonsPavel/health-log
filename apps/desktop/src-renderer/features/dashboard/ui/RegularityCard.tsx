@@ -84,9 +84,9 @@ export function RegularityCard({ stats }: RegularityCardProps): JSX.Element {
 
   return (
     <section data-testid="regularity-card" className="rounded-md border border-border p-4">
-      <h3 className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
+      <h2 className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
         {t('dashboard.regularity.title')}
-      </h3>
+      </h2>
       <p data-testid="regularity-streak" className="text-xl font-semibold">
         {streak === 0
           ? t('dashboard.regularity.streakZero')

@@ -56,9 +56,9 @@ export function LastMeasurementCard({
       data-testid="last-measurement-card"
       className="rounded-md border border-border p-4 md:col-span-2"
     >
-      <h3 className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
+      <h2 className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
         {t('dashboard.last.title')}
-      </h3>
+      </h2>
       <p data-testid="last-bp" className="text-4xl font-semibold tracking-tight">
         {measurement.sys}/{measurement.dia}
       </p>
@@ -77,7 +77,7 @@ export function LastMeasurementCard({
         type="button"
         data-testid="dashboard-add"
         onClick={onAdd}
-        className="mt-4 min-h-12 rounded-md bg-accent px-6 text-base font-semibold text-white hover:opacity-90"
+        className="mt-4 min-h-12 rounded-md bg-accent px-6 text-base font-semibold text-bg hover:opacity-90"
       >
         {t('dashboard.home.add')}
       </button>

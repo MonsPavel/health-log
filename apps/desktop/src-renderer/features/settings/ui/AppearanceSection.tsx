@@ -100,7 +100,7 @@ export function AppearanceSection(): JSX.Element {
         />
       </div>
       {/* §16/§10: отказ сохранения — aria-live, значение уже откатлено optimistic'ом. */}
-      <p role="status" aria-live="polite" className="mt-3 text-sm text-red-600">
+      <p role="status" aria-live="polite" className="mt-3 text-sm text-status-fail">
         {setPreferences.isError ? t('settings.appearance.saveError') : ''}
       </p>
     </fieldset>

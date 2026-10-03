@@ -95,7 +95,7 @@ function WelcomeState({ onAdd }: { readonly onAdd: () => void }): JSX.Element {
         type="button"
         data-testid="dashboard-welcome-add"
         onClick={onAdd}
-        className="mt-2 min-h-12 rounded-md bg-accent px-6 text-base font-semibold text-white hover:opacity-90"
+        className="mt-2 min-h-12 rounded-md bg-accent px-6 text-base font-semibold text-bg hover:opacity-90"
       >
         {t('dashboard.home.add')}
       </button>
@@ -164,7 +164,9 @@ export function SummaryScreen(): JSX.Element {
       )}
 
       <header className="mb-4">
-        <h2 className="text-lg font-semibold">{t('dashboard.home.title')}</h2>
+        {/* TASK-108 §5 (page-has-heading-one): заголовок экрана — h1; карточки —
+            h2 (LastMeasurementCard и др.), «Динамика» ниже — h2 (DashboardScreen). */}
+        <h1 className="text-lg font-semibold">{t('dashboard.home.title')}</h1>
       </header>
 
       {last.isPending ? (

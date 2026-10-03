@@ -99,10 +99,10 @@ describe('AverageCard — средние 7 дней из stats-канала (§5
     expect(screen.getByTestId('average-sys')).not.toBeNull();
   });
 
-  it('секция с h3 «Среднее за 7 дней» (§16 иерархия заголовков)', () => {
+  it('секция с h2 «Среднее за 7 дней» (§16 иерархия заголовков, TASK-108: под h1 экрана)', () => {
     render(createElement(AverageCard, { stats: STATS_7D }));
 
-    expect(screen.getByTestId('average-card').querySelector('h3')?.textContent).toBe(
+    expect(screen.getByTestId('average-card').querySelector('h2')?.textContent).toBe(
       'Среднее за 7 дней',
     );
   });

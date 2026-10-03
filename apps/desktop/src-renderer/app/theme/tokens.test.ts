@@ -21,6 +21,8 @@ interface ThemeTokens {
   readonly bg: string;
   readonly text: string;
   readonly accent: string;
+  readonly statusOk: string;
+  readonly statusFail: string;
 }
 
 /** Относительная яркость по WCAG 2.x: sRGB-канал → линейное пространство. */
@@ -45,7 +47,7 @@ function contrastRatio(a: string, b: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-/** Разбор блока CSS-переменных: {bg,text,accent} в hex. */
+/** Разбор блока CSS-переменных: {bg,text,accent,statusOk,statusFail} в hex. */
 function parseTokens(block: string): ThemeTokens {
   const read = (name: string): string => {
     const match = new RegExp(`--hl-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(block);
@@ -54,7 +56,13 @@ function parseTokens(block: string): ThemeTokens {
     }
     return match[1];
   };
-  return { bg: read('bg'), text: read('text'), accent: read('accent') };
+  return {
+    bg: read('bg'),
+    text: read('text'),
+    accent: read('accent'),
+    statusOk: read('status-ok'),
+    statusFail: read('status-fail'),
+  };
 }
 
 function themeBlock(theme: 'light' | 'dark'): string {
@@ -80,13 +88,21 @@ describe.each(['light', 'dark'] as const)('токены темы %s — конт
   it(`акцент на фоне ≥ 4.5:1 (${tokens.accent} на ${tokens.bg})`, () => {
     expect(contrastRatio(tokens.accent, tokens.bg)).toBeGreaterThanOrEqual(4.5);
   });
+
+  it(`статус «успех» на фоне ≥ 4.5:1 (${tokens.statusOk} на ${tokens.bg})`, () => {
+    expect(contrastRatio(tokens.statusOk, tokens.bg)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it(`статус «сбой» на фоне ≥ 4.5:1 (${tokens.statusFail} на ${tokens.bg})`, () => {
+    expect(contrastRatio(tokens.statusFail, tokens.bg)).toBeGreaterThanOrEqual(4.5);
+  });
 });
 
 describe('tokens.css — структура (§5)', () => {
-  it('обе темы объявлены, у каждой все четыре токена (bg/text/accent/border)', () => {
+  it('обе темы объявлены, у каждой все шесть токенов (bg/text/accent/border/status-ok/status-fail)', () => {
     for (const theme of ['light', 'dark'] as const) {
       const block = themeBlock(theme);
-      for (const token of ['bg', 'text', 'accent', 'border']) {
+      for (const token of ['bg', 'text', 'accent', 'border', 'status-ok', 'status-fail']) {
         expect(new RegExp(`--hl-${token}:\\s*#[0-9a-fA-F]{6}`).test(block)).toBe(true);
       }
     }

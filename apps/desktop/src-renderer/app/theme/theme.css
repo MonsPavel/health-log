@@ -23,6 +23,10 @@
   --color-text: var(--hl-text);
   --color-accent: var(--hl-accent);
   --color-border: var(--hl-border);
+  /* TASK-108 §5: статусные цвета — через токены (следуют data-theme, НЕ media
+     dark: — классы dark: в проекте отвечают prefers-color-scheme ОС). */
+  --color-status-ok: var(--hl-status-ok);
+  --color-status-fail: var(--hl-status-fail);
 }
 
 @layer base {
