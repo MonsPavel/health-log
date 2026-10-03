@@ -53,9 +53,7 @@ const RATIO_EPSILON = 0.01;
 /** Tmp-каталоги фикстур; удаляются после прогона (§13: без следов). */
 const tmpRoots = [];
 afterAll(async () => {
-  await Promise.all(
-    tmpRoots.map((root) => rm(root, { recursive: true, force: true })),
-  );
+  await Promise.all(tmpRoots.map((root) => rm(root, { recursive: true, force: true })));
 });
 
 async function tmpTokensCss(content) {

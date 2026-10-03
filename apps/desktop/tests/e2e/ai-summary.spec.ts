@@ -113,11 +113,9 @@ test.describe('разбор периода на fake-LLM (TASK-088 §20)', () =>
     // TASK-109 §13 (ключевой NVDA-кейс): во время стрима регион НЕ озвучивает
     // дельты (aria-live off + aria-busy); на финале — polite, текст-узел
     // перемонтирован (вставка в polite-регион = одно озвучивание целиком).
-    await expect(window.getByTestId('insight-summary-text')).toHaveAttribute(
-      'aria-live',
-      'off',
-      { timeout: 15_000 },
-    );
+    await expect(window.getByTestId('insight-summary-text')).toHaveAttribute('aria-live', 'off', {
+      timeout: 15_000,
+    });
     await expect(window.getByTestId('insight-summary-text')).toHaveAttribute('aria-busy', 'true');
     await expect(window.getByTestId('insight-summary-text')).toContainText('[FAKE]', {
       timeout: 15_000,

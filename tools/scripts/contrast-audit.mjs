@@ -32,8 +32,7 @@ import { fileURLToPath } from 'node:url';
 import { argv, exit } from 'node:process';
 
 /** Файл токенов по умолчанию (от корня монорепо; CLI запускается из корня). */
-export const DEFAULT_TOKENS_PATH =
-  'apps/desktop/src-renderer/app/theme/tokens.css';
+export const DEFAULT_TOKENS_PATH = 'apps/desktop/src-renderer/app/theme/tokens.css';
 
 /** Имена токенов темы (§6: значения живут только в tokens.css). */
 export const TOKEN_NAMES = ['bg', 'text', 'accent', 'border', 'status-ok', 'status-fail'];
@@ -250,9 +249,7 @@ export function parseTokensCss(content) {
   const themes = {};
   for (const theme of ['light', 'dark']) {
     const block = themeBlock(theme);
-    themes[theme] = Object.fromEntries(
-      TOKEN_NAMES.map((name) => [name, readToken(block, name)]),
-    );
+    themes[theme] = Object.fromEntries(TOKEN_NAMES.map((name) => [name, readToken(block, name)]));
   }
   return themes;
 }
@@ -361,9 +358,7 @@ export function buildReport(report) {
   if (report.failing.length === 0) {
     lines.push('verdict: OK — 0 gate pairs below threshold (spec §20 AC1)');
   } else {
-    lines.push(
-      `verdict: FAIL — ${report.failing.length} gate pair(s) below threshold:`,
-    );
+    lines.push(`verdict: FAIL — ${report.failing.length} gate pair(s) below threshold:`);
     for (const item of report.failing) {
       lines.push(
         `  - ${item.id} [${item.theme}]: ${item.ratio.toFixed(2)}:1 < ${item.threshold}:1`,

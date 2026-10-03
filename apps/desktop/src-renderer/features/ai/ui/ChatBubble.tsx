@@ -50,7 +50,12 @@ function RefusalIcon(): JSX.Element {
 }
 
 /** Бабл ленты чата (§2): role-label (sr-only) → контент. */
-export function ChatBubble({ role, content, refusalClass, busy = false }: ChatBubbleProps): JSX.Element {
+export function ChatBubble({
+  role,
+  content,
+  refusalClass,
+  busy = false,
+}: ChatBubbleProps): JSX.Element {
   const { t } = useTranslation();
   const refusal = refusalClass !== undefined;
   const roleLabel = role === 'user' ? t('ai.chat.roleYou') : t('ai.chat.roleAssistant');
