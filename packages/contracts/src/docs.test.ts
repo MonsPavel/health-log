@@ -9,15 +9,7 @@ import { CHANNEL_SCHEMAS } from './schemas.js';
 
 describe('DOC_PAGES — whitelist страниц руководства (TASK-113 §5)', () => {
   it('ровно 7 страниц docs/user — имена совпадают с файлами руководства', () => {
-    expect([...DOC_PAGES]).toEqual([
-      'index',
-      'install',
-      'daily',
-      'ai',
-      'data',
-      'privacy',
-      'faq',
-    ]);
+    expect([...DOC_PAGES]).toEqual(['index', 'install', 'daily', 'ai', 'data', 'privacy', 'faq']);
   });
 });
 

@@ -43,9 +43,7 @@ export function docsPageUrl(baseUrl: string, page: DocPage): string {
 }
 
 /** Фабрика хендлера `app/open-docs`: {page} → null (§8–12/§9). */
-export function createOpenDocsHandler(
-  ports: OpenDocsPorts,
-): (payload: AppOpenDocsRequest) => null {
+export function createOpenDocsHandler(ports: OpenDocsPorts): (payload: AppOpenDocsRequest) => null {
   return (payload) => {
     const localPath = ports.resolveDocPath(payload.page);
     if (ports.fileExists(localPath)) {

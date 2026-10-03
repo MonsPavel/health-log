@@ -75,7 +75,10 @@ describe('docs/user — состав руководства (TASK-113 §5, AC-1)
   it('index — оглавление: ссылается на остальные 6 страниц', () => {
     const targets = internalDocLinks(read('index'));
     for (const page of PAGES.filter((p) => p !== 'index')) {
-      expect(targets.some((t) => t.includes(page)), `index → ${page}.md`).toBe(true);
+      expect(
+        targets.some((t) => t.includes(page)),
+        `index → ${page}.md`,
+      ).toBe(true);
     }
   });
 });
@@ -133,7 +136,9 @@ describe('docs/user — скриншоты и структура (§5/§16, AC-5
         expect(image.alt.trim().length, `${page}: alt «${image.alt}»`).toBeGreaterThan(10);
         expect(image.alt, `${page}: alt — не имя файла`).not.toMatch(/\.(png|jpe?g|gif)$/i);
         expect(
-          readdirSync(join(USER_DOCS_DIR, 'img')).some((f) => f === image.path.replace(/^img\//, '')),
+          readdirSync(join(USER_DOCS_DIR, 'img')).some(
+            (f) => f === image.path.replace(/^img\//, ''),
+          ),
           `${page}: ${image.path}`,
         ).toBe(true);
       }

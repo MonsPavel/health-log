@@ -61,10 +61,7 @@ import {
 } from './data-care/schemas.js';
 // TASK-113 §5/§8–12: канал «Помощь» — открытие страницы руководства docs/user
 // (whitelist DOC_PAGES — единственная санитизация page-параметра).
-import {
-  APP_OPEN_DOCS_REQUEST_SCHEMA,
-  APP_OPEN_DOCS_RESPONSE_SCHEMA,
-} from './docs.js';
+import { APP_OPEN_DOCS_REQUEST_SCHEMA, APP_OPEN_DOCS_RESPONSE_SCHEMA } from './docs.js';
 // TASK-103 §5/§11: каналы диагностического пакета (предпросмотр DiagContent +
 // сохранение zip за save-диалогом main; без PHI — §13, предпросмотр обязателен).
 import {

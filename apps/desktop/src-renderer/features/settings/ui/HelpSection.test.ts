@@ -67,7 +67,9 @@ describe('HelpSection — «Помощь» открывает руководст
 
     expect(await screen.findByRole('alert')).toBeDefined();
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Открыть руководство' }).hasAttribute('disabled')).toBe(false),
+      expect(
+        screen.getByRole('button', { name: 'Открыть руководство' }).hasAttribute('disabled'),
+      ).toBe(false),
     );
   });
 

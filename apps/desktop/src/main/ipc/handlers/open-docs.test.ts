@@ -13,8 +13,8 @@ import { createOpenDocsHandler, DEFAULT_REPO_DOCS_BASE_URL, docsPageUrl } from '
 const BASE_PORTS = () => ({
   resolveDocPath: (page: string) => `D:\\repo\\docs\\user\\${page}.md`,
   fileExists: vi.fn(() => true),
-  openPath: vi.fn(async () => undefined),
-  openExternal: vi.fn(async () => undefined),
+  openPath: vi.fn(() => Promise.resolve(undefined)),
+  openExternal: vi.fn(() => Promise.resolve(undefined)),
 });
 
 describe('createOpenDocsHandler — {page} → null (§9/§11)', () => {
@@ -36,9 +36,7 @@ describe('createOpenDocsHandler — {page} → null (§9/§11)', () => {
 
     expect(handler({ page: 'faq' })).toBeNull();
     expect(ports.openPath).not.toHaveBeenCalled();
-    expect(ports.openExternal).toHaveBeenCalledWith(
-      `${DEFAULT_REPO_DOCS_BASE_URL}/faq.md`,
-    );
+    expect(ports.openExternal).toHaveBeenCalledWith(`${DEFAULT_REPO_DOCS_BASE_URL}/faq.md`);
   });
 
   it('каждый вызов — свежее открытие (кнопка «Помощь» нажимается повторно)', async () => {

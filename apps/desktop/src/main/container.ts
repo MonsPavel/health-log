@@ -307,11 +307,7 @@ import { WorkerPool, type WorkerPoolOptions } from './shared/workerpool/pool.js'
 import { electronRevealPath } from './platform/reveal-path.js';
 // TASK-113 §5/§6: боевой адаптер «Помощи» — открытие страницы руководства
 // docs/user (shell.openPath для локального файла, shell.openExternal — репозиторий).
-import {
-  defaultDocsRoot,
-  electronOpenDocFile,
-  electronOpenDocUrl,
-} from './platform/open-docs.js';
+import { defaultDocsRoot, electronOpenDocFile, electronOpenDocUrl } from './platform/open-docs.js';
 
 /** Имя файла БД в userData (§8): `<userData>/health-log.db` (+ `-wal`, `-shm`). */
 export const DATABASE_FILENAME = 'health-log.db';
