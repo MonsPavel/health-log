@@ -102,8 +102,8 @@ const PRESENCE_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
     re: /Get-AuthenticodeSignature/m,
   },
   {
-    label: '§13 e2e с единственным разрешённым ретраем',
-    re: /^ {8}run: pnpm test:e2e --retries=1$/m,
+    label: '§13 e2e с единственным разрешённым ретраем (--filter: скрипт в @hl/desktop)',
+    re: /^ {8}run: pnpm --filter @hl\/desktop test:e2e --retries=1$/m,
   },
   { label: '§5 crash-тест (N=10 — дефолт TASK-102)', re: /^ {8}run: pnpm test:crash$/m },
   {
@@ -148,7 +148,10 @@ const ORDER_CHECKS: ReadonlyArray<{ label: string; re: RegExp }> = [
     re: /^ {10}pnpm --filter @hl\/desktop exec electron-builder --win --publish never$/m,
   },
   { label: 'самопроверка подписи', re: /Get-AuthenticodeSignature/ },
-  { label: 'e2e (все спеки, retry 1)', re: /^ {8}run: pnpm test:e2e --retries=1$/m },
+  {
+    label: 'e2e (все спеки, retry 1)',
+    re: /^ {8}run: pnpm --filter @hl\/desktop test:e2e --retries=1$/m,
+  },
   { label: 'crash-тест', re: /^ {8}run: pnpm test:crash$/m },
   { label: 'size:audit', re: /^ {8}run: pnpm size:audit --dist apps\/desktop\/dist --json$/m },
   { label: 'release notes (шаблон TASK-114)', re: /release-template\.md/ },

@@ -162,12 +162,16 @@ jobs:
           }
 
       # §5: полный E2E на Windows-runner (целевая ОС; TD-6) — все спеки,
-      # включая data-care/recovery/edge (testMatch **/*.spec.ts). §13: ретраи —
+      # включая data-care/recovery/edge (testMatch **/*.spec.ts). Скрипт
+      # test:e2e живёт в @hl/desktop («pnpm build && playwright test»): из
+      # корня pnpm его не видит — вызов через --filter; pnpm 9 добавляет
+      # аргументы к ПОСЛЕДНЕЙ команде цепочки, поэтому --retries=1 достаётся
+      # именно playwright (проверено на scratch-workspace). §13: ретраи —
       # только инфраструктурные флаки e2e, ровно один (--retries=1 поверх
       # retries: 0 локального конфига; гейт-тесты ниже — без ретраев).
       - name: E2E (все спеки)
         id: e2e
-        run: pnpm test:e2e --retries=1
+        run: pnpm --filter @hl/desktop test:e2e --retries=1
 
       # §5: крэш-тест N=10 (дефолт TASK-102), без ретраев (гейт).
       - name: Crash test (N=10)
