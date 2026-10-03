@@ -181,6 +181,9 @@ const OPEN_CHANNELS: readonly ChannelName[] = [
   // TASK-101 §5/§9/§14: «Открыть папку с копиями» recovery-экрана — путь каталога
   // копий строит main, запрос параметров не несёт (прецедент app/reveal-path).
   'app/reveal-backups',
+  // TASK-113 §8–12/§14: «Помощь» настроек — открытие страницы руководства docs/user;
+  // БД не читает, page — whitelist DOC_PAGES (путь строит main, §14).
+  'app/open-docs',
   'file/open-dialog',
   'vault/lock',
   'vault/status',
