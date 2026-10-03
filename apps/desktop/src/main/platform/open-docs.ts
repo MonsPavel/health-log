@@ -22,13 +22,17 @@ export interface OpenDocsShellApi {
 
 /**
  * Корень руководства по умолчанию — относительно этого модуля: в dev раскладка
- * dist/main/platform/open-docs.js → четыре уровня вверх = корень репозитория →
- * docs/user (§4: «открытие docs/user в браузере/проводнике»). В packaged сборке
- * модуль живёт в app.asar, docs/user туда не входит — existsSync даст false и
- * хендлер уйдёт в openExternal на репозиторий (ветвление хендлера §4).
+ * dist/main/platform/open-docs.js → ПЯТЬ уровней вверх (platform → main → dist →
+ * apps/desktop → apps → корень репозитория) = <repo>/docs/user (§4: «открытие
+ * docs/user в браузере/проводнике»). Арифметика покрыта тестом open-docs.test.ts:
+ * ревью ветки поймало «четыре уровня» → <repo>/apps/docs/user (exists: false,
+ * ветка shell.openPath мертва). Раскладки src/main/platform и dist/main/platform
+ * лежат на одной глубине под apps/desktop — проверка на исходнике легитимна и для
+ * сборки. В packaged сборке модуль живёт в app.asar, docs/user туда не входит —
+ * existsSync даст false и хендлер уйдёт в openExternal на репозиторий (§4).
  */
 export function defaultDocsRoot(): string {
-  return fileURLToPath(new URL('../../../../docs/user', import.meta.url));
+  return fileURLToPath(new URL('../../../../../docs/user', import.meta.url));
 }
 
 /** Боевой адаптер (§5): открыть локальный файл системным обработчиком. */
