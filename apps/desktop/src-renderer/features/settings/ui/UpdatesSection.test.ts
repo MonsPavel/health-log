@@ -6,7 +6,8 @@
  *  - полный цикл с моками: check→available→download (прогресс из события
  *    update:progress)→ready→install confirm→invoke (AC3);
  *  - confirm-диалог установки: Esc = отмена, invoke не вызван (AC4);
- *  - бета-канал: select disabled с подписью «появится вместе с каналом beta» (AC5);
+ *  - канал обновлений (TASK-107): select из prefs, подтверждение «перезапуск
+ *    проверки», golden-предупреждение о невозможности даунгрейда (§13);
  *  - версия приложения — из userAgent (§5 упрощение, прецедент app-version.test);
  *  - «Проверено: {время}» — localStorage hl.updates.lastCheckAt после успешной
  *    проверки (§5 «локальное состояние», префикс hl. — стирается при wipe 072).
@@ -27,13 +28,15 @@ let listeners: Map<string, (payload: unknown) => void>;
 
 const OK = (data: unknown) => ({ v: 1, ok: true, data });
 
-const PREFS = (consent: boolean) => ({
+const PREFS = (consent: boolean, updateChannel: 'stable' | 'beta' = 'stable') => ({
   theme: 'system',
   textScale: '100',
   dateFormat: 'auto',
   advancedMode: false,
   netConsents: { updatesCheck: consent, modelsDownload: false },
   autoLockMin: 5,
+  // TASK-107 §5: канал обновлений (select секции).
+  updateChannel,
 });
 
 /** Ответ канала updates/check по умолчанию (фикстуры переопределяют). */
@@ -43,6 +46,7 @@ let resolveDownload: ((data: unknown) => void) | undefined;
 
 interface HlOptions {
   readonly consent?: boolean;
+  readonly updateChannel?: 'stable' | 'beta';
 }
 
 /** Мост: prefs (согласие), updates/*; события update:* — captured-слушатели useHlEvent. */
@@ -52,7 +56,7 @@ function makeHl(options: HlOptions = {}): void {
   resolveDownload = undefined;
   invoke = vi.fn((channel: string) => {
     if (channel === 'prefs/get') {
-      return Promise.resolve(OK(PREFS(options.consent ?? false)));
+      return Promise.resolve(OK(PREFS(options.consent ?? false, options.updateChannel)));
     }
     if (channel === 'updates/check') {
       return Promise.resolve(OK(checkData));
@@ -296,16 +300,81 @@ describe('UpdatesSection — полный цикл: check→available→download
   });
 });
 
-describe('UpdatesSection — бета-канал: заготовка TASK-107 (§5/AC5)', () => {
-  it('select disabled с подписью «каналом beta» (AC5)', () => {
-    makeHl();
+describe('UpdatesSection — канал обновлений (TASK-107 §5/§13/§20)', () => {
+  it('select активен после загрузки prefs, дефолт stable; подпись-заготовка 097 удалена (§5)', async () => {
+    makeHl({ consent: true });
     renderSection();
 
-    const select = screen.getByLabelText('Канал обновлений');
-    expect(select.hasAttribute('disabled')).toBe(true);
-    expect(screen.getByTestId('updates-beta-soon').textContent).toContain('каналом beta');
+    const select = await screen.findByLabelText('Канал обновлений');
+    await waitFor(() => expect(select.hasAttribute('disabled')).toBe(false));
+    expect((select as HTMLSelectElement).value).toBe('stable');
+    expect(screen.queryByTestId('updates-beta-soon')).toBeNull();
   });
 
+  it('prefs.updateChannel=beta → select показывает beta (значение из prefs, §5)', async () => {
+    makeHl({ consent: true, updateChannel: 'beta' });
+    renderSection();
+
+    const select = await screen.findByLabelText('Канал обновлений');
+    await waitFor(() => expect((select as HTMLSelectElement).value).toBe('beta'));
+  });
+
+  it('переключение stable→beta: подтверждение «перезапуск проверки»; отмена — prefs/set НЕ вызван, select вернулся (§13)', async () => {
+    makeHl({ consent: true });
+    renderSection();
+    const select = await screen.findByLabelText('Канал обновлений');
+    await waitFor(() => expect(select.hasAttribute('disabled')).toBe(false));
+
+    fireEvent.change(select, { target: { value: 'beta' } });
+
+    // Подтверждение (§5): канал применит СЛЕДУЮЩАЯ проверка — ручной перезапуск.
+    const dialog = await screen.findByTestId('updates-beta-dialog');
+    expect(dialog.textContent).toContain('следующей проверке');
+
+    // Отмена (Esc-дефолт Radix — кнопка Cancel): записи нет, выбор откачен.
+    fireEvent.click(await screen.findByTestId('updates-beta-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('updates-beta-dialog')).toBeNull());
+    expect(invoke).not.toHaveBeenCalledWith('prefs/set', {
+      patch: { updateChannel: 'beta' },
+    });
+    await waitFor(() => expect((select as HTMLSelectElement).value).toBe('stable'));
+  });
+
+  it('подтверждение переключения → prefs/set {patch:{updateChannel:"beta"}}; авто-проверки нет (§13)', async () => {
+    makeHl({ consent: true });
+    renderSection();
+    const select = await screen.findByLabelText('Канал обновлений');
+    await waitFor(() => expect(select.hasAttribute('disabled')).toBe(false));
+
+    fireEvent.change(select, { target: { value: 'beta' } });
+    fireEvent.click(await screen.findByTestId('updates-beta-apply'));
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('prefs/set', { patch: { updateChannel: 'beta' } }),
+    );
+    await waitFor(() => expect(screen.queryByTestId('updates-beta-dialog')).toBeNull());
+    // §13: переключение НЕ запускает проверку сама — ручной перезапуск.
+    expect(invoke).not.toHaveBeenCalledWith('updates/check', {});
+  });
+
+  it('(golden §20-3) переключение beta→stable: предупреждение о невозможности даунгрейда — точный текст', async () => {
+    makeHl({ consent: true, updateChannel: 'beta' });
+    renderSection();
+    const select = await screen.findByLabelText('Канал обновлений');
+    await waitFor(() => expect((select as HTMLSelectElement).value).toBe('beta'));
+
+    fireEvent.change(select, { target: { value: 'stable' } });
+
+    const dialog = await screen.findByTestId('updates-beta-dialog');
+    // Golden-текст §13: «вернуться на stable можно будет при следующем стабильном
+    // релизе» — updater не даунгрейдит, предупреждение обязано прозвучать дословно.
+    expect(dialog.textContent).toContain(
+      'Вернуться на stable можно будет при следующем стабильном релизе',
+    );
+  });
+});
+
+describe('UpdatesSection — события и снапшот (§12, 097)', () => {
   it('событие update:available переключает карточку без запроса (§12 события)', async () => {
     makeHl({ consent: true });
     renderSection();

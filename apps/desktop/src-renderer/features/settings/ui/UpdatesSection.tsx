@@ -14,14 +14,18 @@
  * «Приложение перезапустится», Esc/отмена — безопасный дефолт, AC4).
  *
  * ВЕРСИЯ (§5 упрощение): из userAgent (app-version.ts) — канал app/meta с полем
- * appVersion появится в TASK-100; нет хвоста — «—». БЕТА-КАНАЛ (§5): select disabled
- * с подписью «появится вместе с каналом beta» — включит TASK-107 (бейдж на Sidebar
- * НЕ делаем — §5 «шум», только секция). Статус-строка «Проверено: {время}» —
- * localStorage hl.updates.lastCheckAt (§5 «локальное состояние»).
+ * appVersion появится в TASK-100; нет хвоста — «—». КАНАЛ ОБНОВЛЕНИЙ (TASK-107 §5):
+ * select активен, значение — prefs.updateChannel; переключение — за confirm-диалогом
+ * (§13): канал применит СЛЕДУЮЩАЯ проверка (авто-перепроверки нет — «перезапуск
+ * проверки» вручную), а возврат beta→stable предупреждает о невозможности даунгрейда
+ * (updater не откатывает — вернутся со следующим стабильным релизом; golden-текст).
+ * Статус-строка «Проверено: {время}» — localStorage hl.updates.lastCheckAt.
  */
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import type { UpdateChannel } from '@hl/contracts';
 
 import { formatDateTime } from '../../../lib/i18n-date';
 import { readAppVersion } from '../model/app-version';
@@ -37,13 +41,15 @@ import {
 /** Секция «Обновления» (§5). */
 export function UpdatesSection(): JSX.Element {
   const { t } = useTranslation();
-  const { prefs } = usePreferences();
+  const { prefs, setPreferences } = usePreferences();
   const { data: status } = useUpdatesStatus();
   const check = useUpdatesCheck();
   const download = useUpdatesDownload();
   const install = useUpdatesInstall();
   const [hintShown, setHintShown] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  /** Канал, ожидающий подтверждения (§13: подтверждение «перезапуск проверки»). */
+  const [pendingChannel, setPendingChannel] = useState<UpdateChannel | null>(null);
 
   const state = status?.state ?? 'idle';
   const version = status?.version;
@@ -192,7 +198,9 @@ export function UpdatesSection(): JSX.Element {
           ) : null}
         </div>
 
-        {/* §5: заготовка канала beta — TASK-107 включит select. */}
+        {/* TASK-107 §5: канал обновлений — select из prefs; переключение за
+            подтверждением (§13). Пока prefs не загружены — disabled (§10 прецедент
+            кнопки «Проверить»). */}
         <div>
           <label htmlFor="updates-beta-select" className="block text-sm text-accent">
             {t('updates.betaChannel')}
@@ -200,15 +208,19 @@ export function UpdatesSection(): JSX.Element {
           <select
             id="updates-beta-select"
             data-testid="updates-beta-select"
-            disabled
-            className="mt-1 min-h-11 rounded-md border border-border bg-transparent px-3 py-2 text-base text-text"
+            disabled={prefs === undefined}
+            value={prefs?.updateChannel ?? 'stable'}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next === 'stable' || next === 'beta') {
+                setPendingChannel(next);
+              }
+            }}
+            className="mt-1 min-h-11 rounded-md border border-border bg-transparent px-3 py-2 text-base text-text disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="stable">{t('updates.betaStable')}</option>
             <option value="beta">{t('updates.betaBeta')}</option>
           </select>
-          <p data-testid="updates-beta-soon" className="mt-1 text-sm text-accent">
-            {t('updates.betaSoon')}
-          </p>
         </div>
       </div>
 
@@ -220,6 +232,20 @@ export function UpdatesSection(): JSX.Element {
             install.mutate();
           }}
           onClose={() => setConfirmOpen(false)}
+        />
+      ) : null}
+
+      {/* TASK-107 §13: подтверждение смены канала — применение next-check'ом
+          (авто-перепроверки нет); beta→stable — предупреждение о даунгрейде. */}
+      {pendingChannel !== null && prefs !== undefined ? (
+        <ChannelConfirmDialog
+          current={prefs.updateChannel}
+          pending={pendingChannel}
+          onConfirm={() => {
+            setPreferences.mutate({ updateChannel: pendingChannel });
+            setPendingChannel(null);
+          }}
+          onClose={() => setPendingChannel(null)}
         />
       ) : null}
     </section>
@@ -249,6 +275,82 @@ interface InstallConfirmDialogProps {
   readonly pending: boolean;
   readonly onConfirm: () => void;
   readonly onClose: () => void;
+}
+
+/** Props confirm-диалога смены канала (TASK-107 §13). */
+interface ChannelConfirmDialogProps {
+  /** Текущий канал (из prefs) — источник предупреждения о даунгрейде. */
+  readonly current: UpdateChannel;
+  /** Выбранный в select'е канал, ожидающий подтверждения. */
+  readonly pending: UpdateChannel;
+  readonly onConfirm: () => void;
+  readonly onClose: () => void;
+}
+
+/**
+ * Подтверждение смены канала (TASK-107 §13): «канал применится при следующей
+ * проверке» — переключение НЕ запускает проверку само (ручной перезапуск);
+ * возврат beta→stable — предупреждение о невозможности даунгрейда (updater не
+ * откатывает: golden-текст §13). Esc/отмена — ничего не происходит (дефолт Radix).
+ */
+function ChannelConfirmDialog({
+  current,
+  pending,
+  onConfirm,
+  onClose,
+}: ChannelConfirmDialogProps): JSX.Element {
+  const { t } = useTranslation();
+  const isDowngrade = current === 'beta' && pending === 'stable';
+  return (
+    <AlertDialog.Root
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          onClose();
+        }
+      }}
+    >
+      <AlertDialog.Portal>
+        <AlertDialog.Overlay className="fixed inset-0 bg-black/50" />
+        <AlertDialog.Content
+          data-testid="updates-beta-dialog"
+          className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg p-6 shadow-lg"
+        >
+          <AlertDialog.Title className="text-lg font-semibold text-text">
+            {t('updates.betaApplyTitle')}
+          </AlertDialog.Title>
+          <AlertDialog.Description asChild>
+            <p className="mt-2 text-sm text-text">{t('updates.betaApplyConfirm')}</p>
+          </AlertDialog.Description>
+          {/* §13/§16: предупреждение даунгрейда — текстом (golden-тест текста). */}
+          {isDowngrade ? (
+            <p data-testid="updates-beta-downgrade" className="mt-2 text-sm text-status-fail">
+              {t('updates.betaDowngradeWarning')}
+            </p>
+          ) : null}
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <AlertDialog.Cancel asChild>
+              <button
+                type="button"
+                data-testid="updates-beta-cancel"
+                className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+              >
+                {t('updates.cancel')}
+              </button>
+            </AlertDialog.Cancel>
+            <button
+              type="button"
+              data-testid="updates-beta-apply"
+              onClick={onConfirm}
+              className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg"
+            >
+              {t('updates.betaApply')}
+            </button>
+          </div>
+        </AlertDialog.Content>
+      </AlertDialog.Portal>
+    </AlertDialog.Root>
+  );
 }
 
 /**
