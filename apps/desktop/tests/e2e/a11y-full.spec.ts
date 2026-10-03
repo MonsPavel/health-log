@@ -27,10 +27,10 @@
  * data-theme / hl-text-* на <html> — маркер применения.
  *
  * Внедрение axe (probe TASK-108): CSP окна prod-подобного запуска —
- * `script-src 'self'` (csp.ts §6) — DOM-инъекцию addScriptTag и eval страницы
- * блокирует; page.evaluate идёт через CDP и CSP не подчиняется, поэтому
- * исходник axe.min.js передаётся строкой и инстанцируется new Function
- * (единица инъекции, проверено probe-прогоном: axe.run выполняется).
+ * `script-src 'self'` (csp.ts §6) — блокирует DOM-инъекцию addScriptTag и eval
+ * страницы; исходник axe.min.js исполняется через `webContents.executeJavaScript`
+ * из main (DevTools-механика, CSP не подчиняется; без Function/eval в коде
+ * репозитория — §14 lint). Проверено probe-прогоном: axe.run выполняется.
  *
  * Блокировка (§5 маршрут 7): режим passphrase — arrange через реальный канал
  * vault/set-passphrase (прецедент seedMeasurements: arrange-фаза), сам оверлей —
@@ -46,12 +46,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import {
-  expect,
-  test as base,
-  type ElectronApplication,
-  type Page,
-} from '@playwright/test';
+import { expect, test as base, type ElectronApplication, type Page } from '@playwright/test';
 
 import { closeApp, launchApp } from './helpers/launch.js';
 import { seedMeasurements } from './helpers/seed-measurements.js';
@@ -149,7 +144,7 @@ interface AxeViolation {
 }
 interface AxeBridge {
   run(
-    context: Document,
+    context: unknown,
     options?: Record<string, unknown>,
   ): Promise<{ readonly violations: readonly AxeViolation[] }>;
 }
@@ -177,32 +172,45 @@ async function invokeHl(window: Page, channel: string, payload: unknown): Promis
 }
 
 /**
- * Внедрение axe на страницу (см. шапку: CSP-совместимый путь — evaluate+Function).
- * Идемпотентно: повторный вызов в том же окне пропускается.
+ * Внедрение axe на страницу (см. шапку: CSP-совместимый путь). CSP окна
+ * (script-src 'self') блокирует DOM-инъекцию addScriptTag; evaluate-путь через
+ * `webContents.executeJavaScript` идёт мимо CSP (DevTools-механика) и не требует
+ * Function/eval в коде репозитория (§14 lint). Идемпотентно: повторный вызов в
+ * том же окне пропускается.
  */
-async function injectAxe(window: Page): Promise<void> {
+async function injectAxe(app: ElectronApplication, window: Page): Promise<void> {
   const present = await window.evaluate(() => (globalThis as { axe?: unknown }).axe !== undefined);
   if (present) {
     return;
   }
   const source = await readFile(AXE_SOURCE_PATH, 'utf8');
-  await window.evaluate((axeSource) => {
-    const instantiate = new Function(`${axeSource}\n;return axe;`) as () => AxeBridge;
-    (globalThis as { axe?: AxeBridge }).axe = instantiate();
+  await app.evaluate(({ BrowserWindow }, code) => {
+    const renderer = BrowserWindow.getAllWindows()[0];
+    if (renderer === undefined) {
+      throw new Error('injectAxe: окно рендерера не найдено');
+    }
+    return renderer.webContents.executeJavaScript(code, true);
   }, source);
   await window.waitForFunction(() => (globalThis as { axe?: unknown }).axe !== undefined);
 }
 
 /** Прогон axe по всему документу; наружу — компактный список violations. */
 async function runAxe(window: Page): Promise<
-  readonly { readonly id: string; readonly impact: AxeImpact; readonly help: string; readonly nodes: readonly string[] }[]
+  readonly {
+    readonly id: string;
+    readonly impact: AxeImpact;
+    readonly help: string;
+    readonly nodes: readonly string[];
+  }[]
 > {
   return window.evaluate(async () => {
     const axe = (globalThis as { axe?: AxeBridge }).axe;
     if (axe === undefined) {
       throw new Error('runAxe: axe не внедрён — injectAxe не вызван?');
     }
-    const results = await axe.run(document);
+    // document берётся из globalThis: tsconfig корневого проекта e2e — без DOM-lib.
+    const doc = (globalThis as unknown as { document: unknown }).document;
+    const results = await axe.run(doc);
     return results.violations.map((violation) => ({
       id: violation.id,
       impact: violation.impact,
@@ -325,7 +333,7 @@ test.describe('a11y-матрица 7 маршрутов × 2 темы × 3 ма�
 
         // Arrange: данные (карточки/график/строки) + axe + режим пароля (§5 маршрут 7).
         await seedMeasurements(window, SEED_ENTRIES(Date.now()));
-        await injectAxe(window);
+        await injectAxe(app, window);
         await invokeHl(window, 'vault/set-passphrase', { action: 'set', pass: TEST_PASSPHRASE });
         await applyAppearanceViaSettings(window, theme, scale);
 
@@ -344,9 +352,7 @@ test.describe('a11y-матрица 7 маршрутов × 2 темы × 3 ма�
               (violation) => violation.impact === 'critical' || violation.impact === 'serious',
             );
             if (blockers.length > 0) {
-              problems.push(
-                `«${route.title}» — critical/serious:\n${formatViolations(blockers)}`,
-              );
+              problems.push(`«${route.title}» — critical/serious:\n${formatViolations(blockers)}`);
             }
 
             // §13/AC2: moderate/minor — только из реестра docs/a11y-deferred.md.
