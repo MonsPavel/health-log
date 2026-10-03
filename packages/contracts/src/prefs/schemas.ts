@@ -37,6 +37,14 @@ export const AUTO_LOCK_MIN_SCHEMA = z.union([
 ]);
 
 /**
+ * TASK-107 §5: канал обновлений — stable (дефолт) | beta (ранний доступ, §3).
+ * Канал читает UpdatesService при КАЖДОЙ проверке (применение — next-check,
+ * §13 «переключение требует перезапуска проверки вручную»); alpha — §5
+ * «будущая работа», в схему не входит.
+ */
+export const UPDATE_CHANNEL_SCHEMA = z.enum(['stable', 'beta']);
+
+/**
  * §5/§14: сетевые согласия. Поле схемы уже здесь; UI-редактор — TASK-099, читает
  * только EgressGateway (TASK-075). Объектом целиком — без deep-merge (см. шапку).
  * TASK-075 §5: + modelsDownload (загрузка моделей, согласие запрашивается в
@@ -110,6 +118,8 @@ export const PREFS_SCHEMA = z
     aiSettings: AI_SETTINGS_SCHEMA.default({ dismissed: false, includeNotes: false }),
     /** TASK-094 §5: порог автоблока по простою, минуты (0 — выкл; дефолт 5). */
     autoLockMin: AUTO_LOCK_MIN_SCHEMA.default(5),
+    /** TASK-107 §5: канал обновлений (дефолт stable; применение — next-check). */
+    updateChannel: UPDATE_CHANNEL_SCHEMA.default('stable'),
   })
   .strict();
 
@@ -129,6 +139,8 @@ export const PREFS_PATCH_SCHEMA = z.object({
   aiSettings: AI_SETTINGS_SCHEMA.optional(),
   // TASK-094 §5: порог автоблока — UI настроек защиты (095).
   autoLockMin: AUTO_LOCK_MIN_SCHEMA.optional(),
+  // TASK-107 §5: канал обновлений — select секции «Обновления» (097).
+  updateChannel: UPDATE_CHANNEL_SCHEMA.optional(),
 });
 
 /** §11: запрос prefs/get — полный документ без параметров. */

@@ -16,6 +16,7 @@ import type {
   PREFS_SCHEMA,
   PREFS_SET_REQUEST_SCHEMA,
   PREFS_SET_RESPONSE_SCHEMA,
+  UPDATE_CHANNEL_SCHEMA,
 } from './schemas.js';
 
 /** Документ настроек (§5): иммутабельный VO на проводе и в хранилище (§7). */
@@ -35,6 +36,9 @@ export type AiSettings = z.infer<typeof AI_SETTINGS_SCHEMA>;
 
 /** TASK-074 §5: метаданные последней копии (путь/дата). */
 export type JobLastBackup = z.infer<typeof JOB_LAST_BACKUP_SCHEMA>;
+
+/** TASK-107 §5: канал обновлений — 'stable' | 'beta' (выбор в секции «Обновления»). */
+export type UpdateChannel = z.infer<typeof UPDATE_CHANNEL_SCHEMA>;
 
 /** §11: запрос/ответ prefs/get (полный документ без параметров). */
 export type PrefsGetRequest = z.infer<typeof PREFS_GET_REQUEST_SCHEMA>;

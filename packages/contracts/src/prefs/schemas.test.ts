@@ -30,6 +30,8 @@ const VALID_PREFS = {
   aiSettings: { dismissed: false, includeNotes: false },
   // TASK-094 §5: порог автоблока по простою, минуты (0 — выкл; дефолт 5).
   autoLockMin: 5,
+  // TASK-107 §5: канал обновлений (дефолт stable — beta по явному выбору).
+  updateChannel: 'stable',
 } as const;
 
 describe('PREFS_SCHEMA — документ настроек (§5)', () => {
@@ -156,6 +158,29 @@ describe('PREFS_SCHEMA — aiSettings.includeNotes (TASK-088 §5: тумблер
   });
 });
 
+describe('PREFS_SCHEMA — updateChannel (TASK-107 §5: канал обновлений)', () => {
+  it('дефолт: stable — beta только по явному выбору (усечённый документ парсится с заполнением)', () => {
+    expect(PREFS_SCHEMA.parse({}).updateChannel).toBe('stable');
+    expect(PREFS_SCHEMA.parse({ theme: 'dark' })).toMatchObject({
+      theme: 'dark',
+      updateChannel: 'stable',
+    });
+  });
+
+  it('значения enum §5: stable и beta принимаются', () => {
+    for (const updateChannel of ['stable', 'beta']) {
+      expect(PREFS_SCHEMA.parse({ ...VALID_PREFS, updateChannel })).toMatchObject({
+        updateChannel,
+      });
+    }
+  });
+
+  it('мусор отклоняется: чужой канал (alpha — §5 «будущая работа»), не-строка (strict)', () => {
+    expect(PREFS_SCHEMA.safeParse({ ...VALID_PREFS, updateChannel: 'alpha' }).success).toBe(false);
+    expect(PREFS_SCHEMA.safeParse({ ...VALID_PREFS, updateChannel: 2 }).success).toBe(false);
+  });
+});
+
 describe('PREFS_PATCH_SCHEMA — patch set (§7/§11)', () => {
   it('пустой patch валиден (частичное обновление)', () => {
     expect(PREFS_PATCH_SCHEMA.parse({})).toEqual({});
@@ -213,6 +238,16 @@ describe('PREFS_PATCH_SCHEMA — patch set (§7/§11)', () => {
     expect(PREFS_PATCH_SCHEMA.parse({ autoLockMin: 15 })).toEqual({ autoLockMin: 15 });
     expect(PREFS_PATCH_SCHEMA.parse({ autoLockMin: 0 })).toEqual({ autoLockMin: 0 });
     expect(PREFS_PATCH_SCHEMA.safeParse({ autoLockMin: 30 }).success).toBe(false);
+  });
+
+  it('updateChannel — patch принимается (stable|beta), чужой канал — ошибка (TASK-107 §5: переключение через prefs/set)', () => {
+    expect(PREFS_PATCH_SCHEMA.parse({ updateChannel: 'beta' })).toEqual({
+      updateChannel: 'beta',
+    });
+    expect(PREFS_PATCH_SCHEMA.parse({ updateChannel: 'stable' })).toEqual({
+      updateChannel: 'stable',
+    });
+    expect(PREFS_PATCH_SCHEMA.safeParse({ updateChannel: 'alpha' }).success).toBe(false);
   });
 });
 
