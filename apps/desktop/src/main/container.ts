@@ -2174,11 +2174,32 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       createAppMetaHandler({
         appVersion,
         selfcheck,
+        // §7 094 (уточнение TASK-113): meta — канал версий/режима, ОБЯЗАН отвечать
+        // и в locked: чтения БД (шкала/модель) при закрытом соединении дают
+        // VAULT/LOCKED — данные честно опускаются (§7 контракта 100), иначе гейт
+        // загрузки рендерера (recovery → app/meta) висит в loading навсегда и
+        // экран пароля не показывается (воспроизведено e2e-репетицией §20 AC-2).
         scales: async () => {
-          const scale = await scaleService.getActiveScale();
-          return { code: scale.code, version: scale.version };
+          try {
+            const scale = await scaleService.getActiveScale();
+            return { code: scale.code, version: scale.version };
+          } catch (cause) {
+            if (cause instanceof AppError && cause.code === 'VAULT/LOCKED') {
+              return undefined;
+            }
+            throw cause;
+          }
         },
-        model: modelMeta,
+        model: async () => {
+          try {
+            return await modelMeta();
+          } catch (cause) {
+            if (cause instanceof AppError && cause.code === 'VAULT/LOCKED') {
+              return undefined;
+            }
+            throw cause;
+          }
+        },
         // TASK-101 §9/§10: ЛЕНИВОЕ чтение состояния — в passphrase recovery вводится
         // после unlock (позже регистрации канала), гейт App перечитывает meta.
         recovery: () => recoveryContext,
