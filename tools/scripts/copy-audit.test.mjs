@@ -104,7 +104,10 @@ describe('запрет-корни (§4: словарь SRS 01 §8)', () => {
     ['лечен', ['методы лечения', 'курс лечения', 'ЛЕЧЕНИЕ']],
     ['назнач', ['назначение врача', 'назначили препарат']],
     ['показани', ['показания к приёму', 'Медицинские показания']],
-    ['гипертония у вас', ['гипертония у вас уже', 'гипертония у вас на ранней стадии', 'ГИПЕРТОНИЯ У ВАС']],
+    [
+      'гипертония у вас',
+      ['гипертония у вас уже', 'гипертония у вас на ранней стадии', 'ГИПЕРТОНИЯ У ВАС'],
+    ],
     ['вы больны', ['вы больны гриппом']],
     ['страдаете', ['вы страдаете гипертонией']],
   ])('корень «%s» находит свои словоформы', (root, samples) => {
@@ -221,8 +224,20 @@ describe('фикстуры → находки (§19: юнит-таблицы)', 
       'cat/bad.json': JSON.stringify({ d: 'Что-то другое' }),
     });
     const mandatory = [
-      { id: 'good', kind: 'json', file: 'cat/good.json', key: 'good.d', mustContain: 'не является медицинской консультацией' },
-      { id: 'bad', kind: 'json', file: 'cat/bad.json', key: 'bad.d', mustContain: 'не является медицинской консультацией' },
+      {
+        id: 'good',
+        kind: 'json',
+        file: 'cat/good.json',
+        key: 'good.d',
+        mustContain: 'не является медицинской консультацией',
+      },
+      {
+        id: 'bad',
+        kind: 'json',
+        file: 'cat/bad.json',
+        key: 'bad.d',
+        mustContain: 'не является медицинской консультацией',
+      },
     ];
     const audit = auditFixture(root, { mandatory });
     expect(audit.mandatory).toHaveLength(2);
@@ -247,7 +262,7 @@ describe('фикстуры → находки (§19: юнит-таблицы)', 
   it('обязательная подстрока в TS-константе (ts-regex) — mustContain и mustEqual', async () => {
     const root = await makeFixtureWithMain({
       'main-src/main/shared/critical-texts.ts': [
-        "export const EMERGENCY_NUMBERS = {",
+        'export const EMERGENCY_NUMBERS = {',
         "  ru: { locale: 'ru', primary: '103', unified: '112', label: 'скорая' },",
         '};',
       ].join('\n'),
@@ -284,7 +299,12 @@ describe('фикстуры → находки (§19: юнит-таблицы)', 
     });
     const audit = auditFixture(root);
     expect(audit.params).toEqual([
-      { file: 'renderer-src/features/p/ru.json', key: 'p.hint', param: 'value', direction: 'missing-in-usage' },
+      {
+        file: 'renderer-src/features/p/ru.json',
+        key: 'p.hint',
+        param: 'value',
+        direction: 'missing-in-usage',
+      },
     ]);
   });
 
@@ -296,8 +316,18 @@ describe('фикстуры → находки (§19: юнит-таблицы)', 
     });
     const audit = auditFixture(root);
     expect(audit.params).toEqual([
-      { file: 'renderer-src/features/p/ru.json', key: 'p.plain', param: 'median', direction: 'missing-in-value' },
-      { file: 'renderer-src/features/p/ru.json', key: 'p.plain', param: 'period', direction: 'missing-in-value' },
+      {
+        file: 'renderer-src/features/p/ru.json',
+        key: 'p.plain',
+        param: 'median',
+        direction: 'missing-in-value',
+      },
+      {
+        file: 'renderer-src/features/p/ru.json',
+        key: 'p.plain',
+        param: 'period',
+        direction: 'missing-in-value',
+      },
     ]);
   });
 
@@ -423,9 +453,9 @@ describe('ГЕЙТ §19/§20: полный прогон по реальным к
 
   it('whitelist-обходы задокументированы (system prompt: запреты формулируются словами запрета)', () => {
     expect(result.json.whitelisted.length).toBeGreaterThan(0);
-    expect(
-      result.json.whitelisted.every((entry) => entry.file && entry.root && entry.reason),
-    ).toBe(true);
+    expect(result.json.whitelisted.every((entry) => entry.file && entry.root && entry.reason)).toBe(
+      true,
+    );
   });
 
   it('0 params-дрейфа (§20 AC1: {{median}} не потерян)', () => {

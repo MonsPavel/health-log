@@ -297,7 +297,10 @@ export function flattenCatalogValues(catalog, namespace) {
 function namespaceFor(catalogPath) {
   const parent = dirname(catalogPath);
   const dirName = parent.split(/[\\/]/).pop();
-  const base = catalogPath.split(/[\\/]/).pop().replace(/\.json$/, '');
+  const base = catalogPath
+    .split(/[\\/]/)
+    .pop()
+    .replace(/\.json$/, '');
   return dirName === 'ru' ? base : dirName;
 }
 
@@ -686,7 +689,9 @@ export function buildAudit(options = {}) {
     const ok =
       found !== undefined &&
       found.length > 0 &&
-      (entry.mustEqual !== undefined ? found === entry.mustEqual : found.includes(entry.mustContain));
+      (entry.mustEqual !== undefined
+        ? found === entry.mustEqual
+        : found.includes(entry.mustContain));
     return {
       id: entry.id,
       file: entry.file,
@@ -697,10 +702,7 @@ export function buildAudit(options = {}) {
     };
   });
 
-  const params = checkParams(
-    catalogEntries,
-    usageFiles,
-  );
+  const params = checkParams(catalogEntries, usageFiles);
 
   const failed =
     forbidden.length > 0 || mandatoryResults.some((entry) => !entry.ok) || params.length > 0;
@@ -762,8 +764,14 @@ export function buildReport(audit) {
   lines.push('|---|---|---|---|---|');
   for (const entry of audit.mandatory) {
     const found =
-      entry.found === undefined ? '—' : entry.found.length > 60 ? `${entry.found.slice(0, 60)}…` : entry.found;
-    lines.push(`| ${entry.id} | ${entry.file} | ${entry.expected} | ${found} | ${entry.ok ? 'ok' : 'FAIL'} |`);
+      entry.found === undefined
+        ? '—'
+        : entry.found.length > 60
+          ? `${entry.found.slice(0, 60)}…`
+          : entry.found;
+    lines.push(
+      `| ${entry.id} | ${entry.file} | ${entry.expected} | ${found} | ${entry.ok ? 'ok' : 'FAIL'} |`,
+    );
   }
   lines.push('');
   lines.push('## params-дрейф (§5(3): фигурные скобки, обе стороны)');
