@@ -77,6 +77,11 @@ jobs:
       - name: Check i18n
         run: pnpm check:i18n
 
+      # TASK-110: copy-audit — ревизия RU-текстов (запрет-лексика SRS 01 §8,
+      # обязательные дисклеймеры FR-5.6, params-дрейф) — шаг lint-семейства.
+      - name: Copy audit
+        run: pnpm copy:audit
+
       - name: Typecheck
         run: pnpm typecheck
 
