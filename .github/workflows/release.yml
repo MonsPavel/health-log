@@ -153,15 +153,43 @@ jobs:
       # до доверенного корня) допускается ТОЛЬКО для пробных тегов с test-cert
       # (certificates.md §4) — боевой релиз обязан быть Valid: это пункт
       # предрелизного чеклиста (TASK-114).
+      #
+      # Урок прогона 6 живой приёмки §20: на чистом раннере цепочка
+      # самоподписанного test-cert НЕ строится до «untrusted root», ревокационная
+      # проверка падает (CRYPT_E_NO_REVOCATION_CHECK) и Get-AuthenticodeSignature
+      # отдаёт UnknownError ВМЕСТО NotTrusted — допуск из §4 не срабатывает.
+      # Локальный прецедент 104 (Status=0 Valid) — с импортированным корнем.
+      # Поэтому при наличии секретов подписи test-корень (публичная часть PFX)
+      # импортируется в LocalMachine\Root ПЕРЕД проверкой: раннер — admin-контекст,
+      # диалог crypt32 (CurrentUser\Root, certificates.md §4) не показывается;
+      # после импорта статус = Valid (боевой путь §14 без изменений).
       - name: Sign self-check (Get-AuthenticodeSignature)
         id: sign
         shell: pwsh
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
         run: |
           $exe = Get-ChildItem 'apps/desktop/dist' -Filter '*.exe' |
             Where-Object { $_.Name -match ' Setup ' } | Select-Object -First 1
           if ($null -eq $exe) {
             Write-Error 'установщик * Setup *.exe не найден в apps/desktop/dist'
             exit 1
+          }
+          if ($env:WIN_CSC_LINK -and $env:WIN_CSC_KEY_PASSWORD) {
+            $link = $env:WIN_CSC_LINK.Trim()
+            if (Test-Path -LiteralPath $link) {
+              $pfxBytes = [System.IO.File]::ReadAllBytes($link)
+            } else {
+              $pfxBytes = [System.Convert]::FromBase64String($link)
+            }
+            $pfx = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+              $pfxBytes, $env:WIN_CSC_KEY_PASSWORD)
+            $store = [System.Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+            $store.Open('ReadWrite')
+            $store.Add([System.Security.Cryptography.X509Certificates.X509Certificate2]::new($pfx.RawData))
+            $store.Close()
+            Write-Host "test-корень импортирован в LocalMachine\Root: $($pfx.Subject)"
           }
           $sig = Get-AuthenticodeSignature $exe.FullName
           Write-Host "sign: $($sig.Status) — $($sig.SignerCertificate.Subject)"
