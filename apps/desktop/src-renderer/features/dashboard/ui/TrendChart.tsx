@@ -313,9 +313,11 @@ export function TrendChart({
         className="m-0"
       >
         {/* TASK-108 §5 (aria-hidden-focus): скролл-контейнер остаётся вне
-            aria-hidden (Chromium делает скролл-области фокусируемыми — axe считает
-            их фокусируемыми даже с tabIndex=-1); aria-hidden — на внутренней
-            обёртке SVG (ADR-0003 §2/§7: маркеры скрыты от скринридера). */}
+            aria-hidden (Chromium делает скролл-области фокусируемыми); aria-hidden —
+            на внутренней обёртке SVG (ADR-0003 §2/§7: маркеры скрыты от скринридера).
+            accessibilityLayer=false: клавиатурный слой recharts 3 даёт tabIndex=0
+            внутри aria-hidden = serious-нарушение; a11y графика — на уровне экрана
+            (aria-label фигуры + таблица ?as=table, TASK-059). */}
         <div className="overflow-x-auto">
           <div aria-hidden="true">
             <ComposedChart
@@ -323,6 +325,7 @@ export function TrendChart({
               height={height}
               data={chartData}
               margin={{ top: 12, right: 16, bottom: 4, left: 0 }}
+              accessibilityLayer={false}
             >
               <CartesianGrid stroke="var(--hl-border)" strokeDasharray="1 4" strokeOpacity={0.6} />
               <XAxis

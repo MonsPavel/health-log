@@ -297,7 +297,10 @@ export function PulseChart({
           (прецедент TrendChart 057: маркеры скрыты от скринридера). */}
       <figure role="img" aria-label={chartLabel} data-testid="pulse-chart" className="m-0">
         {/* TASK-108 §5 (aria-hidden-focus): прецедент TrendChart — aria-hidden на
-            внутренней обёртке SVG, скролл-контейнер вне aria-hidden. */}
+            внутренней обёртке, скролл-контейнер вне aria-hidden;
+            accessibilityLayer=false — клавиатурный слой recharts 3 внутри
+            aria-hidden недостижим и даёт serious-нарушение (a11y — aria-label
+            фигуры + таблица). */}
         <div className="overflow-x-auto">
           <div aria-hidden="true">
             <ComposedChart
@@ -305,6 +308,7 @@ export function PulseChart({
               height={height}
               data={chartData}
               margin={{ top: 12, right: 16, bottom: 4, left: 0 }}
+              accessibilityLayer={false}
             >
               <CartesianGrid stroke={REF_STROKE} strokeDasharray="1 4" strokeOpacity={0.6} />
               <XAxis
