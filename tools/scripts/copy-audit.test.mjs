@@ -263,12 +263,11 @@ describe('фикстуры → находки (§19: юнит-таблицы)', 
       'renderer-src/components/critical/ru.json': JSON.stringify({ panel: { title: 'Панель' } }),
       'renderer-src/i18n/ru/common.json': JSON.stringify({ ok: 'Спокойный текст' }),
     });
-    // Каркас уже кладёт i18n/ru/common.json — он перезаписан выше; итого 3 каталога.
+    // Каркас уже кладёт i18n/ru/common.json — он перезаписан выше; итого 4 каталога
+    // (data + features/p + components/critical + common), 4 значения.
     const audit = auditFixture(root);
-    expect(audit.scanned.catalogs).toBe(3);
-    const keys = [];
-    // Плоские ключи доступны только через находки/params — проверяем счётчиком значений.
-    expect(audit.scanned.catalogValues).toBe(4); // title, title, panel.title, ok
+    expect(audit.scanned.catalogs).toBe(4);
+    expect(audit.scanned.catalogValues).toBe(4); // data.title, p.title, critical.panel.title, common.ok
   });
 
   it('обязательная подстрока отсутствует → находка; на месте → ok без влияния на вердикт', async () => {

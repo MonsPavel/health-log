@@ -624,8 +624,13 @@ export function buildAudit(options = {}) {
     }
   }
 
-  const catalogFiles = listFiles(srcDir, new Set(['json'])).filter((path) =>
-    path.endsWith('ru.json'),
+  // RU-каталог — файл «ru.json» ЛИБО любой *.json в каталоге «ru» (раскладка
+  // i18n/ru/<имя>.json, namespace = имя файла — см. namespaceFor). Ревью
+  // TASK-110: фильтр «только ru.json» терял 10 файлов / 205 значений (37%
+  // корпуса: errors, common, lock, recovery, privacy, report, data, diag,
+  // about, export).
+  const catalogFiles = listFiles(srcDir, new Set(['json'])).filter(
+    (path) => path.endsWith('ru.json') || dirname(path).split(/[\\/]/).pop() === 'ru',
   );
   const catalogEntries = [];
   for (const path of catalogFiles) {
