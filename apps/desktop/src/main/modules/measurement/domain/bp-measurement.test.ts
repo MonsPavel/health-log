@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { FixedClock, isErr, isOk, unsafeUnwrap } from '@hl/kernel';
 
 import { BpMeasurement } from './bp-measurement.js';
-import { BP_LIMITS, NOTE_MAX_LENGTH } from './constants.js';
+import { BP_LIMITS, CLOCK_SKEW_TOLERANCE_MS, NOTE_MAX_LENGTH } from './constants.js';
 import type { CreateMeasurementCommand, EditMeasurementCommand } from './measurement-commands.js';
 
 /** Фиксированное «сейчас» и пояс (UTC+3) — детерминизм NFR-10. */
@@ -118,9 +118,32 @@ describe('BpMeasurement.create — инвариант «takenAt ≤ now» (§13)
     }
   });
 
-  it('takenAt = clock.nowMs() + 1 → err FUTURE_TIME (§20)', () => {
+  // TASK-113 (репетиция новичка): «сейчас» берут ДВЕ процессы — renderer берёт
+  // Date.now() на submit, main сверяет со своим Clock; грубое системное время
+  // Windows даёт межпроцессный дрейф в единицы мс (поймано e2e: takenAt на 2 мс
+  // впереди mainNow → отказ FUTURE_TIME на честном вводе «сейчас»). Допуск
+  // CLOCK_SKEW_TOLERANCE_MS покрывает дрейф; честное «из будущего» отсекается.
+  it('takenAt = clock.nowMs() + 1500 (в пределах допуска дрейфа) → ok (TASK-113)', () => {
     const result = BpMeasurement.create(
-      createCmd({ takenAt: { utcMs: NOW_MS + 1, tzOffsetMin: TZ } }),
+      createCmd({ takenAt: { utcMs: NOW_MS + (CLOCK_SKEW_TOLERANCE_MS - 500), tzOffsetMin: TZ } }),
+      clockNow,
+    );
+
+    expect(isOk(result)).toBe(true);
+  });
+
+  it('takenAt = clock.nowMs() + CLOCK_SKEW_TOLERANCE_MS → ok: равенство допуска валидно', () => {
+    const result = BpMeasurement.create(
+      createCmd({ takenAt: { utcMs: NOW_MS + CLOCK_SKEW_TOLERANCE_MS, tzOffsetMin: TZ } }),
+      clockNow,
+    );
+
+    expect(isOk(result)).toBe(true);
+  });
+
+  it('takenAt = clock.nowMs() + CLOCK_SKEW_TOLERANCE_MS + 1 → err FUTURE_TIME (§20)', () => {
+    const result = BpMeasurement.create(
+      createCmd({ takenAt: { utcMs: NOW_MS + CLOCK_SKEW_TOLERANCE_MS + 1, tzOffsetMin: TZ } }),
       clockNow,
     );
 
@@ -327,11 +350,11 @@ describe('BpMeasurement.edit — пересборка копии (§7)', () => {
 });
 
 describe('BpMeasurement.edit — инварианты пере проверяются (§7)', () => {
-  it('edit с takenAt = now()+1 → err FUTURE_TIME (§13)', () => {
+  it('edit с takenAt = now()+CLOCK_SKEW_TOLERANCE_MS+1 → err FUTURE_TIME (§13, TASK-113)', () => {
     const existing = unsafeUnwrap(BpMeasurement.create(createCmd(), clockNow));
     const result = BpMeasurement.edit(
       existing,
-      editCmd({ takenAt: { utcMs: NOW_LATER_MS + 1, tzOffsetMin: TZ } }),
+      editCmd({ takenAt: { utcMs: NOW_LATER_MS + CLOCK_SKEW_TOLERANCE_MS + 1, tzOffsetMin: TZ } }),
       clockLater,
     );
 
