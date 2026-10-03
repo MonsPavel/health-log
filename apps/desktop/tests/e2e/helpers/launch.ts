@@ -20,7 +20,7 @@ const APP_ROOT = join(fileURLToPath(new URL('../../..', import.meta.url)));
 /** Точка входа main-процесса — продукт `tsc -b tsconfig.main.json` (§22). */
 const MAIN_ENTRY = join(APP_ROOT, 'dist', 'main', 'app', 'bootstrap.js');
 
-/** Опции launchApp (§5: `{userData}` — единственная точка вариации). */
+/** Опции launchApp (§5 035: `{userData}` — точка вариации; TASK-111 добавил packaged exe). */
 export interface LaunchAppOptions {
   /** Каталог tmp-userData (fixture mkdtemp) для изоляции данных прогона. */
   readonly userData: string;
@@ -61,6 +61,14 @@ export interface LaunchAppOptions {
    * (неотличимы от неизвестных, §20 AC4).
    */
   readonly testHooks?: boolean;
+  /**
+   * TASK-111 §4/§5: packaged-запуск для bench старта — путь к собранному exe
+   * (dist/win-unpacked/«Health Log.exe»): _electron.launch стартует ЕГО (args
+   * пусты), а не собранный main-entry через локальный electron. Изоляция userData
+   * и env-проводка — те же (resolveUserDataPath работает и в packaged, §9
+   * user-data-override). Без опции — прежний запуск MAIN_ENTRY (§5 035).
+   */
+  readonly executablePath?: string;
 }
 
 /** TASK-062 §10: зеркало результата measureChannel preload.cts (§5 шаг 3). */
@@ -124,7 +132,14 @@ export async function launchApp(options: LaunchAppOptions): Promise<ElectronAppl
   }
   delete env['ELECTRON_RENDERER_URL'];
 
-  const app = await _electron.launch({ args: [MAIN_ENTRY], cwd: APP_ROOT, env });
+  const app = await _electron.launch({
+    // TASK-111: с executablePath (packaged exe) args пусты — exe самодостаточен;
+    // дефолт — собранный main-entry (§22 035).
+    args: options.executablePath === undefined ? [MAIN_ENTRY] : [],
+    ...(options.executablePath === undefined ? {} : { executablePath: options.executablePath }),
+    cwd: APP_ROOT,
+    env,
+  });
 
   // Урок прогона 7 живой приёмки TASK-105 §20: размер КОНТЕНТА окна машино-зависим —
   // на windows-runner GUI-сессия ~1024×768, окно зажалось до minWidth/minHeight
