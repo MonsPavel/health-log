@@ -74,9 +74,13 @@ async function makeFixture(files) {
   return root;
 }
 
-/** Стандартный каркас фикстуры: пять main-файлов (пустые) + переданные файлы. */
+/** Стандартный каркас фикстуры: пять main-файлов (пустые), чистый каталог
+ * рендерера (srcDir обязан существовать — exit 2 на отсутствующий каталог)
+ * + переданные файлы. */
 async function makeFixtureWithMain(extraFiles = {}) {
-  const files = {};
+  const files = {
+    'renderer-src/i18n/ru/common.json': JSON.stringify({ ok: 'Спокойный текст' }),
+  };
   for (const rel of MAIN_FILES) {
     files[`main-src/${rel}`] = '';
   }
@@ -100,13 +104,13 @@ describe('запрет-корни (§4: словарь SRS 01 §8)', () => {
     ['лечен', ['методы лечения', 'курс лечения', 'ЛЕЧЕНИЕ']],
     ['назнач', ['назначение врача', 'назначили препарат']],
     ['показани', ['показания к приёму', 'Медицинские показания']],
-    ['гипертония у вас', ['гипертония у вас уже', 'У вас гипертония второй стадии']],
+    ['гипертония у вас', ['гипертония у вас уже', 'гипертония у вас на ранней стадии', 'ГИПЕРТОНИЯ У ВАС']],
     ['вы больны', ['вы больны гриппом']],
     ['страдаете', ['вы страдаете гипертонией']],
   ])('корень «%s» находит свои словоформы', (root, samples) => {
-    expect(findForbiddenRoots(samples[0])).toContain(root);
-    expect(findForbiddenRoots(samples[1])).toContain(root);
-    expect(findForbiddenRoots(samples[2])).toContain(root);
+    for (const sample of samples) {
+      expect(findForbiddenRoots(sample)).toContain(root);
+    }
   });
 
   it('легитимные слова-соседи НЕ находятся (§4: попадание = ручной разбор, а тут его нет)', () => {
@@ -156,7 +160,7 @@ describe('извлечение строковых литералов TS (§4: с
     const literals = extractStringLiterals(source);
     // «леч»/«ение» по отдельности корень не дают — дрейф разбиения возможен,
     // но реальный код промпта не дробит корни; фиксируем честное поведение.
-    expect(literals).toContain('диагноз и продолжение');
+    expect(literals).toEqual(['леч', 'ение', '${prefix}диагноз и продолжение']);
   });
 
   it('экранированная кавычка внутри литерала не рвёт извлечение', () => {
@@ -509,7 +513,15 @@ describe('CLI (§20: exit-код + --json)', () => {
     const root = await makeFixtureWithMain({
       'renderer-src/features/danger/ru.json': JSON.stringify({ title: 'У вас гипертония' }),
     });
-    const { code, stdout } = await cli(['--json', '--root', root]);
+    const { code, stdout } = await cli([
+      '--json',
+      '--root',
+      root,
+      '--src',
+      'renderer-src',
+      '--main',
+      'main-src',
+    ]);
     expect(code).toBe(1);
     const parsed = JSON.parse(stdout);
     expect(parsed.verdict).toBe('FAIL');
