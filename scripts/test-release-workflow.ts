@@ -217,6 +217,14 @@ function collectFailures(text: string): string[] {
   if (/--publish\s+(?!never\b)/.test(text)) {
     failures.push('§5: допустима только явная политика --publish never (публикация — вручную)');
   }
+  // §13/§20-2/§20-3: падение любого гейта → draft не создаётся. Ни один шаг не
+  // имеет права тихо глотать сбой: continue-on-error на гейте обесценил бы
+  // отрицательные критерии приёмки (красный e2e/size должен оставлять без draft).
+  if (text.includes('continue-on-error')) {
+    failures.push(
+      '§13: найден continue-on-error — гейт не имеет права глотать сбой (падение любого → draft не создаётся)',
+    );
+  }
 
   for (const check of PRESENCE_CHECKS) {
     if (index(text, check.re) === -1) {
