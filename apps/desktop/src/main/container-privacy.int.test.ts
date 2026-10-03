@@ -93,6 +93,11 @@ class FakeAdapter implements UpdatesAdapter {
     return Promise.resolve(FEED_URL);
   }
 
+  // TASK-107 §5: применение канала (срез prefs) — в сценариях не проверяется.
+  setChannel(): Promise<void> {
+    return Promise.resolve();
+  }
+
   checkForUpdates(): Promise<{ available: boolean }> {
     this.checkCalls += 1;
     return Promise.resolve({ available: false });

@@ -59,6 +59,8 @@ const validSnapshot = {
     jobState: { jobs: {}, shown: {} },
     aiSettings: { dismissed: false, includeNotes: false },
     autoLockMin: 5,
+    // TASK-107: канал обновлений — дефолт схемы (полная форма слепка).
+    updateChannel: 'stable',
   },
   scales: [{ code: 'bp-office-esc2018', version: '1.0.0' }],
 };
