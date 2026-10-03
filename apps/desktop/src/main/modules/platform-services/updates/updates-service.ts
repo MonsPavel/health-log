@@ -392,10 +392,18 @@ export function createDefaultUpdatesAdapter(logger: HlLogger): UpdatesAdapter {
   let wired: Promise<UpdatesAdapter> | undefined;
   const resolve = (): Promise<UpdatesAdapter> => {
     wired ??= (async (): Promise<UpdatesAdapter> => {
-      const electronUpdater = (await import('electron-updater')) as unknown as {
+      // F1 (аудит TASK-106, 2026-Q1-mvp): electron-updater — CJS; динамический
+      // import из ESM-рантайма возвращает namespace, где named-экспорт
+      // autoUpdater НЕ детектируется cjs-module-lexer (реэкспорт через
+      // __exportStar) — боевой packaged-запуск давал updater-unavailable и
+      // проверку обновлений выполнить было невозможно. Берём модуль целиком
+      // (default = moduleExports) и достаём autoUpdater из него.
+      const electronUpdaterModule = (await import('electron-updater')) as unknown as {
         autoUpdater?: ElectronUpdaterLike;
+        default?: { autoUpdater?: ElectronUpdaterLike };
       };
-      const autoUpdater = electronUpdater.autoUpdater;
+      const autoUpdater =
+        electronUpdaterModule.autoUpdater ?? electronUpdaterModule.default?.autoUpdater;
       if (autoUpdater === undefined) {
         // Не Electron-рантайм (node-vitest/тесты) — честный отказ при ВЫЗОВЕ,
         // не тихий сбой (прецедент createDefaultVault VAULT/UNAVAILABLE).

@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Consents, PrivacyJournalResponse } from '@hl/contracts';
 
+import { usePreferences } from '../model/use-preferences';
 import {
   PRIVACY_CONSENTS_QUERY_KEY,
   PRIVACY_JOURNAL_QUERY_KEY,
@@ -200,5 +201,76 @@ describe('usePrivacyConsents — чтение и переключение (§5/�
 
     await waitFor(() => expect(consents.result.current.setConsents.isError).toBe(true));
     expect(queryClient.getQueryData(PRIVACY_CONSENTS_QUERY_KEY)).toEqual(before);
+  });
+});
+
+/**
+ * F1 (живой аудит TASK-106, отчёт 2026-Q1-mvp): переключатель согласия на экране
+ * «Приватность» и гейт «updates.check» в секции «Обновления» читают РАЗНЫЕ кэши —
+ * ['privacy','consents'] и ['prefs'] (usePreferences). Мутация обновляла только
+ * свой кэш: переключатель включён, а UpdatesSection продолжал видеть
+ * netConsents.updatesCheck=false — «Проверить обновления» перехватывалось
+ * подсказкой, в релизной сборке проверку выполнить невозможно. Фикс: onSuccess
+ * инвалидирует ['prefs'] — гейт перечитывает prefs/get.
+ */
+describe('F1: мутация согласий инвалидирует кэш prefs (гейт updates.check)', () => {
+  it('setConsents успех → prefs/get перечитан → prefs.netConsents.updatesCheck=true в кэше prefs', async () => {
+    const PREFS_BASE = {
+      theme: 'system',
+      textScale: '100',
+      dateFormat: 'auto',
+      advancedMode: false,
+      netConsents: { updatesCheck: false, modelsDownload: false },
+      jobState: { jobs: {}, shown: {} },
+      aiSettings: { dismissed: false, includeNotes: false },
+      autoLockMin: 5,
+    };
+    const CONSENTS_OFF: Consents = { updatesCheck: false, modelsDownload: false };
+    const CONSENTS_ON: Consents = { updatesCheck: true, modelsDownload: false };
+    invoke.mockImplementation((channel: string): Promise<unknown> => {
+      if (channel === 'prefs/get') {
+        return Promise.resolve(OK_ENVELOPE({ ...PREFS_BASE }));
+      }
+      if (channel === 'privacy/consents') {
+        return Promise.resolve(OK_ENVELOPE(CONSENTS_OFF));
+      }
+      return Promise.resolve(OK_ENVELOPE(CONSENTS_OFF));
+    });
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    const prefsHook = renderHook(() => usePreferences(), { wrapper });
+    const consentsHook = renderHook(() => usePrivacyConsents(), { wrapper });
+
+    // Гейт до переключения: prefs в кэше видят updatesCheck=false (как в релизе).
+    await waitFor(() => expect(prefsHook.result.current.prefs).toBeDefined());
+    expect(prefsHook.result.current.prefs?.netConsents.updatesCheck).toBe(false);
+
+    invoke.mockImplementation((channel: string): Promise<unknown> => {
+      if (channel === 'prefs/get') {
+        return Promise.resolve(
+          OK_ENVELOPE({
+            ...PREFS_BASE,
+            netConsents: { updatesCheck: true, modelsDownload: false },
+          }),
+        );
+      }
+      if (channel === 'privacy/consents') {
+        // канал с patch — источник истины после переключения
+        return Promise.resolve(OK_ENVELOPE(CONSENTS_ON));
+      }
+      return Promise.resolve(OK_ENVELOPE(CONSENTS_ON));
+    });
+
+    await act(async () => {
+      await consentsHook.result.current.setConsents.mutateAsync({ updatesCheck: true });
+    });
+
+    // ФИКС: ['prefs'] инвалидирован → перечитан → гейт видит true (RED до фикса).
+    await waitFor(() =>
+      expect(prefsHook.result.current.prefs?.netConsents.updatesCheck).toBe(true),
+    );
+    expect(invoke).toHaveBeenCalledWith('prefs/get', {});
   });
 });

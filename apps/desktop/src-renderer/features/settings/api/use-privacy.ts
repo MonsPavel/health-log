@@ -25,7 +25,7 @@ import type {
 
 import { call } from '../../../src/lib/ipc';
 import { useHlEvent } from '../../../lib/events';
-import { IpcApiError } from '../model/use-preferences';
+import { IpcApiError, PREFS_QUERY_KEY } from '../model/use-preferences';
 
 /** Ключ запроса журнала (§12); инвалидация — событие net:activity (живая лента). */
 export const PRIVACY_JOURNAL_QUERY_KEY = ['privacy', 'journal'] as const;
@@ -110,6 +110,12 @@ export function usePrivacyConsents() {
     // §12: сервер — источник истины; полный документ перезаписывает optimistic.
     onSuccess: (data) => {
       queryClient.setQueryData(PRIVACY_CONSENTS_QUERY_KEY, data);
+      // F1 (аудит TASK-106, 2026-Q1-mvp): гейт updates.check в UpdatesSection читает
+      // prefs.netConsents из ДРУГОГО кэша (['prefs'] через usePreferences) — без
+      // инвалидации он оставался на старом значении: переключатель включён, а
+      // «Проверить обновления» перехватывалось подсказкой, проверку выполнить
+      // невозможно (блокер релиза). Синхронизируем второй кэш.
+      void queryClient.invalidateQueries({ queryKey: PREFS_QUERY_KEY });
     },
   });
 
