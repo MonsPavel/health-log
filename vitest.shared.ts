@@ -36,6 +36,18 @@ const workspaceAliases = {
 export const sharedTestConfig: ProjectTestConfig = {
   environment: 'node',
   setupFiles,
+  /**
+   * Урок прогонов 3/5 живой приёмки TASK-105 §20: дефолтный testTimeout 5 с
+   * калиброван под dev-машину — на windows-runner под полной загрузкой пулов
+   * тяжёлые int-тесты (полная сборка контейнера + tmp-БД) изредка не укладываются,
+   * причём каждый прогон трясёт разных (run 3: router/container-ландмарк —
+   * починено asyncUtilTimeout/CI-бюджетом; run 5: ai-summary (3b), search
+   * VALIDATION — оба «Test timed out in 5000ms»). На CI порог 20 с — детект
+   * зависаний сохранён; локальный быстрый фейл остаётся 5 с. Явные бюджеты
+   * §15 не затронуты: они ассертятся performance.now() (container.int.test,
+   * pdf.render ≤30 с) и не зависят от testTimeout.
+   */
+  testTimeout: process.env.CI === 'true' ? 20_000 : 5_000,
   // Примечание: passWithNoTests («0 тестов — не ошибка», §20.1) объявлен на root-уровне
   // vitest.config.ts — глобальную проверку «No test files found» проектные настройки не покрывают.
 };
