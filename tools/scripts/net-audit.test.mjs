@@ -106,6 +106,14 @@ describe('parsePollLine (парсер фикстуры-вывода Get-NetTCPCo
     expect(parsed.records).toEqual([]);
   });
 
+  it('числовой State (PS-enum до каста) нормализуется к строке — живой прогон 2026-10-03', () => {
+    const line =
+      '{"ts":"2026-10-03T09:43:53.1781505Z","conns":[{"pid":29836,"LocalAddress":"10.0.0.1","LocalPort":49155,"RemoteAddress":"4.225.11.201","RemotePort":443,"State":5}]}';
+    const parsed = parsePollLine(line);
+    expect(parsed.records[0].state).toBe('5');
+    expect(isRemoteConnection(parsed.records[0])).toBe(true);
+  });
+
   it('мусорная/пустая строка → unknown/null (не роняет сборщик)', () => {
     expect(parsePollLine('не-JSON строка консоли')?.type).toBe('unknown');
     expect(parsePollLine('')).toBeNull();
@@ -393,9 +401,10 @@ describe('PowerShell-скрипты (чистые строки, §4: netsh не 
     const script = monitorScriptPs(['Health Log'], 500);
     expect(script).toContain('Get-NetTCPConnection');
     expect(script).toContain('Get-Process');
-    expect(script).toContain("'-Name'");
+    expect(script).toContain('-Name');
     expect(script).toContain("'Health Log'");
     expect(script).toContain('-Milliseconds 500');
+    expect(script).toContain('[string]$_.State');
   });
 
   it('монитор: дефолтный интервал 500 мс (§4/§15)', () => {
