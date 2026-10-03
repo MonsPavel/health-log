@@ -11,7 +11,7 @@ import errors from './ru/errors.json';
 
 describe('каталог errors.* — динамические messageKey домена (TASK-113)', () => {
   it('MEASUREMENT_FUTURE_TIME существует и непуст (тост отказа FUTURE_TIME из main)', () => {
-    const message = errors['MEASUREMENT_FUTURE_TIME'];
+    const message: unknown = errors['MEASUREMENT_FUTURE_TIME'];
     expect(typeof message).toBe('string');
     expect((message as string).length).toBeGreaterThan(5);
   });

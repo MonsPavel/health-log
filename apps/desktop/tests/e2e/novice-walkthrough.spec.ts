@@ -128,9 +128,7 @@ test.describe('Репетиция прогона новичка по докум�
     // ── install.md «Настройте сразу: пароль» (шаги 1–4 документа).
     await test.step('install.md: включить пароль приложения', async () => {
       await window.getByRole('link', { name: 'Настройки' }).click();
-      await expect(
-        window.getByRole('heading', { name: 'Защита паролем' }),
-      ).toBeVisible();
+      await expect(window.getByRole('heading', { name: 'Защита паролем' })).toBeVisible();
       // Шаг 2: «Нажмите "Включить"» → диалог с полями и предупреждением (шаг 3).
       await window.getByTestId('security-enable').click();
       const dialog = window.getByTestId('security-dialog');
@@ -210,13 +208,16 @@ test.describe('Репетиция прогона новичка по докум�
     // ── data.md «Восстановить из копии» (шаги 1–5 документа).
     await test.step('data.md: восстановиться из копии', async () => {
       const backupPath = join(tmpUserData, 'novice-backup.hlbackup');
-      await app.evaluate((_, openPaths) => {
-        const holder = globalThis as { __hlE2eDialogState?: { openPaths: string[] } };
-        if (holder.__hlE2eDialogState === undefined) {
-          throw new Error('stubOsDialogs не вызван');
-        }
-        holder.__hlE2eDialogState.openPaths = openPaths;
-      }, [backupPath]);
+      await app.evaluate(
+        (_, openPaths) => {
+          const holder = globalThis as { __hlE2eDialogState?: { openPaths: string[] } };
+          if (holder.__hlE2eDialogState === undefined) {
+            throw new Error('stubOsDialogs не вызван');
+          }
+          holder.__hlE2eDialogState.openPaths = openPaths;
+        },
+        [backupPath],
+      );
 
       await window.getByTestId('data-restore-button').click();
       // Шаг 2: «Выберите файл .hlbackup на диске».
