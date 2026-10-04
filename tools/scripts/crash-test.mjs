@@ -82,6 +82,15 @@ const TIMEOUT_LAUNCH_MS = 60_000;
 const TIMEOUT_INVOKE_MS = 15_000;
 const TIMEOUT_EXIT_MS = 20_000;
 
+/**
+ * Дебаунс ImportantFileWriter у Chromium — 10 с (os_crypt-ключ → Local State;
+ * см. OS_CRYPT FLUSH DWELL у калибровки: kill до флаша ломает фазу 2,
+ * VAULT/KEY_CORRUPT). Dwell с запасом: 11 с от запуска (ключ генерируется
+ * ~0.5 с при сборке контейнера). Бюджет §15: итерация 5–15 с → 15–25 с,
+ * N=10 ≤ ~4.2 мин — в пределах «полный ≤5 мин».
+ */
+const OS_CRYPT_FLUSH_DWELL_MS = 11_000;
+
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
 /** Гонка-таймаут: reject через ms (unref — не держит процесс; прецедент bench-chart). */
@@ -197,6 +206,19 @@ async function runIteration({
       );
       ack = data.committedTotal;
     }
+
+    // OS_CRYPT FLUSH DWELL (урок живого rc.2-прогона TASK-114, 04.10): с TASK-119
+    // (setPath userData) Chromium os_crypt-ключ, которым зашифрован vault.key,
+    // персистится в Local State ИЗОЛИРОВАННОГО dir с дебаунсом ImportantFileWriter
+    // ~10 с. Kill -9 до флаша → фаза 2 читает Local State без ключа, порождает
+    // НОВЫЙ, vault-blob фазы 1 не расшифровывается (VAULT/KEY_CORRUPT) → окно не
+    // создаётся, канал db-state недоступен → вся итерация FAIL. До 119 ключ жил
+    // в реальном профиле (стабилен) — потому тест был зелёным. Фикс: гарантированный
+    // dwell ≥11 с после запуска (ключ генерируется при сборке контейнера ~0.5 с;
+    // флаш ~10.5 с) ДО отсчёта kill-окна — семантика §5/§13 (окно U[50,500] мс
+    // от конца калибровки, режимы idle/in-flight) не меняется: dwell вставлен
+    // между калибровкой и началом окна.
+    await sleep(OS_CRYPT_FLUSH_DWELL_MS);
 
     // (3) Рабочий цикл: батчи подряд; окно килла — детерминированная задержка
     // от конца калибровки. Учёт честный: ack/batchInFlight двигает только
