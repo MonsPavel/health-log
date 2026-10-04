@@ -193,11 +193,13 @@ describe('CreateBackupUseCase — roundtrip и манифест (AC-1/AC-2, §19
       if (!result.ok) {
         return;
       }
-      // Ответ §18: basename, размер, манифест.
+      // Ответ §18: basename, размер, манифест. TASK-121 §3: ask-копия — формат v2
+      // (магия HLBK2) с переносимым ключом источника в манифесте.
       expect(result.value.file).toBe('health-log-backup.hlbackup');
       expect(result.value.path).toBe(targetPath);
       expect(result.value.sizeBytes).toBe(readFileSync(targetPath).length);
-      expect(result.value.manifest.formatVersion).toBe(1);
+      expect(result.value.manifest.formatVersion).toBe(2);
+      expect(readFileSync(targetPath).subarray(0, 5).toString('latin1')).toBe('HLBK2');
 
       // Манифест §2 целиком (AC-2).
       const manifest: BackupManifest = result.value.manifest;
@@ -208,8 +210,19 @@ describe('CreateBackupUseCase — roundtrip и манифест (AC-1/AC-2, §19
       expect(manifest.dbSha256).toMatch(/^[0-9a-f]{64}$/);
       expect(manifest.kdf.id).toBe('argon2id');
 
-      // Расшифровка ТЕМ ЖЕ модулем по записи kdf манифеста (путь восстановления 071).
+      // TASK-121 §3/AC-2.4: обёртка ключа источника в манифесте; разворачивание
+      // паролем копии возвращает ключ БД источника (на чужом профиле — импорт).
+      if (manifest.formatVersion !== 2 || manifest.dbKeyWrap === undefined) {
+        throw new Error('ask-копия обязана нести dbKeyWrap (TASK-121 §3)');
+      }
       const codec = newCodec();
+      const unwrappedKeyHex = await codec.unwrapDbKey({
+        wrap: manifest.dbKeyWrap,
+        passphrase: PASSPHRASE,
+      });
+      expect(unwrappedKeyHex).toBe(KEY_HEX);
+
+      // Расшифровка ТЕМ ЖЕ модулем по записи kdf манифеста (путь восстановления 071).
       const contentKey = await codec.contentKeyFor(manifest.kdf, {
         kind: 'passphrase',
         passphrase: PASSPHRASE,
@@ -269,6 +282,11 @@ describe('CreateBackupUseCase — mode auto (hook-путь, §5/§7/§9)', () =>
       expect(existsSync(finalPath)).toBe(true);
       expect(result.value.manifest.kdf).toEqual({ id: 'db-key' });
       expect(result.value.manifest.counts).toEqual({ measurements: 2 });
+      // TASK-121 §3: авто-копия машиносвязна по построению — остаётся в формате v1
+      // (магия HLBK1) БЕЗ обёртки: пароля у неё нет, переносить её не требуется.
+      expect(result.value.manifest.formatVersion).toBe(1);
+      expect('dbKeyWrap' in result.value.manifest).toBe(false);
+      expect(readFileSync(finalPath).subarray(0, 5).toString('latin1')).toBe('HLBK1');
 
       // Расшифровка ключом БД (машиносвязная авто-копия, §8).
       const codec = newCodec();
@@ -570,6 +588,8 @@ describe('CreateBackupUseCase — прогресс (AC-6) и очередь (§9
           }
         },
         readContainer: (input) => codec.readContainer(input),
+        wrapDbKey: (input) => codec.wrapDbKey(input),
+        unwrapDbKey: (input) => codec.unwrapDbKey(input),
         readHeader: (input) => codec.readHeader(input),
       };
       const { useCase } = buildHarness(db, { codec: watched });

@@ -3,7 +3,7 @@
  * поверх ПОЛНОГО стека: dev-сборка main + dist-renderer, tmp-userData, use cases
  * 070/071/072 с РЕАЛЬНОЙ криптой (argon2+GCM), реальной заменой/удалением файлов.
  *
- * Два сценария §19:
+ * Три сценария §19:
  *  (1) UC-08 полный: копия (диалог пароля ×2, обязательное предупреждение «Забыли
  *      пароль», тост с именем, файл на диске) → добавить данные поверх копии →
  *      восстановить (файл-пикер → пароль → план «В копии 2 записей, сейчас — 3» →
@@ -12,7 +12,11 @@
  *  (2) UC-10: план удаления (счётчик, категории с копиями, localStorage) →
  *      «Сначала экспортировать» работает (файл на диске) → чекбокс-гейт → execute →
  *      рестарт-экран + localStorage hl.* очищен (§10 072) + файлы БД/ключа удалены →
- *      перезапуск: онбординг (пустой журнал).
+ *      перезапуск: онбординг (пустой журнал);
+ *  (3) TASK-121 §3/AC-2.4 «чужой профиль»: копия создаётся на профиле А (свой
+ *      tmp-userData), восстанавливается на ПУСТОМ профиле Б (другой tmp-userData):
+ *      переносимый ключ из контейнера копии импортируется в vault профиля Б —
+ *      после перезапуска в журнале все записи копии, счётчик совпадает (2).
  *
  * ГРАНИЦА ПОДМЕН (§19 честность): диалоги ОС автоматизировать нельзя —
  * dialog.showSaveDialog/showOpenDialog патчатся на границе electron API в MAIN
@@ -291,5 +295,77 @@ test.describe('Data Care E2E — UC-08/UC-10 (TASK-073 §19)', () => {
     await window2.getByRole('link', { name: 'Журнал' }).click();
     await expect(window2.getByTestId('empty-history')).toBeVisible();
     await expect(window2.getByText('Пока нет измерений')).toBeVisible();
+  });
+
+  test('TASK-121 AC-2.4: копия профиля А → восстановление на пустом профиле Б → данные копии', async ({
+    tmpUserData,
+    launch,
+  }) => {
+    // Профиль А (источник) и общий каталог файла копии — внутри фикстурного tmp,
+    // чистится вместе с ним; профиль Б — отдельный tmp-userData (чужая машина).
+    const profileA = join(tmpUserData, 'profile-a');
+    const profileB = join(tmpUserData, 'profile-b');
+    const backupPath = join(tmpUserData, 'portable.hlbackup');
+
+    // --- Профиль А: две записи → копия с паролем (формат v2 с переносимым ключом).
+    const appA = await launch(profileA);
+    const windowA = await appA.firstWindow();
+    await expect(windowA).toHaveTitle('Health Log');
+    const now = Date.now();
+    await seedMeasurements(windowA, [
+      { sys: 120, dia: 80, takenAtUtcMs: now - MS_PER_DAY - SEED_CLOCK_GUARD_MS },
+      { sys: 130, dia: 85, takenAtUtcMs: now - 2 * MS_PER_DAY - SEED_CLOCK_GUARD_MS },
+    ]);
+
+    await stubOsDialogs(appA);
+    await windowA.getByRole('link', { name: 'Отчёты' }).click();
+    await setSaveDialogPath(appA, backupPath);
+    await windowA.getByTestId('data-backup-button').click();
+    await windowA.getByTestId('data-backup-passphrase').fill(PASSPHRASE);
+    await windowA.getByTestId('data-backup-passphrase-repeat').fill(PASSPHRASE);
+    await windowA.getByTestId('data-backup-submit').click();
+    await expect(windowA.getByTestId('data-backup-toast')).toContainText(
+      'Копия сохранена: portable.hlbackup',
+    );
+    expect(existsSync(backupPath)).toBe(true);
+    await closeApp(appA);
+
+    // --- Профиль Б: пустой (свой ключ vault-а), восстановление из копии А.
+    const appB = await launch(profileB);
+    const windowB = await appB.firstWindow();
+    await expect(windowB).toHaveTitle('Health Log');
+    await windowB.getByRole('link', { name: 'Журнал' }).click();
+    await expect(windowB.getByTestId('empty-history')).toBeVisible();
+
+    await stubOsDialogs(appB);
+    await windowB.getByRole('link', { name: 'Отчёты' }).click();
+    await setOpenDialogPaths(appB, [backupPath]);
+    await windowB.getByTestId('data-restore-button').click();
+    await windowB.getByTestId('data-restore-pick').click();
+    const passphraseInput = windowB.getByTestId('data-restore-passphrase');
+    await expect(passphraseInput).toHaveValue('');
+    await passphraseInput.fill(PASSPHRASE);
+    await windowB.getByTestId('data-restore-next').click();
+
+    // План: в копии 2 записей, на пустом профиле — 0.
+    const plan = windowB.getByTestId('data-restore-plan');
+    await expect(plan).toContainText('В копии 2 записей, сейчас — 0');
+    await windowB.getByTestId('data-restore-confirm').check();
+    await windowB.getByTestId('data-restore-execute').click();
+    await expect(windowB.getByTestId('data-restart-overlay')).toBeVisible();
+    await closeApp(appB);
+
+    // --- Перезапуск профиля Б: журнал = данные копии, счётчик совпадает (AC-2.4).
+    const appB2 = await launch(profileB);
+    const windowB2 = await appB2.firstWindow();
+    await expect(windowB2).toHaveTitle('Health Log');
+    await windowB2.getByRole('link', { name: 'Журнал' }).click();
+    await expect(windowB2.getByTestId('measurement-row')).toHaveCount(2);
+    await expect(
+      windowB2.getByTestId('measurement-row').filter({ hasText: '120/80' }),
+    ).toBeVisible();
+    await expect(
+      windowB2.getByTestId('measurement-row').filter({ hasText: '130/85' }),
+    ).toBeVisible();
   });
 });

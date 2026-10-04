@@ -70,6 +70,11 @@ class MockVault implements KeyVault {
     private readonly failure?: AppError,
   ) {}
 
+  /** TASK-121 §3: импорт ключа из копии — мок-заглушка (сценарий восстановление не зовёт). */
+  importKey(): Promise<Result<void, AppError>> {
+    return Promise.resolve(ok(undefined));
+  }
+
   ensureKey(): Promise<Result<EnsuredKey, AppError>> {
     if (this.failure !== undefined) {
       return Promise.resolve({ ok: false, error: this.failure });

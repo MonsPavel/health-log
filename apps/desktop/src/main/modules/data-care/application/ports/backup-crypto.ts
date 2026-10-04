@@ -18,7 +18,7 @@
  * коды BACKUP/*, а application не импортирует адаптеры — арх. 03 §4); адаптеры
  * реэкспортируют классы для совместимости импортов.
  */
-import type { BackupKdf, BackupManifest } from '@hl/contracts';
+import type { BackupDbKeyWrap, BackupKdf, BackupManifest } from '@hl/contracts';
 
 /**
  * Ошибка формата контейнера (не крипто): чужая магия, битые длины, не-JSON
@@ -46,7 +46,7 @@ export class BackupIntegrityError extends Error {
 
 /** Контрактные формы манифеста — реэкспорт порта (адаптеры типы берут через порт,
  * прецедент notes-search: adapters → contracts напрямую запрещён матрицей арх. 03 §4). */
-export type { BackupKdf, BackupManifest };
+export type { BackupDbKeyWrap, BackupKdf, BackupManifest };
 
 /** Источник ключа содержимого копии (§8). */
 export type BackupKeySource =
@@ -71,6 +71,11 @@ export interface WriteContainerInput {
   readonly snapshotPath: string;
   /** Путь записи контейнера. */
   readonly destinationPath: string;
+  /**
+   * TASK-121 §3: версия формата контейнера — выбирает магию (1 → HLBK1, 2 → HLBK2);
+   * обязана совпадать с formatVersion манифеста (расхождение — FormatError при чтении).
+   */
+  readonly formatVersion: 1 | 2;
 }
 
 /** Результат чтения контейнера (§19: roundtrip; восстановление — 071). */
@@ -133,4 +138,18 @@ export interface BackupCrypto {
    * честную GCM-неудачу, §14).
    */
   readHeader(input: { containerPath: string }): Promise<ReadHeaderResult>;
+
+  /**
+   * TASK-121 §3: обёртка ключа БД источника паролем копии (конвенции TASK-093 §2) —
+   * запись `dbKeyWrap` манифеста v2 (свежая соль, параметры Argon2id). Нарушение
+   * контракта 64-hex keyHex — TypeError (dev-контракт).
+   */
+  wrapDbKey(input: { keyHex: string; passphrase: string }): Promise<BackupDbKeyWrap>;
+
+  /**
+   * TASK-121 §3: разворачивание ключа БД из записи манифеста паролем копии.
+   * Возвращает 64-hex ключ источника. Любой сбой (неверный пароль, подмена,
+   * обрезка, не-ключевой развёрнутый текст) → BackupIntegrityError (fail-closed).
+   */
+  unwrapDbKey(input: { wrap: BackupDbKeyWrap; passphrase: string }): Promise<string>;
 }

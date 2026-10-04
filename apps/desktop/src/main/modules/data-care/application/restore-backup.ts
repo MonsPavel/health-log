@@ -35,11 +35,24 @@
  *    приложение без БД неработоспособно; перезапуск стартует на возвращённых
  *    данных (AC-5 «данные работоспособны»);
  *  - копия с kdf id 'db-key' (авто-копия hook'а, машиносвязная) паролем не
- *    расшифровывается в принципе → BACKUP/INTEGRITY (cause объясняет вид копии);
+ *    расшифровывается в принципе → BACKUP/MACHINE_BOUND «копия с этой машины»
+ *    (TASK-121 §3: честный отказ вместо INTEGRITY/FAILED);
+ *  - TASK-121 (§3/AC-2.4, реализовано здесь): переносимый ключ источника —
+ *    v2-копия несёт `dbKeyWrap` (обёртка ключа БД паролем копии, конвенции
+ *    TASK-093). Порядок: разворачивание обёртки ДО закрытия БД (сбой — чистая
+ *    отмена) → подмена → открытие КЛЮЧОМ КОПИИ (а не локальным) → ИМПОРТ ключа
+ *    в локальный vault (deps.keyVault) → relaunch. Импорт ПОСЛЕ открытия:
+ *    сбой импорта откатывает БД из страховки при нетронутом vault (расхождения
+ *    «БД одного ключа — vault другого» не возникает). Старые v1-копии (без
+ *    обёртки) идут прежним путём локальным ключом; их неудача открытия на чужом
+ *    профиле (STORAGE/BAD_KEY) — честная BACKUP/MACHINE_BOUND «копия с этой
+ *    машины», данные целы (откат);
  *  - TASK-101 (§5/§8/§13, реализовано здесь): recovery-выполнение `{recovery: true}`
  *    — БЕЗ plan-фазы (сравнение с повреждённой текущей БД пропускается) и БЕЗ
  *    страховки («нечего страховать»); гард «копия новее-схемы» сверяется с максимумом
  *    РЕЕСТРА миграций (deps.maxKnownSchemaVersion) — текущая-страховка нечитаема.
+ *    В recovery импорт ключа после открытия: страховки нет — сбой импорта даёт
+ *    честный FAILED (снапшот заменён, повтор возможен повторным восстановлением).
  *
  * Ошибки (§5/§13): наружу только AppError значением Result (прецедент 070):
  *  - BACKUP/DB_NEWER — копия новее текущей схемы (params {schemaVersion});
@@ -47,7 +60,11 @@
  *    криптографически неотличимы, текст сообщения покрывает оба, §14);
  *  - BACKUP/INTEGRITY — контейнер не разбирается (магия/манифест/не-JSON) или
  *    sha256 снапшота не сошёлся (AC-4);
- *  - BACKUP/FAILED — прочие сбои (ФС/шифрование), исход в cause (память main);
+ *  - BACKUP/MACHINE_BOUND — копия машиносвязна: авто-копия (kdf db-key) либо
+ *    старая v1-копия без обёртки, не открывающаяся ключом этой машины
+ *    (TASK-121 §3: честное «копия с этой машины»);
+ *  - BACKUP/FAILED — прочие сбои (ФС/шифрование/импорт ключа в vault), исход в
+ *    cause (память main);
  *  - VALIDATION/FAILED — пустые file/passphrase команды (прецедент 070 §13).
  *
  * Безопасность (§14): пароль не логируется (redact-страховка логгера); rate-limit
@@ -83,6 +100,7 @@ import {
   type BackupCrypto,
 } from './ports/backup-crypto.js';
 import type { BackupDatabase } from './ports/backup-database.js';
+import type { RestoreKeyVault } from './ports/restore-key-vault.js';
 import type { FileOpQueue } from './file-op-queue.js';
 
 /** Ключи i18n-каталога (конвенция арх. 05 §29 `errors.<КОД>`); тексты — TASK-073/101. */
@@ -90,6 +108,8 @@ export const RESTORE_DB_NEWER_MESSAGE_KEY = 'errors.BACKUP_DB_NEWER';
 export const RESTORE_WRONG_PASSPHRASE_MESSAGE_KEY = 'errors.BACKUP_WRONG_PASSPHRASE';
 export const RESTORE_INTEGRITY_MESSAGE_KEY = 'errors.BACKUP_INTEGRITY';
 export const RESTORE_FAILED_MESSAGE_KEY = 'errors.BACKUP_FAILED';
+/** TASK-121 §3: честное «копия с этой машины» (машиносвязная копия без переносимого ключа). */
+export const RESTORE_MACHINE_BOUND_MESSAGE_KEY = 'errors.BACKUP_MACHINE_BOUND';
 /** Ключ каркасного кода валидации (contracts app-error-dto: errors.validation). */
 const VALIDATION_MESSAGE_KEY = 'errors.validation';
 
@@ -115,6 +135,20 @@ class SnapshotShaMismatchError extends Error {
   constructor() {
     super('sha256 расшифрованного снапшота не совпал с манифестом (AC-4)');
     this.name = 'SnapshotShaMismatchError';
+  }
+}
+
+/**
+ * Копия машиносвязна (TASK-121 §3/AC-2): авто-копия hook'а (kdf db-key) либо
+ * старая v1-копия без переносимой обёртки, не открывающаяся ключом этой машины.
+ * Внутренний тип use case: маппится в BACKUP/MACHINE_BOUND «копия с этой машины» —
+ * честный отказ вместо прежних INTEGRITY («не файл копии» — неправда) и
+ * FAILED (не объясняет причину). Данные при этом целы: путь с откатом-страховкой.
+ */
+class MachineBoundCopyError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'MachineBoundCopyError';
   }
 }
 
@@ -179,10 +213,19 @@ export interface RestoreBackupDeps {
    * Проверка «подменённая БД открывается» (§8: открытие копии после подмены;
    * чужой ключ SQLCipher — честный сбой здесь → откат). Реализация контейнера —
    * openEncrypted(path, keyHex) + close (единственная точка открытия, TASK-022).
+   * TASK-121: второй аргумент — ключ открытия: ключ копии (развёрнут из обёртки
+   * v2-манифеста) либо null — локальный ключ этого профиля (копии без обёртки:
+   * v1 и страховка).
    */
-  readonly verifyDatabaseOpens: (path: string) => void;
+  readonly verifyDatabaseOpens: (path: string, keyHex: string | null) => void;
   /** Криптоконтейнер (арх. 02 §3.5: порт BackupCrypto). */
   readonly crypto: BackupCrypto;
+  /**
+   * TASK-121 §3: локальный vault для импорта ключа источника (порт
+   * RestoreKeyVault — реализация SafeStorageKeyVault). Вызывается ТОЛЬКО для
+   * v2-копий и только после успешного открытия подменённой БД ключом копии.
+   */
+  readonly keyVault: RestoreKeyVault;
   /** Логгер (§18) — категория db. */
   readonly logger: RestoreBackupLogger;
   /** Очередь файловых операций (§9 070 — сериализация с копиями/экспортами). */
@@ -277,13 +320,14 @@ export class RestoreBackupUseCase {
   ): Promise<Result<RestoreBackupResultValue, AppError>> {
     const startedAtMs = performance.now();
     let manifest: BackupManifest;
+    let sourceKeyHex: string | undefined;
     try {
       const invalid = this.validateCommand(command);
       if (invalid !== undefined) {
         return { ok: false, error: invalid };
       }
 
-      // 1. Разбор контейнера + манифест zod (машиносвязная db-key-копия — INTEGRITY).
+      // 1. Разбор контейнера + манифест zod (машиносвязная db-key-копия — MACHINE_BOUND).
       manifest = await this.readValidatedManifest(command.file);
 
       // 2. Гард «копия новее-схемы» против реестра (§13; сравнение с текущей БД
@@ -294,6 +338,10 @@ export class RestoreBackupUseCase {
       ) {
         return { ok: false, error: errDbNewer(manifest) };
       }
+
+      // 3. TASK-121: разворачивание переносимого ключа ДО подмены (сбой — файлы
+      //    не тронуты; неверный пароль здесь — честный WRONG_PASSPHRASE).
+      sourceKeyHex = await this.unwrapSourceKey(manifest, command.passphrase);
 
       this.deps.logger.info('recovery restore execute', {
         file: basename(command.file),
@@ -307,11 +355,11 @@ export class RestoreBackupUseCase {
       return { ok: false, error: mapContainerError(error) };
     }
 
-    // 3. Закрытие (в recovery — no-op; в passphrase-recovery соединение уже закрыто).
+    // 4. Закрытие (в recovery — no-op; в passphrase-recovery соединение уже закрыто).
     this.deps.closeCurrentDb();
 
     try {
-      // 4. GCM-расшифровка копии + sha256 (неверный пароль → файлы не тронуты).
+      // 5. GCM-расшифровка копии + sha256 (неверный пароль → файлы не тронуты).
       const contentKey = await this.deps.crypto.contentKeyFor(manifest.kdf, {
         kind: 'passphrase',
         passphrase: command.passphrase,
@@ -324,13 +372,39 @@ export class RestoreBackupUseCase {
         throw new SnapshotShaMismatchError();
       }
 
-      // 5. Подмена (§8): файлы db/-wal/-shm удалены, снапшот на место db.
+      // 6. Подмена (§8): файлы db/-wal/-shm удалены, снапшот на место db.
       this.removeDatabaseFiles();
       writeFileSync(this.deps.dbPath, read.payload);
 
-      // 6. Открытие копии после подмены (§8) — чужой ключ/порча → отказ (страховки
-      //    нет по решению §8: повреждённые данные нечитаемы, возвращать нечего).
-      this.deps.verifyDatabaseOpens(this.deps.dbPath);
+      // 7. Открытие копии после подмены — ключом КОПИИ (v2) либо локальным (v1);
+      //    чужой ключ v1/порча → MACHINE_BOUND/отказ (страховки нет по решению §8:
+      //    повреждённые данные нечитаемы, возвращать нечего).
+      this.deps.verifyDatabaseOpens(this.deps.dbPath, sourceKeyHex ?? null);
+
+      // 8. TASK-121: импорт ключа источника в локальный vault (после открытия).
+      //    Страховки нет (§8) — сбой импорта даёт честный FAILED: снапшот заменён,
+      //    повтор восстановления возможен (старые данные были нечитаемы).
+      if (sourceKeyHex !== undefined) {
+        const imported = await this.deps.keyVault.importKey(sourceKeyHex);
+        if (!imported.ok) {
+          this.deps.logger.error(
+            'restoreBackup: recovery — снапшот заменён, импорт ключа в vault не удался',
+            {
+              code: 'BACKUP/FAILED',
+              durationMs: Math.round(performance.now() - startedAtMs),
+            },
+          );
+          return {
+            ok: false,
+            error: AppError.of(
+              'BACKUP/FAILED',
+              RESTORE_FAILED_MESSAGE_KEY,
+              undefined,
+              imported.error,
+            ),
+          };
+        }
+      }
     } catch (replaceError) {
       const failed = mapContainerError(replaceError);
       this.deps.logger.error(
@@ -347,6 +421,7 @@ export class RestoreBackupUseCase {
       file: basename(command.file),
       schemaVersion: manifest.schemaVersion,
       recovery: true,
+      importedKey: sourceKeyHex !== undefined,
       durationMs: Math.round(performance.now() - startedAtMs),
     });
     this.deps.relaunch();
@@ -364,9 +439,11 @@ export class RestoreBackupUseCase {
         return { ok: false, error: invalid };
       }
 
-      // Валидация контейнера (§5): разбор → манифест zod → ключ по записи kdf →
-      // GCM → sha256. Ошибки маппятся mapContainerError (§5/§19).
+      // Валидация контейнера (§5): разбор → манифест zod → обёртка ключа (TASK-121:
+      // план не показывается копии, которая не сможет восстановиться) → ключ по
+      // записи kdf → GCM → sha256. Ошибки маппятся mapContainerError (§5/§19).
       const manifest = await this.readValidatedManifest(command.file);
+      await this.unwrapSourceKey(manifest, command.passphrase);
       const contentKey = await this.deps.crypto.contentKeyFor(manifest.kdf, {
         kind: 'passphrase',
         passphrase: command.passphrase,
@@ -420,6 +497,7 @@ export class RestoreBackupUseCase {
     let safetyDir: string;
     let manifest: BackupManifest;
     let schemaDelta: RestoreSchemaDelta;
+    let sourceKeyHex: string | undefined;
     try {
       const invalid = this.validateCommand(command);
       if (invalid !== undefined) {
@@ -435,7 +513,11 @@ export class RestoreBackupUseCase {
         return { ok: false, error: errDbNewer(manifest) };
       }
 
-      // 3. Страховка (§8/§14): шифрованная auto-копия текущей БД тем же паролем.
+      // 3. TASK-121: разворачивание переносимого ключа ДО закрытия (сбой здесь —
+      //    чистая отмена: файлы и vault не тронуты).
+      sourceKeyHex = await this.unwrapSourceKey(manifest, command.passphrase);
+
+      // 4. Страховка (§8/§14): шифрованная auto-копия текущей БД тем же паролем.
       safetyDir = await this.createSafetyCopy(command.passphrase);
       this.deps.logger.info('restore execute', {
         file: basename(command.file),
@@ -449,11 +531,11 @@ export class RestoreBackupUseCase {
       return { ok: false, error: mapContainerError(error) };
     }
 
-    // 4. Закрытие (checkpoint + close — §8); после этой точки любой сбой → откат.
+    // 5. Закрытие (checkpoint + close — §8); после этой точки любой сбой → откат.
     this.deps.closeCurrentDb();
 
     try {
-      // 5. GCM-расшифровка копии + sha256 (точка мок-сбоя теста §19).
+      // 6. GCM-расшифровка копии + sha256 (точка мок-сбоя теста §19).
       const contentKey = await this.deps.crypto.contentKeyFor(manifest.kdf, {
         kind: 'passphrase',
         passphrase: command.passphrase,
@@ -466,15 +548,34 @@ export class RestoreBackupUseCase {
         throw new SnapshotShaMismatchError();
       }
 
-      // 6. Подмена (§8): файлы db/-wal/-shm удалены, снапшот на место db.
+      // 7. Подмена (§8): файлы db/-wal/-shm удалены, снапшот на место db.
       this.removeDatabaseFiles();
       writeFileSync(this.deps.dbPath, read.payload);
 
-      // 7. Открытие копии после подмены (§8) — чужой ключ/порча → откат.
-      this.deps.verifyDatabaseOpens(this.deps.dbPath);
+      // 8. Открытие копии после подмены (§8): ключом КОПИИ (v2 — развёрнут из
+      //    обёртки) либо локальным (v1/страховка). Чужой ключ v1/порча → откат.
+      this.deps.verifyDatabaseOpens(this.deps.dbPath, sourceKeyHex ?? null);
+
+      // 9. TASK-121: импорт ключа источника в локальный vault — ТОЛЬКО после
+      //    успешного открытия (vault ещё не тронут: сбой импорта откатывает БД из
+      //    страховки при нетронутом vault — расхождения ключей не возникает).
+      if (sourceKeyHex !== undefined) {
+        const imported = await this.deps.keyVault.importKey(sourceKeyHex);
+        if (!imported.ok) {
+          throw new Error('импорт ключа копии в локальный vault не удался', {
+            cause: imported.error,
+          });
+        }
+      }
     } catch (replaceError) {
-      // Откат-страховка (§8): текущая БД возвращена из шифрованной страховки.
-      return this.rollbackFromSafety(safetyDir, command.passphrase, replaceError, startedAtMs);
+      // Откат-страховка (§8): текущая БД возвращена из шифрованной страховки;
+      // TASK-121: v1-копия с чужим ключом — честная ошибка «копия с этой машины».
+      return this.rollbackFromSafety(
+        safetyDir,
+        command.passphrase,
+        this.describeReplaceFailure(replaceError, manifest),
+        startedAtMs,
+      );
     }
 
     // §18: успех; §9: перезапуск запланирован (реализация контейнера — отложенный
@@ -482,6 +583,7 @@ export class RestoreBackupUseCase {
     this.deps.logger.info('restore success', {
       file: basename(command.file),
       schemaDelta,
+      importedKey: sourceKeyHex !== undefined,
       durationMs: Math.round(performance.now() - startedAtMs),
     });
     this.deps.relaunch();
@@ -499,8 +601,9 @@ export class RestoreBackupUseCase {
 
   /**
    * Разбор заголовка контейнера + zod-валидация манифеста (§5 «манифест zod?»).
-   * Форма/JSON → INTEGRITY; машиносвязная авто-копия (kdf db-key) паролем не
-   * восстанавливается → INTEGRITY с объяснением в cause (решение см. в шапке).
+   * Форма/JSON → INTEGRITY; машиносвязная копия (kdf db-key — авто-копия hook'а)
+   * паролем не восстанавливается → MACHINE_BOUND «копия с этой машины»
+   * (TASK-121 §3: честный отказ, прежний текст «не файл копии» был неправдой).
    */
   private async readValidatedManifest(file: string): Promise<BackupManifest> {
     const header = await this.deps.crypto.readHeader({ containerPath: file });
@@ -509,11 +612,50 @@ export class RestoreBackupUseCase {
       throw new BackupContainerFormatError('манифест копии не соответствует форме контракта (§7)');
     }
     if (parsed.data.kdf.id === 'db-key') {
-      throw new BackupContainerFormatError(
-        'копия зашифрована ключом БД (авто-копия hook’а миграций, машиносвязная) — паролем не восстанавливается',
+      throw new MachineBoundCopyError(
+        'копия зашифрована ключом БД (авто-копия hook’а миграций, машиносвязная) — восстанавливается только на машине создания',
+        { cause: parsed.data.kdf },
       );
     }
     return parsed.data;
+  }
+
+  /**
+   * TASK-121 §3: разворачивание переносимого ключа из v2-манифеста (dbKeyWrap —
+   * обёртка ключа источника паролем копии). Копии без обёртки (v1) → undefined —
+   * путь прежний, локальным ключом. Сбой разворачивания → BackupIntegrityError
+   * (неверный пароль/порча — криптографически неотличимы, §14; WRONG_PASSPHRASE
+   * снаружи — тот же исход, что дала бы GCM-неудача контейнера).
+   */
+  private async unwrapSourceKey(
+    manifest: BackupManifest,
+    passphrase: string,
+  ): Promise<string | undefined> {
+    if (manifest.formatVersion !== 2) {
+      return undefined; // v1: обёртки нет — прежний путь локальным ключом
+    }
+    return this.deps.crypto.unwrapDbKey({ wrap: manifest.dbKeyWrap, passphrase });
+  }
+
+  /**
+   * TASK-121 §3: честный исход сбоя ПОДМЕНЫ. После успешных GCM+sha256 пароль и
+   * байты контейнера доказанно верны — открытие подменённой БД может провалиться
+   * только ключом. Для v1-копии (обёртки нет) чужой ключ SQLCipher
+   * (STORAGE/BAD_KEY из sqlite.ts) = «копия с этой машины» → MachineBoundCopyError;
+   * прочие сбои (файл занят, диск) — как есть.
+   */
+  private describeReplaceFailure(error: unknown, manifest: BackupManifest): unknown {
+    if (
+      manifest.formatVersion !== 2 &&
+      error instanceof AppError &&
+      error.code === 'STORAGE/BAD_KEY'
+    ) {
+      return new MachineBoundCopyError(
+        'копия без переносимого ключа (формат v1) не открывается ключом этой машины — восстановление возможно только на машине/профиле создания',
+        { cause: error },
+      );
+    }
+    return error;
   }
 
   /** Дельта схемы (§5/§13): schema_version копии против текущей БД. */
@@ -558,6 +700,9 @@ export class RestoreBackupUseCase {
         contentKey,
         snapshotPath,
         destinationPath: join(safetyDir, SAFETY_CONTAINER_FILENAME),
+        // Страховка — внутренний артефакт той же машины (откат тем же ключом):
+        // формат v1 без обёртки (TASK-121 §3).
+        formatVersion: 1,
       });
       // Открытый текст снапшота больше не нужен — байты уже в контейнере (§14).
       unlinkSync(snapshotPath);
@@ -612,7 +757,9 @@ export class RestoreBackupUseCase {
       const read = await this.deps.crypto.readContainer({ containerPath, contentKey });
       this.removeDatabaseFiles();
       writeFileSync(this.deps.dbPath, read.payload);
-      this.deps.verifyDatabaseOpens(this.deps.dbPath);
+      // Страховка снята с ТЕКУЩЕЙ БД — открывается локальным ключом (vault при
+      // сбое подмены/импорта не тронут — TASK-121: импорт только после открытия).
+      this.deps.verifyDatabaseOpens(this.deps.dbPath, null);
 
       this.deps.logger.error('restoreBackup: восстановление не удалось, текущая БД возвращена', {
         code: failed.code,
@@ -664,8 +811,13 @@ export function cleanupRestoreSafetyCopy(flagPath: string): boolean {
 
 /** Маппинг исходов разбора контейнера в коды BACKUP/* (§5; детали — cause, §14). */
 function mapContainerError(error: unknown): AppError {
+  if (error instanceof MachineBoundCopyError) {
+    // Машиносвязная копия (авто-копия db-key, v1 на чужом профиле) — честное
+    // «копия с этой машины» (TASK-121 §3/AC-2).
+    return AppError.of('BACKUP/MACHINE_BOUND', RESTORE_MACHINE_BOUND_MESSAGE_KEY, undefined, error);
+  }
   if (error instanceof BackupContainerFormatError || error instanceof SnapshotShaMismatchError) {
-    // Не копия (магия/манифест/JSON/запись kdf) или байты не сошлись с манифестом.
+    // Не копия (магия/манифест/JSON) или байты не сошлись с манифестом.
     return AppError.of('BACKUP/INTEGRITY', RESTORE_INTEGRITY_MESSAGE_KEY, undefined, error);
   }
   if (error instanceof BackupIntegrityError) {

@@ -127,9 +127,9 @@ describe('BACKUP_MANIFEST_SCHEMA v2 — переносимый ключ (TASK-12
     for (const key of Object.keys(dbKeyWrap)) {
       const without = { ...dbKeyWrap } as Record<string, unknown>;
       delete without[key];
-      expect(
-        BACKUP_MANIFEST_SCHEMA.safeParse({ ...validV2, dbKeyWrap: without }).success,
-      ).toBe(false);
+      expect(BACKUP_MANIFEST_SCHEMA.safeParse({ ...validV2, dbKeyWrap: without }).success).toBe(
+        false,
+      );
     }
     expect(
       BACKUP_MANIFEST_SCHEMA.safeParse({ ...validV2, dbKeyWrap: { ...dbKeyWrap, extra: 1 } })
@@ -165,9 +165,9 @@ describe('BACKUP_MANIFEST_SCHEMA v2 — переносимый ключ (TASK-12
   });
 
   it('formatVersion кроме 1 и 2 отвергается', () => {
-    expect(
-      BACKUP_MANIFEST_SCHEMA.safeParse({ ...validManifest, formatVersion: 3 }).success,
-    ).toBe(false);
+    expect(BACKUP_MANIFEST_SCHEMA.safeParse({ ...validManifest, formatVersion: 3 }).success).toBe(
+      false,
+    );
   });
 });
 

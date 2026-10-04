@@ -25,7 +25,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { CHANNEL_SCHEMAS, type ApiEnvelope } from '@hl/contracts';
-import { FixedClock } from '@hl/kernel';
+import { ok, FixedClock } from '@hl/kernel';
 
 import { BackupContainerCodec } from '../../modules/data-care/adapters/backup-container.js';
 import { FileOpQueue } from '../../modules/data-care/application/file-op-queue.js';
@@ -82,6 +82,7 @@ describe('data-care хендлеры через каркас (TASK-073 §19)', (
   const fileSaver: BackupFileSaver = {
     save: () => Promise.resolve(containerTarget),
   };
+  const KEY_HEX = 'cd'.repeat(32);
   const clock = new FixedClock(NOW_MS, 180);
 
   // restore: шпионы точек контейнера (§19).
@@ -100,6 +101,7 @@ describe('data-care хендлеры через каркас (TASK-073 §19)', (
     queue: new FileOpQueue(),
     backupsDir,
     appVersion: '0.0.0-test',
+    dbKeyHex: () => KEY_HEX,
   });
   const restoreBackup = new RestoreBackupUseCase({
     currentDb: new FakeBackupDatabase(),
@@ -107,6 +109,7 @@ describe('data-care хендлеры через каркас (TASK-073 §19)', (
     dbPath,
     verifyDatabaseOpens,
     crypto: new BackupContainerCodec(),
+    keyVault: { importKey: () => Promise.resolve(ok(undefined)) },
     logger: silenceLogger,
     queue: new FileOpQueue(),
     relaunch: restoreRelaunch,
@@ -193,6 +196,7 @@ describe('data-care хендлеры через каркас (TASK-073 §19)', (
           queue: new FileOpQueue(),
           backupsDir,
           appVersion: '0.0.0-test',
+          dbKeyHex: () => KEY_HEX,
         }),
       ),
     );
