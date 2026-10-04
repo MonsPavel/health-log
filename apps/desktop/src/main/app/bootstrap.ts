@@ -8,7 +8,7 @@ import { SystemClock } from '@hl/kernel';
 import { createWindow, focusExistingWindow } from './create-window.js';
 import { installGlobalErrorHandlers } from './global-errors.js';
 import { createSecondInstanceHandler, ensureSingleInstance } from './single-instance.js';
-import { resolveUserDataPath } from './user-data-override.js';
+import { applyUserDataOverride, resolveUserDataPath } from './user-data-override.js';
 import {
   buildContainer,
   evalHeadlessEnabled,
@@ -75,6 +75,18 @@ function showCrashDialog(text: string): Promise<unknown> {
  * до initFileLogging буферизуется (TASK-010 §9) — ранние записи не теряются.
  */
 installGlobalErrorHandlers({ logger: createLogger('app'), showDialog: showCrashDialog });
+
+/**
+ * TASK-119 §3/§4 (находка F2 аудита 2026-Q1 §4): полная изоляция e2e-прогона —
+ * при заданном HL_TEST_USER_DATA app.setPath('userData', override) НА ИМПОРТЕ
+ * модуля, до всего остального: Chromium-слой (localStorage — в т.ч.
+ * hl.updates.lastCheckAt, disk/GPU-кэши) и лок single-instance (живёт в userData)
+ * попадают в tmp-userData, а не в реальный профиль. Порядок §3: setPath → ready →
+ * buildContainer с тем же override (resolveUserDataPath в whenReady читает уже
+ * переопределённый getPath('userData')). Без переменной — no-op (боевой профиль
+ * не тронут; контракт — юнит user-data-override.test.ts TASK-119).
+ */
+applyUserDataOverride(app, process.env);
 
 /**
  * TASK-012 §5/§9: single-instance lock ДО whenReady. Лок не получен (второй запуск) →
