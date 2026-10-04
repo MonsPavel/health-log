@@ -49,3 +49,5 @@ apps/desktop/dist-perf/
 apps/desktop/dist-perf2/
 apps/desktop/dist-120*/
 apps/desktop/dist-beta-check/
+apps/desktop/dist-dod112/
+tools/bench-results-trial-dod/
