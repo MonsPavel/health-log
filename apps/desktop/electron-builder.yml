@@ -54,6 +54,14 @@ files:
 # манифест моделей с TASK-079 идёт внутрь asar (files выше, §9 079).
 extraResources: []
 
+# TASK-120 (наблюдение F3 аудита 2026-Q1 §3): штатная запись resources/app-update.yml
+# живёт в PublishManager.onAfterPack и пропускается, когда ни одна цель не NSIS —
+# локальные --dir --publish never сборки (аудиты, CONTRIBUTING §11.2) оставались без
+# фида updater'а. Хук дописывает файл, если publish настроен, а файла нет (содержимое —
+# первая запись publish + updaterCacheDirName, ровно как builder: builder-путь
+# приоритетен — nsis/CI-сборки хук не трогает). Юнит — scripts/after-pack-app-update.test.mjs.
+afterPack: ./scripts/after-pack-app-update.mjs
+
 # Нативный стек better-sqlite3-multiple-ciphers — prebuilt Node-API, бинарь уже в пакете
 # (ADR-0002: «один бинарник для node и Electron ≥35», совместимость проверяет
 # scripts/prepare-native.sh — postinstall/§19). Пересборка node-gyp не нужна и невозможна

@@ -80,6 +80,13 @@ export WIN_CSC_KEY_PASSWORD='…'
 source apps/desktop/cert.env.local && pnpm dist
 ```
 
+Локальная сборка (в т.ч. `--dir --publish never` для аудитов) сама получает
+`resources/app-update.yml` (TASK-120): если builder его не записал (нет nsis-цели),
+afterPack-хук дописывает фид updater'а из publish-блока конфига — содержимое
+совпадает с builder-написанным файлом байт-в-байт (юнит:
+`scripts/after-pack-app-update.test.mjs`). Раньше файл добавляли вручную
+(наблюдение F3 аудита 2026-Q1, §11 CONTRIBUTING).
+
 ## 3. Контрольная подпись после получения сертификата (§13, шаг 3)
 
 1. **publisherName** в `apps/desktop/electron-builder.yml` (два места —
