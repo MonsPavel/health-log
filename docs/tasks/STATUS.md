@@ -120,7 +120,7 @@
 | TASK-112 | todo | | |
 | TASK-113 | blocked | task/TASK-113 | заблокирована конвейером, НЕ смержена; руководство пользователя (docs/user) и приёмочные фиксы — наработки сохранены в ветке |
 | TASK-114 | blocked | task/TASK-114 | заблокирована конвейером, НЕ смержена; release-notes (§19/§20-2/§24) — наработки сохранены в ветке |
-| TASK-115 | todo | | |
+| TASK-115 | blocked | task/TASK-115 | заблокирована конвейером, НЕ смержена; авто-гейты main: typecheck/test/i18n/copy/contrast/depcruise/release-workflow PASS, lint FAIL (средовый — untracked dist-perf); чек-лист ручного прогона RC и known-issues — наработки сохранены в ветке |
 | TASK-116 | done | | смержена вручную 01.10: корневой tsc 137 ошибок → 0 (53 файла, type-only), счётчики тестов прежние (267ф/2843+4skip), gate+lint зелёные; отступление от §5 — 3 eslint-disable prefer-promise-reject-errors (прецедент llm-process-client, AppError не Error по TASK-006); НАХОДКА: зеркало типов classifier — домен шире пакета по code (string vs union ScaleCategoryCode), тест ослаблен до toExtend, решение о строгом зеркале — отдельно; follow-up 01.10: корневой tsc добавлен в `pnpm typecheck` (фон не накапливается, §23 спеки выполнено) |
 | TASK-117 | done | | смержена 01.10: доменный ScaleCategoryCode переобъявлен union-зеркалом пакета, ScaleCategory.code сужен до него; тип-тест возвращён к toEqualTypeOf (дрейф ловится в обе стороны); импорта пакета в домене нет (domain-purity); gate+lint зелёные, счётчики тестов прежние |
 | TASK-118 | done | | смержена 01.10: silentLogger() в shared/logger (полный HlLogger, покрывает узкие поверхности структурно), 8 тест-файлов переведены с инлайн-литералов; шпионы/собиратели (models-registry) не тронуты по §13; gate+lint зелёные, 268ф/2844 passed (+1 тест helper'а) |
