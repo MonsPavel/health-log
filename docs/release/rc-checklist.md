@@ -267,19 +267,19 @@
 
 ### 8.2 Локальный прогон на `main` перед тегом
 
-Дата: 2026-10-04, коммит — см. шапку git (ветка `task/TASK-115`, до merge).
-Команды и итоги заносятся только по фактически выполненным запускам:
+Дата: 2026-10-04, ветка `task/TASK-115` (от `main` 0dbde1b, до merge). Команды и
+итоги — только по фактически выполненным запускам этого дня:
 
 | Команда | Итог |
 |---|---|
-| `pnpm typecheck` | (см. итоговый отчёт задачи) |
-| `pnpm test` | (см. итоговый отчёт задачи) |
-| `pnpm lint` | (см. итоговый отчёт задачи) |
-| `pnpm check:i18n` | (см. итоговый отчёт задачи) |
-| `pnpm copy:audit` | (см. итоговый отчёт задачи) |
-| `node tools/scripts/contrast-audit.mjs` | (см. итоговый отчёт задачи) |
-| `pnpm depcruise` | (см. итоговый отчёт задачи) |
-| `pnpm test:release-workflow` | (см. итоговый отчёт задачи) |
+| `pnpm typecheck` | **PASS** (exit 0) |
+| `pnpm test` | **PASS** — 325 файлов / 3464 passed, 5 skipped (3469), ~190 с, exit 0 |
+| `pnpm lint` | **FAIL (средовая)** — eslint ✓; prettier --check упал на 2 файлах `apps/desktop/dist-perf/win-unpacked/` (untracked артефакты сборки заблокированной TASK-111, `.prettierignore` покрывает `dist/`, но не `dist-perf/`). Отслеженные файлы чисты; в чистом checkout (и в пайплайне 105) этих файлов нет — воспроизведения нет. Правка `.prettierignore` из этой задачи не делалась (вне §6) |
+| `pnpm check:i18n` | **OK** — каталог согласован (559 ключей) |
+| `pnpm copy:audit` | **OK** — 17 каталогов / 559 значений + 5 main-констант; запрет-находок 0, whitelist 2 (с причинами), подстроки 7/7, params-дрейфа 0 |
+| `node tools/scripts/contrast-audit.mjs` | **OK** — 0 gate-пар ниже порога (18/18 pass; строки `border-on-bg` — info-класс, = KI-4) |
+| `pnpm depcruise` | **PASS** — 0 нарушений (1351 модуль, 3917 связей) |
+| `pnpm test:release-workflow` | **PASS** — 60 checks passed, actions pinned, no PR-triggers, publish disabled |
 
 Не прогонялось локально (тяжёлые/требуют сборки): `pnpm test:e2e`,
 `pnpm test:crash`, `pnpm size:audit`, подписанная `pnpm dist` — это гейты
