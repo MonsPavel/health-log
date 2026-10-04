@@ -19,6 +19,15 @@
  * отката миграции на той же машине), восстановление различает вид по полю
  * `kdf.id` (точка ветвления TASK-071/101).
  *
+ * TASK-121 (AC-2.4, формат v-N+1): снапшот VACUUM INTO несёт КЛЮЧ ИСТОЧНИКА
+ * (SQLCipher-шифрование переносится VACUUM INTO), поэтому пользовательская копия
+ * (v2, formatVersion=2) несёт в манифесте `dbKeyWrap` — ключ БД источника,
+ * обёрнутый паролем копии по конвенциям TASK-093 (`KEK = Argon2id(passphrase,
+ * salt)`, `wrappedKeyB64 = base64(iv||ct||tag) AES-256-GCM(dbKey, KEK)`).
+ * Восстановление на чужом профиле разворачивает обёртку и импортирует ключ в
+ * локальный vault (TASK-121 §3). Манифест — discriminated union по formatVersion:
+ * v1 — прежний формат (машиносвязная копия без обёртки), v2 — обёртка обязательна.
+ *
  * Пароль копии НЕ совпадает с паролем приложения (TASK-093) — независимые
  * секреты (§14); политика ≥8 символов — предупреждение UI (073), main не
  * блокирует (§13): схемой ограничены длина и непустота.
@@ -55,27 +64,75 @@ export const BACKUP_KDF_SCHEMA = z.discriminatedUnion('id', [
   BACKUP_KDF_ARGON2ID_SCHEMA,
 ]);
 
-/** Манифест копии (§2/§7): все поля целиком читаются восстановлением (071). */
-export const BACKUP_MANIFEST_SCHEMA = z
+/**
+ * TASK-121 §3: обёртка ключа БД источника в манифесте пользовательской копии
+ * (формат v2 — v-N+1); конвенции TASK-093 §2/§5:
+ *  - `KEK = Argon2id(passphrase копии, saltB64, {iterations, memoryKib, parallelism})`;
+ *  - `wrappedKeyB64 = base64(iv||ct||tag)`, `AES-256-GCM(dbKey, KEK)` — auth-tag
+ *    внутри блоба служит верификатором пароля (прецедент файла vault.key v2).
+ * Границы параметров — как у записи kdf (§14: параметры в файле, не в коде).
+ */
+export const BACKUP_DB_KEY_WRAP_SCHEMA = z
   .object({
-    /** Версия формата контейнера (magic HLBK1 = 1, §4). */
-    formatVersion: z.literal(1),
-    /** schema_version БД на момент снапшота (из meta; свежая БД без meta — 0). */
-    schemaVersion: z.number().int().min(0),
-    /** Версия приложения, создавшего копию (титул «Health Log v{appVersion}»). */
-    appVersion: z.string().min(1).max(32),
-    /** Момент создания, мс эпохи Unix (UTC). */
-    createdAtUtc: z.number().int().min(0),
-    /** Счётчики снапшота (§5: measurements по COUNT; таблицы ещё нет — 0). */
-    counts: z.object({ measurements: z.number().int().min(0) }).strict(),
-    /** SHA-256 (hex, 64 символа) файла снапшота — сверяется при восстановлении (§14/071). */
-    dbSha256: z.string().regex(/^[0-9a-f]{64}$/),
-    /** Запись KDF (§8 — см. шапку файла). */
-    kdf: BACKUP_KDF_SCHEMA,
+    /** Соль Argon2id (16 байт), base64. */
+    saltB64: z.string().min(1),
+    /** timeCost Argon2id (число итераций). */
+    iterations: z.number().int().min(1).max(64),
+    /** memoryCost Argon2id, КиБ. */
+    memoryKib: z.number().int().min(8).max(1_048_576),
+    /** parallelism Argon2id (потоки). */
+    parallelism: z.number().int().min(1).max(16),
+    /** Обёртка ключа: base64(iv||ct||tag), AES-256-GCM(ключ БД, KEK). */
+    wrappedKeyB64: z.string().min(1),
   })
   .strict();
 
+export type BackupDbKeyWrap = z.output<typeof BACKUP_DB_KEY_WRAP_SCHEMA>;
+
+/** Общие поля манифеста (§2/§7): все поля целиком читаются восстановлением (071). */
+const BACKUP_MANIFEST_BASE = {
+  /** schema_version БД на момент снапшота (из meta; свежая БД без meta — 0). */
+  schemaVersion: z.number().int().min(0),
+  /** Версия приложения, создавшего копию (титул «Health Log v{appVersion}»). */
+  appVersion: z.string().min(1).max(32),
+  /** Момент создания, мс эпохи Unix (UTC). */
+  createdAtUtc: z.number().int().min(0),
+  /** Счётчики снапшота (§5: measurements по COUNT; таблицы ещё нет — 0). */
+  counts: z.object({ measurements: z.number().int().min(0) }).strict(),
+  /** SHA-256 (hex, 64 символа) файла снапшота — сверяется при восстановлении (§14/071). */
+  dbSha256: z.string().regex(/^[0-9a-f]{64}$/),
+  /** Запись KDF (§8 — см. шапку файла). */
+  kdf: BACKUP_KDF_SCHEMA,
+} as const;
+
+/** Манифест v1 (§4, magic HLBK1): без обёртки ключа — машиносвязная копия. */
+export const BACKUP_MANIFEST_V1_SCHEMA = z
+  .object({
+    /** Версия формата контейнера (magic HLBK1 = 1, §4). */
+    formatVersion: z.literal(1),
+    ...BACKUP_MANIFEST_BASE,
+  })
+  .strict();
+
+/** Манифест v2 (TASK-121, magic HLBK2): пользовательская копия с переносимым ключом. */
+export const BACKUP_MANIFEST_V2_SCHEMA = z
+  .object({
+    /** Версия формата контейнера (magic HLBK2 = 2, TASK-121 §3). */
+    formatVersion: z.literal(2),
+    ...BACKUP_MANIFEST_BASE,
+    /** Обёртка ключа БД источника паролем копии (TASK-121 §3 — обязательна в v2). */
+    dbKeyWrap: BACKUP_DB_KEY_WRAP_SCHEMA,
+  })
+  .strict();
+
+export const BACKUP_MANIFEST_SCHEMA = z.discriminatedUnion('formatVersion', [
+  BACKUP_MANIFEST_V1_SCHEMA,
+  BACKUP_MANIFEST_V2_SCHEMA,
+]);
+
 export type BackupKdf = z.output<typeof BACKUP_KDF_SCHEMA>;
+export type BackupManifestV1 = z.output<typeof BACKUP_MANIFEST_V1_SCHEMA>;
+export type BackupManifestV2 = z.output<typeof BACKUP_MANIFEST_V2_SCHEMA>;
 export type BackupManifest = z.output<typeof BACKUP_MANIFEST_SCHEMA>;
 
 /**
