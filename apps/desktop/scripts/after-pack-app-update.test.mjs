@@ -30,7 +30,12 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { afterPack, buildAppUpdateYml, firstPublishEntry, yamlScalar } from './after-pack-app-update.mjs';
+import {
+  afterPack,
+  buildAppUpdateYml,
+  firstPublishEntry,
+  yamlScalar,
+} from './after-pack-app-update.mjs';
 
 /** Корень пакета @hl/desktop (scripts/* → на уровень вверх). */
 const APP_ROOT = join(fileURLToPath(new URL('..', import.meta.url)));
@@ -118,7 +123,11 @@ describe('buildAppUpdateYml — чистый генератор «конфиг �
   it('publisherName скаляром (не списком) сериализуется одной строкой', () => {
     expect(
       buildAppUpdateYml(
-        { provider: 'generic', url: 'http://127.0.0.1:8123/', publisherName: 'CN=Test, O=Test, C=RU' },
+        {
+          provider: 'generic',
+          url: 'http://127.0.0.1:8123/',
+          publisherName: 'CN=Test, O=Test, C=RU',
+        },
         'test-updater',
       ),
     ).toBe(
