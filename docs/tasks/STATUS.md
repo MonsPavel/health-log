@@ -125,4 +125,4 @@
 | TASK-117 | done | | смержена 01.10: доменный ScaleCategoryCode переобъявлен union-зеркалом пакета, ScaleCategory.code сужен до него; тип-тест возвращён к toEqualTypeOf (дрейф ловится в обе стороны); импорта пакета в домене нет (domain-purity); gate+lint зелёные, счётчики тестов прежние |
 | TASK-118 | done | | смержена 01.10: silentLogger() в shared/logger (полный HlLogger, покрывает узкие поверхности структурно), 8 тест-файлов переведены с инлайн-литералов; шпионы/собиратели (models-registry) не тронуты по §13; gate+lint зелёные, 268ф/2844 passed (+1 тест helper'а) |
 | TASK-119 | done | | смержена |
-| TASK-120 | todo | | наблюдение F3 живого аудита 106: локальные no-tag сборки не получают resources/app-update.yml (генерация только в publish-manager-пути на теге) |
+| TASK-120 | done | | смержена |
