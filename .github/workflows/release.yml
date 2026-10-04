@@ -228,16 +228,21 @@ jobs:
 
       # §5: release notes — заготовка из шаблона (TASK-114: .github/release-template.md)
       # + автоген changelog-коммитов (generate_release_notes у draft-шага).
-      # Пока шаблона нет — минимальная заготовка-заглушка.
+      # §20-2 TASK-114 (урок rc.0, run 37132708817): шаблона в коммите тега не
+      # было, фолбэк-заглушка молча дала draft с телом-заглушкой — сверить
+      # «draft соответствует шаблону» было не с чем. Заглушки больше нет:
+      # отсутствие шаблона в коммите тега — жёсткий отказ шага, draft не
+      # создаётся (fail-fast §13), ошибка видна сразу; лечение — добавить
+      # шаблон и перевыставить тег.
       - name: Prepare release notes
         run: |
           template='.github/release-template.md'
           out='release-notes.md'
-          if [ -f "$template" ]; then
-            cp "$template" "$out"
-          else
-            printf '# Release %s\n\nЧерновик релиза: заготовка notes — по шаблону .github/release-template.md (TASK-114); changelog-коммиты добавит GitHub ниже (generate_release_notes).\n' "$GITHUB_REF_NAME" > "$out"
+          if [ ! -f "$template" ]; then
+            echo "шаблон $template не найден в коммите тега $GITHUB_REF_NAME — draft по заглушке запрещён (TASK-114 §20-2); добавь шаблон в тег и перевыставь его" >&2
+            exit 1
           fi
+          cp "$template" "$out"
 
       # §5: draft release с тегом, артефактами (установщик + update-feed *.yml
       # + blockmap) и notes; публикация — вручную кнопкой в Releases. Данные
