@@ -25,6 +25,8 @@
     "copy:audit": "node tools/scripts/copy-audit.mjs",
     "bench:chart": "tsx tools/scripts/bench-chart.mjs",
     "bench:pdf": "tsx tools/scripts/bench-pdf.mjs",
+    "bench:export": "tsx tools/scripts/bench-export.mjs",
+    "perf:startup": "tsx tools/scripts/perf-startup.mjs",
     "eval": "tsx tools/eval/runner.ts",
     "export:golden-csv": "tsx tools/scripts/export-golden-csv.mjs",
     "export:golden-pdf": "tsx tools/scripts/export-golden-pdf.mjs",

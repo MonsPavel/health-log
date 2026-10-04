@@ -79,3 +79,34 @@ describe('launchApp — env-проводка fake-LLM (TASK-078 AC3)', () => {
     expect(lastLaunchEnv()['HL_TEST_HOOKS']).toBeUndefined();
   });
 });
+
+describe('launchApp — запуск packaged exe (TASK-111 §4/§5)', () => {
+  it('executablePath: launch собранного exe (win-unpacked) без MAIN_ENTRY в args; env-изоляция та же', async () => {
+    await launchApp({
+      userData: 'C:/tmp/user',
+      executablePath: 'D:/dist/win-unpacked/Health Log.exe',
+    });
+
+    expect(launchMock).toHaveBeenCalledTimes(1);
+    const options = launchMock.mock.calls[0]![0] as {
+      executablePath?: string;
+      args: readonly string[];
+      env: NodeJS.ProcessEnv;
+    };
+    expect(options.executablePath).toBe('D:/dist/win-unpacked/Health Log.exe');
+    expect(options.args).toEqual([]);
+    expect(options.env['HL_TEST_USER_DATA']).toBe('C:/tmp/user');
+  });
+
+  it('дефолт: executablePath не передаётся, args=[MAIN_ENTRY (bootstrap.js)]', async () => {
+    await launchApp({ userData: 'C:/tmp/user' });
+
+    const options = launchMock.mock.calls[0]![0] as {
+      executablePath?: string;
+      args: readonly string[];
+    };
+    expect(options.executablePath).toBeUndefined();
+    expect(options.args).toHaveLength(1);
+    expect(options.args[0]).toContain('bootstrap.js');
+  });
+});
