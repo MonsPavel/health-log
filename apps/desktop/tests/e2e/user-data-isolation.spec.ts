@@ -114,9 +114,9 @@ test.describe('изоляция Chromium-слой (TASK-119)', () => {
         },
         { key: MARKER_KEY, value: markerValue },
       );
-      expect(
-        await window.evaluate((key) => localStorage.getItem(key), MARKER_KEY),
-      ).toBe(markerValue);
+      expect(await window.evaluate((key) => localStorage.getItem(key), MARKER_KEY)).toBe(
+        markerValue,
+      );
     });
 
     // Graceful quit: Chromium сбрасывает хранилище на диск (§22 TASK-035).
