@@ -170,12 +170,14 @@ describe('data-care хендлеры через каркас (TASK-073 §19)', (
     expect(data['file']).toBe('health-log-backup.hlbackup');
     expect(data['sizeBytes']).toBeGreaterThan(1);
     expect(data['manifest']).toMatchObject({
-      formatVersion: 1,
+      // TASK-121: ask-копия — формат v2 с переносимым ключом (dbKeyWrap).
+      formatVersion: 2,
       schemaVersion: 4,
       appVersion: '0.0.0-test',
       createdAtUtc: NOW_MS,
       counts: { measurements: 2 },
       kdf: { id: 'argon2id' },
+      dbKeyWrap: { iterations: expect.any(Number), wrappedKeyB64: expect.any(String) },
     });
     expect(Object.keys(data)).not.toContain('path');
     expect(existsSync(containerTarget)).toBe(true);
@@ -260,7 +262,10 @@ describe('data-care хендлеры через каркас (TASK-073 §19)', (
 
     expect(envelope).toMatchObject({ v: 1, ok: true, data: { restarting: true } });
     expect(closeCurrentDb).toHaveBeenCalledTimes(1);
-    expect(verifyDatabaseOpens).toHaveBeenCalledWith(dbPath);
+    // TASK-121: второй аргумент — ключ открытия. Копия создана в ask-режиме
+    // (формат v2): открытие — развёрнутым из обёртки ключом источника (dbKeyHex
+    // фикстуры — KEY_HEX), null остался путям без переносимой обёртки (v1).
+    expect(verifyDatabaseOpens).toHaveBeenCalledWith(dbPath, KEY_HEX);
     expect(restoreRelaunch).toHaveBeenCalledTimes(1);
     expect(readFileSync(dbPath)).toEqual(SNAPSHOT_BYTES);
   });

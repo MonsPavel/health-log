@@ -268,10 +268,14 @@ describe('BackupContainerCodec формат v2 (TASK-121 §3: magic HLBK2, чт�
     const snapshotPath = join(base, 'snapshot.db');
     writeSnapshot(snapshotPath, 512);
     const destinationPath = join(base, 'mismatch.hlbackup');
-    // HLBK2-магия с v1-манифестом (писавший сломан) — формат-ошибка.
+    // HLBK2-магия с v1-манифестом (писавший сломан) — формат-ошибка. Ключ записи
+    // и чтения ОДИН: GCM-аутентификация проходит, и наружу выходит именно
+    // FormatError кросс-проверки (порядок §14 в readContainer: аутентификация →
+    // разбор → магия↔formatVersion; догост-детект без ключа покрывает readHeader).
+    const contentKey = randomBytes(32);
     await newCodec().writeContainer({
       manifestJson: Buffer.from(JSON.stringify(manifest), 'utf8'),
-      contentKey: randomBytes(32),
+      contentKey,
       snapshotPath,
       destinationPath,
       formatVersion: 2,
@@ -279,7 +283,7 @@ describe('BackupContainerCodec формат v2 (TASK-121 §3: magic HLBK2, чт�
     await expect(
       newCodec().readContainer({
         containerPath: destinationPath,
-        contentKey: randomBytes(32),
+        contentKey,
       }),
     ).rejects.toThrow(BackupContainerFormatError);
     await expect(newCodec().readHeader({ containerPath: destinationPath })).rejects.toThrow(
