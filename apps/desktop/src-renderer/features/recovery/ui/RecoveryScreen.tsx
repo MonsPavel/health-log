@@ -223,7 +223,7 @@ export function RecoveryScreen({ recovery }: RecoveryScreenProps): JSX.Element {
                       data-testid="recovery-discard-checkbox"
                       checked={discardConfirmed}
                       onChange={(event) => setDiscardConfirmed(event.target.checked)}
-                      className="mt-0.5 h-5 w-5"
+                      className="hl-checkbox mt-0.5 h-5 w-5"
                     />
                     <span>{t('recovery.discardCheckbox')}</span>
                   </label>

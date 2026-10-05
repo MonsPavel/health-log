@@ -40,7 +40,7 @@ export function ArmSegment({ value, onArm }: ArmSegmentProps): JSX.Element {
               value={option.arm}
               checked={value === option.arm}
               onChange={() => onArm(option.arm)}
-              className="h-5 w-5 accent-[var(--hl-accent)]"
+              className="h-5 w-5 hl-radio"
             />
             {option.label}
           </label>

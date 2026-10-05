@@ -301,7 +301,7 @@ function PassphraseDialog({ kind, onClose }: PassphraseDialogProps): JSX.Element
                     type="checkbox"
                     checked={form.confirmed}
                     onChange={(event) => setForm({ ...form, confirmed: event.target.checked })}
-                    className="mt-1 h-4 w-4"
+                    className="hl-checkbox mt-1 h-4 w-4"
                   />
                   <label htmlFor="security-pass-confirm" className="text-sm font-medium text-text">
                     {t('security.passphrase.checkbox')}

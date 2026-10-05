@@ -237,7 +237,7 @@ export function WipeFlow({ open, onClose }: WipeFlowProps): JSX.Element {
                   type="checkbox"
                   checked={acknowledged}
                   onChange={(event) => setAcknowledged(event.target.checked)}
-                  className="mt-1 h-4 w-4"
+                  className="hl-checkbox mt-1 h-4 w-4"
                 />
                 <label htmlFor="data-wipe-confirm" className="text-sm text-text">
                   {t('data.wipe.confirmLabel')}

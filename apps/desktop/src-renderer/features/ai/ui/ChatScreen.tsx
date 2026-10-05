@@ -225,7 +225,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
                 value={option}
                 checked={periodState.period === option}
                 onChange={() => setPeriod(option)}
-                className="h-5 w-5 accent-[var(--hl-accent)]"
+                className="h-5 w-5 hl-radio"
               />
               {t(PERIOD_KEY[option])}
             </label>

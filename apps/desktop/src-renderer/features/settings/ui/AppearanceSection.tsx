@@ -60,7 +60,7 @@ function RadioGroup({
               value={option.value}
               checked={value === option.value}
               onChange={() => onChange(option.value)}
-              className="h-5 w-5 accent-[var(--hl-accent)]"
+              className="h-5 w-5 hl-radio"
             />
             {t(option.labelKey)}
           </label>

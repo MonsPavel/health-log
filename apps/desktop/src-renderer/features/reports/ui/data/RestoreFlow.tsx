@@ -345,7 +345,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   type="checkbox"
                   checked={acknowledged}
                   onChange={(event) => setAcknowledged(event.target.checked)}
-                  className="mt-1 h-4 w-4"
+                  className="hl-checkbox mt-1 h-4 w-4"
                 />
                 <label htmlFor="data-restore-confirm" className="text-sm text-text">
                   {t('data.restore.confirmLabel')}

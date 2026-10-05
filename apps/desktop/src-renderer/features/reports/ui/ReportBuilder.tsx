@@ -178,7 +178,7 @@ export function ReportBuilder(): JSX.Element {
                     option === 'custom' ? { ...state, period: 'custom' } : { period: option },
                   )
                 }
-                className="h-5 w-5 accent-[var(--hl-accent)]"
+                className="h-5 w-5 hl-radio"
               />
               {t(PERIOD_KEY[option])}
             </label>

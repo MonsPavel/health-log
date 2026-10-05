@@ -127,7 +127,7 @@ function ThemeSidebarToggle(): JSX.Element {
     <div className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-base text-muted">
       {ICONS.moon}
       <span className="flex-1">
-        {t(dark ? 'settings.theme.themeLight' : 'settings.theme.themeDark')}
+        {t(dark ? 'settings.appearance.themeDark' : 'settings.appearance.themeLight')}
       </span>
       <IoSwitch
         checked={dark}

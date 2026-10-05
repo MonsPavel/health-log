@@ -83,7 +83,7 @@ export function PeriodSwitcher({ state, onPeriod, onRange }: PeriodSwitcherProps
               value={period}
               checked={state.period === period}
               onChange={() => onPeriod(period)}
-              className="h-5 w-5 accent-[var(--hl-accent)]"
+              className="h-5 w-5 hl-radio"
             />
             {t(PERIOD_KEY[period])}
           </label>

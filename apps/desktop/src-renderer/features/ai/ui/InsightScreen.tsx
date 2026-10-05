@@ -281,7 +281,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
                 value={option}
                 checked={period.state.period === option}
                 onChange={() => period.setPeriod(option)}
-                className="h-5 w-5 accent-[var(--hl-accent)]"
+                className="h-5 w-5 hl-radio"
               />
               {t(PERIOD_KEY[option])}
             </label>
