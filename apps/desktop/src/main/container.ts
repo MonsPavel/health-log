@@ -1086,8 +1086,18 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       },
       crypto: new BackupContainerCodec(),
       // TASK-121 §3: импорт ключа источника в локальный vault после открытия
-      // подменённой БД ключом копии (AC-2.4 — чужой профиль).
-      keyVault: vault,
+      // подменённой БД ключом копии (AC-2.4 — чужой профиль). ГАРД RC-прогона
+      // rc.1 (находка E2E walkthrough): восстановление СВОЕЙ копии (ключ копии
+      // = локальный ключ — всегда для v1 и для v2, созданной на этом профиле)
+      // НЕ должно трогать vault: importKey переписал бы passphrase-режим в
+      // safeStorage — пароль приложения молча снимался после каждого
+      // восстановления. Режим vault сохраняется: ключ тот же.
+      keyVault: {
+        importKey: (importedKeyHex) =>
+          importedKeyHex === keyHex
+            ? Promise.resolve(ok(undefined))
+            : vault.importKey(importedKeyHex),
+      },
       logger: dbLogger,
       queue: fileOpQueue,
       relaunch: scheduleAppRelaunch,
