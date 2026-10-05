@@ -43,7 +43,7 @@ export function HelpSection(): JSX.Element {
       <h2 id="help-title" className="mb-2 text-base font-medium">
         {t('settings.help.title')}
       </h2>
-      <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+      <div className="flex flex-col gap-2 rounded-[10px] bg-surface p-3">
         <p className="text-sm text-accent">{t('settings.help.body')}</p>
         <button
           type="button"
@@ -51,7 +51,7 @@ export function HelpSection(): JSX.Element {
           disabled={open.isPending}
           aria-busy={open.isPending}
           onClick={() => open.mutate()}
-          className="min-h-11 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-11 rounded-xl bg-fill px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-90"
         >
           {t('settings.help.open')}
         </button>

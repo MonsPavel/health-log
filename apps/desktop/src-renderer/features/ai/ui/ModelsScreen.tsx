@@ -70,7 +70,7 @@ export function ModelsScreen(): JSX.Element {
 
   return (
     <section data-testid="ai-models-section" aria-labelledby="ai-models-title" className="mt-4">
-      <h2 id="ai-models-title" className="mb-3 text-xl font-semibold">
+      <h2 id="ai-models-title" className="hl-large-title mb-3">
         {t('ai.models.title')}
       </h2>
 
@@ -80,10 +80,7 @@ export function ModelsScreen(): JSX.Element {
         </p>
       ) : null}
       {isError ? (
-        <p
-          role="alert"
-          className="rounded-md border border-status-fail/40 bg-status-fail/10 px-3 py-2 text-sm text-text"
-        >
+        <p role="alert" className="rounded-md bg-status-fail/10 px-3 py-2 text-sm text-text">
           {t('ai.models.loadError')}
         </p>
       ) : null}

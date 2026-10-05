@@ -49,3 +49,16 @@
 
 Автоматически: contrast-audit, tokens.test, гейт, e2e visual-matrix. Вручную
 (машина A RC): взгляд на обе темы при свете/в темноте. Откат: revert.
+
+## 6. Итерация v2 — iOS-редизайн (решение владельца 05.10: «хочу iOS-подобный»)
+
+Владельца v1 («Тихий тонометр») не устроила — только цвета. v2 — структурный
+iPad-стиль: системная палитра Apple (systemGroupedBackground #F2F2F7/#000,
+белые/#1C1C1E группы, systemBlue #0066CC/#0A84FF — accessible-вариант для AA),
+шрифт Inter Variable (аналог SF Pro, bundled), LargeTitle 34/700, section
+headers 13/600 uppercase, inset grouped surfaces radius 10, поля — systemFill
+без рамок, iOS-switch (role=switch) вместо boolean-чекбоксов (подтверждающие
+чекбоксы сохранены), iMessage-бабблы чата, iPad-сайдбар с иконками и filled-blue
+pill. Контраст: статусы — accessible-варианты Apple (#166534/#D70015/#C93400);
+disabled 90%; accent-on-accent10 упразднена (nav стал filled). Гейт: 0 пар ниже
+порога; юниты 336ф; e2e visual-scales 7/7 + critical/data-care/novice/a11y 6/6.

@@ -111,7 +111,7 @@ export function CriticalPanel({ flag, onDismiss, sys, dia }: CriticalPanelProps)
           type="button"
           data-testid="critical-panel-dismiss"
           onClick={onDismiss}
-          className="min-h-11 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text"
+          className="min-h-11 rounded-xl bg-fill px-4 text-base font-semibold text-text"
         >
           {t('critical.panel.dismiss')}
         </button>

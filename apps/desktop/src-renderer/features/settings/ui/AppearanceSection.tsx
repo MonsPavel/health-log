@@ -52,7 +52,7 @@ function RadioGroup({
         {options.map((option) => (
           <label
             key={option.value}
-            className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-2 rounded-md border border-border px-3 text-base hover:bg-accent/10"
+            className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-fill px-3 text-base hover:bg-accent/10"
           >
             <input
               type="radio"

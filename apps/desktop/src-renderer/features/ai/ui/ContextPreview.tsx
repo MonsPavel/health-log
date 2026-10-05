@@ -29,7 +29,7 @@ export function ContextPreview({ text }: ContextPreviewProps): JSX.Element {
     <div>
       <pre
         data-testid="ai-context-preview"
-        className="overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-border bg-surface p-3 font-mono text-sm text-text"
+        className="overflow-x-auto whitespace-pre-wrap break-words rounded-[10px] bg-surface p-3 font-mono text-sm text-text"
       >
         {visible}
       </pre>

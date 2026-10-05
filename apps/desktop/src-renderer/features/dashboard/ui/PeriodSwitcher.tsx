@@ -74,7 +74,7 @@ export function PeriodSwitcher({ state, onPeriod, onRange }: PeriodSwitcherProps
         {PERIOD_OPTIONS.map((period) => (
           <label
             key={period}
-            className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-base hover:bg-accent/10"
+            className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl bg-fill px-3 text-base hover:bg-accent/10"
           >
             <input
               type="radio"

@@ -43,6 +43,8 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { IoSwitch } from '../../../components/ios/kit.js';
+
 import type { MeasurementAddResponse, MeasurementFlags } from '@hl/contracts';
 
 import { useToast } from '../../../app/toast';
@@ -506,7 +508,7 @@ export function MeasurementForm({
           onPaste={field === 'pulse' ? undefined : (event) => handlePaste(field, event)}
           aria-invalid={error === undefined ? undefined : true}
           aria-describedby={describedBy}
-          className="min-h-11 w-24 rounded-md border border-border bg-bg text-center text-2xl text-text"
+          className="min-h-11 w-24 rounded-[10px] bg-fill text-center text-2xl text-text"
         />
         {error !== undefined && (
           <span id={`${field}-error`} role="alert" className="text-sm text-accent">
@@ -537,11 +539,11 @@ export function MeasurementForm({
       {editingId === null ? (
         <>
           {/* FR-9.2: обучающая подсказка над формой (§10). */}
-          <h1 className="text-lg font-semibold text-text">{t('measurement.form.addTitle')}</h1>
+          <h1 className="hl-large-title text-text">{t('measurement.form.addTitle')}</h1>
           <p className="text-sm text-accent">{t('measurement.form.hint')}</p>
         </>
       ) : (
-        <h1 data-testid="form-title" className="text-lg font-semibold text-text">
+        <h1 data-testid="form-title" className="hl-large-title text-text">
           {t('measurement.form.editTitle')}
         </h1>
       )}
@@ -585,15 +587,14 @@ export function MeasurementForm({
 
         {numberField('pulse')}
 
-        <label className="flex min-h-11 items-center gap-2 text-base">
-          <input
-            type="checkbox"
+        <div className="flex min-h-11 items-center justify-between gap-2 text-base">
+          <span>{t('measurement.fields.irregular')}</span>
+          <IoSwitch
             checked={irregular}
-            onChange={(event) => setIrregular(event.target.checked)}
-            className="h-5 w-5 accent-[var(--hl-accent)]"
+            onChange={setIrregular}
+            labelText={t('measurement.fields.irregular')}
           />
-          {t('measurement.fields.irregular')}
-        </label>
+        </div>
 
         <ArmSegment value={arm} onArm={setArm} />
 
@@ -611,7 +612,7 @@ export function MeasurementForm({
           <button
             type="submit"
             disabled={!isValid || mutation.isPending || updateMutation.isPending}
-            className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:opacity-80"
+            className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:opacity-90"
           >
             {mutation.isPending || updateMutation.isPending
               ? t('measurement.form.saving')
@@ -621,7 +622,7 @@ export function MeasurementForm({
           <button
             type="button"
             onClick={handleCancel}
-            className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+            className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
           >
             {t('measurement.form.cancel')}
           </button>
@@ -635,7 +636,7 @@ export function MeasurementForm({
             aria-label={t('measurement.form.clear')}
             onClick={resetAfterSave}
             disabled={mutation.isPending || updateMutation.isPending}
-            className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+            className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
           >
             {t('measurement.form.clear')}
           </button>
@@ -683,7 +684,7 @@ export function MeasurementForm({
             data-testid="discard-edit-dialog"
             className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border border-border bg-bg p-6 shadow-lg"
           >
-            <AlertDialog.Title className="text-lg font-semibold text-text">
+            <AlertDialog.Title className="hl-large-title text-text">
               {t('measurement.form.discardTitle')}
             </AlertDialog.Title>
             <AlertDialog.Description asChild>
@@ -694,7 +695,7 @@ export function MeasurementForm({
                 <button
                   type="button"
                   data-testid="discard-cancel"
-                  className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                  className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
                 >
                   {t('measurement.form.cancel')}
                 </button>
@@ -704,7 +705,7 @@ export function MeasurementForm({
                   type="button"
                   data-testid="discard-confirm"
                   onClick={finishCancel}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg"
+                  className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg"
                 >
                   {t('measurement.form.discardConfirm')}
                 </button>

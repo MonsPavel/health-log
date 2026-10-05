@@ -52,7 +52,7 @@ function SummarySkeleton(): JSX.Element {
 
   return (
     <div data-testid="summary-skeleton" role="status" aria-label={t('common.loading')}>
-      <div aria-hidden="true" className="animate-pulse rounded-md border border-border p-4">
+      <div aria-hidden="true" className="animate-pulse rounded-[10px] bg-surface p-4">
         <div className="mb-2 h-4 w-1/4 rounded bg-border" />
         <div className="h-10 w-1/3 rounded bg-border" />
       </div>
@@ -85,7 +85,7 @@ function WelcomeState({ onAdd }: { readonly onAdd: () => void }): JSX.Element {
       <span aria-hidden="true" className="text-5xl" role="presentation">
         📝
       </span>
-      <p data-testid="dashboard-welcome-title" className="text-lg font-semibold">
+      <p data-testid="dashboard-welcome-title" className="hl-large-title">
         {t('dashboard.welcome.title')}
       </p>
       <p className="max-w-sm text-sm text-muted">{t('dashboard.welcome.hint')}</p>
@@ -93,7 +93,7 @@ function WelcomeState({ onAdd }: { readonly onAdd: () => void }): JSX.Element {
         type="button"
         data-testid="dashboard-welcome-add"
         onClick={onAdd}
-        className="mt-2 min-h-12 rounded-md bg-accent px-6 text-base font-semibold text-bg hover:opacity-90"
+        className="mt-2 min-h-12 rounded-xl bg-accent px-6 text-base font-semibold text-bg hover:opacity-90"
       >
         {t('dashboard.home.add')}
       </button>
@@ -164,7 +164,7 @@ export function SummaryScreen(): JSX.Element {
       <header className="mb-4">
         {/* TASK-108 §5 (page-has-heading-one): заголовок экрана — h1; карточки —
             h2 (LastMeasurementCard и др.), «Динамика» ниже — h2 (DashboardScreen). */}
-        <h1 className="text-lg font-semibold">{t('dashboard.home.title')}</h1>
+        <h1 className="hl-large-title">{t('dashboard.home.title')}</h1>
       </header>
 
       {last.isPending ? (
@@ -176,7 +176,7 @@ export function SummaryScreen(): JSX.Element {
             type="button"
             data-testid="summary-retry"
             onClick={() => void last.refetch()}
-            className="rounded-md border border-border px-4 py-2 text-sm hover:bg-accent/10"
+            className="rounded-xl bg-fill px-4 py-2 text-sm hover:bg-accent/10"
           >
             {t('dashboard.error.retry')}
           </button>

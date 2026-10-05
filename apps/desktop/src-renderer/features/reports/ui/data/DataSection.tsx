@@ -24,9 +24,9 @@ export function DataSection(): JSX.Element {
     <section
       data-testid="data-care"
       aria-labelledby="data-care-title"
-      className="mb-6 rounded-md border border-border p-3"
+      className="mb-6 rounded-[10px] bg-surface p-3"
     >
-      <h2 id="data-care-title" className="text-lg font-semibold text-text">
+      <h2 id="data-care-title" className="hl-large-title text-text">
         {t('data.title')}
       </h2>
       <p className="mt-1 text-sm text-accent">{t('data.lead')}</p>
@@ -36,7 +36,7 @@ export function DataSection(): JSX.Element {
           type="button"
           data-testid="data-backup-button"
           onClick={() => setBackupOpen(true)}
-          className="min-h-11 rounded-md border border-border px-4 text-base font-medium text-text hover:bg-accent/10"
+          className="min-h-11 rounded-xl bg-fill px-4 text-base font-medium text-text hover:bg-accent/10"
         >
           {t('data.backup.button')}
         </button>
@@ -44,7 +44,7 @@ export function DataSection(): JSX.Element {
           type="button"
           data-testid="data-restore-button"
           onClick={() => setRestoreOpen(true)}
-          className="min-h-11 rounded-md border border-border px-4 text-base font-medium text-text hover:bg-accent/10"
+          className="min-h-11 rounded-xl bg-fill px-4 text-base font-medium text-text hover:bg-accent/10"
         >
           {t('data.restore.button')}
         </button>
@@ -53,7 +53,7 @@ export function DataSection(): JSX.Element {
           type="button"
           data-testid="data-wipe-button"
           onClick={() => setWipeOpen(true)}
-          className="min-h-11 rounded-md border border-border px-4 text-base font-semibold text-text hover:bg-accent/10"
+          className="min-h-11 rounded-xl bg-fill px-4 text-base font-semibold text-text hover:bg-accent/10"
         >
           {t('data.wipe.button')}
         </button>

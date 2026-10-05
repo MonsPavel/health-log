@@ -66,7 +66,7 @@ export function WhenField({ when, nowMs, onNow, onManual, error }: WhenFieldProp
               onChange={(event) => onManual(event.target.value, when.time)}
               aria-invalid={error === undefined ? undefined : true}
               aria-describedby={error === undefined ? undefined : errorId}
-              className="min-h-11 rounded-md border border-border bg-bg px-2 text-base text-text"
+              className="min-h-11 rounded-[10px] bg-fill px-2 text-base text-text"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -80,12 +80,12 @@ export function WhenField({ when, nowMs, onNow, onManual, error }: WhenFieldProp
               onChange={(event) => onManual(when.date, event.target.value)}
               aria-invalid={error === undefined ? undefined : true}
               aria-describedby={error === undefined ? undefined : errorId}
-              className="min-h-11 rounded-md border border-border bg-bg px-2 text-base text-text"
+              className="min-h-11 rounded-[10px] bg-fill px-2 text-base text-text"
             />
           </div>
           <button
             type="button"
-            className="min-h-11 rounded-md border border-border px-3 text-base text-text hover:bg-accent/10"
+            className="min-h-11 rounded-xl bg-fill px-3 text-base text-text hover:bg-accent/10"
             onClick={onNow}
           >
             {t('measurement.when.backToNow')}
@@ -102,7 +102,7 @@ export function WhenField({ when, nowMs, onNow, onManual, error }: WhenFieldProp
           </time>
           <button
             type="button"
-            className="min-h-11 rounded-md border border-border px-3 text-base text-text hover:bg-accent/10"
+            className="min-h-11 rounded-xl bg-fill px-3 text-base text-text hover:bg-accent/10"
             onClick={() => onManual(dateStringOf(nowMs), timeStringOf(nowMs))}
           >
             {t('measurement.when.change')}

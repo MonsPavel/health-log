@@ -186,7 +186,7 @@ function EmptyFiltered({ onReset }: { readonly onReset: () => void }): JSX.Eleme
         type="button"
         data-testid="empty-filtered-reset"
         onClick={onReset}
-        className="mt-4 rounded-md border border-border px-4 py-2 text-sm hover:bg-accent/10"
+        className="mt-4 rounded-xl bg-fill px-4 py-2 text-sm hover:bg-accent/10"
       >
         {t('measurement.filters.reset')}
       </button>
@@ -351,11 +351,11 @@ export function HistoryScreen(): JSX.Element {
     return (
       <section className="flex flex-col items-center gap-3 px-6 py-16 text-center">
         {/* TASK-108 §5 (page-has-heading-one): заголовок экрана — h1 (и в ошибке). */}
-        <h1 className="text-lg font-semibold">{t('common.nav.journal')}</h1>
+        <h1 className="hl-large-title">{t('common.nav.journal')}</h1>
         <button
           type="button"
           onClick={() => void (isSearching ? search.refetch() : measurements.refetch())}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-accent/10"
+          className="rounded-xl bg-fill px-4 py-2 text-sm hover:bg-accent/10"
         >
           {t('measurement.history.retry')}
         </button>
@@ -380,7 +380,7 @@ export function HistoryScreen(): JSX.Element {
       <header className="mb-4 flex items-center justify-between">
         {/* TASK-108 §5 (page-has-heading-one): заголовок экрана — h1; группы дней —
             h2 (DayGroup) — без пропуска уровней. */}
-        <h1 className="text-lg font-semibold">{t('common.nav.journal')}</h1>
+        <h1 className="hl-large-title">{t('common.nav.journal')}</h1>
         <button
           type="button"
           onClick={() => setView('form')}
@@ -481,7 +481,7 @@ export function HistoryScreen(): JSX.Element {
             <button
               type="button"
               onClick={() => void measurements.fetchNextPage()}
-              className="mt-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-accent/10"
+              className="mt-2 rounded-xl bg-fill px-4 py-2 text-sm hover:bg-accent/10"
             >
               {t('measurement.history.showMore')}
             </button>

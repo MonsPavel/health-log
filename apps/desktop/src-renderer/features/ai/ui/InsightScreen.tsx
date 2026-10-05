@@ -24,6 +24,8 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { IoSwitch } from '../../../components/ios/kit.js';
 import { useSearchParams } from 'react-router-dom';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 
@@ -258,7 +260,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
 
   return (
     <section data-testid="insight-screen" aria-labelledby="insight-title">
-      <h2 id="insight-title" className="mb-3 text-xl font-semibold">
+      <h2 id="insight-title" className="hl-large-title mb-3">
         {t('ai.insight.title')}
       </h2>
 
@@ -270,7 +272,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
           {PERIOD_OPTIONS.map((option) => (
             <label
               key={option}
-              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-base hover:bg-accent/10"
+              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl bg-fill px-3 text-base hover:bg-accent/10"
             >
               <input
                 type="radio"
@@ -306,26 +308,22 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
           <h3 id="insight-preview-title" className="text-base font-semibold">
             {t('ai.insight.preview.title')}
           </h3>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-text">
-            <input
-              type="checkbox"
-              data-testid="insight-notes-toggle"
-              checked={includeNotes}
-              onChange={(event) => handleNotesToggle(event.target.checked)}
-              className="h-4 w-4"
-            />
+          <span className="flex cursor-pointer items-center gap-2 text-sm text-text">
             {t('ai.insight.preview.includeNotes')}
-          </label>
+            <IoSwitch
+              checked={includeNotes}
+              onChange={handleNotesToggle}
+              labelText={t('ai.insight.preview.includeNotes')}
+              testid="insight-notes-toggle"
+            />
+          </span>
         </div>
         {preview.isPending ? (
           <p role="status" className="text-sm text-accent">
             {t('ai.insight.preview.loading')}
           </p>
         ) : preview.isError ? (
-          <p
-            role="alert"
-            className="rounded-md border border-status-fail/40 bg-status-fail/10 px-3 py-2 text-sm text-text"
-          >
+          <p role="alert" className="rounded-md bg-status-fail/10 px-3 py-2 text-sm text-text">
             {t('ai.insight.preview.loadError')}
           </p>
         ) : preview.data !== undefined ? (
@@ -337,7 +335,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
       {modelStateKnown && !modelConfigured ? (
         <div
           data-testid="insight-model-cta"
-          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface px-4 py-3"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[10px] bg-surface px-4 py-3"
         >
           <div className="min-w-0">
             <p className="text-sm font-semibold text-text">{t('ai.insight.modelCta.title')}</p>
@@ -361,7 +359,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
               type="button"
               data-testid="insight-stop"
               onClick={handleStop}
-              className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text hover:bg-accent/10"
+              className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text hover:bg-accent/10"
             >
               {t('ai.insight.stop')}
             </button>
@@ -370,7 +368,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
               type="button"
               data-testid="insight-generate"
               onClick={handleGenerate}
-              className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg"
+              className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg"
             >
               {t('ai.insight.generate')}
             </button>
@@ -383,14 +381,14 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
         <div
           data-testid="insight-error"
           role="alert"
-          className="mb-4 rounded-md border border-status-fail/40 bg-status-fail/10 px-3 py-2"
+          className="mb-4 rounded-md bg-status-fail/10 px-3 py-2"
         >
           <p className="text-sm font-medium text-text">{t('ai.insight.errorInterrupted')}</p>
           <button
             type="button"
             data-testid="insight-retry"
             onClick={handleGenerate}
-            className="mt-2 min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text"
+            className="mt-2 min-h-11 rounded-xl bg-fill px-4 text-sm font-semibold text-text"
           >
             {t('ai.insight.retry')}
           </button>
@@ -431,7 +429,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
             <button
               type="button"
               data-testid="insight-clear"
-              className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-accent/10"
+              className="min-h-11 rounded-xl bg-fill px-4 text-sm font-semibold text-text hover:bg-accent/10"
             >
               {t('ai.insight.clear.button')}
             </button>
@@ -444,7 +442,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
             >
               <AlertDialog.Title
                 data-testid="insight-clear-title"
-                className="text-lg font-semibold text-text"
+                className="hl-large-title text-text"
               >
                 {t('ai.insight.clear.title')}
               </AlertDialog.Title>
@@ -456,7 +454,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
                   <button
                     type="button"
                     data-testid="insight-clear-cancel"
-                    className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                    className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
                   >
                     {t('ai.insight.clear.cancel')}
                   </button>
@@ -466,7 +464,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
                   data-testid="insight-clear-confirm"
                   disabled={deleteSummaries.isPending}
                   onClick={handleDelete}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+                  className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
                 >
                   {t('ai.insight.clear.confirm')}
                 </button>

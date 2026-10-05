@@ -46,7 +46,7 @@ export function RowMenu({ measurementId, onEdit, onDelete }: RowMenuProps): JSX.
           data-testid="row-menu-content"
           align="end"
           sideOffset={4}
-          className="min-w-40 rounded-md border border-border bg-bg p-1 shadow-lg"
+          className="min-w-40 rounded-[12px] border border-border bg-surface p-1 shadow-lg"
         >
           <DropdownMenu.Item
             data-testid="row-menu-edit"

@@ -126,7 +126,7 @@ export function FlagBadges({ measurement }: FlagBadgesProps): JSX.Element | null
               data-testid="flag-panel-dialog"
               className="fixed left-1/2 top-1/2 w-[min(28rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border border-border bg-bg p-6 shadow-lg"
             >
-              <Dialog.Title className="text-lg font-semibold text-text">
+              <Dialog.Title className="hl-large-title text-text">
                 {t(PANEL_TITLE_KEY[critical])}
               </Dialog.Title>
               <div className="mt-3">

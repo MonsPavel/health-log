@@ -62,7 +62,7 @@ export function EmptyChartState({
           type="button"
           data-testid="empty-chart-show-all"
           onClick={onShowAll}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-accent/10"
+          className="rounded-xl bg-fill px-4 py-2 text-sm hover:bg-accent/10"
         >
           {t('dashboard.empty.showAll')}
         </button>

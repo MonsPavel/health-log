@@ -69,7 +69,7 @@ describe('ChatBubble — визуальные роли ленты (§5/§10)', (
     render(createElement(ChatBubble, { role: 'assistant', content: 'ответ' }));
     const assistantBubble = screen.getByTestId('chat-bubble');
     expect(assistantBubble.className).not.toContain('ml-auto');
-    expect(assistantBubble.className).toContain('bg-surface');
+    expect(assistantBubble.className).toContain('bg-fill');
   });
 
   it('стрим (TASK-109 §13): busy → aria-busy на бабле — дельты не озвучиваются внутри polite-ленты; без busy атрибута нет', () => {

@@ -14,7 +14,7 @@ const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
 
 /** Базовый класс кнопки клавиатуры: крупная цель ≥44px (§16). */
 const KEY_CLASS =
-  'min-h-11 min-w-11 rounded-md border border-border bg-bg px-3 text-2xl font-semibold text-text hover:bg-accent/10';
+  'min-h-11 min-w-11 rounded-[12px] bg-fill px-3 text-2xl font-semibold text-text hover:bg-accent/10';
 
 /** Props клавиатуры: колбэки без знания об активном поле (решает форма). */
 export interface DigitPadProps {

@@ -29,7 +29,7 @@ export function BackupReminderBanner({
     <div
       role="status"
       data-testid="backup-reminder-banner"
-      className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-status-warn/40 bg-status-warn/10 px-4 py-3"
+      className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-status-warn/10 px-4 py-3"
     >
       <div className="min-w-0">
         <p data-testid="backup-reminder-title" className="text-sm font-semibold text-text">
@@ -44,7 +44,7 @@ export function BackupReminderBanner({
           type="button"
           data-testid="backup-reminder-create"
           onClick={onCreate}
-          className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90"
+          className="min-h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90"
         >
           {t('dashboard.banner.backup.create')}
         </button>
@@ -52,7 +52,7 @@ export function BackupReminderBanner({
           type="button"
           data-testid="backup-reminder-later"
           onClick={onLater}
-          className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-accent/10"
+          className="min-h-11 rounded-xl bg-fill px-4 text-sm font-semibold text-text hover:bg-accent/10"
         >
           {t('dashboard.banner.backup.later')}
         </button>

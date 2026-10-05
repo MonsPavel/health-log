@@ -140,7 +140,7 @@ export function RecoveryScreen({ recovery }: RecoveryScreenProps): JSX.Element {
       className="flex min-h-screen w-full flex-col items-center justify-center bg-bg p-4"
     >
       <div className="flex w-full max-w-md flex-col gap-3">
-        <h1 className="text-xl font-semibold text-text">{t('recovery.title')}</h1>
+        <h1 className="hl-large-title text-text">{t('recovery.title')}</h1>
         {/* §16: объяснение — role=alert (старт в аварийном режиме, не действие). */}
         <p role="alert" data-testid="recovery-explain" className="text-base text-text">
           {t('recovery.explain')}
@@ -158,7 +158,7 @@ export function RecoveryScreen({ recovery }: RecoveryScreenProps): JSX.Element {
         ) : (
           <>
             {/* (1) Восстановление — первичное действие (риск §22: первый в порядке). */}
-            <section className="mt-2 flex flex-col gap-2 rounded-md border border-border p-3">
+            <section className="mt-2 flex flex-col gap-2 rounded-[10px] bg-surface p-3">
               <h2 className="text-base font-semibold text-text">{t('recovery.restoreTitle')}</h2>
               <p className="text-sm text-accent">{t('recovery.restoreHint')}</p>
               <button
@@ -167,7 +167,7 @@ export function RecoveryScreen({ recovery }: RecoveryScreenProps): JSX.Element {
                 onClick={() => {
                   void pickBackup();
                 }}
-                className="min-h-11 rounded-md border border-border bg-bg px-4 text-base font-medium text-text hover:bg-accent/10"
+                className="min-h-11 rounded-xl bg-fill px-4 text-base font-medium text-text hover:bg-accent/10"
               >
                 {t('recovery.restorePick')}
               </button>
@@ -191,7 +191,7 @@ export function RecoveryScreen({ recovery }: RecoveryScreenProps): JSX.Element {
                     value={passphrase}
                     onChange={(event) => setPassphrase(event.target.value)}
                     aria-invalid={errorText === null ? undefined : 'true'}
-                    className="min-h-11 rounded-md border border-border bg-bg px-3 text-base text-text"
+                    className="min-h-11 rounded-[10px] bg-fill px-3 text-base text-text"
                   />
                   <button
                     type="button"
@@ -203,7 +203,7 @@ export function RecoveryScreen({ recovery }: RecoveryScreenProps): JSX.Element {
                         restore.mutate({ file: backupPath, passphrase });
                       }
                     }}
-                    className="flex min-h-11 items-center justify-center rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+                    className="flex min-h-11 items-center justify-center rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
                   >
                     {restore.isPending ? t('recovery.restoreRunning') : t('recovery.restoreSubmit')}
                   </button>
@@ -212,7 +212,7 @@ export function RecoveryScreen({ recovery }: RecoveryScreenProps): JSX.Element {
             </section>
 
             {/* (2) «Начать заново» — ниже восстановления, с двойным подтверждением. */}
-            <section className="flex flex-col gap-2 rounded-md border border-border p-3">
+            <section className="flex flex-col gap-2 rounded-[10px] bg-surface p-3">
               <h2 className="text-base font-semibold text-text">{t('recovery.discardTitle')}</h2>
               {discardOpen ? (
                 <>
@@ -233,7 +233,7 @@ export function RecoveryScreen({ recovery }: RecoveryScreenProps): JSX.Element {
                     disabled={!discardConfirmed || discard.isPending}
                     aria-busy={discard.isPending}
                     onClick={() => discard.mutate()}
-                    className="min-h-11 rounded-md border border-border px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-50"
+                    className="min-h-11 rounded-xl bg-fill px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-90"
                   >
                     {t('recovery.discardExecute')}
                   </button>
@@ -243,7 +243,7 @@ export function RecoveryScreen({ recovery }: RecoveryScreenProps): JSX.Element {
                   type="button"
                   data-testid="recovery-discard-open"
                   onClick={() => setDiscardOpen(true)}
-                  className="min-h-11 rounded-md border border-border px-4 text-base font-medium text-text hover:bg-accent/10"
+                  className="min-h-11 rounded-xl bg-fill px-4 text-base font-medium text-text hover:bg-accent/10"
                 >
                   {t('recovery.discardTitle')}
                 </button>
@@ -251,7 +251,7 @@ export function RecoveryScreen({ recovery }: RecoveryScreenProps): JSX.Element {
             </section>
 
             {/* (3) Технические детали — collapse (§16: не пугать; материал для diag 103). */}
-            <details data-testid="recovery-details" className="rounded-md border border-border p-3">
+            <details data-testid="recovery-details" className="rounded-[10px] bg-surface p-3">
               <summary className="cursor-pointer text-sm font-medium text-text">
                 {t('recovery.detailsSummary')}
               </summary>

@@ -210,10 +210,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
           data-testid="data-restore-dialog"
           className="fixed left-1/2 top-1/2 w-[min(28rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border border-border bg-bg p-6 shadow-lg"
         >
-          <AlertDialog.Title
-            data-testid="data-restore-title"
-            className="text-lg font-semibold text-text"
-          >
+          <AlertDialog.Title data-testid="data-restore-title" className="hl-large-title text-text">
             {t('data.restore.dialogTitle')}
           </AlertDialog.Title>
 
@@ -227,7 +224,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   <button
                     type="button"
                     data-testid="data-restore-cancel"
-                    className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                    className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
                   >
                     {t('data.restore.cancel')}
                   </button>
@@ -238,7 +235,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   disabled={busy}
                   aria-busy={pickMutation.isPending}
                   onClick={() => pickMutation.mutate()}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+                  className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
                 >
                   {t('data.restore.pickButton')}
                 </button>
@@ -262,7 +259,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   autoComplete="off"
                   value={passphrase}
                   onChange={(event) => setPassphrase(event.target.value)}
-                  className="min-h-11 rounded-md border border-border bg-bg px-3 text-base text-text"
+                  className="min-h-11 rounded-[10px] bg-fill px-3 text-base text-text"
                 />
               </div>
               {error !== null ? (
@@ -280,7 +277,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   data-testid="data-restore-back"
                   disabled={busy}
                   onClick={goBack}
-                  className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                  className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
                 >
                   {t('data.restore.back')}
                 </button>
@@ -288,7 +285,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   <button
                     type="button"
                     data-testid="data-restore-cancel"
-                    className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                    className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
                   >
                     {t('data.restore.cancel')}
                   </button>
@@ -299,7 +296,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   disabled={busy}
                   aria-busy={planMutation.isPending}
                   onClick={() => planMutation.mutate()}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+                  className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
                 >
                   {t('data.restore.next')}
                 </button>
@@ -330,7 +327,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   })}
                 </li>
               </ul>
-              <div className="mt-3 flex flex-col gap-2 rounded-md border border-border bg-accent/10 p-3 text-sm font-medium text-text">
+              <div className="mt-3 flex flex-col gap-2 rounded-[10px] bg-accent/10 p-3 text-sm font-medium text-text">
                 {plan.warnings.includes('replaces-current') ? (
                   <p data-testid="data-restore-warning-replace">
                     {t('data.restore.warningReplace')}
@@ -371,7 +368,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   data-testid="data-restore-back"
                   disabled={busy}
                   onClick={goBack}
-                  className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                  className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
                 >
                   {t('data.restore.back')}
                 </button>
@@ -379,7 +376,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   <button
                     type="button"
                     data-testid="data-restore-cancel"
-                    className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                    className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
                   >
                     {t('data.restore.cancel')}
                   </button>
@@ -390,7 +387,7 @@ export function RestoreFlow({ open, onClose }: RestoreFlowProps): JSX.Element {
                   disabled={!acknowledged || busy}
                   aria-busy={executeMutation.isPending}
                   onClick={() => executeMutation.mutate()}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+                  className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
                 >
                   {t('data.restore.execute')}
                 </button>

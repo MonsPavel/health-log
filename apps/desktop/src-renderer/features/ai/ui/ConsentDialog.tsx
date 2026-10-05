@@ -46,7 +46,7 @@ export function ConsentDialog({ target, onConfirm, onClose }: ConsentDialogProps
           data-testid="consent-dialog"
           className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border border-border bg-bg p-6 shadow-lg"
         >
-          <Dialog.Title className="text-lg font-semibold text-text">
+          <Dialog.Title className="hl-large-title text-text">
             {t('ai.models.consent.title')}
           </Dialog.Title>
 
@@ -69,7 +69,7 @@ export function ConsentDialog({ target, onConfirm, onClose }: ConsentDialogProps
               <button
                 type="button"
                 data-testid="consent-cancel"
-                className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
               >
                 {t('ai.models.consent.cancel')}
               </button>
@@ -78,7 +78,7 @@ export function ConsentDialog({ target, onConfirm, onClose }: ConsentDialogProps
               type="button"
               data-testid="consent-confirm"
               onClick={onConfirm}
-              className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg"
+              className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg"
             >
               {t('ai.models.consent.confirm')}
             </button>

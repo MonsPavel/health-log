@@ -109,7 +109,7 @@ test.describe('UC-01 только с клавиатуры (TASK-108 §5, AC-7.3)
     //     [Сохранить disabled на пустой форме — Tab его минует] → Отмена → Очистить.
     await tabTo(window, window.getByTestId('input-dia'));
     await tabTo(window, window.getByTestId('input-pulse'));
-    await tabTo(window, window.getByRole('checkbox', { name: 'Неровный пульс' }));
+    await tabTo(window, window.getByRole('switch', { name: 'Неровный пульс' }));
     // Radio-группа — один логический стоп: фокус на checked, ←/→ переключают.
     await window.keyboard.press('Tab');
     await expect(window.locator('input[name="arm"]:checked')).toBeFocused();
@@ -132,7 +132,7 @@ test.describe('UC-01 только с клавиатуры (TASK-108 §5, AC-7.3)
     await tabTo(window, window.getByRole('textbox', { name: 'Заметка' }), true);
     await window.keyboard.press('Shift+Tab');
     await expect(window.locator('input[name="arm"]:checked')).toBeFocused();
-    await tabTo(window, window.getByRole('checkbox', { name: 'Неровный пульс' }), true);
+    await tabTo(window, window.getByRole('switch', { name: 'Неровный пульс' }), true);
     await tabTo(window, window.getByTestId('input-pulse'), true);
     await tabTo(window, window.getByTestId('input-dia'), true);
     await tabTo(window, window.getByTestId('input-sys'), true);
@@ -157,7 +157,7 @@ test.describe('UC-01 только с клавиатуры (TASK-108 §5, AC-7.3)
 
     // (8) Фиксированная последовательность до «Сохранить» (теперь включён —
     //     валидна форма), Enter — запись в истории (AC-7.3: сценарий без мыши).
-    await tabTo(window, window.getByRole('checkbox', { name: 'Неровный пульс' }));
+    await tabTo(window, window.getByRole('switch', { name: 'Неровный пульс' }));
     await window.keyboard.press('Tab');
     await expect(window.locator('input[name="arm"]:checked')).toBeFocused();
     await tabTo(window, window.getByRole('textbox', { name: 'Заметка' }));

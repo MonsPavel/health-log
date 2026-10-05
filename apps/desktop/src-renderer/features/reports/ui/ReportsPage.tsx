@@ -16,7 +16,7 @@ export function ReportsPage(): JSX.Element {
 
   return (
     <section className="mx-auto max-w-2xl p-4" aria-labelledby="reports-title">
-      <h1 id="reports-title" className="mb-4 text-xl font-semibold">
+      <h1 id="reports-title" className="hl-large-title mb-4">
         {t('common.nav.reports')}
       </h1>
       <ExportButtons />

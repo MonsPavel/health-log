@@ -43,7 +43,7 @@ export function PrivacyScreen(): JSX.Element {
       <p
         data-testid="privacy-promise"
         role="note"
-        className="rounded-md border border-border p-3 text-sm text-text"
+        className="rounded-[10px] bg-surface p-3 text-sm text-text"
       >
         {t('privacy.promise')}
       </p>
@@ -68,7 +68,7 @@ export function PrivacyScreen(): JSX.Element {
           aria-expanded={selfCheckOpen}
           aria-controls="privacy-selfcheck-body"
           onClick={() => setSelfCheckOpen((open) => !open)}
-          className="min-h-11 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text"
+          className="min-h-11 rounded-xl bg-fill px-4 text-base font-semibold text-text"
         >
           {t('privacy.selfCheck.title')}
         </button>
@@ -77,7 +77,7 @@ export function PrivacyScreen(): JSX.Element {
           <div
             id="privacy-selfcheck-body"
             data-testid="privacy-selfcheck-body"
-            className="mt-2 rounded-md border border-border p-3 text-sm text-text"
+            className="mt-2 rounded-[10px] bg-surface p-3 text-sm text-text"
           >
             <p className="font-medium">{t('privacy.selfCheck.intro')}</p>
             <ol className="mt-2 list-decimal space-y-1 pl-5">

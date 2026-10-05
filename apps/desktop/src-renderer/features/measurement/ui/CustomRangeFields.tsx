@@ -91,7 +91,7 @@ export function CustomRangeFields({ from, to, onApply }: CustomRangeFieldsProps)
           onChange={(event) => handleChange(event.target.value, toDraft)}
           aria-invalid={error === null ? undefined : true}
           aria-describedby={error === 'invalidOrder' ? errorId : undefined}
-          className="min-h-11 rounded-md border border-border bg-transparent px-3 py-2 text-base"
+          className="min-h-11 rounded-[10px] bg-fill px-3 py-2 text-base"
         />
       </div>
       <div className="flex flex-col gap-1">
@@ -106,7 +106,7 @@ export function CustomRangeFields({ from, to, onApply }: CustomRangeFieldsProps)
           onChange={(event) => handleChange(fromDraft, event.target.value)}
           aria-invalid={error === null ? undefined : true}
           aria-describedby={error === null ? undefined : errorId}
-          className="min-h-11 rounded-md border border-border bg-transparent px-3 py-2 text-base"
+          className="min-h-11 rounded-[10px] bg-fill px-3 py-2 text-base"
         />
       </div>
       {error !== null && (

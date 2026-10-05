@@ -1,49 +1,54 @@
 /**
- * TASK-013 §5/§12/§16 + TASK-123 (P7-полировка): токены темы — CSS-переменные,
+ * TASK-013 §5/§12/§16 + TASK-123 v2 (iOS-редизайн): токены темы — CSS-переменные,
  * не JS-константы: тема применяется без ре-рендера дерева (арх. 06 §7).
- * Контраст пар текст/фон, акцент/фон, muted/surface и статусов ≥ 4.5:1 (WCAG AA)
- * зафиксирован контраст-тестом tokens.test.ts и гейтом contrast-audit.mjs
- * (каждая новая пара — строкой в реестре PAIRS, §13 «гейт усиливаем»).
  *
- * TASK-123 «Тихий тонометр» (дизайн-план P7-полировки): палитра из предметной
- * области — спокойный медицинский инструмент + бумажный дневник. Светлая тема:
- * прохладная бумага-«стол» + белая поверхность; тёмная: глубокий сине-графит
- * (не чёрный). Акцент — глубокий клинический teal (свет: #0a6478, тьма: #45c5d8)
- * — единственный голос интерактива и живых данных; статусы — только ok/fail.
- * Новые токены TASK-123: surface (карточки/панели поверх bg), muted (вторичный
- * текст), input-border (опознание полей ≥3:1 — WCAG 1.4.11, закрывает KI-4;
- * проверяется информационной парой аудита).
+ * TASK-123 v2 «iOS-дневник» (решение владельца 05.10 — iOS-подобный дизайн,
+ * iPad-стиль): системная палитра Apple — systemGroupedBackground, inset grouped
+ * поверхности, systemBlue как tint. Светлая: сгруппированный фон #F2F2F7 +
+ * белые группы; тёмная: чёрный фон + #1C1C1E группы (как в iOS Settings).
+ * Тексты статусов — доступные варианты Apple (accessible variants): #248A3D /
+ * #D70015 / #C93400 — они ≥4.5:1, тогда как «сырые» системные цвета Apple
+ * (#34C759, #FF3B30) как текст WCAG AA не проходят.
  *
- * data-theme ставится на <html> (ThemeProvider, §5); :root дублирует light —
- * корректный вид до первого применения атрибута. Правило (§16, усилено TASK-123):
- * анимации — только motion-safe:; цветовые варианты `dark:` (prefers-color-scheme)
- * в компонентах ЗАПРЕЩЕНЫ — только токены (закрытие KI-3).
+ * Новый токен-набор: surface (inset группа), muted (secondaryLabel), fill
+ * (заливка полей/сегментов — rgba(120,120,128,…), как systemFill),
+ * input-border (редкий outline ≥3:1 — KI-4; поля по умолчанию — fill без
+ * рамки), separator (hairline внутри групп), status-warn (доступный
+ * оранжевый).
+ *
+ * data-theme ставится на <html> (ThemeProvider, §5); :root дублирует light.
+ * Цветовые варианты `dark:` в компонентах ЗАПРЕЩЕНЫ (KI-3) — только токены.
+ * Анимации — только motion-safe: (§16).
  *
  * Rem-масштаб текста (классы hl-text-*) — с TASK-048 в theme/scale.css.
  */
 :root,
 [data-theme='light'] {
-  --hl-bg: #eef2f4; /* прохладная бумага-«стол» (TASK-123; было slate-50) */
-  --hl-surface: #ffffff; /* поверхность карточек/панелей (TASK-123) */
-  --hl-text: #13202b; /* глубокие сине-чернильные (TASK-123; было slate-900) */
-  --hl-muted: #52646f; /* вторичный текст ≥4.5:1 на bg и surface (TASK-123) */
-  --hl-accent: #0a6478; /* глубокий клинический teal — интерактив (TASK-123) */
-  --hl-border: #d3dde1; /* границы разделителей */
-  --hl-input-border: #6f8791; /* опознание полей ввода ≥3:1 на surface (KI-4) */
-  --hl-status-ok: #166534; /* зелёный «успех» (6.4:1 на bg, TASK-123: фон стал темнее) */
-  --hl-status-fail: #b91c1c; /* красный «сбой» (6+:1 на bg) */
-  --hl-status-warn: #92400e; /* янтарный «внимание»: баннеры напоминаний (6.4:1 на bg) */
+  --hl-bg: #f2f2f7; /* systemGroupedBackground (light) */
+  --hl-surface: #ffffff; /* secondarySystemGroupedBackground */
+  --hl-text: #000000; /* label */
+  --hl-muted: #6c6c70; /* secondaryLabel-видимый (AA ≥4.5:1; сырой iOS ~3.9) */
+  --hl-accent: #0066cc; /* systemBlue accessible-вариант (AA на группах) */
+  --hl-border: #e3e3e8; /* opaque separator (между группами) */
+  --hl-separator: #c6c6c8; /* separator внутри групп */
+  --hl-fill: rgba(120, 120, 128, 0.12); /* systemFill: поля/сегменты */
+  --hl-input-border: #8e8e93; /* редкий outline ≥3:1 на surface (KI-4) */
+  --hl-status-ok: #166534; /* systemGreen accessible (text, AA на grouped bg) */
+  --hl-status-fail: #d70015; /* systemRed accessible (text) */
+  --hl-status-warn: #c93400; /* systemOrange accessible (text) */
 }
 
 [data-theme='dark'] {
-  --hl-bg: #0e161b; /* глубокий сине-графит (TASK-123; было slate-900) */
-  --hl-surface: #16222a; /* приподнятая поверхность (TASK-123) */
-  --hl-text: #e7eef1; /* основной текст */
-  --hl-muted: #9db0b9; /* вторичный текст ≥4.5:1 на bg и surface (TASK-123) */
-  --hl-accent: #45c5d8; /* светлый клинический teal — интерактив (TASK-123) */
-  --hl-border: #2a3a42; /* границы разделителей */
-  --hl-input-border: #7c949e; /* опознание полей ввода ≥3:1 на surface (KI-4) */
-  --hl-status-ok: #4ade80; /* зелёный «успех» (9+:1 на bg) */
-  --hl-status-fail: #f87171; /* красный «сбой» (6:1 на bg) */
-  --hl-status-warn: #fbbf24; /* янтарный «внимание»: баннеры напоминаний (10+:1 на bg) */
+  --hl-bg: #000000; /* systemGroupedBackground (dark) */
+  --hl-surface: #1c1c1e; /* вторичная группа (dark) */
+  --hl-text: #ffffff; /* label */
+  --hl-muted: #98989f; /* secondaryLabel-видимый (AA ≥4.5:1) */
+  --hl-accent: #0a84ff; /* systemBlue (dark) */
+  --hl-border: #2c2c2e; /* opaque separator (между группами) */
+  --hl-separator: #38383a; /* separator внутри групп */
+  --hl-fill: rgba(120, 120, 128, 0.24); /* systemFill (dark) */
+  --hl-input-border: #8e8e93; /* ≥3:1 на surface */
+  --hl-status-ok: #30d158; /* systemGreen (dark) */
+  --hl-status-fail: #ff453a; /* systemRed (dark) */
+  --hl-status-warn: #ff9f0a; /* systemOrange (dark) */
 }

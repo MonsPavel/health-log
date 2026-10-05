@@ -60,7 +60,7 @@ export function FewDataNote({ count }: FewDataNoteProps): JSX.Element {
     <div
       data-testid="few-data-note"
       role="note"
-      className="mb-3 rounded-md border border-border bg-surface px-3 py-2 text-sm"
+      className="mb-3 rounded-[10px] bg-surface px-3 py-2 text-sm"
     >
       {t(fewDataKeyFor(count), { count })}
     </div>

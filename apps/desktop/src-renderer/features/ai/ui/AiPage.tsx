@@ -86,7 +86,7 @@ export function AiPage(): JSX.Element {
 
   return (
     <section className="mx-auto max-w-2xl p-4" aria-labelledby="ai-title">
-      <h1 id="ai-title" className="mb-4 text-xl font-semibold">
+      <h1 id="ai-title" className="hl-large-title mb-4">
         {t('common.nav.ai')}
       </h1>
 
@@ -94,7 +94,7 @@ export function AiPage(): JSX.Element {
         <div
           data-testid="ai-banner"
           role="status"
-          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-status-warn/40 bg-status-warn/10 px-4 py-3"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-status-warn/10 px-4 py-3"
         >
           <div className="min-w-0">
             <p data-testid="ai-banner-title" className="text-sm font-semibold text-text">
@@ -106,7 +106,7 @@ export function AiPage(): JSX.Element {
             type="button"
             data-testid="ai-banner-later"
             onClick={handleLater}
-            className="min-h-11 shrink-0 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-accent/10"
+            className="min-h-11 shrink-0 rounded-xl bg-fill px-4 text-sm font-semibold text-text hover:bg-accent/10"
           >
             {t('ai.banner.later')}
           </button>

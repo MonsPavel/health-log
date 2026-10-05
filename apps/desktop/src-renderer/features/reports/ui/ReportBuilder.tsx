@@ -31,6 +31,8 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { IoSwitch } from '../../../components/ios/kit.js';
+
 import { type ReportPdfResponse } from '@hl/contracts';
 
 import { call } from '../../../src/lib/ipc';
@@ -96,7 +98,7 @@ async function buildReport(period: {
 }
 
 const GENERATE_CLASS =
-  'inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-base ' +
+  'inline-flex items-center gap-2 rounded-xl bg-fill px-4 py-2 text-base ' +
   'font-medium hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-50';
 
 /** Сборка PDF-отчёта (§5): период, чекбокс ИИ, состав, кнопка, тост, открыть папку. */
@@ -155,7 +157,7 @@ export function ReportBuilder(): JSX.Element {
   const isDisabled = isBusy || stats.isLoading || count === undefined || isEmpty;
 
   return (
-    <div className="rounded-md border border-border p-3">
+    <div className="rounded-[10px] bg-surface p-3">
       {/* §5: период-контрол — семантики TASK-046 (пресеты + CustomRangeFields). */}
       <fieldset data-testid="report-period" className="mb-4 border-0 p-0">
         <legend className="text-sm text-accent">{t('report.period.label')}</legend>
@@ -163,7 +165,7 @@ export function ReportBuilder(): JSX.Element {
           {PERIOD_OPTIONS.map((option) => (
             <label
               key={option}
-              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-base hover:bg-accent/10"
+              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl bg-fill px-3 text-base hover:bg-accent/10"
             >
               <input
                 type="radio"
@@ -201,24 +203,24 @@ export function ReportBuilder(): JSX.Element {
 
       {/* §12: чекбокс ИИ — честная заглушка P4 (§17 report.includeAi.*). */}
       <div className="mb-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            data-testid="report-ai"
-            checked={false}
-            disabled
-            title={t('report.includeAi.tooltip')}
-            className="h-5 w-5 accent-[var(--hl-accent)]"
-          />
+        <span className="flex items-center gap-2">
           <span className="text-base">{t('report.includeAi.label')}</span>
-        </label>
+          <IoSwitch
+            checked={false}
+            onChange={() => undefined}
+            labelText={t('report.includeAi.label')}
+            testid="report-ai"
+            disabled={true}
+            title={t('report.includeAi.tooltip')}
+          />
+        </span>
         <span data-testid="report-ai-hint" className="text-sm text-accent">
           {t('report.includeAi.hint')}
         </span>
       </div>
 
       {/* §4/§5: карточка «Состав отчёта» — чек-лист разделов + count из stats. */}
-      <div data-testid="report-compose" className="mb-4 rounded-md border border-border p-3">
+      <div data-testid="report-compose" className="mb-4 rounded-[10px] bg-surface p-3">
         <h3 className="mb-2 text-base font-semibold">{t('report.compose.title')}</h3>
         <ul className="list-inside list-disc text-base">
           <li>{t('report.compose.table')}</li>
@@ -268,7 +270,7 @@ export function ReportBuilder(): JSX.Element {
               <button
                 type="button"
                 onClick={() => void call('app/reveal-path', { path: notice.path ?? '' })}
-                className="rounded-md border border-border px-3 py-1 text-sm font-medium hover:bg-accent/10"
+                className="rounded-xl bg-fill px-3 py-1 text-sm font-medium hover:bg-accent/10"
               >
                 {t('report.openFolder')}
               </button>

@@ -31,6 +31,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { IoSwitch } from '../../../components/ios/kit.js';
 import { useSearchParams } from 'react-router-dom';
 
 import {
@@ -135,7 +137,7 @@ export function HistoryFilters({
   return (
     <div
       data-testid="history-filters"
-      className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-md border border-border p-3"
+      className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-[10px] bg-surface p-3"
     >
       <fieldset className="border-0 p-0">
         <legend className="text-sm text-accent">{t('measurement.filters.periodLabel')}</legend>
@@ -143,7 +145,7 @@ export function HistoryFilters({
           {PERIOD_OPTIONS.map((period) => (
             <label
               key={period}
-              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-base hover:bg-accent/10 data-disabled:cursor-default data-disabled:opacity-80"
+              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl bg-fill px-3 text-base hover:bg-accent/10 data-disabled:cursor-default data-disabled:opacity-90"
             >
               <input
                 type="radio"
@@ -179,7 +181,7 @@ export function HistoryFilters({
             const value = event.target.value;
             onArm(value === 'left' || value === 'right' ? value : undefined);
           }}
-          className="min-h-11 rounded-md border border-border bg-transparent px-3 py-2 text-base"
+          className="min-h-11 rounded-[10px] bg-fill px-3 py-2 text-base"
         >
           {ARM_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -189,20 +191,15 @@ export function HistoryFilters({
         </select>
       </div>
 
-      <label
-        htmlFor="filter-noted"
-        className="flex min-h-11 cursor-pointer items-center gap-2 text-base"
-      >
-        <input
-          type="checkbox"
-          id="filter-noted"
-          data-testid="filter-noted"
+      <div className="flex min-h-11 items-center justify-between gap-2 text-base">
+        <span id="filter-noted-label">{t('measurement.filters.noted')}</span>
+        <IoSwitch
           checked={state.noted === true}
-          onChange={(event) => onNoted(event.target.checked)}
-          className="h-5 w-5 accent-[var(--hl-accent)]"
+          onChange={onNoted}
+          labelText={t('measurement.filters.noted')}
+          testid="filter-noted"
         />
-        {t('measurement.filters.noted')}
-      </label>
+      </div>
 
       <div className="flex flex-col gap-1">
         {/* TASK-045 §16: label + type="search"; Esc очищает (§16), ×-кнопка — тоже (§10). */}
@@ -222,7 +219,7 @@ export function HistoryFilters({
                 clearQuery();
               }
             }}
-            className="min-h-11 w-56 rounded-md border border-border bg-transparent px-3 py-2 text-base"
+            className="min-h-11 w-56 rounded-[10px] bg-fill px-3 py-2 text-base"
           />
           {queryDraft !== '' && (
             <button
@@ -230,7 +227,7 @@ export function HistoryFilters({
               data-testid="filter-query-clear"
               aria-label={t('measurement.search.clear')}
               onClick={clearQuery}
-              className="min-h-11 min-w-11 rounded-md border border-border px-3 text-base hover:bg-accent/10"
+              className="min-h-11 min-w-11 rounded-xl bg-fill px-3 text-base hover:bg-accent/10"
             >
               ×
             </button>
@@ -242,7 +239,7 @@ export function HistoryFilters({
         type="button"
         data-testid="filters-reset"
         onClick={onReset}
-        className="min-h-11 rounded-md border border-border px-4 py-2 text-sm hover:bg-accent/10"
+        className="min-h-11 rounded-xl bg-fill px-4 py-2 text-sm hover:bg-accent/10"
       >
         {t('measurement.filters.reset')}
       </button>

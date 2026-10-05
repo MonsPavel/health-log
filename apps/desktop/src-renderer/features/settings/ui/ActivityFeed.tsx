@@ -84,10 +84,7 @@ export function ActivityFeed({ entries }: ActivityFeedProps): JSX.Element {
         {t('privacy.feed.title')}
       </h3>
       {entries.length === 0 ? (
-        <p
-          data-testid="feed-empty"
-          className="rounded-md border border-border p-3 text-sm text-accent"
-        >
+        <p data-testid="feed-empty" className="rounded-[10px] bg-surface p-3 text-sm text-accent">
           {t('privacy.feed.empty')}
         </p>
       ) : (
@@ -99,7 +96,7 @@ export function ActivityFeed({ entries }: ActivityFeedProps): JSX.Element {
               <li
                 key={`${entry.atUtc}-${index}`}
                 data-testid="feed-row"
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border p-3 text-sm"
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] bg-surface p-3 text-sm"
               >
                 {/* Настенное время строки журнала до минут (Intl, прецедент LastCheckRow). */}
                 <span data-testid="feed-time" className="text-accent">

@@ -137,9 +137,9 @@ describe('HistoryFilters — структура и a11y (§16/§17)', () => {
   it('чекбокс «Только с заметками» с label, отмечен по проп-состоянию (§17 filters.noted)', () => {
     renderFilters({ period: '30d', noted: true });
 
-    const checkbox = screen.getByLabelText<HTMLInputElement>('Только с заметками');
-    expect(checkbox.type).toBe('checkbox');
-    expect(checkbox.checked).toBe(true);
+    // TASK-123 v2: тумблер role=switch, состояние в aria-checked.
+    const toggle = screen.getByRole('switch', { name: 'Только с заметками' });
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
   });
 
   it('кнопка сброса фильтров присутствует (§17 filters.reset)', () => {
