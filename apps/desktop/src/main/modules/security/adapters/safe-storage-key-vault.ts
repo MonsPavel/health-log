@@ -182,6 +182,24 @@ export class SafeStorageKeyVault implements KeyVault {
     return this.pending;
   }
 
+  /**
+   * TASK-122: мутации/чтения файла vault сериализуются с летящим ensureKey.
+   * Сценарий кейса 1 (генерация + запись файла на свежем профиле) в момент
+   * стороннего вызова может быть ещё в полёте; без упорядочивания:
+   *  - setPassphrase/unlock читают ещё несуществующий файл → призрачный
+   *    VAULT/KEY_MISSING сразу после установки (окно гонки, TASK-122);
+   *  - importKey записывает свой файл, а завершающийся generateAndStore
+   *    перезаписывает его поверх старым ключом → ключ БД (импортированный) и
+   *    vault расходятся — при следующем старте KEY_CORRUPT/чужой ключ.
+   * Ожидание settles сценария: последующее чтение видит финальный файл; err
+   * ensureKey кэширован не будет (кэшируется только ok, §13) — повтор честен.
+   */
+  private async settlePendingEnsureKey(): Promise<void> {
+    if (this.pending !== undefined) {
+      await this.pending;
+    }
+  }
+
   /** §5: wrapped-ключ как есть — без keyring и расшифровки (см. порт; passphrase → отказ). */
   async exportKeyForBackup(): Promise<Result<WrappedKeyBlob, AppError>> {
     const state = await this.readVaultFile();
@@ -203,6 +221,7 @@ export class SafeStorageKeyVault implements KeyVault {
 
   /** TASK-093 §5/§13: включение пароля — переобёртка файла (см. порт). */
   async setPassphrase(passphrase: string): Promise<Result<void, AppError>> {
+    await this.settlePendingEnsureKey(); // TASK-122: не соревноваться с кейсом 1
     const state = await this.readVaultFile();
     if (state.kind === 'missing') {
       return this.fail('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY);
@@ -243,6 +262,7 @@ export class SafeStorageKeyVault implements KeyVault {
     oldPassphrase: string,
     newPassphrase: string,
   ): Promise<Result<void, AppError>> {
+    await this.settlePendingEnsureKey(); // TASK-122
     const state = await this.readVaultFile();
     if (state.kind === 'missing') {
       return this.fail('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY);
@@ -275,6 +295,7 @@ export class SafeStorageKeyVault implements KeyVault {
 
   /** TASK-093 §5/§13: снятие пароля → возврат в mode='safeStorage' (см. порт). */
   async removePassphrase(oldPassphrase: string): Promise<Result<void, AppError>> {
+    await this.settlePendingEnsureKey(); // TASK-122
     const state = await this.readVaultFile();
     if (state.kind === 'missing') {
       return this.fail('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY);
@@ -314,6 +335,7 @@ export class SafeStorageKeyVault implements KeyVault {
     if (this.cached?.ok === true) {
       return ok(undefined); // сессия уже разблокирована (§13)
     }
+    await this.settlePendingEnsureKey(); // TASK-122: чтение после записи кейса 1
     const state = await this.readVaultFile();
     if (state.kind === 'missing') {
       return this.fail('VAULT/KEY_MISSING', VAULT_KEY_MISSING_MESSAGE_KEY);
@@ -352,6 +374,7 @@ export class SafeStorageKeyVault implements KeyVault {
         'importKey: keyHex должен быть строкой из 64 hex-символов (32 байта) — нарушение контракта является программной ошибкой (TASK-121 §3)',
       );
     }
+    await this.settlePendingEnsureKey(); // TASK-122: запись не должна инвертироваться записью кейса 1
     if (!this.safeStorage.isEncryptionAvailable()) {
       return this.fail('VAULT/UNAVAILABLE', VAULT_UNAVAILABLE_MESSAGE_KEY, {
         platform: process.platform,
