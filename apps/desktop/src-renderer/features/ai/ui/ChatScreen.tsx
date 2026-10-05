@@ -271,9 +271,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
       {/* §5: empty-state — подсказка + три чипа (вставка в поле, НЕ отправка). */}
       {feedEmpty ? (
         <div data-testid="chat-empty" className="mb-4">
-          <p className="mb-2 text-sm text-neutral-600 dark:text-neutral-300">
-            {t('ai.chat.emptyHint')}
-          </p>
+          <p className="mb-2 text-sm text-muted">{t('ai.chat.emptyHint')}</p>
           <SuggestedQuestions onPick={setQuestion} />
         </div>
       ) : null}
@@ -283,7 +281,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
         <div
           data-testid="chat-error"
           role="alert"
-          className="mb-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 dark:border-red-500/40 dark:bg-red-500/10"
+          className="mb-4 rounded-md border border-status-fail/40 bg-status-fail/10 px-3 py-2"
         >
           <p className="text-sm font-medium text-text">{t('ai.chat.errorInterrupted')}</p>
           <button
@@ -302,13 +300,11 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
       {modelStateKnown && !modelConfigured ? (
         <div
           data-testid="chat-model-cta"
-          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-neutral-50 px-4 py-3 dark:bg-neutral-900"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface px-4 py-3"
         >
           <div className="min-w-0">
             <p className="text-sm font-semibold text-text">{t('ai.chat.modelCta.title')}</p>
-            <p className="mt-0.5 text-sm text-neutral-600 dark:text-neutral-300">
-              {t('ai.chat.modelCta.body')}
-            </p>
+            <p className="mt-0.5 text-sm text-muted">{t('ai.chat.modelCta.body')}</p>
           </div>
           <button
             type="button"
@@ -346,7 +342,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
                 type="button"
                 data-testid="chat-stop"
                 onClick={generation.stop}
-                className="min-h-11 shrink-0 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                className="min-h-11 shrink-0 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text hover:bg-accent/10"
               >
                 {t('ai.chat.stop')}
               </button>
@@ -367,11 +363,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
 
       {/* §2/§14: дисклеймер-футер несъёмный (текст общий с разбором — §17 089:
           тот же, что добавляет use case в каждый assistant-ответ). */}
-      <footer
-        data-testid="chat-disclaimer"
-        role="note"
-        className="mb-6 text-sm text-neutral-600 dark:text-neutral-300"
-      >
+      <footer data-testid="chat-disclaimer" role="note" className="mb-6 text-sm text-muted">
         <span className="font-semibold">{t('ai.insight.disclaimer')}</span>
       </footer>
 
@@ -383,7 +375,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
             <button
               type="button"
               data-testid="chat-clear"
-              className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-accent/10"
             >
               {t('ai.chat.clear')}
             </button>

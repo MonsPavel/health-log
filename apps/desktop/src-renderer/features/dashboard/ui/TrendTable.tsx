@@ -106,7 +106,7 @@ function RawTable({
         type="button"
         data-testid={testId}
         onClick={() => toggle(key)}
-        className="min-h-11 rounded px-1 font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-800"
+        className="min-h-11 rounded px-1 font-semibold hover:bg-accent/10"
       >
         {label}
       </button>

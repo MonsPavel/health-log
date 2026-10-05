@@ -324,7 +324,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
         ) : preview.isError ? (
           <p
             role="alert"
-            className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-text dark:border-red-500/40 dark:bg-red-500/10"
+            className="rounded-md border border-status-fail/40 bg-status-fail/10 px-3 py-2 text-sm text-text"
           >
             {t('ai.insight.preview.loadError')}
           </p>
@@ -337,13 +337,11 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
       {modelStateKnown && !modelConfigured ? (
         <div
           data-testid="insight-model-cta"
-          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-neutral-50 px-4 py-3 dark:bg-neutral-900"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface px-4 py-3"
         >
           <div className="min-w-0">
             <p className="text-sm font-semibold text-text">{t('ai.insight.modelCta.title')}</p>
-            <p className="mt-0.5 text-sm text-neutral-600 dark:text-neutral-300">
-              {t('ai.insight.modelCta.body')}
-            </p>
+            <p className="mt-0.5 text-sm text-muted">{t('ai.insight.modelCta.body')}</p>
           </div>
           <button
             type="button"
@@ -363,7 +361,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
               type="button"
               data-testid="insight-stop"
               onClick={handleStop}
-              className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text hover:bg-accent/10"
             >
               {t('ai.insight.stop')}
             </button>
@@ -385,7 +383,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
         <div
           data-testid="insight-error"
           role="alert"
-          className="mb-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 dark:border-red-500/40 dark:bg-red-500/10"
+          className="mb-4 rounded-md border border-status-fail/40 bg-status-fail/10 px-3 py-2"
         >
           <p className="text-sm font-medium text-text">{t('ai.insight.errorInterrupted')}</p>
           <button
@@ -420,7 +418,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
           onStaleClick={handleGenerate}
         />
       ) : !latest.isPending ? (
-        <p data-testid="insight-empty" className="text-sm text-neutral-600 dark:text-neutral-300">
+        <p data-testid="insight-empty" className="text-sm text-muted">
           {t('ai.insight.empty')}
         </p>
       ) : null}
@@ -433,7 +431,7 @@ export function InsightScreen({ onGoToModel }: InsightScreenProps): JSX.Element 
             <button
               type="button"
               data-testid="insight-clear"
-              className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-accent/10"
             >
               {t('ai.insight.clear.button')}
             </button>

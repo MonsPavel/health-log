@@ -159,7 +159,7 @@ function HistorySkeleton(): JSX.Element {
           key={row}
           data-testid="skeleton-row"
           aria-hidden="true"
-          className="mb-2 h-6 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700"
+          className="mb-2 h-6 animate-pulse rounded bg-border"
         />
       ))}
     </div>
@@ -186,7 +186,7 @@ function EmptyFiltered({ onReset }: { readonly onReset: () => void }): JSX.Eleme
         type="button"
         data-testid="empty-filtered-reset"
         onClick={onReset}
-        className="mt-4 rounded-md border border-border px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+        className="mt-4 rounded-md border border-border px-4 py-2 text-sm hover:bg-accent/10"
       >
         {t('measurement.filters.reset')}
       </button>
@@ -355,7 +355,7 @@ export function HistoryScreen(): JSX.Element {
         <button
           type="button"
           onClick={() => void (isSearching ? search.refetch() : measurements.refetch())}
-          className="rounded-md border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800"
+          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-accent/10"
         >
           {t('measurement.history.retry')}
         </button>
@@ -411,7 +411,7 @@ export function HistoryScreen(): JSX.Element {
           data-testid="search-found"
           role="status"
           aria-live="polite"
-          className="mb-2 text-sm text-neutral-500"
+          className="mb-2 text-sm text-muted"
         >
           {t(foundKeyFor(items.length), { n: items.length })}
         </p>
@@ -419,7 +419,7 @@ export function HistoryScreen(): JSX.Element {
 
       {/* TASK-045 §13: результат равен лимиту страницы — предупреждение об усечении. */}
       {isSearching && items.length === SEARCH_PAGE_LIMIT && (
-        <p data-testid="search-truncated" className="mb-2 text-xs text-neutral-500">
+        <p data-testid="search-truncated" className="mb-2 text-xs text-muted">
           {t('measurement.search.truncated50', { n: SEARCH_PAGE_LIMIT })}
         </p>
       )}
@@ -474,14 +474,14 @@ export function HistoryScreen(): JSX.Element {
           усечение §13; total/пагинации у notes/search нет, §11). */}
       {items.length > 0 && !isSearching && (
         <>
-          <p data-testid="history-shown" className="mt-2 text-xs text-neutral-500">
+          <p data-testid="history-shown" className="mt-2 text-xs text-muted">
             {t('measurement.history.shownOf', { shown: items.length, total })}
           </p>
           {measurements.hasNextPage ? (
             <button
               type="button"
               onClick={() => void measurements.fetchNextPage()}
-              className="mt-2 rounded-md border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800"
+              className="mt-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-accent/10"
             >
               {t('measurement.history.showMore')}
             </button>

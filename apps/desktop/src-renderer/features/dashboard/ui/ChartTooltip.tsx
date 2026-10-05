@@ -113,9 +113,7 @@ export function ChartTooltip({
             <span className="font-medium">{formatNumber(day.pulseAvg)}</span>{' '}
             <span>{t('dashboard.pulse.unit')}</span>
           </p>
-          <p className="text-neutral-500">
-            {t('dashboard.tooltip.measurements', { count: day.count })}
-          </p>
+          <p className="text-muted">{t('dashboard.tooltip.measurements', { count: day.count })}</p>
         </div>
       );
     }
@@ -137,9 +135,7 @@ export function ChartTooltip({
           {t('dashboard.tooltip.range')}:{' '}
           <span className="font-medium">{formatRange(day.diaMin, day.diaMax)}</span>
         </p>
-        <p className="text-neutral-500">
-          {t('dashboard.tooltip.measurements', { count: day.count })}
-        </p>
+        <p className="text-muted">{t('dashboard.tooltip.measurements', { count: day.count })}</p>
       </div>
     );
   }
@@ -167,15 +163,15 @@ export function ChartTooltip({
           </p>
         )}
         {point.irregular === true && (
-          <p className="text-neutral-500">{t('dashboard.pulse.irregularTooltip')}</p>
+          <p className="text-muted">{t('dashboard.pulse.irregularTooltip')}</p>
         )}
-        <p className="text-neutral-500">{t(PART_KEY[point.part])}</p>
+        <p className="text-muted">{t(PART_KEY[point.part])}</p>
         {point.id !== undefined && onEditPoint !== undefined && (
           <button
             type="button"
             data-testid="chart-tooltip-edit"
             onClick={() => onEditPoint(point)}
-            className="mt-1 min-h-11 rounded-md border border-border px-3 py-1 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            className="mt-1 min-h-11 rounded-md border border-border px-3 py-1 text-sm hover:bg-accent/10"
           >
             {t('dashboard.tooltip.edit')}
           </button>
@@ -201,13 +197,13 @@ export function ChartTooltip({
           <span className="font-medium">{formatNumber(point.pulse)}</span>
         </p>
       )}
-      <p className="text-neutral-500">{t(PART_KEY[point.part])}</p>
+      <p className="text-muted">{t(PART_KEY[point.part])}</p>
       {point.id !== undefined && onEditPoint !== undefined && (
         <button
           type="button"
           data-testid="chart-tooltip-edit"
           onClick={() => onEditPoint(point)}
-          className="mt-1 min-h-11 rounded-md border border-border px-3 py-1 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          className="mt-1 min-h-11 rounded-md border border-border px-3 py-1 text-sm hover:bg-accent/10"
         >
           {t('dashboard.tooltip.edit')}
         </button>

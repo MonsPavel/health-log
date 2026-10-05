@@ -124,7 +124,7 @@ export function AboutSection(): JSX.Element {
               state === 'ok'
                 ? 'border-border bg-transparent text-status-ok'
                 : state === 'failed'
-                  ? 'border-red-600 bg-transparent text-status-fail'
+                  ? 'border-status-fail bg-transparent text-status-fail'
                   : 'border-border bg-transparent text-accent'
             }`}
           >
@@ -175,7 +175,7 @@ export function AboutSection(): JSX.Element {
             disabled={full.isPending}
             aria-busy={full.isPending}
             onClick={() => full.mutate()}
-            className="min-h-11 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-80"
           >
             {t('about.fullCheck.title')}
           </button>

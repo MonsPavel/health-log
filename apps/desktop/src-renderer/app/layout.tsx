@@ -27,7 +27,7 @@ const SECTIONS: readonly Section[] = [
 ];
 
 /** Базовые классы ссылки; активный раздел подсвечен акцентом (§20, п. 1). */
-const LINK_BASE_CLASS = 'block rounded-md px-3 py-2 text-base no-underline hover:bg-accent/10';
+const LINK_BASE_CLASS = 'block rounded-lg px-3 py-2 text-base no-underline hover:bg-accent/10';
 
 /** Каркас экрана: skip-link + Sidebar + контент (children — subtree роутера, §15). */
 export function AppLayout({ children }: { readonly children: ReactNode }): JSX.Element {
@@ -52,7 +52,10 @@ export function AppLayout({ children }: { readonly children: ReactNode }): JSX.E
       >
         {t('common.skipToContent')}
       </a>
-      <nav aria-label={t('common.sections')} className="w-60 shrink-0 border-r border-border p-4">
+      <nav
+        aria-label={t('common.sections')}
+        className="w-60 shrink-0 border-r border-border bg-surface p-4"
+      >
         <ul className="flex flex-col gap-1">
           {SECTIONS.map((section) => (
             <li key={section.path}>

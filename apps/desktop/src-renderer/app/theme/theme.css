@@ -20,13 +20,20 @@
 
 @theme inline {
   --color-bg: var(--hl-bg);
+  --color-surface: var(--hl-surface);
   --color-text: var(--hl-text);
+  --color-muted: var(--hl-muted);
   --color-accent: var(--hl-accent);
   --color-border: var(--hl-border);
+  --color-input-border: var(--hl-input-border);
   /* TASK-108 §5: статусные цвета — через токены (следуют data-theme, НЕ media
      dark: — классы dark: в проекте отвечают prefers-color-scheme ОС). */
   --color-status-ok: var(--hl-status-ok);
   --color-status-fail: var(--hl-status-fail);
+  --color-status-warn: var(--hl-status-warn);
+  /* TASK-123: одна мягкая тень подъёма для surface поверх bg (иерархия через
+     слои, не через рамки; двойная — почти невидимая, но держит край). */
+  --shadow-e1: 0 1px 2px rgb(19 32 43 / 0.05), 0 4px 16px rgb(19 32 43 / 0.06);
 }
 
 @layer base {
@@ -38,5 +45,27 @@
   :focus-visible {
     outline: 2px solid var(--hl-accent);
     outline-offset: 2px;
+  }
+
+  /* TASK-123: цифры показаний — табличные, выравниваются в столбик (панель
+     критических значений, таблицы, карточки средних). */
+  .hl-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* TASK-123 §16: единственные переходы интерфейса — отклик на действие
+     (hover/active), 120 мс, только для тех, кто не выключил анимацию. */
+  @media (prefers-reduced-motion: no-preference) {
+    button,
+    a,
+    select,
+    input,
+    [role='button'] {
+      transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease,
+        box-shadow 120ms ease;
+    }
   }
 }

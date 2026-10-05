@@ -95,7 +95,7 @@ export function FlagBadges({ measurement }: FlagBadgesProps): JSX.Element | null
           })}
           title={t(CRITICAL_ARIA_KEY[critical], { sys: measurement.sys, dia: measurement.dia })}
           onClick={() => setPanelOpen(true)}
-          className="flex min-h-11 shrink-0 items-center gap-1 rounded border border-accent px-2 text-xs font-semibold text-text hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          className="flex min-h-11 shrink-0 items-center gap-1 rounded border border-accent px-2 text-xs font-semibold text-text hover:bg-accent/10"
         >
           <span aria-hidden="true" data-testid="flag-icon-critical" className="font-semibold">
             {CRITICAL_ICON[critical]}
@@ -108,7 +108,7 @@ export function FlagBadges({ measurement }: FlagBadgesProps): JSX.Element | null
           data-testid="flag-irregular"
           aria-label={t('measurement.flags.irregularAria')}
           title={t('measurement.flags.irregularAria')}
-          className="flex items-center gap-1 text-xs text-neutral-500"
+          className="flex items-center gap-1 text-xs text-muted"
         >
           <span aria-hidden="true" data-testid="flag-icon-irregular" className="font-semibold">
             ~
@@ -157,7 +157,7 @@ export function FlagLegend(): JSX.Element {
     <p
       data-testid="flag-legend"
       title={t('measurement.flags.legendTooltip')}
-      className="mb-2 text-xs text-neutral-500"
+      className="mb-2 text-xs text-muted"
     >
       {t('measurement.flags.legend')}
     </p>

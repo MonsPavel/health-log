@@ -25,7 +25,7 @@ export function EmptyHistory({ onAdd }: EmptyHistoryProps): JSX.Element {
         🩺
       </span>
       <p className="text-base font-medium">{t('measurement.history.empty.title')}</p>
-      <p className="max-w-sm text-sm text-neutral-500">{t('measurement.history.empty.hint')}</p>
+      <p className="max-w-sm text-sm text-muted">{t('measurement.history.empty.hint')}</p>
       <button
         type="button"
         onClick={onAdd}

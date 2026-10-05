@@ -143,7 +143,7 @@ export function HistoryFilters({
           {PERIOD_OPTIONS.map((period) => (
             <label
               key={period}
-              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-base hover:bg-accent/10 data-disabled:cursor-default data-disabled:opacity-50"
+              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-base hover:bg-accent/10 data-disabled:cursor-default data-disabled:opacity-80"
             >
               <input
                 type="radio"
@@ -230,7 +230,7 @@ export function HistoryFilters({
               data-testid="filter-query-clear"
               aria-label={t('measurement.search.clear')}
               onClick={clearQuery}
-              className="min-h-11 min-w-11 rounded-md border border-border px-3 text-base hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="min-h-11 min-w-11 rounded-md border border-border px-3 text-base hover:bg-accent/10"
             >
               ×
             </button>
@@ -242,7 +242,7 @@ export function HistoryFilters({
         type="button"
         data-testid="filters-reset"
         onClick={onReset}
-        className="min-h-11 rounded-md border border-border px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+        className="min-h-11 rounded-md border border-border px-4 py-2 text-sm hover:bg-accent/10"
       >
         {t('measurement.filters.reset')}
       </button>

@@ -39,8 +39,8 @@ export function DayGroup({ group, nowMs, onRowAction }: DayGroupProps): JSX.Elem
 
   return (
     <section data-testid="day-group" className="mb-4">
-      <h2 className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">{title}</h2>
-      <ul className="divide-y divide-neutral-200 dark:divide-neutral-700">
+      <h2 className="mb-1 text-sm font-semibold text-muted">{title}</h2>
+      <ul className="divide-y divide-border">
         {group.items.map((measurement) => (
           <MeasurementRow
             key={measurement.id}

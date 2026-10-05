@@ -53,8 +53,8 @@ function SummarySkeleton(): JSX.Element {
   return (
     <div data-testid="summary-skeleton" role="status" aria-label={t('common.loading')}>
       <div aria-hidden="true" className="animate-pulse rounded-md border border-border p-4">
-        <div className="mb-2 h-4 w-1/4 rounded bg-neutral-200 dark:bg-neutral-700" />
-        <div className="h-10 w-1/3 rounded bg-neutral-200 dark:bg-neutral-700" />
+        <div className="mb-2 h-4 w-1/4 rounded bg-border" />
+        <div className="h-10 w-1/3 rounded bg-border" />
       </div>
     </div>
   );
@@ -88,9 +88,7 @@ function WelcomeState({ onAdd }: { readonly onAdd: () => void }): JSX.Element {
       <p data-testid="dashboard-welcome-title" className="text-lg font-semibold">
         {t('dashboard.welcome.title')}
       </p>
-      <p className="max-w-sm text-sm text-neutral-500 dark:text-neutral-400">
-        {t('dashboard.welcome.hint')}
-      </p>
+      <p className="max-w-sm text-sm text-muted">{t('dashboard.welcome.hint')}</p>
       <button
         type="button"
         data-testid="dashboard-welcome-add"
@@ -173,14 +171,12 @@ export function SummaryScreen(): JSX.Element {
         <SummarySkeleton />
       ) : last.isError ? (
         <section className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-          <p className="text-base text-neutral-500 dark:text-neutral-400">
-            {t('common.nav.dashboard')}
-          </p>
+          <p className="text-base text-muted">{t('common.nav.dashboard')}</p>
           <button
             type="button"
             data-testid="summary-retry"
             onClick={() => void last.refetch()}
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800"
+            className="rounded-md border border-border px-4 py-2 text-sm hover:bg-accent/10"
           >
             {t('dashboard.error.retry')}
           </button>

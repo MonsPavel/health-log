@@ -61,10 +61,10 @@ export function ChatBubble({
   const roleLabel = role === 'user' ? t('ai.chat.roleYou') : t('ai.chat.roleAssistant');
 
   const tone = refusal
-    ? 'border-border bg-neutral-100 text-neutral-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300'
+    ? 'border-border bg-surface text-muted'
     : role === 'user'
       ? 'bg-accent text-bg'
-      : 'bg-neutral-100 text-text dark:bg-neutral-800';
+      : 'border-border bg-surface text-text';
 
   return (
     <div
