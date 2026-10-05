@@ -150,7 +150,7 @@ export function HistoryFilters({
               return (
                 <label
                   key={period}
-                  className={`flex min-h-11 cursor-pointer items-center gap-1.5 rounded-[10px] px-3 text-sm font-medium has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent data-disabled:cursor-default data-disabled:opacity-90 ${
+                  className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-[10px] px-4 text-sm font-medium has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent data-disabled:cursor-default data-disabled:opacity-90 ${
                     active ? 'bg-accent text-bg' : 'bg-fill text-text hover:bg-accent/10'
                   }`}
                 >

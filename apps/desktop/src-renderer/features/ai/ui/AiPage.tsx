@@ -127,10 +127,8 @@ export function AiPage(): JSX.Element {
             data-testid={TAB_META[candidate].testId}
             aria-pressed={tab === candidate}
             onClick={() => setTab(candidate)}
-            className={`min-h-11 rounded-md border px-4 text-base ${
-              tab === candidate
-                ? 'border-accent bg-accent/10 font-medium'
-                : 'border-border hover:bg-accent/10'
+            className={`min-h-11 rounded-[10px] px-4 text-sm font-medium ${
+              tab === candidate ? 'bg-accent text-bg' : 'bg-fill text-text hover:bg-accent/10'
             }`}
           >
             {t(TAB_META[candidate].labelKey)}

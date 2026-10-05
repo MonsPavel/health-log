@@ -165,7 +165,11 @@ export function ReportBuilder(): JSX.Element {
           {PERIOD_OPTIONS.map((option) => (
             <label
               key={option}
-              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl bg-fill px-3 text-base hover:bg-accent/10"
+              className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-[10px] px-4 text-sm font-medium ${
+                state.period === option
+                  ? 'bg-accent text-bg'
+                  : 'bg-fill text-text hover:bg-accent/10'
+              }`}
             >
               <input
                 type="radio"
@@ -178,7 +182,7 @@ export function ReportBuilder(): JSX.Element {
                     option === 'custom' ? { ...state, period: 'custom' } : { period: option },
                   )
                 }
-                className="h-5 w-5 hl-radio"
+                className="sr-only"
               />
               {t(PERIOD_KEY[option])}
             </label>

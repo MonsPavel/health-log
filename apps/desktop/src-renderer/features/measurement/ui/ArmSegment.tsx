@@ -27,12 +27,14 @@ export function ArmSegment({ value, onArm }: ArmSegmentProps): JSX.Element {
 
   return (
     <fieldset className="border-0 p-0">
-      <legend className="text-sm text-accent">{t('measurement.fields.arm')}</legend>
+      <legend className="mb-1.5 text-[13px] text-muted">{t('measurement.fields.arm')}</legend>
       <div className="flex gap-2">
         {options.map((option) => (
           <label
             key={option.arm}
-            className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-fill px-3 text-base hover:bg-accent/10"
+            className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-[10px] px-4 text-sm font-medium has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${
+              value === option.arm ? 'bg-accent text-bg' : 'bg-fill text-text hover:bg-accent/10'
+            }`}
           >
             <input
               type="radio"
@@ -40,7 +42,7 @@ export function ArmSegment({ value, onArm }: ArmSegmentProps): JSX.Element {
               value={option.arm}
               checked={value === option.arm}
               onChange={() => onArm(option.arm)}
-              className="h-5 w-5 hl-radio"
+              className="sr-only"
             />
             {option.label}
           </label>
