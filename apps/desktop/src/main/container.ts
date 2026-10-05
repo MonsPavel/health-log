@@ -129,6 +129,9 @@ import { createExportCsvHandler, createExportJsonHandler } from './ipc/handlers/
 import { createBuildPdfReportHandler } from './ipc/handlers/report-pdf.js';
 // TASK-101 §5/§9: «Открыть папку с копиями» recovery-экрана (reveal каталога копий main).
 import { createRevealBackupsHandler, createRevealPathHandler } from './ipc/handlers/reveal.js';
+// TASK-113 §5/§8–12: хендлер «Помощи» — открытие страницы руководства docs/user
+// (whitelist DOC_PAGES — единственная санитизация page-параметра).
+import { createOpenDocsHandler } from './ipc/handlers/open-docs.js';
 import { createSearchNotesHandler } from './ipc/handlers/search.js';
 import { createGetPrefsHandler, createSetPrefsHandler } from './ipc/handlers/prefs.js';
 // TASK-100 §5/§11: каналы сампроверки и «О приложении» — app/selfcheck (снимок),
@@ -302,6 +305,9 @@ import { createLogger, type HlLogger } from './shared/logger/logger.js';
 import { JobScheduler } from './shared/scheduler/scheduler.js';
 import { WorkerPool, type WorkerPoolOptions } from './shared/workerpool/pool.js';
 import { electronRevealPath } from './platform/reveal-path.js';
+// TASK-113 §5/§6: боевой адаптер «Помощи» — открытие страницы руководства
+// docs/user (shell.openPath для локального файла, shell.openExternal — репозиторий).
+import { defaultDocsRoot, electronOpenDocFile, electronOpenDocUrl } from './platform/open-docs.js';
 
 /** Имя файла БД в userData (§8): `<userData>/health-log.db` (+ `-wal`, `-shm`). */
 export const DATABASE_FILENAME = 'health-log.db';
@@ -1981,6 +1987,28 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         });
       }),
     );
+    // TASK-113 §5/§8–12: «Помощь» экрана настроек — открыть страницу руководства
+    // docs/user. page уже санитизирован whitelist'ом DOC_PAGES (каркас, §8–12);
+    // путь строит main (renderer пути не знает, §14). Fire-and-forget §9: отказ
+    // открытия (нет ассоциации .md / браузера) глушится warn-ом — конверт всегда
+    // ok null.
+    channels.register(
+      'app/open-docs',
+      CHANNEL_SCHEMAS['app/open-docs'],
+      createOpenDocsHandler({
+        resolveDocPath: (page) => join(defaultDocsRoot(), `${page}.md`),
+        fileExists: existsSync,
+        openPath: (path) =>
+          electronOpenDocFile(path).catch(() => {
+            // §18: без путей и причин.
+            logger.warn('app/open-docs: не удалось открыть файл руководства');
+          }),
+        openExternal: (url) =>
+          electronOpenDocUrl(url).catch(() => {
+            logger.warn('app/open-docs: не удалось открыть руководство в браузере');
+          }),
+      }),
+    );
     // TASK-081 §5/§11: витрина моделей — list одним вызовом (§7); download/resume —
     // финал флоу 080 (ход — событиями ai:progress); pause/reset — статус сразу;
     // select — prefs.aiSettings.modelId (ensureModel лениво — 087, §9).
@@ -2151,11 +2179,32 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
       createAppMetaHandler({
         appVersion,
         selfcheck,
+        // §7 094 (уточнение TASK-113): meta — канал версий/режима, ОБЯЗАН отвечать
+        // и в locked: чтения БД (шкала/модель) при закрытом соединении дают
+        // VAULT/LOCKED — данные честно опускаются (§7 контракта 100), иначе гейт
+        // загрузки рендерера (recovery → app/meta) висит в loading навсегда и
+        // экран пароля не показывается (воспроизведено e2e-репетицией §20 AC-2).
         scales: async () => {
-          const scale = await scaleService.getActiveScale();
-          return { code: scale.code, version: scale.version };
+          try {
+            const scale = await scaleService.getActiveScale();
+            return { code: scale.code, version: scale.version };
+          } catch (cause) {
+            if (cause instanceof AppError && cause.code === 'VAULT/LOCKED') {
+              return undefined;
+            }
+            throw cause;
+          }
         },
-        model: modelMeta,
+        model: async () => {
+          try {
+            return await modelMeta();
+          } catch (cause) {
+            if (cause instanceof AppError && cause.code === 'VAULT/LOCKED') {
+              return undefined;
+            }
+            throw cause;
+          }
+        },
         // TASK-101 §9/§10: ЛЕНИВОЕ чтение состояния — в passphrase recovery вводится
         // после unlock (позже регистрации канала), гейт App перечитывает meta.
         recovery: () => recoveryContext,

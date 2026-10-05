@@ -32,10 +32,17 @@ export interface AppMetaPorts {
   readonly appVersion: string;
   /** Сервис сампроверки: schemaVersion — из снимка старта (статичен за сессию). */
   readonly selfcheck: SelfCheckService;
-  /** Активная шкала (code+version) — ScaleService (кэш в памяти, §15 051). */
-  readonly scales?: () => Promise<{ code: string; version: string }>;
-  /** Активная модель (id+версия) — мета prefs+реестра 079 ('' — не выбрана). */
-  readonly model?: () => Promise<{ modelId: string; modelVersion: string }>;
+  /**
+   * Активная шкала (code+version) — ScaleService (кэш в памяти, §15 051).
+   * undefined — чтение недоступно (locked: VAULT/LOCKED, TASK-113 — данные
+   * честно опускаются, гейт загрузки не ждёт).
+   */
+  readonly scales?: () => Promise<{ code: string; version: string } | undefined>;
+  /**
+   * Активная модель (id+версия) — мета prefs+реестра 079 ('' — не выбрана).
+   * undefined — чтение недоступно (locked: VAULT/LOCKED, TASK-113).
+   */
+  readonly model?: () => Promise<{ modelId: string; modelVersion: string } | undefined>;
   /**
    * TASK-101 §10: контекст recovery-режима — ЛЕНИВОЕ чтение состояния контейнера
    * (в passphrase-режиме recovery вводится после unlock — позже сборки; гейт App

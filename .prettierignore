@@ -11,6 +11,9 @@ docs/
 pnpm-lock.yaml
 *.tsbuildinfo
 apps/desktop/release/
+# TASK-113 (сопутствующее): локальные артефакты разовых прогонов (dist-perf,
+# dist-beta-check, dist-audit*) — собранные бандлы, форматтеру не принадлежат.
+apps/desktop/dist-*/
 
 # TASK-083 §6/§20: golden-снапшот ИИ-контекста — байт-точный артефакт вывода
 # AiContextBuilder (байт-тест снапшота); markdown-форматирование меняет байты

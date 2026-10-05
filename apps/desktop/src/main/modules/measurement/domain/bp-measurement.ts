@@ -1,7 +1,8 @@
 /**
  * TASK-017 §2/§7: агрегат BpMeasurement — точка консистентности журнала. Создание
  * (create) и правка (edit) — только через фабрики, проверяющие все инварианты SRS
- * (FR-1.1): валидное давление/пульс (VO TASK-016), время не в будущем, заметка
+ * (FR-1.1): валидное давление/пульс (VO TASK-016), время не в будущем (с допуском
+ * CLOCK_SKEW_TOLERANCE_MS на межпроцессный дрейф часов — TASK-113), заметка
  * ≤500 символов. Ограничение времени — только на будущее: ввод задним числом (US-3)
  * разрешён. Текущее время — исключительно через инъекционный Clock (§4: детерминизм
  * NFR-10 и корректность «не в будущем» относительно часов машины); прямое чтение
@@ -11,9 +12,7 @@
  * Иммутабельность (§7): все поля readonly, edit пересобирает копию и не трогает
  * existing (deep-freeze §20). id — uuid v7 (зависимость uuid, §5): лексикографическая
  * сортировка id ≈ сортировка по времени создания (арх. 04 §2). Порядок валидации §7:
- * BloodPressure → Pulse → длина заметки → takenAt ≤ clock.nowMs() (равенство «сейчас»
- * валидно — допуск 0 мс). Конкурентность здесь не решается: дубли — TASK-019,
- * атомарность записи — TASK-026 (§13).
+ * BloodPressure → Pulse → длина заметки → takenAt ≤ clock.nowMs() + допуск (§13).
  */
 import { v7 as uuidV7 } from 'uuid';
 
@@ -22,6 +21,7 @@ import { AppError, err, isErr, ok, type Clock, type Instant, type Result } from 
 import type { Arm } from './arm.js';
 import { BloodPressure } from './blood-pressure.js';
 import {
+  CLOCK_SKEW_TOLERANCE_MS,
   FUTURE_TIME_MESSAGE_KEY,
   NOTE_MAX_LENGTH,
   NOTE_TOO_LONG_MESSAGE_KEY,
@@ -40,11 +40,14 @@ interface ValidatedFields {
 }
 
 /**
- * Инвариант «время не в будущее»: takenAt.utcMs ≤ nowMs; равенство валидно —
- * допуск 0 мс (§13). Ошибка MEASUREMENT/FUTURE_TIME без params (§16–17).
+ * Инвариант «время не в будущее»: takenAt.utcMs ≤ nowMs + CLOCK_SKEW_TOLERANCE_MS;
+ * равенство «сейчас» и попадание в допуск межпроцессного дрейфа часов валидны
+ * (§13; допуск — TASK-113: «сразу» снимают renderer на submit и main на проверке,
+ * грубое время Windows расходится на единицы мс — честный ввод «сейчас» отбивать
+ * нельзя). Ошибка MEASUREMENT/FUTURE_TIME без params (§16–17).
  */
 function validateTakenAt(takenAt: Instant, nowMs: number): Result<void, AppError> {
-  if (takenAt.utcMs > nowMs) {
+  if (takenAt.utcMs > nowMs + CLOCK_SKEW_TOLERANCE_MS) {
     return err(AppError.of('MEASUREMENT/FUTURE_TIME', FUTURE_TIME_MESSAGE_KEY));
   }
   return ok(undefined);

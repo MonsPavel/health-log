@@ -29,6 +29,16 @@ export const INVALID_RANGE_MESSAGE_KEY = 'errors.MEASUREMENT_INVALID_RANGE';
 export const SYS_LE_DIA_MESSAGE_KEY = 'errors.MEASUREMENT_SYS_LE_DIA';
 /** TASK-017 §5/§16–17: ключ для MEASUREMENT/FUTURE_TIME. */
 export const FUTURE_TIME_MESSAGE_KEY = 'errors.MEASUREMENT_FUTURE_TIME';
+/**
+ * TASK-113 (репетиция новичка, §20 AC-2): допуск на межпроцессный дрейф часов при
+ * проверке «takenAt ≤ now». «Сразу» для измерения берут ДВЕ процессы: renderer
+ * снимает Date.now() на submit, main сверяет со своим Clock; грубое системное
+ * время Windows даёт расхождение в единицы мс (e2e поймало takenAt на 2 мс
+ * впереди mainNow — честный ввод «сейчас» отбивался как «время из будущего»).
+ * 2000 мс с запасом покрывают дрейф; осознанный ввод из будущего (минуты/часы)
+ * отсекается по-прежнему.
+ */
+export const CLOCK_SKEW_TOLERANCE_MS = 2000;
 /** TASK-017 §5/§16–17: ключ для MEASUREMENT/NOTE_TOO_LONG (params {max}). */
 export const NOTE_TOO_LONG_MESSAGE_KEY = 'errors.MEASUREMENT_NOTE_TOO_LONG';
 /** TASK-021 §5/§13: ключ для MEASUREMENT/NOT_FOUND (порт репозитория — запись не найдена). */

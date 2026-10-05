@@ -157,6 +157,43 @@ class MockVault implements KeyVault {
   }
 }
 
+/**
+ * TASK-113 (репетиция новичка): «О приложении»/гейт восстановления стартуют с
+ *  ДО unlock. В passphrase-locked чтения БД недоступны (VAULT/LOCKED) —
+ * канал версий/режима ОБЯЗАН ответить ok без scale/model (§7 094: meta — минимальный
+ * входной набор), иначе фаза loading гейта длится вечно и экран пароля не показывается
+ * (воспроизведено e2e: перезапуск с паролем → «Загрузка…» без LockOverlay).
+ */
+describe('app/meta в locked passphrase (TASK-113)', () => {
+  it('отвечает ok без scale/model/recovery — гейт загрузки не висит', async () => {
+    const dir = newUserDataDir();
+    await setupPassphraseUserData(dir);
+    const container = await buildContainer(makePassphraseDeps(dir));
+    try {
+      const envelope = await container.channels.dispatch({ channel: 'app/meta', payload: {} });
+
+      expect(envelope.ok).toBe(true);
+      if (envelope.ok) {
+        const meta = envelope.data as {
+          appVersion: string;
+          schemaVersion: number;
+          scale?: unknown;
+          model?: unknown;
+          recovery?: unknown;
+        };
+        expect(meta.appVersion.length).toBeGreaterThan(0);
+        expect(meta.schemaVersion).toBe(0);
+        // Чтения БД недоступны при locked — данные честно опущены (§7 контракта).
+        expect(meta.scale).toBeUndefined();
+        expect(meta.model).toBeUndefined();
+        expect(meta.recovery).toBeUndefined();
+      }
+    } finally {
+      container.close();
+    }
+  });
+});
+
 describe('buildContainer — режим passphrase (TASK-093 §9: ленивое открытие БД)', () => {
   const dirs: string[] = [];
   const containers: { close(): void }[] = [];

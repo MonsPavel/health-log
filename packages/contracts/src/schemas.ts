@@ -59,6 +59,9 @@ import {
   DATA_WIPE_REQUEST_SCHEMA,
   DATA_WIPE_RESPONSE_SCHEMA,
 } from './data-care/schemas.js';
+// TASK-113 §5/§8–12: канал «Помощь» — открытие страницы руководства docs/user
+// (whitelist DOC_PAGES — единственная санитизация page-параметра).
+import { APP_OPEN_DOCS_REQUEST_SCHEMA, APP_OPEN_DOCS_RESPONSE_SCHEMA } from './docs.js';
 // TASK-103 §5/§11: каналы диагностического пакета (предпросмотр DiagContent +
 // сохранение zip за save-диалогом main; без PHI — §13, предпросмотр обязателен).
 import {
@@ -366,6 +369,16 @@ export const CHANNEL_SCHEMAS = {
   'app/reveal-backups': {
     request: APP_REVEAL_BACKUPS_REQUEST_SCHEMA,
     response: APP_REVEAL_BACKUPS_RESPONSE_SCHEMA,
+  },
+  /**
+   * TASK-113 §5/§8–12: «Помощь» экрана настроек — открыть страницу руководства
+   * docs/user — {page} → null (fire-and-forget, прецедент app/reveal-path).
+   * НЕ secure: БД не читает; путь к файлу строит main, page — whitelist DOC_PAGES
+   * (санитизация §8–12 — z.enum, произвольный путь отклоняется до хендлера).
+   */
+  'app/open-docs': {
+    request: APP_OPEN_DOCS_REQUEST_SCHEMA,
+    response: APP_OPEN_DOCS_RESPONSE_SCHEMA,
   },
   /**
    * TASK-100 §4/§11: полная проверка БД по кнопке — {} → {ok, details} (вывод

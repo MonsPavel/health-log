@@ -132,3 +132,18 @@ describe('SettingsScreen — секция «Обновления» (TASK-097 §6
     expect(screen.getByRole('button', { name: 'Проверить обновления' })).toBeDefined();
   });
 });
+
+describe('SettingsScreen — секция «Помощь» (TASK-113 §6 интеграция)', () => {
+  it('«Помощь» первая секция и в простом режиме; клик → app/open-docs index (§5)', async () => {
+    renderScreen();
+
+    const help = await screen.findByTestId('help-section');
+    // §13: секция вне advanced-гейта — видна на чистом запуске (advancedMode=false).
+    const sectionRoot = help.closest('section');
+    expect(sectionRoot?.querySelector('[data-testid="help-open"]')).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Помощь' })).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть руководство' }));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('app/open-docs', { page: 'index' }));
+  });
+});
