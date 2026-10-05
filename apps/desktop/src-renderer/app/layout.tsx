@@ -1,8 +1,9 @@
 /**
- * TASK-013 §5/§10/§15/§16 + TASK-123 v2 (iPad-стиль): Sidebar-layout — nav 240px
- * (w-60, rem: масштабируется с FR-8.2) + контент. Сайдбар — как iPadOS:
- * иконка + подпись, активный раздел — filled-blue pill (как выделение в
- * iPadOS sidebar), группы разделены тонкой линией.
+ * TASK-013 §5/§10/§15/§16 + TASK-123 v3 (референс владельца): Sidebar-layout —
+ * nav 240px (w-60, rem: масштабируется с FR-8.2) + контент. Сайдбар — по
+ * референсу: ТЕМНЕЕ контента (bg-side), иконка + подпись, активный раздел —
+ * приглушённая пилюля bg-nav-active (не яркий accent), внизу — переключатель
+ * темы (луна + switch, как в референсе).
  *
  * Семантика a11y (§10/§16): nav aria-label="Разделы" (ключ common.sections),
  * список ul > li > a, aria-current="page" ставит NavLink; иконки aria-hidden;
@@ -14,6 +15,9 @@
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+
+import { IoSwitch } from '../components/ios/kit.js';
+import { usePreferences } from '../features/settings/model/use-preferences.js';
 
 /** Раздел навигации: путь, ключ подписи (§17), контурная иконка (SF-дух). */
 interface Section {
@@ -85,6 +89,17 @@ const ICONS = {
       />
     </svg>
   ),
+  moon: (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none">
+      <path
+        d="M17 12.5A7.5 7.5 0 0 1 7.5 3 7 7 0 1 0 17 12.5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
 } as const;
 
 /** Информационная архитектура §3: Динамика · Журнал · ИИ · Отчёты · Настройки. */
@@ -97,12 +112,31 @@ const SECTIONS: readonly Section[] = [
 ];
 
 /**
- * Ссылка раздела (iPadOS sidebar): иконка + подпись; активная — filled-blue
- * pill (bg-accent, белый текст — контрастная пара bg-on-accent гейта);
- * неактивная — label-цвет, hover — лёгкий fill.
+ * Ссылка раздела (по референсу): активная — приглушённая пилюля bg-nav-active
+ * (текст label-цвета — контраст ≥12:1 в обеих темах), неактивная — muted с
+ * hover-подсветкой.
  */
-const LINK_BASE_CLASS =
-  'flex items-center gap-2.5 rounded-lg px-3 py-2 text-base font-medium no-underline';
+const LINK_BASE_CLASS = 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-base no-underline';
+
+/** Переключатель темы внизу сайдбара (референс: «Тёмная тема» + switch). */
+function ThemeSidebarToggle(): JSX.Element {
+  const { t } = useTranslation();
+  const { prefs, setPreferences } = usePreferences();
+  const dark = prefs?.theme === 'dark';
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-base text-muted">
+      {ICONS.moon}
+      <span className="flex-1">
+        {t(dark ? 'settings.theme.themeLight' : 'settings.theme.themeDark')}
+      </span>
+      <IoSwitch
+        checked={dark}
+        onChange={(next) => setPreferences.mutate({ theme: next ? 'dark' : 'light' })}
+        labelText={t('common.theme.toggle')}
+      />
+    </div>
+  );
+}
 
 /** Каркас экрана: skip-link + Sidebar + контент (children — subtree роутера, §15). */
 export function AppLayout({ children }: { readonly children: ReactNode }): JSX.Element {
@@ -127,7 +161,10 @@ export function AppLayout({ children }: { readonly children: ReactNode }): JSX.E
       >
         {t('common.skipToContent')}
       </a>
-      <nav aria-label={t('common.sections')} className="w-60 shrink-0 border-r border-border p-3">
+      <nav
+        aria-label={t('common.sections')}
+        className="flex w-60 shrink-0 flex-col border-r border-border bg-side p-3"
+      >
         <ul className="flex flex-col gap-0.5">
           {SECTIONS.map((section) => (
             <li key={section.path}>
@@ -135,8 +172,8 @@ export function AppLayout({ children }: { readonly children: ReactNode }): JSX.E
                 to={section.path}
                 className={({ isActive }) =>
                   isActive
-                    ? `${LINK_BASE_CLASS} bg-accent text-bg`
-                    : `${LINK_BASE_CLASS} text-text hover:bg-fill`
+                    ? `${LINK_BASE_CLASS} bg-nav-active font-medium text-text`
+                    : `${LINK_BASE_CLASS} text-muted hover:bg-fill hover:text-text`
                 }
               >
                 {section.icon}
@@ -145,6 +182,9 @@ export function AppLayout({ children }: { readonly children: ReactNode }): JSX.E
             </li>
           ))}
         </ul>
+        <div className="mt-auto pt-3">
+          <ThemeSidebarToggle />
+        </div>
       </nav>
       <main id="content" tabIndex={-1} className="min-w-0 flex-1">
         {children}

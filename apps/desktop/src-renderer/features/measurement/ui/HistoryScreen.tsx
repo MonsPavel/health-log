@@ -377,17 +377,23 @@ export function HistoryScreen(): JSX.Element {
 
   return (
     <section className="p-4">
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-5">
         {/* TASK-108 §5 (page-has-heading-one): заголовок экрана — h1; группы дней —
-            h2 (DayGroup) — без пропуска уровней. */}
-        <h1 className="hl-large-title">{t('common.nav.journal')}</h1>
-        <button
-          type="button"
-          onClick={() => setView('form')}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-bg hover:opacity-90"
-        >
-          {t('measurement.history.add')}
-        </button>
+            h2 (DayGroup) — без пропуска уровней. TASK-123 v3: подпись + кнопка. */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="hl-large-title">{t('common.nav.journal')}</h1>
+            <p className="mt-1 text-sm text-muted">{t('measurement.history.subtitle')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setView('form')}
+            className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-[10px] bg-accent px-4 py-2 text-sm font-medium text-bg hover:opacity-90"
+          >
+            <PlusIcon />
+            {t('measurement.history.add')}
+          </button>
+        </div>
       </header>
 
       {/* TASK-044 §5: панель фильтров — период/рука/заметки/сброс; URL — источник
@@ -489,5 +495,14 @@ export function HistoryScreen(): JSX.Element {
         </>
       )}
     </section>
+  );
+}
+
+/** Плюс — иконка кнопки добавления (SF plus, TASK-123 v3 референс). */
+function PlusIcon(): JSX.Element {
+  return (
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   );
 }

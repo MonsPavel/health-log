@@ -2,8 +2,9 @@
  * TASK-013 §5/§12/§16 + TASK-123 v2 (iOS-редизайн): токены темы — CSS-переменные,
  * не JS-константы: тема применяется без ре-рендера дерева (арх. 06 §7).
  *
- * TASK-123 v2 «iOS-дневник» (решение владельца 05.10 — iOS-подобный дизайн,
- * iPad-стиль): системная палитра Apple — systemGroupedBackground, inset grouped
+ * TASK-123 v2 «iOS-дневник» (решение владельца 05.10 — iOS-подобный дизайн по
+ * РЕФЕРЕНСУ: сайдбар темнее контента, muted-пилюля активного раздела,
+ * переключатель темы в сайдбаре; палитра — тёмно-синий графит): системная палитра Apple — systemGroupedBackground, inset grouped
  * поверхности, systemBlue как tint. Светлая: сгруппированный фон #F2F2F7 +
  * белые группы; тёмная: чёрный фон + #1C1C1E группы (как в iOS Settings).
  * Тексты статусов — доступные варианты Apple (accessible variants): #248A3D /
@@ -24,7 +25,9 @@
  */
 :root,
 [data-theme='light'] {
-  --hl-bg: #f2f2f7; /* systemGroupedBackground (light) */
+  --hl-bg: #f2f2f7; /* контент: systemGroupedBackground (light) */
+  --hl-side: #e9e9ef; /* сайдбар — чуть темнее контента (референс) */
+  --hl-nav-active: #dce0ec; /* пилюля активного раздела (светлая) */
   --hl-surface: #ffffff; /* secondarySystemGroupedBackground */
   --hl-text: #000000; /* label */
   --hl-muted: #6c6c70; /* secondaryLabel-видимый (AA ≥4.5:1; сырой iOS ~3.9) */
@@ -39,11 +42,13 @@
 }
 
 [data-theme='dark'] {
-  --hl-bg: #000000; /* systemGroupedBackground (dark) */
-  --hl-surface: #1c1c1e; /* вторичная группа (dark) */
+  --hl-bg: #0f141b; /* контент — тёмно-синий графит (референс) */
+  --hl-side: #090c12; /* сайдбар — темнее контента (референс) */
+  --hl-nav-active: #1f2735; /* пилюля активного раздела (тёмная) */
+  --hl-surface: #1a212b; /* вторичная группа (dark, референс) */
   --hl-text: #ffffff; /* label */
   --hl-muted: #98989f; /* secondaryLabel-видимый (AA ≥4.5:1) */
-  --hl-accent: #0a84ff; /* systemBlue (dark) */
+  --hl-accent: #2f96ff; /* systemBlue (dark, осветлён до AA на surface #1a212b) */
   --hl-border: #2c2c2e; /* opaque separator (между группами) */
   --hl-separator: #38383a; /* separator внутри групп */
   --hl-fill: rgba(120, 120, 128, 0.24); /* systemFill (dark) */

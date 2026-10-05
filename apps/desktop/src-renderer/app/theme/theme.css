@@ -25,6 +25,8 @@
 
 @theme inline {
   --color-bg: var(--hl-bg);
+  --color-side: var(--hl-side);
+  --color-nav-active: var(--hl-nav-active);
   --color-surface: var(--hl-surface);
   --color-text: var(--hl-text);
   --color-muted: var(--hl-muted);
