@@ -13,7 +13,12 @@
  *  4. фаза encrypt: ключ содержимого (§8: пароль → Argon2id; авто — ключ БД),
  *     манифест {formatVersion, schemaVersion, appVersion, createdAtUtc, counts,
  *     dbSha256, kdf} (AAD) → контейнер во ВРЕМЕННЫЙ файл рядом с назначением
- *     (rename в пределах тома, Windows: EXDEV недопустим);
+ *     (rename в пределах тома, Windows: EXDEV недопустим).
+ *     TASK-121 §3 (AC-2.4): ask-копия — формат v2 (магия HLBK2) с `dbKeyWrap` —
+ *     ключ БД ИСТОЧНИКА, обёрнутый паролем копии (Argon2id+AES-256-GCM, конвенции
+ *     TASK-093): снапшот VACUUM INTO несёт SQLCipher-шифрование источника, без
+ *     ключа в контейнере восстановление на чужом профиле невозможно. Авто-копия
+ *     hook'а остаётся в v1 (машиносвязна по построению — пароля для обёртки нет).
  *  5. фаза write: rename tmp → финальное имя; cleanup tmp в finally (§9);
  *  6. лог §18: `backup created sizeBytes=… durationMs=…` — только basename (путь
  *     userData содержит имя Windows-пользователя); пароль/соль не логируются (§14).
@@ -60,8 +65,10 @@ export const BACKUP_CANCELED_MESSAGE_KEY = 'errors.BACKUP_CANCELED';
 
 /** Расширение контейнера копии (§2/§4). */
 export const BACKUP_EXTENSION = '.hlbackup';
-/** Версия формата контейнера (magic HLBK1 = 1, §4/§7). */
-const BACKUP_FORMAT_VERSION = 1;
+/** Версия формата контейнера v1 (magic HLBK1, §4/§7) — авто-копии hook'а. */
+const BACKUP_FORMAT_VERSION_V1 = 1;
+/** Версия формата контейнера v2 (magic HLBK2, TASK-121 §3) — ask-копии с обёрткой ключа. */
+const BACKUP_FORMAT_VERSION_V2 = 2;
 /** Префикс tmp-каталогов снапшота в tmpdir ОС (проверка чистки — тесты AC-5). */
 const SNAPSHOT_TMP_PREFIX = 'hl-backup-snap-';
 /** Префикс tmp-файла контейнера рядом с назначением (rename в пределах тома). */
@@ -117,11 +124,12 @@ export interface CreateBackupDeps {
   /** Версия приложения для манифеста (§2; bootstrap — app.getVersion()). */
   readonly appVersion: string;
   /**
-   * Hex-ключ БД для авто-копий (§8: kdf db-key). Замыкание контейнера — keyHex
-   * не становится полем графа и наружу не уходит (§14, прецедент buildContainer).
-   * Обязателен при mode `auto` (нарушение — TypeError, программная ошибка сборки).
+   * Hex-ключ БД (замыкание контейнера — keyHex не становится полем графа и наружу
+   * не уходит, §14, прецедент buildContainer). Обязателен: mode `auto` шифрует им
+   * содержимое (§8: kdf db-key), mode `ask` оборачивает его в манифест v2
+   * (TASK-121 §3: переносимый ключ источника под паролем копии).
    */
-  readonly dbKeyHex?: () => string;
+  readonly dbKeyHex: () => string;
   /**
    * Корень tmp-каталогов снапшота (§5: tmpdir ОС); по умолчанию os.tmpdir(). Точка
    * наблюдения тестов (§19/AC-5: проверка чистки детерминированно — без гонок с
@@ -152,11 +160,6 @@ export class CreateBackupUseCase {
           this.deps.logger.debug('createBackup: пустой пароль копии', { mode: command.mode });
           return errValidation();
         }
-      } else if (this.deps.dbKeyHex === undefined) {
-        // Нарушение контракта сборки (контейнер не замкнул keyHex) — программная ошибка.
-        throw new TypeError(
-          'CreateBackup: mode auto требует deps.dbKeyHex (§8: авто-копия шифруется ключом БД) — нарушение контракта сборки является программной ошибкой',
-        );
       }
 
       // 2. Путь назначения (§5/§7).
@@ -187,12 +190,25 @@ export class CreateBackupUseCase {
         const { kdf, contentKey } = await this.deps.crypto.prepareKey(
           command.mode === 'ask'
             ? { kind: 'passphrase', passphrase: command.passphrase ?? '' }
-            : { kind: 'dbKey', keyHex: this.deps.dbKeyHex?.() ?? '' },
+            : { kind: 'dbKey', keyHex: this.deps.dbKeyHex() },
         );
-        const manifest: BackupManifest = {
-          ...this.buildManifest(dbSha256),
-          kdf,
-        };
+        // TASK-121 §3: ask-копия — формат v2 с переносимым ключом источника
+        // (обёртка паролем копии); авто-копия — v1, машиносвязная без обёртки.
+        const manifest: BackupManifest =
+          command.mode === 'ask'
+            ? {
+                ...this.buildManifest(dbSha256, BACKUP_FORMAT_VERSION_V2),
+                kdf,
+                dbKeyWrap: await this.deps.crypto.wrapDbKey({
+                  keyHex: this.deps.dbKeyHex(),
+                  passphrase: command.passphrase ?? '',
+                }),
+              }
+            : {
+                ...this.buildManifest(dbSha256, BACKUP_FORMAT_VERSION_V1),
+                kdf,
+              };
+        const formatVersion = manifest.formatVersion;
         // Точные байты манифеста — с записью kdf (AAD привязывает ровно то, что в файле).
         const manifestJsonFinal = Buffer.from(JSON.stringify(manifest), 'utf8');
 
@@ -201,16 +217,19 @@ export class CreateBackupUseCase {
           contentKey,
           snapshotPath,
           destinationPath: tmpContainerPath,
+          formatVersion,
         });
 
         command.onProgress?.('write');
         renameSync(tmpContainerPath, destinationPath);
 
-        // Лог §18: факты без путей (basename) и секретов (§14).
+        // Лог §18: факты без путей (basename) и секретов (§14); portable — переносимость
+        // формата (v2 с обёрткой ключа) — факт для диагностики DoD AC-2.4.
         this.deps.logger.info('backup created', {
           file: basename(destinationPath),
           sizeBytes,
           mode: command.mode,
+          portable: command.mode === 'ask',
           durationMs: Math.round(performance.now() - startedAtMs),
         });
         return {
@@ -281,13 +300,17 @@ export class CreateBackupUseCase {
   }
 
   /**
-   * Манифест без записи kdf (§2/§5): версия формата, схема, версия приложения,
-   * время, счётчики, sha256. Запись kdf добавляется в run() после prepareKey —
-   * фаза encrypt (соль/параметры известны только там).
+   * Манифест без записей kdf/dbKeyWrap (§2/§5): версия формата, схема, версия
+   * приложения, время, счётчики, sha256. Записи kdf и dbKeyWrap добавляются в run()
+   * в фазе encrypt (соль/параметры известны только там). Литерал версии сохраняется
+   * в типе (V) — ветки union-манифеста контракта собираются структурно.
    */
-  private buildManifest(dbSha256: string): Omit<BackupManifest, 'kdf'> {
+  private buildManifest<V extends 1 | 2>(
+    dbSha256: string,
+    formatVersion: V,
+  ): Omit<BackupManifest, 'kdf' | 'dbKeyWrap'> & { formatVersion: V } {
     return {
-      formatVersion: BACKUP_FORMAT_VERSION,
+      formatVersion,
       schemaVersion: readSchemaVersion(this.deps.db),
       appVersion: this.deps.appVersion,
       createdAtUtc: this.deps.clock.nowMs(),

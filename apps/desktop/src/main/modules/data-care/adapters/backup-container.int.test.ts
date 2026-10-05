@@ -77,6 +77,7 @@ describe('BackupContainerCodec.writeContainer / readContainer (§4: формат
       contentKey: randomBytes(32),
       snapshotPath,
       destinationPath,
+      formatVersion: 1,
     });
 
     const file = readFileSync(destinationPath);
@@ -97,7 +98,13 @@ describe('BackupContainerCodec.writeContainer / readContainer (§4: формат
     const contentKey = randomBytes(32);
 
     const codec = newCodec();
-    await codec.writeContainer({ manifestJson, contentKey, snapshotPath, destinationPath });
+    await codec.writeContainer({
+      manifestJson,
+      contentKey,
+      snapshotPath,
+      destinationPath,
+      formatVersion: 1,
+    });
 
     const read = await codec.readContainer({ containerPath: destinationPath, contentKey });
     expect(read.payload.equals(snapshotBytes)).toBe(true);
@@ -118,6 +125,7 @@ describe('BackupContainerCodec.writeContainer / readContainer (§4: формат
       contentKey,
       snapshotPath,
       destinationPath,
+      formatVersion: 1,
     });
 
     const file = readFileSync(destinationPath);
@@ -142,6 +150,7 @@ describe('BackupContainerCodec.writeContainer / readContainer (§4: формат
       contentKey,
       snapshotPath,
       destinationPath,
+      formatVersion: 1,
     });
 
     const file = readFileSync(destinationPath);
@@ -177,6 +186,109 @@ describe('BackupContainerCodec.writeContainer / readContainer (§4: формат
     await expect(
       newCodec().readContainer({ containerPath: destinationPath, contentKey: randomBytes(32) }),
     ).rejects.toThrow(BackupContainerFormatError);
+  });
+});
+
+describe('BackupContainerCodec формат v2 (TASK-121 §3: magic HLBK2, чтение обоих форматов)', () => {
+  /** Манифест-пример v2 (форма контракта BACKUP_MANIFEST_V2_SCHEMA). */
+  const manifestV2 = {
+    formatVersion: 2,
+    schemaVersion: 4,
+    appVersion: '0.0.0',
+    createdAtUtc: 1_758_816_000_000,
+    counts: { measurements: 2 },
+    dbSha256: 'b'.repeat(64),
+    kdf: {
+      id: 'argon2id',
+      saltB64: 'CsoEmS0RK+rHTStZ2Zc+Gg==',
+      iterations: 1,
+      memoryKib: 64,
+      parallelism: 1,
+    },
+    dbKeyWrap: {
+      saltB64: 'CsoEmS0RK+rHTStZ2Zc+Gg==',
+      iterations: 1,
+      memoryKib: 64,
+      parallelism: 1,
+      wrappedKeyB64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+    },
+  } as const;
+
+  it('запись v2: магия HLBK2; roundtrip возвращает payload и манифест', async () => {
+    const base = newDir();
+    const snapshotBytes = randomBytes(2048);
+    const snapshotPath = join(base, 'snapshot.db');
+    writeFileSync(snapshotPath, snapshotBytes);
+    const destinationPath = join(base, 'v2.hlbackup');
+    const manifestJson = Buffer.from(JSON.stringify(manifestV2), 'utf8');
+    const contentKey = randomBytes(32);
+
+    const codec = newCodec();
+    const { sizeBytes } = await codec.writeContainer({
+      manifestJson,
+      contentKey,
+      snapshotPath,
+      destinationPath,
+      formatVersion: 2,
+    });
+
+    const file = readFileSync(destinationPath);
+    expect(file.subarray(0, 5).toString('latin1')).toBe('HLBK2');
+    expect(sizeBytes).toBe(file.length);
+
+    const read = await codec.readContainer({ containerPath: destinationPath, contentKey });
+    expect(read.payload.equals(snapshotBytes)).toBe(true);
+    expect(read.manifestJson.equals(manifestJson)).toBe(true);
+    expect(read.manifest).toEqual(manifestV2);
+  });
+
+  it('чтение v1-контейнера (HLBK1) остаётся рабочим — совместимость старых копий (§3)', async () => {
+    const base = newDir();
+    const snapshotBytes = randomBytes(1024);
+    const snapshotPath = join(base, 'snapshot.db');
+    writeFileSync(snapshotPath, snapshotBytes);
+    const destinationPath = join(base, 'v1.hlbackup');
+    const manifestJson = Buffer.from(JSON.stringify(manifest), 'utf8');
+    const contentKey = randomBytes(32);
+
+    await newCodec().writeContainer({
+      manifestJson,
+      contentKey,
+      snapshotPath,
+      destinationPath,
+      formatVersion: 1,
+    });
+
+    const read = await newCodec().readContainer({ containerPath: destinationPath, contentKey });
+    expect(read.payload.equals(snapshotBytes)).toBe(true);
+  });
+
+  it('расхождение магии и formatVersion манифеста → BackupContainerFormatError', async () => {
+    const base = newDir();
+    const snapshotPath = join(base, 'snapshot.db');
+    writeSnapshot(snapshotPath, 512);
+    const destinationPath = join(base, 'mismatch.hlbackup');
+    // HLBK2-магия с v1-манифестом (писавший сломан) — формат-ошибка. Ключ записи
+    // и чтения ОДИН: GCM-аутентификация проходит, и наружу выходит именно
+    // FormatError кросс-проверки (порядок §14 в readContainer: аутентификация →
+    // разбор → магия↔formatVersion; догост-детект без ключа покрывает readHeader).
+    const contentKey = randomBytes(32);
+    await newCodec().writeContainer({
+      manifestJson: Buffer.from(JSON.stringify(manifest), 'utf8'),
+      contentKey,
+      snapshotPath,
+      destinationPath,
+      formatVersion: 2,
+    });
+    await expect(
+      newCodec().readContainer({
+        containerPath: destinationPath,
+        contentKey,
+      }),
+    ).rejects.toThrow(BackupContainerFormatError);
+    await expect(newCodec().readHeader({ containerPath: destinationPath })).rejects.toThrow(
+      BackupContainerFormatError,
+    );
   });
 });
 
@@ -254,6 +366,7 @@ describe('BackupContainerCodec.readHeader (TASK-071 §5: заголовок бе
       contentKey: randomBytes(32),
       snapshotPath,
       destinationPath,
+      formatVersion: 1,
     });
 
     const header = await codec.readHeader({ containerPath: destinationPath });

@@ -1,9 +1,17 @@
 /**
- * TASK-070 §4/§5: контейнер копии — линейный формат HLBK1:
- *   `[magic 'HLBK1'][manifest-json-len uint32BE][manifest-json][iv 12б][ciphertext][auth-tag 16б]`
+ * TASK-070 §4/§5 + TASK-121 §3: контейнер копии — линейный формат (структура
+ * неизменна, эволюционирует магия):
+ *   `[magic][manifest-json-len uint32BE][manifest-json][iv 12б][ciphertext][auth-tag 16б]`
+ *
+ * Версии формата:
+ *  - HLBK1 (v1, §4) — исходный формат; авто-копии hook'а пишутся им и сейчас
+ *    (машиносвязны по построению, TASK-121 §3);
+ *  - HLBK2 (v2, TASK-121) — пользовательские копии с переносимым ключом БД
+ *    в манифесте (`dbKeyWrap`); чтение ОБЕИХ магий — совместимость старых копий.
  *
  * Разбор формата:
- *  - magic фиксирует версию формата (§7: «версия в magic»; manifest.formatVersion = 1);
+ *  - magic фиксирует версию формата (§7: «версия в magic»; manifest.formatVersion
+ *    обязан совпадать с магией — расхождение = FormatError, писавший сломан);
  *  - iv хранится рядом с шифртекстом (не секрет; структурно формат §4 не меняет);
  *  - манифест привязан к шифрованию как AAD (§14): подмена метаданных детектируется
  *    той же GCM-проверкой, что и подмена шифртекста;
@@ -20,7 +28,8 @@
  * вызыватель (§7: «восстановление валидирует») — адаптер не знает схему.
  *
  * Ключи (§8): prepareKey (пароль → argon2id-запись манифеста) и contentKeyFor
- * (восстановление по записи); db-key — прямой hex ключа БД.
+ * (восстановление по записи); db-key — прямой hex ключа БД. TASK-121: wrapDbKey/
+ * unwrapDbKey — обёртка/разворачивание ключа БД паролем копии (манифест v2).
  */
 import { createWriteStream as fsCreateWriteStream, createReadStream } from 'node:fs';
 import { open, readFile } from 'node:fs/promises';
@@ -38,11 +47,14 @@ import {
   deriveArgon2idKey,
   IV_BYTES,
   TAG_BYTES,
+  unwrapDbKey,
+  wrapDbKey,
   type Argon2Params,
 } from './backup-crypto.js';
 import {
   BackupContainerFormatError,
   type BackupCrypto,
+  type BackupDbKeyWrap,
   type BackupKeySource,
   type BackupKdf,
   type PreparedBackupKey,
@@ -57,33 +69,43 @@ import {
  */
 export { BackupContainerFormatError };
 
-/** Магия формата (§4: HLBK1 — «Health Log Backup v1»). */
-const BACKUP_MAGIC = Buffer.from('HLBK1', 'utf8');
+/** Магии формата по версиям (§4: HLBK1; TASK-121: HLBK2 — «Health Log Backup v2»). */
+const BACKUP_MAGIC_V1 = Buffer.from('HLBK1', 'utf8');
+const BACKUP_MAGIC_V2 = Buffer.from('HLBK2', 'utf8');
+/** Обе магии одной длины (5) — смещения заголовка общие. */
+const BACKUP_MAGIC_BYTES = BACKUP_MAGIC_V1.length;
 /** Смещение манифеста: magic (5) + длина (4). */
-const HEADER_BYTES = BACKUP_MAGIC.length + 4;
+const HEADER_BYTES = BACKUP_MAGIC_BYTES + 4;
 /** Верхний предел манифеста (защита от битых длин, §14: форма манифеста ~ сотни байт). */
 const MANIFEST_MAX_BYTES = 64 * 1024;
 /** Минимальный размер контейнера: заголовок + iv + тег (+ непустой манифест). */
 const MIN_CONTAINER_BYTES = HEADER_BYTES + IV_BYTES + TAG_BYTES + 2;
 
 /**
- * Разбор заголовка (§4): magic/длины (FormatError) → срезы манифеста, iv,
- * шифртекста и тега. Разбор НЕ аутентифицирует байты — GCM-проверка в
- * readContainer (§14: сначала аутентификация, потом использование).
+ * Разбор заголовка (§4 + TASK-121: обе магии): magic/длины (FormatError) → версия
+ * формата из магии + срезы манифеста, iv, шифртекста и тега. Разбор НЕ
+ * аутентифицирует байты — GCM-проверка в readContainer (§14: сначала
+ * аутентификация, потом использование).
  */
 function parseHeader(file: Buffer): {
+  readonly formatVersion: 1 | 2;
   readonly manifestJson: Buffer;
   readonly iv: Buffer;
   readonly ciphertext: Buffer;
   readonly tag: Buffer;
 } {
-  if (
-    file.length < MIN_CONTAINER_BYTES ||
-    !file.subarray(0, BACKUP_MAGIC.length).equals(BACKUP_MAGIC)
-  ) {
-    throw new BackupContainerFormatError('контейнер копии повреждён: магия HLBK1 не найдена (§4)');
+  const magic = file.subarray(0, BACKUP_MAGIC_BYTES);
+  const formatVersion = magic.equals(BACKUP_MAGIC_V1)
+    ? 1
+    : magic.equals(BACKUP_MAGIC_V2)
+      ? 2
+      : undefined;
+  if (file.length < MIN_CONTAINER_BYTES || formatVersion === undefined) {
+    throw new BackupContainerFormatError(
+      'контейнер копии повреждён: магия HLBK1/HLBK2 не найдена (§4/TASK-121)',
+    );
   }
-  const manifestLength = file.readUInt32BE(BACKUP_MAGIC.length);
+  const manifestLength = file.readUInt32BE(BACKUP_MAGIC_BYTES);
   const manifestStart = HEADER_BYTES;
   const ivStart = manifestStart + manifestLength;
   const ciphertextStart = ivStart + IV_BYTES;
@@ -94,11 +116,29 @@ function parseHeader(file: Buffer): {
     );
   }
   return {
+    formatVersion,
     manifestJson: file.subarray(manifestStart, ivStart),
     iv: file.subarray(ivStart, ciphertextStart),
     ciphertext: file.subarray(ciphertextStart, tagStart),
     tag: file.subarray(tagStart),
   };
+}
+
+/**
+ * Гард «магия = formatVersion манифеста» (TASK-121): расхождение — FormatError
+ * (писавший сломан / файл склеен из частей). Манифест здесь НЕ доверенный —
+ * проверяется только целочисленное поле версии (мусор → FormatError как не-JSON).
+ */
+function assertMagicMatchesManifest(formatVersion: 1 | 2, manifest: unknown): void {
+  const manifestVersion =
+    typeof manifest === 'object' && manifest !== null
+      ? (manifest as { formatVersion?: unknown }).formatVersion
+      : undefined;
+  if (manifestVersion !== formatVersion) {
+    throw new BackupContainerFormatError(
+      `контейнер копии повреждён: магия v${formatVersion} не совпадает с formatVersion манифеста (§4/TASK-121)`,
+    );
+  }
 }
 
 /** Опции кодека (точка сборки; §14: параметры Argon2id переопределяются калибровкой 093). */
@@ -165,15 +205,16 @@ export class BackupContainerCodec implements BackupCrypto {
   }
 
   /**
-   * Пишет контейнер (§4): заголовок (magic/len/manifest/iv) → pipeline снапшота через
-   * GCM → тег → fsync. По ошибке все потоки уничтожаются pipeline'ом; частичный файл
-   * удаляет вызыватель (use case: cleanup в finally, §9).
+   * Пишет контейнер (§4 + TASK-121): заголовок (magic по formatVersion/len/manifest/iv)
+   * → pipeline снапшота через GCM → тег → fsync. По ошибке все потоки уничтожаются
+   * pipeline'ом; частичный файл удаляет вызыватель (use case: cleanup в finally, §9).
    */
   async writeContainer(input: WriteContainerInput): Promise<{ sizeBytes: number }> {
+    const magic = input.formatVersion === 2 ? BACKUP_MAGIC_V2 : BACKUP_MAGIC_V1;
     const cipher = createBackupCipher(input.contentKey, input.manifestJson);
     const out = this.createWriteStream(input.destinationPath);
 
-    out.write(BACKUP_MAGIC);
+    out.write(magic);
     const length = Buffer.alloc(4);
     length.writeUInt32BE(input.manifestJson.length);
     out.write(length);
@@ -251,6 +292,7 @@ export class BackupContainerCodec implements BackupCrypto {
         cause: error,
       });
     }
+    assertMagicMatchesManifest(header.formatVersion, manifest);
 
     return {
       manifest: manifest as ReadContainerResult['manifest'],
@@ -265,7 +307,7 @@ export class BackupContainerCodec implements BackupCrypto {
    * до readContainer; вызыватель валидирует zod и использует только запись kdf).
    */
   async readHeader(input: { containerPath: string }): Promise<ReadHeaderResult> {
-    const { manifestJson } = parseHeader(await readFile(input.containerPath));
+    const { formatVersion, manifestJson } = parseHeader(await readFile(input.containerPath));
     let manifest: unknown;
     try {
       manifest = JSON.parse(manifestJson.toString('utf8'));
@@ -274,7 +316,18 @@ export class BackupContainerCodec implements BackupCrypto {
         cause: error,
       });
     }
+    assertMagicMatchesManifest(formatVersion, manifest);
     return { manifest: manifest as ReadHeaderResult['manifest'], manifestJson };
+  }
+
+  /** TASK-121 §3: обёртка ключа БД паролем — примитивы backup-crypto (TASK-093 §2). */
+  wrapDbKey(input: { keyHex: string; passphrase: string }): Promise<BackupDbKeyWrap> {
+    return wrapDbKey(input.keyHex, input.passphrase, this.argon2Params);
+  }
+
+  /** TASK-121 §3: разворачивание ключа БД из записи манифеста (см. порт). */
+  unwrapDbKey(input: { wrap: BackupDbKeyWrap; passphrase: string }): Promise<string> {
+    return unwrapDbKey(input.wrap, input.passphrase);
   }
 }
 

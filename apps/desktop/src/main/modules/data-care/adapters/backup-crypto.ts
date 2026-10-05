@@ -15,6 +15,11 @@
  * Безопасность (§14): ключ копии/пароль никогда не логируются (нечего логировать —
  * функции не пишут в лог вовсе; redact-список logger.ts страхует нарушителя).
  * Обнуление строк пароля — JS-ограничение, документировано (ADR-0002 §14-прецедент).
+ *
+ * TASK-121 §3: обёртка ключа БД источника паролем копии — конвенции TASK-093 §2
+ * (`KEK = Argon2id(passphrase, salt)`, `wrappedKey = AES-256-GCM(dbKey, KEK)`,
+ * блоб `iv||ct||tag`); реализация зеркальна passphrase-crypto модуля security
+ * (модули независимы, арх. 03 §4 — дублирование ~20 строк осознанное).
  */
 import {
   createCipheriv,
@@ -58,10 +63,14 @@ export const TAG_BYTES = 16;
  * импортов (прецедент порта notes-search).
  */
 import { BackupIntegrityError } from '../application/ports/backup-crypto.js';
+import type { BackupDbKeyWrap } from '../application/ports/backup-crypto.js';
 export { BackupIntegrityError };
 
 /** Минимальная соль Argon2id (байты) — требование алгоритма. */
 const ARGON2_MIN_SALT_BYTES = 8;
+
+/** Ключ — ровно 64 hex-символа lowercase (инвариант §7; прецедент safe-storage-key-vault). */
+const KEY_HEX_PATTERN = /^[0-9a-f]{64}$/;
 
 /**
  * Выводит 32-байтный ключ содержимого из пароля копии (§8): Argon2id с солью и
@@ -165,4 +174,78 @@ export function decryptBackupPayload(input: DecryptPayloadInput): Buffer {
 /** Свежий случайный IV (node:crypto — единственный источник случайности проекта). */
 function createIv(): Buffer {
   return randomBytes(IV_BYTES);
+}
+
+/**
+ * Обёртка ключа БД источника паролем копии (TASK-121 §3; конвенции TASK-093 §2):
+ * свежая соль → `KEK = Argon2id(passphrase, salt, params)` → блоб
+ * `base64(iv||ct||tag)` = `AES-256-GCM(dbKey, KEK)` — auth-tag внутри блоба
+ * служит верификатором пароля при разворачивании (§5 TASK-093 — РЕШЕНИЕ).
+ * Запись целиком попадает в манифест v2 (`dbKeyWrap`, contracts).
+ * Нарушение контракта 64-hex keyHex — TypeError (dev-контракт, прецедент
+ * contentKeyFromDbKeyHex).
+ */
+export async function wrapDbKey(
+  keyHex: string,
+  passphrase: string,
+  params: Argon2Params,
+): Promise<BackupDbKeyWrap> {
+  if (typeof keyHex !== 'string' || !KEY_HEX_PATTERN.test(keyHex)) {
+    throw new TypeError(
+      'wrapDbKey: keyHex должен быть строкой из 64 hex-символов (32 байта) — нарушение контракта является программной ошибкой (TASK-121 §3)',
+    );
+  }
+  const salt = randomBytes(BACKUP_SALT_BYTES);
+  const kek = await deriveArgon2idKey(passphrase, salt, params);
+  const iv = createIv();
+  const cipher = createCipheriv('aes-256-gcm', kek, iv, { authTagLength: TAG_BYTES });
+  const ciphertext = Buffer.concat([cipher.update(Buffer.from(keyHex, 'hex')), cipher.final()]);
+  return {
+    saltB64: salt.toString('base64'),
+    iterations: params.iterations,
+    memoryKib: params.memoryKib,
+    parallelism: params.parallelism,
+    wrappedKeyB64: Buffer.concat([iv, ciphertext, cipher.getAuthTag()]).toString('base64'),
+  };
+}
+
+/**
+ * Разворачивание ключа БД из записи манифеста (TASK-121 §3, путь восстановления):
+ * KEK из пароля копии и записи → GCM-открытие блоба `iv||ct||tag`. Любой сбой
+ * (неверный пароль, подмена, обрезка) → BackupIntegrityError — мусор-ключ наружу
+ * не проходит (fail-closed, §14); не-64-hex развёрнутый текст — та же ошибка
+ * (GCM-валидная подделка с чужим содержимым — гард длины/формы, §19).
+ */
+export async function unwrapDbKey(wrap: BackupDbKeyWrap, passphrase: string): Promise<string> {
+  const salt = Buffer.from(wrap.saltB64, 'base64');
+  const kek = await deriveArgon2idKey(passphrase, salt, {
+    iterations: wrap.iterations,
+    memoryKib: wrap.memoryKib,
+    parallelism: wrap.parallelism,
+  });
+  const blob = Buffer.from(wrap.wrappedKeyB64, 'base64');
+  if (blob.length <= IV_BYTES + TAG_BYTES) {
+    throw new BackupIntegrityError('обёртка ключа БД короче iv+tag — порча записи манифеста');
+  }
+  const iv = blob.subarray(0, IV_BYTES);
+  const tag = blob.subarray(blob.length - TAG_BYTES);
+  const ciphertext = blob.subarray(IV_BYTES, blob.length - TAG_BYTES);
+  let keyBytes: Buffer;
+  try {
+    const decipher = createDecipheriv('aes-256-gcm', kek, iv, { authTagLength: TAG_BYTES });
+    decipher.setAuthTag(tag);
+    keyBytes = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  } catch (error) {
+    throw new BackupIntegrityError(
+      'обёртка ключа БД не открывается: неверный пароль копии или порча (криптографически неотличимы, §14)',
+      { cause: error },
+    );
+  }
+  const keyHex = keyBytes.toString('hex');
+  if (!KEY_HEX_PATTERN.test(keyHex)) {
+    throw new BackupIntegrityError(
+      'развёрнутый текст обёртки не является 64-hex-ключом (32 байта)',
+    );
+  }
+  return keyHex;
 }

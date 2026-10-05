@@ -1073,10 +1073,15 @@ export async function buildContainer(deps: ContainerDeps): Promise<Container> {
         closeCurrentDb();
       },
       dbPath,
-      verifyDatabaseOpens: (path) => {
-        openEncrypted(path, keyHex).close();
+      // TASK-121 §3: второй аргумент — ключ открытия; null = локальный ключ этого
+      // профиля (копии без переносимой обёртки: v1 и страховка).
+      verifyDatabaseOpens: (path, keyHexForOpen) => {
+        openEncrypted(path, keyHexForOpen ?? keyHex).close();
       },
       crypto: new BackupContainerCodec(),
+      // TASK-121 §3: импорт ключа источника в локальный vault после открытия
+      // подменённой БД ключом копии (AC-2.4 — чужой профиль).
+      keyVault: vault,
       logger: dbLogger,
       queue: fileOpQueue,
       relaunch: scheduleAppRelaunch,

@@ -341,6 +341,41 @@ export class SafeStorageKeyVault implements KeyVault {
     this.pending = undefined;
   }
 
+  /**
+   * TASK-121 §3/§5: импорт ключа БД из копии (см. порт) — safeStorage-переобёртка
+   * импортируемого ключа, запись v2 mode='safeStorage', кэш сессии переезжает на
+   * импортированный ключ (§13). Прецедент generateAndStore (кейс 1, без генерации).
+   */
+  async importKey(keyHex: string): Promise<Result<void, AppError>> {
+    if (typeof keyHex !== 'string' || !KEY_HEX_PATTERN.test(keyHex)) {
+      throw new TypeError(
+        'importKey: keyHex должен быть строкой из 64 hex-символов (32 байта) — нарушение контракта является программной ошибкой (TASK-121 §3)',
+      );
+    }
+    if (!this.safeStorage.isEncryptionAvailable()) {
+      return this.fail('VAULT/UNAVAILABLE', VAULT_UNAVAILABLE_MESSAGE_KEY, {
+        platform: process.platform,
+      });
+    }
+    try {
+      const wrappedKeyB64 = this.safeStorage.encryptString(keyHex).toString('base64');
+      await this.writeVaultFile({
+        v: 2,
+        mode: 'safeStorage',
+        wrappedKeyB64,
+        createdUtc: this.clock.nowMs(),
+      });
+    } catch (error) {
+      return this.fail('APP/INTERNAL', APP_INTERNAL_MESSAGE_KEY, undefined, error);
+    }
+    // Сессия переезжает на импортированный ключ: кэш успешного ensureKey (§13);
+    // летящий ensureKey сбрасывается — следующий вызов перечитает файл.
+    this.cached = ok({ keyHex, created: false });
+    this.pending = undefined;
+    this.logger.info('vault key imported from backup copy', { mode: 'safeStorage' });
+    return ok(undefined);
+  }
+
   /** TASK-093 §7: режим vault-а из заголовка файла — синхронно, без crypto (см. порт). */
   getMode(): VaultMode {
     let raw: string;

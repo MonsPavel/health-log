@@ -39,6 +39,11 @@ const testInstallDir = mkdtempSync(join(tmpdir(), 'hl-container-models-testinsta
 
 /** Мок-vault без safeStorage (§19, прецедент container-llm-engine.int.test.ts). */
 class MockVault implements KeyVault {
+  /** TASK-121 §3: импорт ключа из копии — мок-заглушка (сценарий восстановление не зовёт). */
+  importKey(): Promise<Result<void, AppError>> {
+    return Promise.resolve(ok(undefined));
+  }
+
   ensureKey(): Promise<Result<EnsuredKey, AppError>> {
     return Promise.resolve({ ok: true, value: { keyHex: KEY_HEX, created: true } });
   }

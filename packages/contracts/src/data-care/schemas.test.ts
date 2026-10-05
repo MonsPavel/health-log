@@ -103,6 +103,74 @@ describe('BACKUP_MANIFEST_SCHEMA (TASK-070 §7: валидатор восста�
   });
 });
 
+describe('BACKUP_MANIFEST_SCHEMA v2 — переносимый ключ (TASK-121 §3: обёртка в манифесте v-N+1)', () => {
+  /** Валидный v2-манифест (TASK-121 §3): обёртка ключа БД по конвенциям TASK-093. */
+  const validV2 = {
+    ...validManifest,
+    formatVersion: 2,
+    dbKeyWrap: {
+      saltB64: 'CsoEmS0RK+rHTStZ2Zc+Gg==',
+      iterations: 3,
+      memoryKib: 65536,
+      parallelism: 4,
+      wrappedKeyB64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+    },
+  };
+
+  it('v2 (formatVersion=2) с dbKeyWrap разбирается', () => {
+    expect(BACKUP_MANIFEST_SCHEMA.parse(validV2)).toEqual(validV2);
+  });
+
+  it('v2: dbKeyWrap обязателен, все его поля обязательны (strict)', () => {
+    const { dbKeyWrap, ...withoutWrap } = validV2;
+    expect(BACKUP_MANIFEST_SCHEMA.safeParse(withoutWrap).success).toBe(false);
+    for (const key of Object.keys(dbKeyWrap)) {
+      const without = { ...dbKeyWrap } as Record<string, unknown>;
+      delete without[key];
+      expect(BACKUP_MANIFEST_SCHEMA.safeParse({ ...validV2, dbKeyWrap: without }).success).toBe(
+        false,
+      );
+    }
+    expect(
+      BACKUP_MANIFEST_SCHEMA.safeParse({ ...validV2, dbKeyWrap: { ...dbKeyWrap, extra: 1 } })
+        .success,
+    ).toBe(false);
+  });
+
+  it('v1-манифест с dbKeyWrap отвергается (обёртка — только в v-N+1)', () => {
+    expect(
+      BACKUP_MANIFEST_SCHEMA.safeParse({ ...validManifest, dbKeyWrap: validV2.dbKeyWrap }).success,
+    ).toBe(false);
+  });
+
+  it('v2: параметры обёртки — целые в допустимых пределах', () => {
+    expect(
+      BACKUP_MANIFEST_SCHEMA.safeParse({
+        ...validV2,
+        dbKeyWrap: { ...validV2.dbKeyWrap, iterations: 0 },
+      }).success,
+    ).toBe(false);
+    expect(
+      BACKUP_MANIFEST_SCHEMA.safeParse({
+        ...validV2,
+        dbKeyWrap: { ...validV2.dbKeyWrap, parallelism: 17 },
+      }).success,
+    ).toBe(false);
+    expect(
+      BACKUP_MANIFEST_SCHEMA.safeParse({
+        ...validV2,
+        dbKeyWrap: { ...validV2.dbKeyWrap, wrappedKeyB64: '' },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('formatVersion кроме 1 и 2 отвергается', () => {
+    expect(BACKUP_MANIFEST_SCHEMA.safeParse({ ...validManifest, formatVersion: 3 }).success).toBe(
+      false,
+    );
+  });
+});
+
 describe('BACKUP_CREATE_REQUEST_SCHEMA (TASK-070 §6: {mode: ask|auto})', () => {
   it('ask: непустой пароль обязателен (§8)', () => {
     expect(

@@ -733,3 +733,95 @@ describe('SafeStorageKeyVault — двойная обёртка (TASK-093 §19: 
     expect(everything).not.toContain(fileBlob?.wrappedKeyB64 ?? 'файл-не-прочитан');
   });
 });
+
+describe('SafeStorageKeyVault — импорт ключа из копии (TASK-121 §3/§5)', () => {
+  const dirs: string[] = [];
+
+  afterAll(() => {
+    for (const dir of dirs) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  const newDir = (): string => {
+    const dir = mkdtempSync(join(tmpdir(), 'hl-vault-import-'));
+    dirs.push(dir);
+    return dir;
+  };
+
+  const keyFile = (dir: string): string => join(dir, VAULT_KEY_FILENAME);
+
+  const makeVault = (
+    dir: string,
+    safeStorage: VaultSafeStorage = new FakeSafeStorage(),
+    logger: VaultLogger = makeLogger().logger,
+  ): SafeStorageKeyVault =>
+    new SafeStorageKeyVault({
+      vaultFilePath: keyFile(dir),
+      safeStorage,
+      clock: new FixedClock(NOW_MS, 180),
+      logger,
+      calibrate: () => Promise.resolve({ iterations: 1, memoryKib: 8192, parallelism: 1 }),
+    });
+
+  it('importKey: файл переписан v2 safeStorage с импортированным ключом; ensureKey отдаёт его', async () => {
+    const dir = newDir();
+    const { logger, info } = makeLogger();
+    // У профиля был СВОЙ ключ (боевой путь: пустой профиль Б при старте).
+    const localKey = unsafeUnwrap(
+      await makeVault(dir, new FakeSafeStorage(), logger).ensureKey(false),
+    );
+    const foreignKey = 'ab'.repeat(32);
+
+    const vault = makeVault(dir, new FakeSafeStorage(), logger);
+    const result = await vault.importKey(foreignKey);
+
+    expect(result.ok).toBe(true);
+    // Файл v2 mode='safeStorage', createdUtc — момент импорта (FixedClock).
+    const blob = parseV2(readFileSync(keyFile(dir), 'utf8'));
+    expect(blob).toMatchObject({ v: 2, mode: 'safeStorage', createdUtc: NOW_MS });
+    // wrapped оборачивает ИМЕННО импортированный ключ (roundtrip тем же моком).
+    expect(
+      new FakeSafeStorage().decryptString(Buffer.from(blob?.wrappedKeyB64 ?? '', 'base64')),
+    ).toBe(foreignKey);
+    // Кэш сессии переехал: ensureKey того же экземпляра отдаёт импортированный ключ.
+    const ensured = unsafeUnwrap(await vault.ensureKey(true));
+    expect(ensured.keyHex).toBe(foreignKey);
+    expect(ensured.keyHex).not.toBe(localKey);
+    // Новая сессия (новый экземпляр) — тоже импортированный ключ, без unlock.
+    expect(unsafeUnwrap(await makeVault(dir).ensureKey(true)).keyHex).toBe(foreignKey);
+    // §18: факт импорта в логе, сам ключ — нет.
+    expect(JSON.stringify(info.mock.calls)).toContain('vault key imported from backup copy');
+    expect(JSON.stringify(info.mock.calls)).not.toContain(foreignKey);
+  });
+
+  it('importKey затирает passphrase-режим прежнего vault-а (восстановление заменяет всё, §3)', async () => {
+    const dir = newDir();
+    await makeVault(dir).ensureKey(false);
+    expect((await makeVault(dir).setPassphrase(PASS)).ok).toBe(true);
+    expect(makeVault(dir).getMode()).toBe('passphrase');
+
+    const vault = makeVault(dir);
+    expect((await vault.importKey('cd'.repeat(32))).ok).toBe(true);
+    // Режим passphrase прежнего ключа не переносится (TASK-121 §3 «не включено»):
+    // после импорта vault в safeStorage-режиме, unlock не нужен.
+    expect(vault.getMode()).toBe('none');
+    expect(unsafeUnwrap(await makeVault(dir).ensureKey(true)).keyHex).toBe('cd'.repeat(32));
+  });
+
+  it('importKey: нет ОС-хранилища → VAULT/UNAVAILABLE (файл не тронут); нарушение keyHex — TypeError', async () => {
+    const dir = newDir();
+    await makeVault(dir).ensureKey(false);
+    const before = readFileSync(keyFile(dir), 'utf8');
+
+    const unavailable = new FakeSafeStorage();
+    vi.spyOn(unavailable, 'isEncryptionAvailable').mockReturnValue(false);
+    const error = errOf(await makeVault(dir, unavailable).importKey('ab'.repeat(32)));
+    expect(error.code).toBe('VAULT/UNAVAILABLE');
+    expect(readFileSync(keyFile(dir), 'utf8')).toBe(before);
+
+    // Dev-контракт 64-hex: нарушение — TypeError в точке вызова.
+    await expect(makeVault(dir).importKey('не-hex')).rejects.toThrow(TypeError);
+    await expect(makeVault(dir).importKey('ab'.repeat(31))).rejects.toThrow(TypeError);
+  });
+});

@@ -30,9 +30,9 @@ import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi, type Mock } from 'vitest';
 
-import { AppError, FixedClock } from '@hl/kernel';
+import { AppError, err, FixedClock, ok } from '@hl/kernel';
 
 import { BackupIntegrityError } from '../adapters/backup-crypto.js';
 import {
@@ -48,6 +48,7 @@ import {
   type RestoreBackupResultValue,
   type RestorePlan,
 } from './restore-backup.js';
+import type { RestoreKeyVault } from './ports/restore-key-vault.js';
 
 import { openEncrypted, type EncryptedDatabase } from '../../../shared/db/sqlite.js';
 import { MigrationRunner, type Migration } from '../../../shared/db/migration-runner.js';
@@ -111,10 +112,15 @@ const recordingLogger = (): {
  * Свежая БД актуальной схемы (файл в tmp, реальный openEncrypted + MigrationRunner
  * с реестром приложения) — прецедент create-backup.int.test. Миграции завершаются
  * до возврата (await — соединение не закрывается под работающим runner'ом).
+ * TASK-121: ключ параметризуется — сценарий «чужого профиля» открывает источник
+ * и локальную БД РАЗНЫМИ ключами.
  */
-const openFreshDb = async (name: string): Promise<{ db: EncryptedDatabase; file: string }> => {
+const openFreshDb = async (
+  name: string,
+  keyHex: string = KEY_HEX,
+): Promise<{ db: EncryptedDatabase; file: string }> => {
   const file = join(newDir('hl-restore-db-'), name);
-  const db = openEncrypted(file, KEY_HEX);
+  const db = openEncrypted(file, keyHex);
   await new MigrationRunner({ migrations: MIGRATIONS }).migrate(db);
   return { db, file };
 };
@@ -132,11 +138,17 @@ const insertMeasurements = (db: EncryptedDatabase, count: number): void => {
 const countRows = (db: EncryptedDatabase): number =>
   (db.prepare('SELECT COUNT(*) AS n FROM bp_measurement').get() as { n: number }).n;
 
-/** Создаёт РЕАЛЬНУЮ копию БД паролем (CreateBackupUseCase, mode ask) — путь файла. */
+/**
+ * Создаёт РЕАЛЬНУЮ копию БД паролем (CreateBackupUseCase, mode ask) — путь файла.
+ * TASK-121: sourceKeyHex — ключ БД ИСТОЧНИКА, обёртываемый в v2-манифест
+ * (сценарии «чужого профиля» открывают источник другим ключом — обёртка обязана
+ * нести именно его, иначе разворачивание даст чужой ключ).
+ */
 const createBackupFile = async (
   db: EncryptedDatabase,
   passphrase: string,
   name: string,
+  sourceKeyHex: string = KEY_HEX,
 ): Promise<string> => {
   const dir = newDir('hl-restore-src-');
   const targetPath = join(dir, name);
@@ -149,6 +161,7 @@ const createBackupFile = async (
     queue: new FileOpQueue(),
     backupsDir: newDir('hl-restore-backups-'),
     appVersion: APP_VERSION,
+    dbKeyHex: () => sourceKeyHex,
     snapshotTmpRoot: newDir('hl-restore-snap-'),
   });
   const result = await create.execute({ mode: 'ask', passphrase });
@@ -162,8 +175,14 @@ const createBackupFile = async (
 interface HarnessOptions {
   /** Подмена криптопорта (мок-сбой расшифровки, §19); по умолчанию реальный кодек. */
   readonly crypto?: BackupCrypto;
-  /** Подмена verifyDatabaseOpens (по умолчанию реальный openEncrypted + close). */
-  readonly verifyDatabaseOpens?: (path: string) => void;
+  /**
+   * Подмена verifyDatabaseOpens (по умолчанию реальный openEncrypted + close).
+   * TASK-121: второй аргумент — ключ, которым открывать (null — локальный ключ
+   * этого «профиля», здесь KEY_HEX).
+   */
+  readonly verifyDatabaseOpens?: (path: string, keyHex: string | null) => void;
+  /** Подмена vault-порта импорта ключа (TASK-121 §3); по умолчанию — успех (spy). */
+  readonly keyVault?: RestoreKeyVault & { importKey: Mock };
 }
 interface Harness {
   readonly dbPath: string;
@@ -172,6 +191,8 @@ interface Harness {
   readonly useCase: RestoreBackupUseCase;
   readonly entries: LogEntry[];
   readonly relaunch: ReturnType<typeof vi.fn>;
+  /** Мок vault-импорта (проверки «импорт вызван с ключом копии», TASK-121). */
+  readonly keyVault: RestoreKeyVault & { importKey: Mock };
 }
 const buildRestoreHarness = (
   db: EncryptedDatabase,
@@ -182,6 +203,9 @@ const buildRestoreHarness = (
   const safetyFlagPath = join(newDir('hl-restore-flag-'), 'restore-safety.json');
   const { entries, logger } = recordingLogger();
   const relaunch = vi.fn();
+  const keyVault: Harness['keyVault'] = options.keyVault ?? {
+    importKey: vi.fn(() => Promise.resolve(ok(undefined))),
+  };
   const useCase = new RestoreBackupUseCase({
     currentDb: db,
     closeCurrentDb: () => {
@@ -191,11 +215,12 @@ const buildRestoreHarness = (
     dbPath: dbFile,
     verifyDatabaseOpens:
       options.verifyDatabaseOpens ??
-      ((path: string) => {
-        const probe = openEncrypted(path, KEY_HEX);
+      ((path: string, keyHex: string | null) => {
+        const probe = openEncrypted(path, keyHex ?? KEY_HEX);
         probe.close();
       }),
     crypto: options.crypto ?? newCodec(),
+    keyVault,
     logger,
     queue: new FileOpQueue(),
     relaunch,
@@ -204,7 +229,7 @@ const buildRestoreHarness = (
     clock: new FixedClock(NOW_MS, TZ),
     appVersion: APP_VERSION,
   });
-  return { dbPath: dbFile, safetyFlagPath, safetyTmpRoot, useCase, entries, relaunch };
+  return { dbPath: dbFile, safetyFlagPath, safetyTmpRoot, useCase, entries, relaunch, keyVault };
 };
 
 /** Сужение значения фазы 1 к плану (иначе — ошибка сценария теста). */
@@ -439,6 +464,7 @@ describe('RestoreBackupUseCase — копия новее: отказ DB_NEWER д
       contentKey,
       snapshotPath: payloadPath,
       destinationPath,
+      formatVersion: 1,
     });
   };
 
@@ -543,6 +569,7 @@ describe('RestoreBackupUseCase — битый sha256: отказ целостн�
         contentKey,
         snapshotPath: payloadPath,
         destinationPath,
+        formatVersion: 1,
       });
 
       const harness = buildRestoreHarness(db, dbFile);
@@ -581,6 +608,8 @@ describe('RestoreBackupUseCase — откат-страховка (AC-5, §19: с
         contentKeyFor: (kdf, source) => codec.contentKeyFor(kdf, source),
         writeContainer: (input) => codec.writeContainer(input),
         readHeader: (input) => codec.readHeader(input),
+        wrapDbKey: (input) => codec.wrapDbKey(input),
+        unwrapDbKey: (input) => codec.unwrapDbKey(input),
         readContainer: async (input) => {
           if (armed && input.containerPath === backupPath) {
             throw new BackupIntegrityError('мок: сбой расшифровки после закрытия БД (§19)');
@@ -766,9 +795,10 @@ describe('recovery-выполнение (TASK-101 §5/§8/§13: {recovery: true}
         currentDb: db,
         closeCurrentDb: () => undefined, // уже закрыта — no-op
         dbPath: dbFile,
-        verifyDatabaseOpens: (path: string) => {
-          openEncrypted(path, KEY_HEX).close();
+        verifyDatabaseOpens: (path: string, keyHex: string | null) => {
+          openEncrypted(path, keyHex ?? KEY_HEX).close();
         },
+        keyVault: { importKey: vi.fn().mockResolvedValue(ok(undefined)) },
         crypto: newCodec(),
         logger,
         queue: new FileOpQueue(),
@@ -818,9 +848,10 @@ describe('recovery-выполнение (TASK-101 §5/§8/§13: {recovery: true}
         currentDb: db,
         closeCurrentDb: () => undefined,
         dbPath: dbFile,
-        verifyDatabaseOpens: (path: string) => {
-          openEncrypted(path, KEY_HEX).close();
+        verifyDatabaseOpens: (path: string, keyHex: string | null) => {
+          openEncrypted(path, keyHex ?? KEY_HEX).close();
         },
+        keyVault: { importKey: vi.fn().mockResolvedValue(ok(undefined)) },
         crypto: newCodec(),
         logger: recordingLogger().logger,
         queue: new FileOpQueue(),
@@ -867,6 +898,7 @@ describe('recovery-выполнение (TASK-101 §5/§8/§13: {recovery: true}
         queue: new FileOpQueue(),
         backupsDir: newDir('hl-restore-rec-backups-'),
         appVersion: APP_VERSION,
+        dbKeyHex: () => KEY_HEX,
         snapshotTmpRoot: newDir('hl-restore-rec-snap-'),
       });
       const created = await create.execute({ mode: 'ask', passphrase: PASSPHRASE });
@@ -880,9 +912,10 @@ describe('recovery-выполнение (TASK-101 §5/§8/§13: {recovery: true}
         currentDb: db,
         closeCurrentDb: () => undefined,
         dbPath: dbFile,
-        verifyDatabaseOpens: (path: string) => {
-          openEncrypted(path, KEY_HEX).close();
+        verifyDatabaseOpens: (path: string, keyHex: string | null) => {
+          openEncrypted(path, keyHex ?? KEY_HEX).close();
         },
+        keyVault: { importKey: vi.fn().mockResolvedValue(ok(undefined)) },
         crypto: newCodec(),
         logger: recordingLogger().logger,
         queue: new FileOpQueue(),
@@ -904,6 +937,314 @@ describe('recovery-выполнение (TASK-101 §5/§8/§13: {recovery: true}
       }
       expect(relaunch).not.toHaveBeenCalled();
       expect(readFileSync(dbFile)).toEqual(bytesBefore);
+    } finally {
+      if (db.open) {
+        db.close();
+      }
+    }
+  });
+});
+
+describe('RestoreBackupUseCase — переносимый ключ, чужой профиль (TASK-121 §3/AC-2.4)', () => {
+  /** sha256 файла (hex) — сборка v1-фикстур (прецедент use case, §5 071). */
+  const sha256Of = (path: string): string =>
+    createHash('sha256').update(readFileSync(path)).digest('hex');
+
+  /**
+   * Крафтовая v1-копия (форма СТАРОГО формата — как писали версии до TASK-121):
+   * kdf argon2id, БЕЗ dbKeyWrap, магия HLBK1. db открывается любым ключом —
+   * VACUUM INTO несёт его SQLCipher-шифрование.
+   */
+  const createV1BackupFile = async (
+    db: EncryptedDatabase,
+    passphrase: string,
+    name: string,
+  ): Promise<string> => {
+    const codec = newCodec();
+    const dir = newDir('hl-restore-v1-');
+    const snapshotPath = join(dir, 'snapshot.db');
+    const escaped = snapshotPath.replace(/'/g, "''");
+    db.exec(`VACUUM INTO '${escaped}'`);
+    const { kdf, contentKey } = await codec.prepareKey({ kind: 'passphrase', passphrase });
+    const destinationPath = join(dir, name);
+    const manifest = {
+      formatVersion: 1,
+      schemaVersion: MIGRATIONS.at(-1)?.version ?? 0,
+      appVersion: APP_VERSION,
+      createdAtUtc: NOW_MS,
+      counts: { measurements: countRows(db) },
+      dbSha256: sha256Of(snapshotPath),
+      kdf,
+    };
+    await codec.writeContainer({
+      manifestJson: Buffer.from(JSON.stringify(manifest), 'utf8'),
+      contentKey,
+      snapshotPath,
+      destinationPath,
+      formatVersion: 1,
+    });
+    return destinationPath;
+  };
+
+  it('v2-копия с ДРУГОГО профиля: verify ключом копии, ключ импортирован в vault, данные копии', async () => {
+    // «Источник» — БД с ключом SOURCE_KEY (профиль А); «чужой профиль» — БД с
+    // LOCAL_KEY и пустым журналом (профиль Б). Снапшот VACUUM INTO несёт
+    // шифрование источника — открыть его можно только ключом из обёртки.
+    const SOURCE_KEY = randomBytes(32).toString('hex');
+    const LOCAL_KEY = randomBytes(32).toString('hex');
+    const source = await openFreshDb('portable-source.sqlite', SOURCE_KEY);
+    try {
+      insertMeasurements(source.db, 2);
+      const backupPath = await createBackupFile(
+        source.db,
+        PASSPHRASE,
+        'portable.hlbackup',
+        SOURCE_KEY,
+      );
+      source.db.close();
+
+      const local = await openFreshDb('portable-local.sqlite', LOCAL_KEY);
+      try {
+        const verifyCalls: [string, string | null][] = [];
+        const harness = buildRestoreHarness(local.db, local.file, {
+          verifyDatabaseOpens: (path, keyHex) => {
+            verifyCalls.push([path, keyHex]);
+            const probe = openEncrypted(path, keyHex ?? LOCAL_KEY);
+            probe.close();
+          },
+        });
+        const importKeySpy = harness.keyVault.importKey;
+
+        // Фаза 1: план (v2-манифест с обёрткой).
+        const planResult = await harness.useCase.execute({
+          file: backupPath,
+          passphrase: PASSPHRASE,
+          confirmed: false,
+        });
+        expect(planResult.ok).toBe(true);
+        if (!planResult.ok) {
+          return;
+        }
+        if (!('plan' in planResult.value)) {
+          throw new Error('ожидался план');
+        }
+        expect(planResult.value.plan.manifest.formatVersion).toBe(2);
+        expect(planResult.value.plan.currentCounts).toEqual({ measurements: 0 });
+
+        // Фаза 2: execute — подмена + открытие КЛЮЧОМ КОПИИ + импорт в vault.
+        const execResult = await harness.useCase.execute({
+          file: backupPath,
+          passphrase: PASSPHRASE,
+          confirmed: true,
+        });
+        expect(execResult.ok).toBe(true);
+        expect(harness.relaunch).toHaveBeenCalledTimes(1);
+        // Открытие подменённой БД — ключом ИСТОЧНИКА (развёрнут из обёртки).
+        expect(verifyCalls).toEqual([[local.file, SOURCE_KEY]]);
+        // Ключ источника импортирован в локальный vault.
+        expect(importKeySpy).toHaveBeenCalledTimes(1);
+        expect(importKeySpy).toHaveBeenCalledWith(SOURCE_KEY);
+        // Подменённая БД открывается ключом источника; счётчик = копии (AC-2.4).
+        const probe = openEncrypted(local.file, SOURCE_KEY);
+        expect(countRows(probe)).toBe(2);
+        probe.close();
+      } finally {
+        if (local.db.open) {
+          local.db.close();
+        }
+      }
+    } finally {
+      if (source.db.open) {
+        source.db.close();
+      }
+    }
+  });
+
+  it('v2-копия: сбой импорта ключа → откат-страховка, текущая БД работоспособна (BACKUP/FAILED)', async () => {
+    const SOURCE_KEY = randomBytes(32).toString('hex');
+    const LOCAL_KEY = randomBytes(32).toString('hex');
+    const source = await openFreshDb('import-fail-source.sqlite', SOURCE_KEY);
+    try {
+      insertMeasurements(source.db, 1);
+      const backupPath = await createBackupFile(
+        source.db,
+        PASSPHRASE,
+        'import-fail.hlbackup',
+        SOURCE_KEY,
+      );
+      source.db.close();
+
+      const local = await openFreshDb('import-fail-local.sqlite', LOCAL_KEY);
+      try {
+        insertMeasurements(local.db, 3);
+        local.db.pragma('wal_checkpoint(TRUNCATE)');
+        const harness = buildRestoreHarness(local.db, local.file, {
+          verifyDatabaseOpens: (path, keyHex) => {
+            const probe = openEncrypted(path, keyHex ?? LOCAL_KEY);
+            probe.close();
+          },
+          keyVault: {
+            importKey: vi.fn().mockResolvedValue(
+              err(
+                AppError.of('VAULT/UNAVAILABLE', 'errors.VAULT_UNAVAILABLE', {
+                  platform: 'test',
+                }),
+              ),
+            ),
+          },
+        });
+
+        const execResult = await harness.useCase.execute({
+          file: backupPath,
+          passphrase: PASSPHRASE,
+          confirmed: true,
+        });
+        expect(execResult.ok).toBe(false);
+        if (!execResult.ok) {
+          // Импорт — файловая/средовая операция: честный FAILED (причина в cause).
+          expect(execResult.error.code).toBe('BACKUP/FAILED');
+        }
+        // Откат-страховка: прежняя БД возвращена и открывается ЛОКАЛЬНЫМ ключом.
+        // (Байтовое тождество файла не ожидается: страховка — VACUUM-снапшот,
+        // раскладка страниц отличается от исходного файла — прецедент AC-5.)
+        const probe = openEncrypted(local.file, LOCAL_KEY);
+        expect(countRows(probe)).toBe(3);
+        probe.close();
+      } finally {
+        if (local.db.open) {
+          local.db.close();
+        }
+      }
+    } finally {
+      if (source.db.open) {
+        source.db.close();
+      }
+    }
+  });
+
+  it('старая v1-копия на чужом профиле → BACKUP/MACHINE_BOUND «копия с этой машины», данные целы (AC-2)', async () => {
+    const SOURCE_KEY = randomBytes(32).toString('hex');
+    const LOCAL_KEY = randomBytes(32).toString('hex');
+    const source = await openFreshDb('v1-foreign-source.sqlite', SOURCE_KEY);
+    try {
+      insertMeasurements(source.db, 2);
+      const backupPath = await createV1BackupFile(source.db, PASSPHRASE, 'old-format.hlbackup');
+      source.db.close();
+
+      const local = await openFreshDb('v1-foreign-local.sqlite', LOCAL_KEY);
+      try {
+        insertMeasurements(local.db, 3);
+        local.db.pragma('wal_checkpoint(TRUNCATE)');
+        // Реальный путь «чужого ключа»: открытие снапшота локальным ключом →
+        // SQLITE_NOTADB → AppError STORAGE/BAD_KEY (маппинг sqlite.ts).
+        // verify — с ключом ЭТОГО профиля (LOCAL_KEY) как в боевой сборке
+        // (verifyDatabaseOpens(path, keyHexForOpen ?? keyHex), контейнер 121).
+        const harness = buildRestoreHarness(local.db, local.file, {
+          verifyDatabaseOpens: (path, keyHex) => {
+            const probe = openEncrypted(path, keyHex ?? LOCAL_KEY);
+            probe.close();
+          },
+        });
+
+        const execResult = await harness.useCase.execute({
+          file: backupPath,
+          passphrase: PASSPHRASE,
+          confirmed: true,
+        });
+        expect(execResult.ok).toBe(false);
+        if (!execResult.ok) {
+          // Честная ошибка вместо BACKUP/FAILED (TASK-121 §3).
+          expect(execResult.error.code).toBe('BACKUP/MACHINE_BOUND');
+          expect(execResult.error.messageKey).toBe('errors.BACKUP_MACHINE_BOUND');
+        }
+        // Данные целы: откат-страховка вернула локальную БД (открывается локальным
+        // ключом), relaunch запланирован (§9: соединение закрыто). Байтовое
+        // тождество не ожидается — страховка VACUUM-снапшот (см. выше).
+        const probe = openEncrypted(local.file, LOCAL_KEY);
+        expect(countRows(probe)).toBe(3);
+        probe.close();
+        expect(harness.relaunch).toHaveBeenCalledTimes(1);
+        // Импорта не было: обёртки в v1-копии нет.
+        expect(harness.keyVault.importKey).not.toHaveBeenCalled();
+      } finally {
+        if (local.db.open) {
+          local.db.close();
+        }
+      }
+    } finally {
+      if (source.db.open) {
+        source.db.close();
+      }
+    }
+  });
+
+  it('старая v1-копия на ЭТОЙ машине: прежний путь работает (verify локальным ключом, без импорта)', async () => {
+    const { db, file: dbFile } = await openFreshDb('v1-same-machine.sqlite');
+    try {
+      insertMeasurements(db, 1);
+      const backupPath = await createV1BackupFile(db, PASSPHRASE, 'same-machine.hlbackup');
+      const verifyCalls: [string, string | null][] = [];
+      const harness = buildRestoreHarness(db, dbFile, {
+        verifyDatabaseOpens: (path, keyHex) => {
+          verifyCalls.push([path, keyHex]);
+          const probe = openEncrypted(path, keyHex ?? KEY_HEX);
+          probe.close();
+        },
+      });
+
+      const execResult = await harness.useCase.execute({
+        file: backupPath,
+        passphrase: PASSPHRASE,
+        confirmed: true,
+      });
+      expect(execResult.ok).toBe(true);
+      // v1-копия: открывается локальным ключом (null = локальный), импорта нет.
+      expect(verifyCalls).toEqual([[dbFile, null]]);
+      expect(vi.mocked(harness.keyVault.importKey)).not.toHaveBeenCalled();
+    } finally {
+      if (db.open) {
+        db.close();
+      }
+    }
+  });
+
+  it('авто-копия (kdf db-key) на чужом профиле → BACKUP/MACHINE_BOUND (честный текст вместо INTEGRITY)', async () => {
+    const codec = newCodec();
+    const dir = newDir('hl-restore-autocopy-');
+    const snapshotPath = join(dir, 'snapshot.db');
+    writeFileSync(snapshotPath, randomBytes(2048));
+    const destinationPath = join(dir, 'pre-migration-v4.hlbackup');
+    const manifest = {
+      formatVersion: 1,
+      schemaVersion: MIGRATIONS.at(-1)?.version ?? 0,
+      appVersion: APP_VERSION,
+      createdAtUtc: NOW_MS,
+      counts: { measurements: 1 },
+      dbSha256: sha256Of(snapshotPath),
+      kdf: { id: 'db-key' } as const,
+    };
+    await codec.writeContainer({
+      manifestJson: Buffer.from(JSON.stringify(manifest), 'utf8'),
+      contentKey: Buffer.from(KEY_HEX, 'hex'),
+      snapshotPath,
+      destinationPath,
+      formatVersion: 1,
+    });
+
+    const { db, file: dbFile } = await openFreshDb('autocopy-refuse.sqlite');
+    try {
+      const harness = buildRestoreHarness(db, dbFile);
+      const result = await harness.useCase.execute({
+        file: destinationPath,
+        passphrase: PASSPHRASE,
+        confirmed: false,
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('BACKUP/MACHINE_BOUND');
+        expect(result.error.messageKey).toBe('errors.BACKUP_MACHINE_BOUND');
+      }
+      expect(countRows(db)).toBe(0);
     } finally {
       if (db.open) {
         db.close();
