@@ -1,7 +1,0 @@
-Release (windows)	Unit/integration tests	﻿2026-10-03T09:19:02.9345630Z ##[group]Run pnpm test --reporter=default --reporter=junit --outputFile=test-results/junit.xml
-Release (windows)	Unit/integration tests	2026-10-03T09:19:02.9346413Z ^[[36;1mpnpm test --reporter=default --reporter=junit --outputFile=test-results/junit.xml^[[0m
-Release (windows)	Unit/integration tests	2026-10-03T09:19:02.9361150Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
-Release (windows)	Unit/integration tests	2026-10-03T09:19:02.9361563Z ##[endgroup]
-Release (windows)	Unit/integration tests	2026-10-03T09:19:03.4469514Z  ERROR  Unknown option: 'outputFile'
-Release (windows)	Unit/integration tests	2026-10-03T09:19:03.4471594Z For help, run: pnpm help test
-Release (windows)	Unit/integration tests	2026-10-03T09:19:03.4662852Z ##[error]Process completed with exit code 1.
