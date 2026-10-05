@@ -825,3 +825,66 @@ describe('SafeStorageKeyVault — импорт ключа из копии (TASK-
     await expect(makeVault(dir).importKey('ab'.repeat(31))).rejects.toThrow(TypeError);
   });
 });
+
+describe('TASK-122: сериализация мутаций с летящим ensureKey (окно гонки на свежем профиле)', () => {
+  /** tmp-каталоги этой сессии — удаляются в afterAll (§14). */
+  const dirs: string[] = [];
+  afterAll(() => {
+    for (const dir of dirs) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  const newDir = (): string => {
+    const dir = mkdtempSync(join(tmpdir(), 'hl-vault-race-'));
+    dirs.push(dir);
+    return dir;
+  };
+  /** Локальная фабрика (makeVault первого describe — в его замыкании, §19). */
+  const makeRaceVault = (dir: string): SafeStorageKeyVault =>
+    new SafeStorageKeyVault({
+      vaultFilePath: join(dir, VAULT_KEY_FILENAME),
+      safeStorage: new FakeSafeStorage(),
+      clock: new FixedClock(NOW_MS, 180),
+      logger: makeLogger().logger,
+      calibrate: () => Promise.resolve(FAST_PARAMS),
+    });
+
+  it('setPassphrase во время летящего ensureKey → сериализуется: ok (не призрачный KEY_MISSING), файл passphrase, unlock принимает пароль', async () => {
+    const dir = newDir();
+    const vault = makeRaceVault(dir);
+    // Кейс 1 (генерация + запись) в полёте — НЕ ждём его перед мутацией.
+    const ensured = vault.ensureKey(false);
+    const set = await vault.setPassphrase(PASS);
+    const ensuredResult = await ensured;
+    // Оба исхода ok: ensureKey создал ключ, setPassphrase переобёрнул УЖЕ записанный файл.
+    expect(ensuredResult.ok).toBe(true);
+    expect(set.ok).toBe(true);
+    if (!set.ok || !ensuredResult.ok) return;
+    expect(vault.getMode()).toBe('passphrase');
+    // «Перезапуск»: новый экземпляр — LOCKED до unlock, пароль из этого сеанса работает.
+    const next = makeRaceVault(dir);
+    const locked = await next.ensureKey(false);
+    expect(locked.ok).toBe(false);
+    if (locked.ok) return;
+    expect(locked.error.code).toBe('VAULT/LOCKED');
+    expect((await next.unlock(PASS)).ok).toBe(true);
+    const reopened = unsafeUnwrap(await next.ensureKey(false));
+    expect(reopened.keyHex).toBe(ensuredResult.value.keyHex);
+  });
+
+  it('importKey во время летящего ensureKey → финальный файл несёт ИМПОРТИРОВАННЫЙ ключ (запись кейса 1 не перекрывает её)', async () => {
+    const dir = newDir();
+    const vault = makeRaceVault(dir);
+    const importedKey = 'ab'.repeat(32);
+    const ensured = vault.ensureKey(false); // в полёте
+    const importResult = await vault.importKey(importedKey);
+    await ensured;
+    expect(importResult.ok).toBe(true);
+    if (!importResult.ok) return;
+    // Новый экземпляр на том же файле: ensureKey обязан выдать ИМПОРТИРОВАННЫЙ ключ —
+    // без сериализации завершившийся generateAndStore перезаписал бы файл своим
+    // ключом (ключ БД и vault расходятся → при следующем старте чужой ключ).
+    const reopened = unsafeUnwrap(await makeRaceVault(dir).ensureKey(false));
+    expect(reopened.keyHex).toBe(importedKey);
+  });
+});
