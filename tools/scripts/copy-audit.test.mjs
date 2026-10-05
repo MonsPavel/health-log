@@ -508,7 +508,6 @@ describe('ГЕЙТ §19/§20: полный прогон по реальным к
     // При ДОБАВЛЕНИИ каталога цифры правятся осознанным коммитом вместе с отчётом.
     expect(result.json.scanned.catalogs).toBe(17);
     expect(result.json.scanned.catalogValues).toBe(565);
-
   });
 
   it('0 запрет-находок вне whitelist (§20 AC1)', () => {

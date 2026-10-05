@@ -1,0 +1,23 @@
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	﻿2026-10-03T10:26:14.2753440Z ##[group]Run $exe = Get-ChildItem 'apps/desktop/dist' -Filter '*.exe' |
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2753940Z ^[[36;1m$exe = Get-ChildItem 'apps/desktop/dist' -Filter '*.exe' |^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2754301Z ^[[36;1m  Where-Object { $_.Name -match ' Setup ' } | Select-Object -First 1^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2754598Z ^[[36;1mif ($null -eq $exe) {^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2754877Z ^[[36;1m  Write-Error 'установщик * Setup *.exe не найден в apps/desktop/dist'^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2755196Z ^[[36;1m  exit 1^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2755347Z ^[[36;1m}^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2755556Z ^[[36;1m$sig = Get-AuthenticodeSignature $exe.FullName^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2755890Z ^[[36;1mWrite-Host "sign: $($sig.Status) — $($sig.SignerCertificate.Subject)"^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2756207Z ^[[36;1m"status=$($sig.Status)" >> $env:GITHUB_OUTPUT^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2756528Z ^[[36;1mif ($sig.Status -eq 'NotSigned' -or $sig.Status -eq 'HashMismatch') {^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2756928Z ^[[36;1m  Write-Error "подпись отсутствует или битая ($($sig.Status)) — гейт §14, draft не создаётся"^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2757266Z ^[[36;1m  exit 1^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2757420Z ^[[36;1m}^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2757645Z ^[[36;1mif ($sig.Status -ne 'Valid' -and $sig.Status -ne 'NotTrusted') {^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2757970Z ^[[36;1m  Write-Error "неожиданный статус подписи: $($sig.Status)"^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2758219Z ^[[36;1m  exit 1^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.2758372Z ^[[36;1m}^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.3207360Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:14.3207668Z ##[endgroup]
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:16.0391243Z sign: UnknownError — CN=Health Log, O=Health Log, C=RU
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:18.3523177Z ^[[31;1mWrite-Error: ^[[31;1mнеожиданный статус подписи: UnknownError^[[0m
+Release (windows)	Sign self-check (Get-AuthenticodeSignature)	2026-10-03T10:26:18.5465373Z ##[error]Process completed with exit code 1.

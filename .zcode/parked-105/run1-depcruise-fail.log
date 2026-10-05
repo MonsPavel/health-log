@@ -1,0 +1,15 @@
+Release (windows)	Dependency cruiser	﻿2026-10-03T09:12:16.9789969Z ##[group]Run pnpm depcruise
+Release (windows)	Dependency cruiser	2026-10-03T09:12:16.9790529Z ^[[36;1mpnpm depcruise^[[0m
+Release (windows)	Dependency cruiser	2026-10-03T09:12:16.9805045Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+Release (windows)	Dependency cruiser	2026-10-03T09:12:16.9805460Z ##[endgroup]
+Release (windows)	Dependency cruiser	2026-10-03T09:12:17.4792441Z 
+Release (windows)	Dependency cruiser	2026-10-03T09:12:17.4793674Z > health-log@0.0.0 depcruise D:\a\health-log\health-log
+Release (windows)	Dependency cruiser	2026-10-03T09:12:17.4794372Z > depcruise . --config
+Release (windows)	Dependency cruiser	2026-10-03T09:12:17.4794626Z 
+Release (windows)	Dependency cruiser	2026-10-03T09:12:24.2538134Z 
+Release (windows)	Dependency cruiser	2026-10-03T09:12:24.2539741Z   error module-public-api: apps/desktop/src/main/modules/ai-insight/adapters/model-store.int.test.ts → apps/desktop/src/main/modules/platform-services/egress/egress-gateway.ts
+Release (windows)	Dependency cruiser	2026-10-03T09:12:24.2541564Z 
+Release (windows)	Dependency cruiser	2026-10-03T09:12:24.2541917Z x 1 dependency violations (1 errors, 0 warnings). 1251 modules, 3659 dependencies cruised.
+Release (windows)	Dependency cruiser	2026-10-03T09:12:24.2542261Z 
+Release (windows)	Dependency cruiser	2026-10-03T09:12:24.3222179Z  ELIFECYCLE  Command failed with exit code 1.
+Release (windows)	Dependency cruiser	2026-10-03T09:12:24.3482039Z ##[error]Process completed with exit code 1.

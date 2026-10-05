@@ -1,0 +1,45 @@
+Release (windows)	Crash test (N=10)	﻿2026-10-04T05:21:13.8427113Z ##[group]Run pnpm test:crash
+Release (windows)	Crash test (N=10)	2026-10-04T05:21:13.8427525Z ^[[36;1mpnpm test:crash^[[0m
+Release (windows)	Crash test (N=10)	2026-10-04T05:21:13.8442191Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+Release (windows)	Crash test (N=10)	2026-10-04T05:21:13.8442695Z ##[endgroup]
+Release (windows)	Crash test (N=10)	2026-10-04T05:21:14.3675162Z 
+Release (windows)	Crash test (N=10)	2026-10-04T05:21:14.3675821Z > health-log@0.0.0 test:crash D:\a\health-log\health-log
+Release (windows)	Crash test (N=10)	2026-10-04T05:21:14.3676605Z > tsx tools/scripts/crash-test.mjs
+Release (windows)	Crash test (N=10)	2026-10-04T05:21:14.3676981Z 
+Release (windows)	Crash test (N=10)	2026-10-04T05:21:48.5028202Z #1 [idle] ack=1950 found=-1 dv=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33329мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:21:48.5035054Z #1 ошибка шага: electronApplication.firstWindow: Timeout 30000ms exceeded while waiting for event "window"
+Release (windows)	Crash test (N=10)	2026-10-04T05:22:21.8745849Z #2 ошибка шага: electronApplication.firstWindow: Timeout 30000ms exceeded while waiting for event "window"
+Release (windows)	Crash test (N=10)	2026-10-04T05:22:21.8750021Z #2 [in-flight] ack=3200 found=-1 dv=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33367мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:22:55.1175343Z #3 [in-flight] ack=2000 found=-1 dv=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33239мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:22:55.1177411Z #3 ошибка шага: electronApplication.firstWindow: Timeout 30000ms exceeded while waiting for event "window"
+Release (windows)	Crash test (N=10)	2026-10-04T05:23:28.1885652Z #4 ошибка шага: electronApplication.firstWindow: Timeout 30000ms exceeded while waiting for event "window"
+Release (windows)	Crash test (N=10)	2026-10-04T05:23:28.1888513Z #4 [idle] ack=1950 found=-1 dv=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33067мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:24:01.1554686Z #5 [in-flight] ack=2050 found=-1 dv=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 32963мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:24:01.1559117Z #5 ошибка шага: electronApplication.firstWindow: Timeout 30000ms exceeded while waiting for event "window"
+Release (windows)	Crash test (N=10)	2026-10-04T05:24:33.8873427Z #6 ошибка шага: electronApplication.firstWindow: Timeout 30000ms exceeded while waiting for event "window"
+Release (windows)	Crash test (N=10)	2026-10-04T05:24:33.8879251Z #6 [idle] ack=2050 found=-1 dv=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 32727мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:25:07.0697781Z #7 [in-flight] ack=3300 found=-1 dv=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33178мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:25:07.0700083Z #7 ошибка шага: electronApplication.firstWindow: Timeout 30000ms exceeded while waiting for event "window"
+Release (windows)	Crash test (N=10)	2026-10-04T05:25:40.1350305Z #8 ошибка шага: electronApplication.firstWindow: Timeout 30000ms exceeded while waiting for event "window"
+Release (windows)	Crash test (N=10)	2026-10-04T05:25:40.1356439Z #8 [idle] ack=2000 found=-1 dv=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33059мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:13.5656371Z #9 [in-flight] ack=3300 found=-1 dv=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33426мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:13.5665098Z #9 ошибка шага: electronApplication.firstWindow: Timeout 30000ms exceeded while waiting for event "window"
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2075317Z #10 [in-flight] ack=3350 found=-1 dv=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33637мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2079241Z #10 ошибка шага: electronApplication.firstWindow: Timeout 30000ms exceeded while waiting for event "window"
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2166965Z Крэш-тест потери питания — TASK-102 / NFR-3 (kill -9 во время записи)
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2168143Z report: D:\a\health-log\health-log\tools\crash-results\2026-10-04T05-21-15-167Z.json
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2169331Z seed=20261002 итераций=10 батч=50 калибровка=10×50
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2171011Z #1 [idle] ack=1950 found=-1 dv=-1 schema=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33329мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2172649Z #2 [in-flight] ack=3200 found=-1 dv=-1 schema=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33367мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2174280Z #3 [in-flight] ack=2000 found=-1 dv=-1 schema=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33239мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2175781Z #4 [idle] ack=1950 found=-1 dv=-1 schema=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33067мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2177352Z #5 [in-flight] ack=2050 found=-1 dv=-1 schema=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 32963мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2181469Z #6 [idle] ack=2050 found=-1 dv=-1 schema=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 32727мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2183032Z #7 [in-flight] ack=3300 found=-1 dv=-1 schema=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33178мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2184587Z #8 [idle] ack=2000 found=-1 dv=-1 schema=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33059мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2186176Z #9 [in-flight] ack=3300 found=-1 dv=-1 schema=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33426мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2188246Z #10 [in-flight] ack=3350 found=-1 dv=-1 schema=-1 FAIL(LOST_ACK,DATA_VERSION_MISMATCH,SCHEMA_MISMATCH) 33637мс
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2189326Z длительность: 332.0 с
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:47.2189867Z ИТОГ: FAIL
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:48.1271420Z  ELIFECYCLE  Command failed with exit code 1.
+Release (windows)	Crash test (N=10)	2026-10-04T05:26:48.1529046Z ##[error]Process completed with exit code 1.

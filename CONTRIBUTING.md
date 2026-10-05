@@ -199,19 +199,19 @@ PR** — включая перегенерацию затронутых скри
 
 ## 9. Карта документации
 
-| Документ                        | О чём                                                                                           |
-| ------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `docs/README.md`                | SRS (docs/01–10) и глоссарий терминов                                                           |
-| `docs/architecture/01–10`       | архитектура; границы — `03-modules.md` §4, сеть — `08-security.md` §5, CI — `10-delivery.md` §3 |
-| `docs/architecture/audits/`     | сетевой аудит релизов: шаблон `audit-template.md` + фактические отчёты (TASK-106)               |
-| `docs/release/notes-example.md` | пример заполненных release notes по шаблону `.github/release-template.md` (TASK-114)            |
-| `docs/a11y-keyboard.md`         | клавиатурная ревизия потоков (TASK-108) + чек-лист ручного прогона                              |
-| `docs/a11y-nvda.md`             | NVDA-чеклист 7 сценариев + контраст-аудит токенов (TASK-109)                                    |
-| `docs/roadmap/README.md`        | правила карты: новая работа вне карты = сначала ревизия карты                                   |
-| `docs/user/`                | руководство пользователя (TASK-113): 7 страниц + скриншоты; golden — `tools/scripts/docs-user-golden.test.ts` |
-| `docs/tasks/_TEMPLATE.md`       | канонический шаблон задачи; §21 — DoD                                                           |
-| `docs/tasks/STATUS.md`          | реестр статусов реализации                                                                      |
-| `CONTRIBUTING.md`               | этот документ                                                                                   |
+| Документ                        | О чём                                                                                                         |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `docs/README.md`                | SRS (docs/01–10) и глоссарий терминов                                                                         |
+| `docs/architecture/01–10`       | архитектура; границы — `03-modules.md` §4, сеть — `08-security.md` §5, CI — `10-delivery.md` §3               |
+| `docs/architecture/audits/`     | сетевой аудит релизов: шаблон `audit-template.md` + фактические отчёты (TASK-106)                             |
+| `docs/release/notes-example.md` | пример заполненных release notes по шаблону `.github/release-template.md` (TASK-114)                          |
+| `docs/a11y-keyboard.md`         | клавиатурная ревизия потоков (TASK-108) + чек-лист ручного прогона                                            |
+| `docs/a11y-nvda.md`             | NVDA-чеклист 7 сценариев + контраст-аудит токенов (TASK-109)                                                  |
+| `docs/roadmap/README.md`        | правила карты: новая работа вне карты = сначала ревизия карты                                                 |
+| `docs/user/`                    | руководство пользователя (TASK-113): 7 страниц + скриншоты; golden — `tools/scripts/docs-user-golden.test.ts` |
+| `docs/tasks/_TEMPLATE.md`       | канонический шаблон задачи; §21 — DoD                                                                         |
+| `docs/tasks/STATUS.md`          | реестр статусов реализации                                                                                    |
+| `CONTRIBUTING.md`               | этот документ                                                                                                 |
 
 ## 10. Релизный прогон (доступность — обязательный шаг)
 

@@ -177,8 +177,13 @@ describe('data-care хендлеры через каркас (TASK-073 §19)', (
       createdAtUtc: NOW_MS,
       counts: { measurements: 2 },
       kdf: { id: 'argon2id' },
-      dbKeyWrap: { iterations: expect.any(Number), wrappedKeyB64: expect.any(String) },
     });
+    // dbKeyWrap проверяется выборкой: expect.any(any) в литерале ломает CI-линт
+    // (no-unsafe-assignment), а значения обёртки случайны (свежая соль/iv).
+    const wrap = (data['manifest'] as { dbKeyWrap?: { iterations: number; wrappedKeyB64: string } })
+      .dbKeyWrap;
+    expect(typeof wrap?.iterations).toBe('number');
+    expect((wrap?.wrappedKeyB64 ?? '').length).toBeGreaterThan(0);
     expect(Object.keys(data)).not.toContain('path');
     expect(existsSync(containerTarget)).toBe(true);
   });
