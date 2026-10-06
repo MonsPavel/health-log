@@ -35,7 +35,20 @@ import { argv, exit } from 'node:process';
 export const DEFAULT_TOKENS_PATH = 'apps/desktop/src-renderer/app/theme/tokens.css';
 
 /** Имена токенов темы (§6: значения живут только в tokens.css). */
-export const TOKEN_NAMES = ['bg', 'text', 'accent', 'border', 'status-ok', 'status-fail'];
+export const TOKEN_NAMES = [
+  'bg',
+  'side',
+  'nav-active',
+  'surface',
+  'text',
+  'muted',
+  'accent',
+  'border',
+  'input-border',
+  'status-ok',
+  'status-fail',
+  'status-warn',
+];
 
 /**
  * Rem-масштабы текста (FR-8.2 / theme/scale.css): пресеты html font-size.
@@ -116,38 +129,32 @@ export const PAIRS = [
     gate: true,
     sources: 'кнопки bg-accent text-bg (TASK-108: замена text-white)',
   },
-  {
-    id: 'accent-on-accent10',
-    role: 'активный пункт навигации (текст accent на bg-accent/10)',
-    fg: 'accent',
-    bg: { token: 'accent', over: 'bg', alpha: 0.1 },
-    sizeRem: 1,
-    weight: 600,
-    gate: true,
-    sources: 'layout.tsx NavLink bg-accent/10 font-semibold',
-  },
+  /* accent-on-accent10 упразднена (TASK-123 v2): активная навигация —
+     filled (bg-accent + text-bg), сочетание «accent-текст на accent/10» в UI
+     больше не существует; сочетание контролируется парами bg-on-accent и
+     accent-on-surface. */
   {
     id: 'disabled-secondary',
     role: 'disabled вторичной кнопки (текст 50% на bg) — порог 3:1',
-    fg: { token: 'text', over: 'bg', alpha: 0.5 },
+    fg: { token: 'text', over: 'bg', alpha: 0.9 },
     bg: 'bg',
     sizeRem: 1,
     weight: 600,
     state: 'disabled',
     gate: true,
     sources:
-      'disabled:opacity-50 на border/bg-bg-кнопках (ExportButtons, ReportBuilder, ModelCard 239/276/311, AboutSection, DiagSection, UpdatesSection check, RecoveryScreen discard, HistoryFilters) — 3:1 выполняется уже на 50%',
+      'disabled:opacity-90 на вторичных кнопках (TASK-123 v2: iOS-синий светлее серого — 90%) (ExportButtons, ReportBuilder, ModelCard 239/276/311, AboutSection, DiagSection, UpdatesSection check, RecoveryScreen discard, HistoryFilters) — 3:1 выполняется уже на 50%',
   },
   {
     id: 'disabled-inverse',
     role: 'disabled инверсной кнопки (два слоя 80%) — порог 3:1',
-    fg: { token: 'bg', over: { token: 'accent', over: 'bg', alpha: 0.8 }, alpha: 0.8 },
+    fg: { token: 'bg', over: { token: 'accent', over: 'bg', alpha: 0.9 }, alpha: 0.9 },
     bg: { token: 'accent', over: 'bg', alpha: 0.8 },
     sizeRem: 1,
     weight: 600,
     state: 'disabled',
     gate: true,
-    sources: 'disabled:opacity-80 на bg-accent-кнопках (18 мест, TASK-109 §13)',
+    sources: 'disabled:opacity-90 на bg-accent-кнопках (TASK-123 v2) (18 мест, TASK-109 §13)',
   },
   {
     id: 'disabled-accent-link',
@@ -170,6 +177,78 @@ export const PAIRS = [
     nonText: true,
     gate: false,
     sources: 'border-border: карточки (декор), поля ввода (граница-идентификатор)',
+  },
+  {
+    id: 'text-on-nav-active',
+    role: 'текст активного раздела на пилюле (TASK-123 v3 референс: muted-pill)',
+    fg: 'text',
+    bg: 'nav-active',
+    sizeRem: 1,
+    weight: 500,
+    gate: true,
+    sources: 'layout.tsx NavLink active bg-nav-active text-text',
+  },
+  {
+    id: 'muted-on-bg',
+    role: 'вторичный текст на фоне (TASK-123: токен muted вместо neutral-хвостов)',
+    fg: 'muted',
+    bg: 'bg',
+    sizeRem: 1,
+    weight: 400,
+    gate: true,
+    sources: 'text-muted: подписи карточек, hint-строки, легенды, ChartTooltip',
+  },
+  {
+    id: 'muted-on-surface',
+    role: 'вторичный текст на поверхности карточки (TASK-123)',
+    fg: 'muted',
+    bg: 'surface',
+    sizeRem: 1,
+    weight: 400,
+    gate: true,
+    sources: 'text-muted внутри bg-surface карточек (ChatBubble, баннеры)',
+  },
+  {
+    id: 'text-on-surface',
+    role: 'основной текст на поверхности карточки (TASK-123)',
+    fg: 'text',
+    bg: 'surface',
+    sizeRem: 1.125,
+    weight: 400,
+    gate: true,
+    sources: 'text-text внутри bg-surface карточек/панелей',
+  },
+  {
+    id: 'accent-on-surface',
+    role: 'акцентный текст на поверхности (TASK-123)',
+    fg: 'accent',
+    bg: 'surface',
+    sizeRem: 1,
+    weight: 400,
+    gate: true,
+    sources: 'text-accent внутри bg-surface (ссылки/подписи в карточках)',
+  },
+  {
+    id: 'input-border-on-surface',
+    role: 'граница поля ввода на поверхности (не-текст 1.4.11 ≥3:1 — TASK-123/KI-4, информационно)',
+    fg: 'input-border',
+    bg: 'surface',
+    sizeRem: 1,
+    weight: 400,
+    nonText: true,
+    gate: false,
+    sources: 'border-input-border: поля ввода форм (KI-4 закрыт)',
+  },
+  {
+    id: 'warn-border-on-bg',
+    role: 'рамка warn-баннера на фоне (не-текст ≥3:1 — TASK-123, информационно)',
+    fg: 'status-warn',
+    bg: 'bg',
+    sizeRem: 1,
+    weight: 400,
+    nonText: true,
+    gate: false,
+    sources: 'border-status-warn/40: баннеры напоминаний (BackupReminder, ModelCard)',
   },
 ];
 
