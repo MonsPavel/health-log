@@ -499,15 +499,15 @@ describe('таблицы скрипта по умолчанию (§13: ключ�
 describe('ГЕЙТ §19/§20: полный прогон по реальным каталогам монорепо', () => {
   const result = run({});
 
-  it('discovery покрывает ВЕСЬ RU-корпус: 17 каталогов / 565 значений (ревью TASK-110)', () => {
+  it('discovery покрывает ВЕСЬ RU-корпус: 17 каталогов / 567 значений (ревью TASK-110)', () => {
     // 7 = features/* + components/* (файлы «ru.json») + 10 = i18n/ru/*.json
-    // (namespace = имя файла); 560 + 5 = 565 — сходится с check:i18n
+    // (namespace = имя файла); 560 + 7 = 567 — сходится с check:i18n
     // (TASK-121: errors/ru.json +BACKUP_MACHINE_BOUND — честная «копия с этой машины»;
     // TASK-113: settings/ru.json +4 ключа секции «Помощь»,
     // errors.json +1 ключ MEASUREMENT_FUTURE_TIME — репетиция новичка).
     // При ДОБАВЛЕНИИ каталога цифры правятся осознанным коммитом вместе с отчётом.
     expect(result.json.scanned.catalogs).toBe(17);
-    expect(result.json.scanned.catalogValues).toBe(565);
+    expect(result.json.scanned.catalogValues).toBe(567);
   });
 
   it('0 запрет-находок вне whitelist (§20 AC1)', () => {
