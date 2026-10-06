@@ -61,7 +61,7 @@ export function AboutSection(): JSX.Element {
       <h2 id="about-title" className="mb-2 text-base font-medium">
         {t('about.title')}
       </h2>
-      <div className="flex flex-col gap-3 rounded-md border border-border p-3">
+      <div className="flex flex-col gap-3 rounded-[10px] bg-surface p-3">
         {/* §16: таблица версий — definition-list семантика. Защитный рендер:
             ответ без ожидаемых полей — «—», секция настроек не падает. */}
         <dl data-testid="about-versions" className="flex flex-col gap-2">
@@ -124,7 +124,7 @@ export function AboutSection(): JSX.Element {
               state === 'ok'
                 ? 'border-border bg-transparent text-status-ok'
                 : state === 'failed'
-                  ? 'border-red-600 bg-transparent text-status-fail'
+                  ? 'border-status-fail bg-transparent text-status-fail'
                   : 'border-border bg-transparent text-accent'
             }`}
           >
@@ -175,7 +175,7 @@ export function AboutSection(): JSX.Element {
             disabled={full.isPending}
             aria-busy={full.isPending}
             onClick={() => full.mutate()}
-            className="min-h-11 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-xl bg-fill px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-90"
           >
             {t('about.fullCheck.title')}
           </button>

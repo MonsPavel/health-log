@@ -50,7 +50,7 @@ interface ExportNotice {
 }
 
 const BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-base ' +
+  'inline-flex items-center gap-2 rounded-xl bg-fill px-4 py-2 text-base ' +
   'font-medium hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-50';
 
 /** Кнопки экспорта CSV/JSON (§5): loading, тост успеха/ошибки, отмена тихо. */
@@ -103,7 +103,7 @@ export function ExportButtons(): JSX.Element {
   }, [notice]);
 
   return (
-    <div className="mb-6 rounded-md border border-border p-3">
+    <div className="mb-6 rounded-[10px] bg-surface p-3">
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"

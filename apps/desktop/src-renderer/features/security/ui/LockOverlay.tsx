@@ -120,7 +120,7 @@ export function LockOverlay({ onUnlocked }: LockOverlayProps): JSX.Element {
         <path d="M8 11V7a4 4 0 1 1 8 0v4" />
         <circle cx="12" cy="15.5" r="1.5" fill="currentColor" stroke="none" />
       </svg>
-      <h1 id="lock-title" className="text-xl font-semibold text-text">
+      <h1 id="lock-title" className="hl-large-title text-text">
         {t('lock.title')}
       </h1>
       <p className="mt-1 text-sm text-accent">{t('lock.subtitle')}</p>
@@ -140,7 +140,7 @@ export function LockOverlay({ onUnlocked }: LockOverlayProps): JSX.Element {
           onChange={(event) => setPass(event.target.value)}
           aria-invalid={errorText === null ? undefined : 'true'}
           aria-describedby={errorText === null ? undefined : 'lock-error'}
-          className="min-h-11 rounded-md border border-border bg-bg px-3 text-base text-text"
+          className="min-h-11 rounded-[10px] bg-fill px-3 text-base text-text"
         />
         {errorText !== null ? (
           <p
@@ -168,7 +168,7 @@ export function LockOverlay({ onUnlocked }: LockOverlayProps): JSX.Element {
           data-testid="lock-unlock"
           disabled={unlock.isPending || waiting}
           aria-busy={unlock.isPending}
-          className="mt-2 flex min-h-11 items-center justify-center gap-2 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+          className="mt-2 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
         >
           {unlock.isPending ? <Spinner /> : null}
           {buttonLabel}

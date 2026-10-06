@@ -95,7 +95,7 @@ describe('MeasurementForm — рендер и a11y (§5/§16)', () => {
     expect(screen.getByLabelText('Верхнее (СДА)')).toBeDefined();
     expect(screen.getByLabelText('Нижнее (ДДА)')).toBeDefined();
     expect(screen.getByLabelText('Пульс (ЧСС)')).toBeDefined();
-    expect(screen.getByRole('checkbox', { name: 'Неровный пульс' })).toBeDefined();
+    expect(screen.getByRole('switch', { name: 'Неровный пульс' })).toBeDefined();
     expect(screen.getByRole('group', { name: 'Рука' })).toBeDefined();
     expect(screen.getByLabelText('Заметка')).toBeDefined();
     expect(screen.getByText('Когда измерено')).toBeDefined();
@@ -117,7 +117,7 @@ describe('MeasurementForm — рендер и a11y (§5/§16)', () => {
       sysInput(),
       diaInput(),
       pulseInput(),
-      screen.getByRole('checkbox', { name: 'Неровный пульс' }),
+      screen.getByRole('switch', { name: 'Неровный пульс' }),
       screen.getByRole('radio', { name: 'Правая' }),
       screen.getByLabelText('Заметка'),
       saveButton(),
@@ -257,7 +257,7 @@ describe('MeasurementForm — сохранение (§10/§11/§20)', () => {
     renderForm();
     fillValid();
     fireEvent.click(screen.getByRole('radio', { name: 'Левая' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Неровный пульс' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Неровный пульс' }));
 
     fireEvent.click(saveButton());
 
@@ -266,9 +266,9 @@ describe('MeasurementForm — сохранение (§10/§11/§20)', () => {
     expect(diaInput().value).toBe('');
     expect(pulseInput().value).toBe('');
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Левая' }).checked).toBe(true);
-    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Неровный пульс' }).checked).toBe(
-      true,
-    );
+    expect(
+      screen.getByRole('switch', { name: 'Неровный пульс' }).getAttribute('aria-checked'),
+    ).toBe('true');
   });
 
   it('заметка попадает в payload; пустой пульс — поле опущено (§11)', async () => {
@@ -604,9 +604,9 @@ describe('MeasurementForm — режим edit (TASK-038 §5/§10/§19/§20)', ()
     expect(sysInput().value).toBe('125');
     expect(diaInput().value).toBe('82');
     expect(pulseInput().value).toBe('70');
-    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: 'Неровный пульс' }).checked).toBe(
-      true,
-    );
+    expect(
+      screen.getByRole('switch', { name: 'Неровный пульс' }).getAttribute('aria-checked'),
+    ).toBe('true');
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Левая' }).checked).toBe(true);
     expect(screen.getByLabelText<HTMLTextAreaElement>('Заметка').value).toBe('утром');
     expect(screen.getByLabelText<HTMLInputElement>('Дата').value).toBe('2026-09-24');

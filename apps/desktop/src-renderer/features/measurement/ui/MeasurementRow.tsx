@@ -67,22 +67,22 @@ export const MeasurementRow = memo(function MeasurementRow({
       data-testid="measurement-row"
       className="flex flex-wrap items-baseline gap-3 px-1 py-1.5 text-sm"
     >
-      <span className="shrink-0 tabular-nums text-neutral-500">
+      <span className="shrink-0 tabular-nums text-muted">
         {formatDateTime(takenAt, { preset: 'time' })}
       </span>
       <span className="font-medium tabular-nums">
         {measurement.sys}/{measurement.dia}
       </span>
       {measurement.pulse !== undefined ? (
-        <span className="tabular-nums text-neutral-600 dark:text-neutral-300">
+        <span className="tabular-nums text-muted">
           {t('measurement.history.pulse', { value: measurement.pulse })}
         </span>
       ) : null}
-      <span title={armLabel} className="shrink-0 text-xs text-neutral-500">
+      <span title={armLabel} className="shrink-0 text-xs text-muted">
         {armLabel}
       </span>
       {measurement.note === undefined || measurement.note === '' ? null : (
-        <span title={measurement.note} className="truncate text-xs text-neutral-500">
+        <span title={measurement.note} className="truncate text-xs text-muted">
           {truncateNote(measurement.note)}
         </span>
       )}

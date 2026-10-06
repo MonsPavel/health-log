@@ -31,6 +31,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { IoSwitch } from '../../../components/ios/kit.js';
 import { useSearchParams } from 'react-router-dom';
 
 import {
@@ -133,83 +135,92 @@ export function HistoryFilters({
   }, [onQuery]);
 
   return (
-    <div
-      data-testid="history-filters"
-      className="mb-4 flex flex-wrap items-end gap-x-6 gap-y-3 rounded-md border border-border p-3"
-    >
-      <fieldset className="border-0 p-0">
-        <legend className="text-sm text-accent">{t('measurement.filters.periodLabel')}</legend>
-        <div className="flex gap-2">
-          {PERIOD_OPTIONS.map((period) => (
-            <label
-              key={period}
-              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-base hover:bg-accent/10 data-disabled:cursor-default data-disabled:opacity-50"
-            >
-              <input
-                type="radio"
-                name="history-period"
-                data-testid={`filter-period-${period}`}
-                value={period}
-                checked={state.period === period}
-                onChange={() => onPeriod(period)}
-                className="h-5 w-5 accent-[var(--hl-accent)]"
-              />
-              {t(PERIOD_KEY[period])}
-            </label>
-          ))}
-        </div>
-        {/* TASK-046 §5/§10: поля произвольного периода — только в режиме custom;
-            invalid-ввод блокируется внутри (§19), в URL уходят лишь валидные даты. */}
-        {state.period === 'custom' && (
-          <div className="mt-3">
-            <CustomRangeFields from={state.from} to={state.to} onApply={onRange} />
+    /* TASK-123 v3 (референс): фильтры — ОДНА карточка (radius 14): строка 1 —
+       период-пилюли с иконками + рука; строка 2 (за hairline) — заметки-switch,
+       поиск с лупой, сброс с воронкой. Семантика и testid сохранены. */
+    <div data-testid="history-filters" className="mb-5 rounded-[14px] bg-surface p-5">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+        <fieldset className="border-0 p-0">
+          <legend className="mb-1.5 text-[13px] text-muted">
+            {t('measurement.filters.periodLabel')}
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {PERIOD_OPTIONS.map((period) => {
+              const active = state.period === period;
+              return (
+                <label
+                  key={period}
+                  className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-[10px] px-4 text-sm font-medium has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent data-disabled:cursor-default data-disabled:opacity-90 ${
+                    active ? 'bg-accent text-bg' : 'bg-fill text-text hover:bg-accent/10'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="history-period"
+                    data-testid={`filter-period-${period}`}
+                    value={period}
+                    checked={active}
+                    onChange={() => onPeriod(period)}
+                    className="sr-only"
+                  />
+                  {period === 'all' ? <InfinityIcon /> : <CalendarIcon />}
+                  {t(PERIOD_KEY[period])}
+                </label>
+              );
+            })}
           </div>
-        )}
-      </fieldset>
+          {/* TASK-046 §5/§10: поля произвольного периода — только в режиме custom;
+              invalid-ввод блокируется внутри (§19), в URL уходят лишь валидные даты. */}
+          {state.period === 'custom' && (
+            <div className="mt-3">
+              <CustomRangeFields from={state.from} to={state.to} onApply={onRange} />
+            </div>
+          )}
+        </fieldset>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="filter-arm" className="text-sm text-accent">
-          {t('measurement.filters.armLabel')}
-        </label>
-        <select
-          id="filter-arm"
-          data-testid="filter-arm"
-          value={state.arm ?? 'any'}
-          onChange={(event) => {
-            const value = event.target.value;
-            onArm(value === 'left' || value === 'right' ? value : undefined);
-          }}
-          className="min-h-11 rounded-md border border-border bg-transparent px-3 py-2 text-base"
-        >
-          {ARM_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {t(option.key)}
-            </option>
-          ))}
-        </select>
+        <div aria-hidden="true" className="hidden w-px self-stretch bg-border lg:block" />
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="filter-arm" className="text-[13px] text-muted">
+            {t('measurement.filters.armLabel')}
+          </label>
+          <select
+            id="filter-arm"
+            data-testid="filter-arm"
+            value={state.arm ?? 'any'}
+            onChange={(event) => {
+              const value = event.target.value;
+              onArm(value === 'left' || value === 'right' ? value : undefined);
+            }}
+            className="min-h-11 rounded-[10px] bg-fill px-3 py-2 text-base"
+          >
+            {ARM_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(option.key)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <label
-        htmlFor="filter-noted"
-        className="flex min-h-11 cursor-pointer items-center gap-2 text-base"
-      >
-        <input
-          type="checkbox"
-          id="filter-noted"
-          data-testid="filter-noted"
-          checked={state.noted === true}
-          onChange={(event) => onNoted(event.target.checked)}
-          className="h-5 w-5 accent-[var(--hl-accent)]"
-        />
-        {t('measurement.filters.noted')}
-      </label>
+      <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-border pt-4">
+        <div className="flex items-center gap-3 text-base">
+          <span id="filter-noted-label">{t('measurement.filters.noted')}</span>
+          <IoSwitch
+            checked={state.noted === true}
+            onChange={onNoted}
+            labelText={t('measurement.filters.noted')}
+            testid="filter-noted"
+          />
+        </div>
 
-      <div className="flex flex-col gap-1">
         {/* TASK-045 §16: label + type="search"; Esc очищает (§16), ×-кнопка — тоже (§10). */}
-        <label htmlFor="filter-query" className="text-sm text-accent">
-          {t('measurement.search.placeholder')}
-        </label>
-        <div className="flex items-center gap-1">
+        <div className="relative">
+          {/* §16: label обязателен (getByLabelText) — визуально скрыт, место — placeholder. */}
+          <label htmlFor="filter-query" className="sr-only">
+            {t('measurement.search.placeholder')}
+          </label>
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input
             id="filter-query"
             type="search"
@@ -222,7 +233,7 @@ export function HistoryFilters({
                 clearQuery();
               }
             }}
-            className="min-h-11 w-56 rounded-md border border-border bg-transparent px-3 py-2 text-base"
+            className="min-h-11 w-64 rounded-[10px] bg-fill pl-9 pr-3 py-2 text-base"
           />
           {queryDraft !== '' && (
             <button
@@ -230,23 +241,85 @@ export function HistoryFilters({
               data-testid="filter-query-clear"
               aria-label={t('measurement.search.clear')}
               onClick={clearQuery}
-              className="min-h-11 min-w-11 rounded-md border border-border px-3 text-base hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="absolute right-1 top-1/2 min-h-9 min-w-9 -translate-y-1/2 rounded-lg text-base text-muted hover:bg-accent/10"
             >
               ×
             </button>
           )}
         </div>
-      </div>
 
-      <button
-        type="button"
-        data-testid="filters-reset"
-        onClick={onReset}
-        className="min-h-11 rounded-md border border-border px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-      >
-        {t('measurement.filters.reset')}
-      </button>
+        <button
+          type="button"
+          data-testid="filters-reset"
+          onClick={onReset}
+          className="flex min-h-11 items-center gap-2 rounded-[10px] bg-fill px-4 py-2 text-sm text-text hover:bg-accent/10"
+        >
+          <FunnelIcon />
+          {t('measurement.filters.reset')}
+        </button>
+      </div>
     </div>
+  );
+}
+
+/** Календарь — иконка пилюль периода (SF calendar, упрощённый контур). */
+function CalendarIcon(): JSX.Element {
+  return (
+    <svg aria-hidden="true" width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M2 6.5h12M5 1.5v3M11 1.5v3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Бесконечность — иконка периода «Всё» (SF infinity, упрощённый контур). */
+function InfinityIcon(): JSX.Element {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M8 8c-1.2 1.6-2.2 2.5-3.4 2.5a2.5 2.5 0 1 1 0-5C5.8 5.5 6.8 6.4 8 8Zm0 0c1.2-1.6 2.2-2.5 3.4-2.5a2.5 2.5 0 1 1 0 5C10.2 10.5 9.2 9.6 8 8Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Лупа — иконка поиска заметок (SF magnifyingglass). */
+function SearchIcon({ className = '' }: { readonly className?: string }): JSX.Element {
+  return (
+    <svg
+      aria-hidden="true"
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      className={className}
+    >
+      <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="m10.5 10.5 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Воронка — иконка сброса фильтров (SF line.3.horizontal → filter). */
+function FunnelIcon(): JSX.Element {
+  return (
+    <svg aria-hidden="true" width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M2 3.5h12l-4.6 5.2v3.8l-2.8-1.6V8.7L2 3.5Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

@@ -42,7 +42,7 @@ export function SettingsScreen(): JSX.Element {
 
   return (
     <section className="mx-auto max-w-2xl p-4" aria-labelledby="settings-title">
-      <h1 id="settings-title" className="mb-4 text-xl font-semibold">
+      <h1 id="settings-title" className="hl-large-title mb-4">
         {t('settings.title')}
       </h1>
       {/* TASK-113 §5/§6: «Помощь» — первая секция (заметность для новичка, §13);
@@ -50,7 +50,7 @@ export function SettingsScreen(): JSX.Element {
       <HelpSection />
       {/* §16: switch-паттерн с aria-checked и подписью; имя switch — из label по id.
           §22: ключ в t() — литерал (динамические ключи запрещены). */}
-      <div className="mb-6 flex items-center justify-between gap-4 rounded-md border border-border p-3">
+      <div className="mb-6 flex items-center justify-between gap-4 rounded-[10px] bg-surface p-3">
         <div>
           <p id="settings-simple-mode-label" className="text-base font-medium">
             {t('settings.simpleMode')}

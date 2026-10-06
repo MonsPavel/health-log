@@ -1,15 +1,20 @@
 /*
- * TASK-013 §5/§22: вход Tailwind v4 и мост токенов. Значения цветов живут в
- * tokens.css (CSS-переменные); здесь утилиты Tailwind привязываются к переменным
- * через @theme inline: классы bg-bg/text-text/border-border/accent-* читают
- * var(--hl-*) напрямую, поэтому смена data-theme не требует перегенерации утилит
- * и пере-рендера дерева.
+ * TASK-013 §5/§22 + TASK-123 v2 (iOS-редизайн): вход Tailwind v4 и мост токенов.
+ * Значения цветов живут в tokens.css (CSS-переменные); утилиты Tailwind
+ * привязываются через @theme inline: классы bg-bg/text-text/bg-surface/bg-fill
+ * читают var(--hl-*) напрямую — смена data-theme без пере-рендера дерева.
  *
- * База (§16): фон/текст документа — из токенов; видимый фокус-стиль outline на
- * интерактивных элементах. Анимаций в P0 нет; правило на будущее (§16) —
- * только motion-safe:.
+ * Типографика (TASK-123 v2): Inter Variable (ближайший свободный аналог SF Pro;
+ * bundled локально — офлайн-приложение), системный стек фолбэком. iOS-иерархия:
+ * LargeTitle 34/700 — заголовок экрана; section header 13/600 uppercase
+ * secondary — заголовок группы (как в iOS Settings); body 16; footnote 13.
+ * Цифры показаний — tabular.
+ *
+ * База (§16): фон/текст документа — из токенов; видимый фокус-стиль outline.
+ * Анимации — только motion-safe:, отклик на действие 120 мс.
  */
 @import 'tailwindcss';
+@import '@fontsource-variable/inter';
 
 /*
  * TASK-048 §6: масштаб-классы крупного режима текста (html.hl-text-*, три пресета
@@ -20,23 +25,121 @@
 
 @theme inline {
   --color-bg: var(--hl-bg);
+  --color-side: var(--hl-side);
+  --color-nav-active: var(--hl-nav-active);
+  --color-surface: var(--hl-surface);
   --color-text: var(--hl-text);
+  --color-muted: var(--hl-muted);
   --color-accent: var(--hl-accent);
   --color-border: var(--hl-border);
+  --color-separator: var(--hl-separator);
+  --color-fill: var(--hl-fill);
+  --color-input-border: var(--hl-input-border);
   /* TASK-108 §5: статусные цвета — через токены (следуют data-theme, НЕ media
      dark: — классы dark: в проекте отвечают prefers-color-scheme ОС). */
   --color-status-ok: var(--hl-status-ok);
   --color-status-fail: var(--hl-status-fail);
+  --color-status-warn: var(--hl-status-warn);
+  /* TASK-123 v2: iOS — плоские группы без теней; глубина = контраст слоёв. */
+  --font-sans: 'Inter Variable', 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
 }
 
 @layer base {
   body {
     background-color: var(--hl-bg);
     color: var(--hl-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
   }
 
   :focus-visible {
     outline: 2px solid var(--hl-accent);
     outline-offset: 2px;
   }
+
+  /* TASK-123 v2: заголовок экрана в стиле iOS LargeTitle. */
+  .hl-large-title {
+    font-size: 2.125rem; /* 34px на базе 16 */
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  /* TASK-123 v2: заголовок группы — как в iOS Settings (13/600 uppercase). */
+  .hl-section-header {
+    font-size: 0.8125rem; /* 13px */
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--hl-muted);
+    padding-left: 1rem;
+    margin-bottom: 0.375rem;
+  }
+
+  /* Цифры показаний — табличные, выравниваются в столбик. */
+  .hl-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* TASK-123 v2: hairline-разделитель строк внутри группы (отступ слева —
+     как в iOS: линия начинается после текста). */
+  .hl-row + .hl-row {
+    border-top: 1px solid var(--hl-separator);
+  }
+
+  /* §16: единственные переходы интерфейса — отклик на действие, 120 мс. */
+  @media (prefers-reduced-motion: no-preference) {
+    button,
+    a,
+    select,
+    input,
+    [role='button'] {
+      transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease,
+        box-shadow 120ms ease,
+        transform 120ms ease;
+    }
+  }
+}
+
+/* TASK-123 v3: нативные чекбокс/радио — iOS-вид (appearance-none): чекбокс —
+   скруглённый квадрат с белой галочкой на accent; радио — кольцо с точкой.
+   Фокус — глобальный :focus-visible outline. Размеры прежние (h-5 w-5). */
+.hl-checkbox {
+  appearance: none;
+  display: inline-block;
+  flex-shrink: 0;
+  height: 1.25rem;
+  width: 1.25rem;
+  border-radius: 6px;
+  border: 1.5px solid var(--hl-input-border);
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.hl-checkbox:checked {
+  border-color: var(--hl-accent);
+  background-color: var(--hl-accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.5l2.8 2.8L11 4.5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+  background-size: 13px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.hl-radio {
+  appearance: none;
+  display: inline-block;
+  flex-shrink: 0;
+  height: 1.25rem;
+  width: 1.25rem;
+  border-radius: 9999px;
+  border: 1.5px solid var(--hl-input-border);
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.hl-radio:checked {
+  border: 6px solid var(--hl-accent);
 }

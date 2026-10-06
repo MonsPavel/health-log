@@ -159,7 +159,7 @@ function HistorySkeleton(): JSX.Element {
           key={row}
           data-testid="skeleton-row"
           aria-hidden="true"
-          className="mb-2 h-6 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700"
+          className="mb-2 h-6 animate-pulse rounded bg-border"
         />
       ))}
     </div>
@@ -186,7 +186,7 @@ function EmptyFiltered({ onReset }: { readonly onReset: () => void }): JSX.Eleme
         type="button"
         data-testid="empty-filtered-reset"
         onClick={onReset}
-        className="mt-4 rounded-md border border-border px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+        className="mt-4 rounded-xl bg-fill px-4 py-2 text-sm hover:bg-accent/10"
       >
         {t('measurement.filters.reset')}
       </button>
@@ -351,11 +351,11 @@ export function HistoryScreen(): JSX.Element {
     return (
       <section className="flex flex-col items-center gap-3 px-6 py-16 text-center">
         {/* TASK-108 §5 (page-has-heading-one): заголовок экрана — h1 (и в ошибке). */}
-        <h1 className="text-lg font-semibold">{t('common.nav.journal')}</h1>
+        <h1 className="hl-large-title">{t('common.nav.journal')}</h1>
         <button
           type="button"
           onClick={() => void (isSearching ? search.refetch() : measurements.refetch())}
-          className="rounded-md border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800"
+          className="rounded-xl bg-fill px-4 py-2 text-sm hover:bg-accent/10"
         >
           {t('measurement.history.retry')}
         </button>
@@ -377,17 +377,23 @@ export function HistoryScreen(): JSX.Element {
 
   return (
     <section className="p-4">
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-5">
         {/* TASK-108 §5 (page-has-heading-one): заголовок экрана — h1; группы дней —
-            h2 (DayGroup) — без пропуска уровней. */}
-        <h1 className="text-lg font-semibold">{t('common.nav.journal')}</h1>
-        <button
-          type="button"
-          onClick={() => setView('form')}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-bg hover:opacity-90"
-        >
-          {t('measurement.history.add')}
-        </button>
+            h2 (DayGroup) — без пропуска уровней. TASK-123 v3: подпись + кнопка. */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="hl-large-title">{t('common.nav.journal')}</h1>
+            <p className="mt-1 text-sm text-muted">{t('measurement.history.subtitle')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setView('form')}
+            className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-[10px] bg-accent px-4 py-2 text-sm font-medium text-bg hover:opacity-90"
+          >
+            <PlusIcon />
+            {t('measurement.history.add')}
+          </button>
+        </div>
       </header>
 
       {/* TASK-044 §5: панель фильтров — период/рука/заметки/сброс; URL — источник
@@ -411,7 +417,7 @@ export function HistoryScreen(): JSX.Element {
           data-testid="search-found"
           role="status"
           aria-live="polite"
-          className="mb-2 text-sm text-neutral-500"
+          className="mb-2 text-sm text-muted"
         >
           {t(foundKeyFor(items.length), { n: items.length })}
         </p>
@@ -419,7 +425,7 @@ export function HistoryScreen(): JSX.Element {
 
       {/* TASK-045 §13: результат равен лимиту страницы — предупреждение об усечении. */}
       {isSearching && items.length === SEARCH_PAGE_LIMIT && (
-        <p data-testid="search-truncated" className="mb-2 text-xs text-neutral-500">
+        <p data-testid="search-truncated" className="mb-2 text-xs text-muted">
           {t('measurement.search.truncated50', { n: SEARCH_PAGE_LIMIT })}
         </p>
       )}
@@ -474,14 +480,14 @@ export function HistoryScreen(): JSX.Element {
           усечение §13; total/пагинации у notes/search нет, §11). */}
       {items.length > 0 && !isSearching && (
         <>
-          <p data-testid="history-shown" className="mt-2 text-xs text-neutral-500">
+          <p data-testid="history-shown" className="mt-2 text-xs text-muted">
             {t('measurement.history.shownOf', { shown: items.length, total })}
           </p>
           {measurements.hasNextPage ? (
             <button
               type="button"
               onClick={() => void measurements.fetchNextPage()}
-              className="mt-2 rounded-md border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800"
+              className="mt-2 rounded-xl bg-fill px-4 py-2 text-sm hover:bg-accent/10"
             >
               {t('measurement.history.showMore')}
             </button>
@@ -489,5 +495,14 @@ export function HistoryScreen(): JSX.Element {
         </>
       )}
     </section>
+  );
+}
+
+/** Плюс — иконка кнопки добавления (SF plus, TASK-123 v3 референс). */
+function PlusIcon(): JSX.Element {
+  return (
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   );
 }

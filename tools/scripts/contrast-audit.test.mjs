@@ -120,10 +120,23 @@ describe('альфа-композиция (§13: disabled/hover-поверхно
 describe('парсер tokens.css (§5: единственный источник значений)', () => {
   const tokens = parseTokensCss(readFileSync(TOKENS_PATH, 'utf8'));
 
-  it('обе темы, все шесть токенов в hex (§6: fg/bg комбинации)', () => {
+  it('обе темы, все двенадцать токенов в hex (§6 + TASK-123: surface/muted/input-border/status-warn)', () => {
     for (const theme of ['light', 'dark']) {
       expect(Object.keys(tokens[theme]).sort()).toEqual(
-        ['accent', 'bg', 'border', 'status-fail', 'status-ok', 'text'].sort(),
+        [
+          'accent',
+          'bg',
+          'border',
+          'input-border',
+          'muted',
+          'nav-active',
+          'side',
+          'status-fail',
+          'status-ok',
+          'status-warn',
+          'surface',
+          'text',
+        ].sort(),
       );
       for (const value of Object.values(tokens[theme])) {
         expect(value).toMatch(/^#[0-9a-f]{6}$/);
@@ -131,16 +144,19 @@ describe('парсер tokens.css (§5: единственный источни�
     }
   });
 
-  it('значения совпадают с задокументированными в tokens.css (срез)', () => {
-    expect(tokens.light.text).toBe('#0f172a');
-    expect(tokens.light.bg).toBe('#f8fafc');
-    expect(tokens.dark.text).toBe('#f1f5f9');
-    expect(tokens.dark.bg).toBe('#0f172a');
+  it('значения совпадают с задокументированными в tokens.css (срез, TASK-123 iOS-дневник)', () => {
+    expect(tokens.light.text).toBe('#000000');
+    expect(tokens.light.bg).toBe('#f2f2f7');
+    expect(tokens.light.accent).toBe('#0066cc');
+    expect(tokens.dark.text).toBe('#ffffff');
+    expect(tokens.dark.bg).toBe('#0f141b');
+    expect(tokens.dark.accent).toBe('#2f96ff');
   });
 
   it('отсутствующий токен — ошибка с именем токена', () => {
     const content = ":root, [data-theme='light'] { --hl-bg: #ffffff; }";
-    expect(() => parseTokensCss(content)).toThrow(/--hl-text/);
+    // первый отсутствующий по TOKEN_NAMES — surface (текст — следующий)
+    expect(() => parseTokensCss(content)).toThrow(/--hl-side/);
   });
 });
 
@@ -244,6 +260,12 @@ describe('CLI (§20: exit-код + --json)', () => {
         '  --hl-border: #cbd5e1;',
         '  --hl-status-ok: #15803d;',
         '  --hl-status-fail: #b91c1c;',
+        '  --hl-side: #e9e9ef;',
+        '  --hl-nav-active: #dce0ec;',
+        '  --hl-surface: #ffffff;',
+        '  --hl-muted: #52646f;',
+        '  --hl-input-border: #6f8791;',
+        '  --hl-status-warn: #92400e;',
         '}',
         "[data-theme='dark'] {",
         '  --hl-bg: #0f172a;',
@@ -252,6 +274,12 @@ describe('CLI (§20: exit-код + --json)', () => {
         '  --hl-border: #334155;',
         '  --hl-status-ok: #4ade80;',
         '  --hl-status-fail: #f87171;',
+        '  --hl-side: #090c12;',
+        '  --hl-nav-active: #1f2735;',
+        '  --hl-surface: #1a212b;',
+        '  --hl-muted: #9db0b9;',
+        '  --hl-input-border: #7c949e;',
+        '  --hl-status-warn: #fbbf24;',
         '}',
         '',
       ].join('\n'),

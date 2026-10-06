@@ -86,11 +86,11 @@ function DashboardSkeleton(): JSX.Element {
 
   return (
     <div data-testid="dashboard-skeleton" role="status" aria-label={t('common.loading')}>
-      <div aria-hidden="true" className="animate-pulse rounded-md border border-border p-4">
-        <div className="mb-2 h-6 w-1/3 rounded bg-neutral-200 dark:bg-neutral-700" />
+      <div aria-hidden="true" className="animate-pulse rounded-[10px] bg-surface p-4">
+        <div className="mb-2 h-6 w-1/3 rounded bg-border" />
         <div className="flex h-72 items-end gap-2">
-          <div className="h-full w-10 rounded bg-neutral-200 dark:bg-neutral-700" />
-          <div className="h-full flex-1 rounded bg-neutral-100 dark:bg-neutral-800" />
+          <div className="h-full w-10 rounded bg-border" />
+          <div className="h-full flex-1 rounded bg-border" />
         </div>
       </div>
     </div>
@@ -188,9 +188,7 @@ function ViewSwitcher({
   const { t } = useTranslation();
   const buttonClass = (active: boolean): string =>
     `min-h-11 rounded-md border px-4 text-base ${
-      active
-        ? 'border-accent bg-accent/10 font-medium'
-        : 'border-border hover:bg-neutral-100 dark:hover:bg-neutral-800'
+      active ? 'border-accent bg-accent/10 font-medium' : 'border-border hover:bg-accent/10'
     }`;
   return (
     <div
@@ -236,9 +234,7 @@ function AsSwitcher({
   const { t } = useTranslation();
   const buttonClass = (active: boolean): string =>
     `min-h-11 rounded-md border px-4 text-base ${
-      active
-        ? 'border-accent bg-accent/10 font-medium'
-        : 'border-border hover:bg-neutral-100 dark:hover:bg-neutral-800'
+      active ? 'border-accent bg-accent/10 font-medium' : 'border-border hover:bg-accent/10'
     }`;
   return (
     <div
@@ -421,7 +417,7 @@ export function DashboardScreen(): JSX.Element {
   return (
     <section className="p-4">
       <header className="mb-4">
-        <h2 className="text-lg font-semibold">{t('common.nav.dashboard')}</h2>
+        <h2 className="hl-large-title">{t('common.nav.dashboard')}</h2>
       </header>
 
       {/* §12 059: URL `?as=` — истина; представление «График/Таблица» — один фокус. */}
@@ -439,12 +435,12 @@ export function DashboardScreen(): JSX.Element {
         <DashboardSkeleton />
       ) : trend.isError ? (
         <section className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-          <h2 className="text-lg font-semibold">{t('common.nav.dashboard')}</h2>
+          <h2 className="hl-large-title">{t('common.nav.dashboard')}</h2>
           <button
             type="button"
             data-testid="dashboard-retry"
             onClick={() => void trend.refetch()}
-            className="rounded-md border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800"
+            className="rounded-xl bg-fill px-4 py-2 text-sm hover:bg-accent/10"
           >
             {t('dashboard.error.retry')}
           </button>

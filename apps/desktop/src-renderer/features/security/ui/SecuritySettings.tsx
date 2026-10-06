@@ -56,26 +56,26 @@ export function SecuritySettings(): JSX.Element {
         {t('security.sectionTitle')}
       </h2>
       {mode === 'none' ? (
-        <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
+        <div className="flex items-center justify-between gap-4 rounded-[10px] bg-surface p-3">
           <p className="text-sm text-accent">{t('security.statusOff')}</p>
           <button
             type="button"
             data-testid="security-enable"
             onClick={() => setDialog('set')}
-            className="min-h-11 shrink-0 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text"
+            className="min-h-11 shrink-0 rounded-xl bg-fill px-4 text-base font-semibold text-text"
           >
             {t('security.enable')}
           </button>
         </div>
       ) : mode === 'passphrase' ? (
-        <div className="flex flex-col gap-3 rounded-md border border-border p-3">
+        <div className="flex flex-col gap-3 rounded-[10px] bg-surface p-3">
           <p className="text-sm text-accent">{t('security.statusOn')}</p>
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
               data-testid="security-change"
               onClick={() => setDialog('change')}
-              className="min-h-11 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text"
+              className="min-h-11 rounded-xl bg-fill px-4 text-base font-semibold text-text"
             >
               {t('security.change')}
             </button>
@@ -83,7 +83,7 @@ export function SecuritySettings(): JSX.Element {
               type="button"
               data-testid="security-remove"
               onClick={() => setDialog('remove')}
-              className="min-h-11 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text"
+              className="min-h-11 rounded-xl bg-fill px-4 text-base font-semibold text-text"
             >
               {t('security.remove')}
             </button>
@@ -104,7 +104,7 @@ export function SecuritySettings(): JSX.Element {
                   setPreferences.mutate({ autoLockMin: next });
                 }
               }}
-              className="mt-1 min-h-11 rounded-md border border-border bg-transparent px-3 py-2 text-base text-text"
+              className="mt-1 min-h-11 rounded-[10px] bg-fill px-3 py-2 text-base text-text"
             >
               {AUTOLOCK_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -225,7 +225,7 @@ function PassphraseDialog({ kind, onClose }: PassphraseDialogProps): JSX.Element
           data-testid="security-dialog"
           className="fixed left-1/2 top-1/2 w-[min(26rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border border-border bg-bg p-6 shadow-lg"
         >
-          <AlertDialog.Title className="text-lg font-semibold text-text">{title}</AlertDialog.Title>
+          <AlertDialog.Title className="hl-large-title text-text">{title}</AlertDialog.Title>
           <AlertDialog.Description asChild>
             <p className="mt-2 text-sm text-text">
               {kind === 'set'
@@ -248,7 +248,7 @@ function PassphraseDialog({ kind, onClose }: PassphraseDialogProps): JSX.Element
                   autoComplete="current-password"
                   value={form.old}
                   onChange={(event) => setForm({ ...form, old: event.target.value })}
-                  className="min-h-11 rounded-md border border-border bg-bg px-3 text-base text-text"
+                  className="min-h-11 rounded-[10px] bg-fill px-3 text-base text-text"
                 />
               </div>
             ) : null}
@@ -264,7 +264,7 @@ function PassphraseDialog({ kind, onClose }: PassphraseDialogProps): JSX.Element
                     autoComplete="new-password"
                     value={form.newPass}
                     onChange={(event) => setForm({ ...form, newPass: event.target.value })}
-                    className="min-h-11 rounded-md border border-border bg-bg px-3 text-base text-text"
+                    className="min-h-11 rounded-[10px] bg-fill px-3 text-base text-text"
                   />
                 </div>
                 {kind === 'set' ? (
@@ -278,7 +278,7 @@ function PassphraseDialog({ kind, onClose }: PassphraseDialogProps): JSX.Element
                       autoComplete="new-password"
                       value={form.newRepeat}
                       onChange={(event) => setForm({ ...form, newRepeat: event.target.value })}
-                      className="min-h-11 rounded-md border border-border bg-bg px-3 text-base text-text"
+                      className="min-h-11 rounded-[10px] bg-fill px-3 text-base text-text"
                     />
                   </div>
                 ) : null}
@@ -290,7 +290,7 @@ function PassphraseDialog({ kind, onClose }: PassphraseDialogProps): JSX.Element
               <>
                 <p
                   data-testid="security-warning"
-                  className="rounded-md border border-border bg-accent/10 p-3 text-sm font-medium text-text"
+                  className="rounded-[10px] bg-accent/10 p-3 text-sm font-medium text-text"
                   role="note"
                 >
                   {t('security.passphrase.warning')}
@@ -301,7 +301,7 @@ function PassphraseDialog({ kind, onClose }: PassphraseDialogProps): JSX.Element
                     type="checkbox"
                     checked={form.confirmed}
                     onChange={(event) => setForm({ ...form, confirmed: event.target.checked })}
-                    className="mt-1 h-4 w-4"
+                    className="hl-checkbox mt-1 h-4 w-4"
                   />
                   <label htmlFor="security-pass-confirm" className="text-sm font-medium text-text">
                     {t('security.passphrase.checkbox')}
@@ -326,7 +326,7 @@ function PassphraseDialog({ kind, onClose }: PassphraseDialogProps): JSX.Element
               <button
                 type="button"
                 data-testid="security-dialog-cancel"
-                className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
               >
                 {t('security.passphrase.cancel')}
               </button>
@@ -337,7 +337,7 @@ function PassphraseDialog({ kind, onClose }: PassphraseDialogProps): JSX.Element
               disabled={submitDisabled}
               aria-busy={mutation.isPending}
               onClick={handleSubmit}
-              className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+              className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
             >
               {t('security.passphrase.submit')}
             </button>

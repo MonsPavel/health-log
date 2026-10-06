@@ -125,7 +125,7 @@ export function ScaleSourceCaption({ scale }: ScaleSourceCaptionProps): JSX.Elem
     return null;
   }
   return (
-    <div data-testid="scale-source" className="mt-1 text-xs text-neutral-500">
+    <div data-testid="scale-source" className="mt-1 text-xs text-muted">
       {t('dashboard.a11y.sourceLabel', { source: scale.sourceLabel })}
     </div>
   );

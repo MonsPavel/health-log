@@ -78,7 +78,7 @@ export function UpdatesSection(): JSX.Element {
       <h2 id="updates-section-title" className="mb-2 text-base font-medium">
         {t('updates.section')}
       </h2>
-      <div className="flex flex-col gap-3 rounded-md border border-border p-3">
+      <div className="flex flex-col gap-3 rounded-[10px] bg-surface p-3">
         {/* §5: текущая версия — UA-упрощение до app/meta (TASK-100); нет — «—». */}
         <p data-testid="updates-version" className="text-sm text-accent">
           {t('updates.version', { version: readAppVersion() ?? '—' })}
@@ -107,7 +107,7 @@ export function UpdatesSection(): JSX.Element {
           {state === 'available' && version !== undefined ? (
             <div
               data-testid="updates-available-card"
-              className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
+              className="flex items-center justify-between gap-3 rounded-[10px] bg-surface p-3"
             >
               <p className="text-sm font-medium text-text">{t('updates.available', { version })}</p>
               <button
@@ -116,7 +116,7 @@ export function UpdatesSection(): JSX.Element {
                 disabled={download.isPending}
                 aria-busy={download.isPending}
                 onClick={() => download.mutate()}
-                className="min-h-11 shrink-0 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text"
+                className="min-h-11 shrink-0 rounded-xl bg-fill px-4 text-base font-semibold text-text"
               >
                 {t('updates.download')}
               </button>
@@ -149,7 +149,7 @@ export function UpdatesSection(): JSX.Element {
           {state === 'ready' ? (
             <div
               data-testid="updates-ready-card"
-              className="flex flex-col gap-2 rounded-md border border-border p-3"
+              className="flex flex-col gap-2 rounded-[10px] bg-surface p-3"
             >
               <p className="text-sm font-medium text-text">
                 {t('updates.ready', { version: version ?? '—' })}
@@ -160,7 +160,7 @@ export function UpdatesSection(): JSX.Element {
                 disabled={install.isPending}
                 aria-busy={install.isPending}
                 onClick={() => setConfirmOpen(true)}
-                className="min-h-11 rounded-md bg-accent px-4 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+                className="min-h-11 rounded-xl bg-accent px-4 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
               >
                 {t('updates.install')}
               </button>
@@ -182,7 +182,7 @@ export function UpdatesSection(): JSX.Element {
             aria-busy={busy}
             title={busy ? t('updates.busy') : undefined}
             onClick={handleCheckClick}
-            className="min-h-11 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-xl bg-fill px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-90"
           >
             {t('updates.check')}
           </button>
@@ -216,7 +216,7 @@ export function UpdatesSection(): JSX.Element {
                 setPendingChannel(next);
               }
             }}
-            className="mt-1 min-h-11 rounded-md border border-border bg-transparent px-3 py-2 text-base text-text disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-1 min-h-11 rounded-[10px] bg-fill px-3 py-2 text-base text-text disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="stable">{t('updates.betaStable')}</option>
             <option value="beta">{t('updates.betaBeta')}</option>
@@ -316,7 +316,7 @@ function ChannelConfirmDialog({
           data-testid="updates-beta-dialog"
           className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg p-6 shadow-lg"
         >
-          <AlertDialog.Title className="text-lg font-semibold text-text">
+          <AlertDialog.Title className="hl-large-title text-text">
             {t('updates.betaApplyTitle')}
           </AlertDialog.Title>
           <AlertDialog.Description asChild>
@@ -333,7 +333,7 @@ function ChannelConfirmDialog({
               <button
                 type="button"
                 data-testid="updates-beta-cancel"
-                className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
               >
                 {t('updates.cancel')}
               </button>
@@ -342,7 +342,7 @@ function ChannelConfirmDialog({
               type="button"
               data-testid="updates-beta-apply"
               onClick={onConfirm}
-              className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg"
+              className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg"
             >
               {t('updates.betaApply')}
             </button>
@@ -378,7 +378,7 @@ function InstallConfirmDialog({
           data-testid="updates-install-dialog"
           className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg p-6 shadow-lg"
         >
-          <AlertDialog.Title className="text-lg font-semibold text-text">
+          <AlertDialog.Title className="hl-large-title text-text">
             {t('updates.restartTitle')}
           </AlertDialog.Title>
           <AlertDialog.Description asChild>
@@ -389,7 +389,7 @@ function InstallConfirmDialog({
               <button
                 type="button"
                 data-testid="updates-install-cancel"
-                className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
               >
                 {t('updates.cancel')}
               </button>
@@ -400,7 +400,7 @@ function InstallConfirmDialog({
               disabled={pending}
               aria-busy={pending}
               onClick={onConfirm}
-              className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+              className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
             >
               {t('updates.restartAccept')}
             </button>

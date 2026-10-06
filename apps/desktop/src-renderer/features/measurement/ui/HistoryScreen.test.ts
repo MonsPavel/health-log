@@ -810,7 +810,8 @@ describe('HistoryScreen — фильтры (TASK-044 §19/§20)', () => {
     // Состояние контролов восстановлено из URL (§10: URL — источник истины).
     expect(screen.getByTestId<HTMLInputElement>('filter-period-7d').checked).toBe(true);
     expect(screen.getByTestId<HTMLSelectElement>('filter-arm').value).toBe('right');
-    expect(screen.getByTestId<HTMLInputElement>('filter-noted').checked).toBe(true);
+    // TASK-123 v2: тумблер — role=switch, состояние в aria-checked (не .checked).
+    expect(screen.getByTestId('filter-noted').getAttribute('aria-checked')).toBe('true');
   });
 
   it('фокус остаётся на контроле фильтра после смены пресета (§16)', async () => {

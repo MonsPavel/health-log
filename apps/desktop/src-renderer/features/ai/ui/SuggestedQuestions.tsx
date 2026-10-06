@@ -40,7 +40,7 @@ export function SuggestedQuestions({ onPick }: SuggestedQuestionsProps): JSX.Ele
           type="button"
           data-testid="chat-chip"
           onClick={() => onPick(t(CHIP_KEY[id]))}
-          className="min-h-11 rounded-md border border-border bg-bg px-3 text-sm text-text hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          className="min-h-11 rounded-xl bg-fill px-3 text-sm text-text hover:bg-accent/10"
         >
           {t(CHIP_KEY[id])}
         </button>

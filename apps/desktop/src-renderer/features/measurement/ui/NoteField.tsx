@@ -40,7 +40,7 @@ export function NoteField({ value, onChange, error }: NoteFieldProps): JSX.Eleme
         maxLength={max}
         aria-invalid={error === undefined ? undefined : true}
         aria-describedby={error === undefined ? undefined : errorId}
-        className="min-h-11 rounded-md border border-border bg-bg p-2 text-base text-text"
+        className="min-h-11 rounded-[10px] bg-fill p-2 text-base text-text"
       />
       <span className="text-xs text-accent" aria-hidden="true">
         {t('measurement.note.counter', { length: value.length, max })}

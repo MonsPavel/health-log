@@ -104,10 +104,10 @@ export function ModelCard({
     <article
       data-testid="model-card"
       aria-label={descriptor.name}
-      className="mb-4 rounded-md border border-border p-4"
+      className="mb-4 rounded-[10px] bg-surface p-4"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 data-testid="model-name" className="text-lg font-semibold text-text">
+        <h3 data-testid="model-name" className="hl-large-title text-text">
           {descriptor.name}
         </h3>
         <p className="text-sm text-accent">
@@ -115,7 +115,7 @@ export function ModelCard({
         </p>
       </div>
 
-      <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm text-neutral-700 sm:grid-cols-2 dark:text-neutral-300">
+      <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm text-muted sm:grid-cols-2">
         <div className="flex gap-2">
           <dt className="sr-only">{t('ai.models.card.languages', { languages })}</dt>
           <dd data-testid="model-languages">{t('ai.models.card.languages', { languages })}</dd>
@@ -143,7 +143,7 @@ export function ModelCard({
         <p
           data-testid="model-warn-language"
           role="note"
-          className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-text dark:border-amber-500/40 dark:bg-amber-500/10"
+          className="mt-3 rounded-md bg-status-warn/10 px-3 py-2 text-sm text-text"
         >
           {t('ai.models.warnings.language', { languages, uiLanguage })}
         </p>
@@ -152,7 +152,7 @@ export function ModelCard({
         <p
           data-testid="model-warn-ram"
           role="note"
-          className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-text dark:border-amber-500/40 dark:bg-amber-500/10"
+          className="mt-3 rounded-md bg-status-warn/10 px-3 py-2 text-sm text-text"
         >
           {t('ai.models.warnings.ram', { ram: ramTotalGb, required: descriptor.minRamGb })}
         </p>
@@ -168,7 +168,7 @@ export function ModelCard({
             aria-valuemax={100}
             aria-valuenow={percent}
             aria-label={t('ai.models.progress.label', { name: descriptor.name })}
-            className="h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700"
+            className="h-2 w-full overflow-hidden rounded-full bg-border"
           >
             <div className="h-full bg-accent" style={{ width: `${String(percent)}%` }} />
           </div>
@@ -193,11 +193,7 @@ export function ModelCard({
 
       {/* §13: paused — предложение продолжить перед выбором (note, не модальный). */}
       {state === 'paused' ? (
-        <p
-          data-testid="model-paused-note"
-          role="note"
-          className="mt-3 text-sm text-neutral-600 dark:text-neutral-300"
-        >
+        <p data-testid="model-paused-note" role="note" className="mt-3 text-sm text-muted">
           {t('ai.models.card.pausedNote')}
         </p>
       ) : null}
@@ -207,7 +203,7 @@ export function ModelCard({
         <p
           data-testid="model-error"
           role="note"
-          className="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-text dark:border-red-500/40 dark:bg-red-500/10"
+          className="mt-3 rounded-md bg-status-fail/10 px-3 py-2 text-sm text-text"
         >
           {t(ERROR_TEXT_KEYS[view.errorKey as keyof typeof ERROR_TEXT_KEYS] ?? 'errors.internal')}
         </p>
@@ -221,7 +217,7 @@ export function ModelCard({
             disabled={pending?.download === true}
             aria-label={t('ai.models.aria.download', { name: descriptor.name, size })}
             onClick={onDownload}
-            className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90 disabled:opacity-80"
+            className="min-h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90 disabled:opacity-90"
           >
             {t('ai.models.card.download')}
           </button>
@@ -236,7 +232,7 @@ export function ModelCard({
               percent,
             })}
             onClick={onPause}
-            className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-neutral-100 disabled:opacity-50 dark:hover:bg-neutral-800"
+            className="min-h-11 rounded-xl bg-fill px-4 text-sm font-semibold text-text hover:bg-accent/10 disabled:opacity-90"
           >
             {t('ai.models.card.pause')}
           </button>
@@ -251,7 +247,7 @@ export function ModelCard({
               percent,
             })}
             onClick={onResume}
-            className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90 disabled:opacity-80"
+            className="min-h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90 disabled:opacity-90"
           >
             {t('ai.models.card.resume')}
           </button>
@@ -261,7 +257,7 @@ export function ModelCard({
             type="button"
             data-testid="model-checking"
             disabled
-            className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text opacity-70"
+            className="min-h-11 rounded-xl bg-fill px-4 text-sm font-semibold text-text opacity-80"
           >
             {t('ai.models.card.checking')}
           </button>
@@ -273,7 +269,7 @@ export function ModelCard({
             disabled={pending?.reset === true}
             aria-label={t('ai.models.aria.reset', { name: descriptor.name })}
             onClick={onReset}
-            className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-neutral-100 disabled:opacity-50 dark:hover:bg-neutral-800"
+            className="min-h-11 rounded-xl bg-fill px-4 text-sm font-semibold text-text hover:bg-accent/10 disabled:opacity-90"
           >
             {t('ai.models.card.reset')}
           </button>
@@ -293,7 +289,7 @@ export function ModelCard({
               disabled={pending?.select === true}
               aria-label={t('ai.models.aria.select', { name: descriptor.name })}
               onClick={onSelect}
-              className="min-h-11 rounded-md bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90 disabled:opacity-80"
+              className="min-h-11 rounded-xl bg-accent px-4 text-sm font-semibold text-bg hover:opacity-90 disabled:opacity-90"
             >
               {t('ai.models.card.select')}
             </button>
@@ -308,7 +304,7 @@ export function ModelCard({
             disabled={pending?.select === true || selected}
             aria-label={t('ai.models.aria.select', { name: descriptor.name })}
             onClick={onSelect}
-            className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-neutral-100 disabled:opacity-50 dark:hover:bg-neutral-800"
+            className="min-h-11 rounded-xl bg-fill px-4 text-sm font-semibold text-text hover:bg-accent/10 disabled:opacity-90"
           >
             {t('ai.models.card.select')}
           </button>

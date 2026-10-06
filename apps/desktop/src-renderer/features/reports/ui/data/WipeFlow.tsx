@@ -169,10 +169,7 @@ export function WipeFlow({ open, onClose }: WipeFlowProps): JSX.Element {
           data-testid="data-wipe-dialog"
           className="fixed left-1/2 top-1/2 w-[min(28rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border border-border bg-bg p-6 shadow-lg"
         >
-          <AlertDialog.Title
-            data-testid="data-wipe-title"
-            className="text-lg font-semibold text-text"
-          >
+          <AlertDialog.Title data-testid="data-wipe-title" className="hl-large-title text-text">
             {t('data.wipe.dialogTitle')}
           </AlertDialog.Title>
 
@@ -216,7 +213,7 @@ export function WipeFlow({ open, onClose }: WipeFlowProps): JSX.Element {
                   data-testid="data-wipe-export"
                   disabled={busy}
                   onClick={() => exportMutation.mutate()}
-                  className="text-sm font-semibold text-accent underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-80"
+                  className="text-sm font-semibold text-accent underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-90"
                 >
                   {t('data.wipe.exportFirst')}
                 </button>
@@ -240,7 +237,7 @@ export function WipeFlow({ open, onClose }: WipeFlowProps): JSX.Element {
                   type="checkbox"
                   checked={acknowledged}
                   onChange={(event) => setAcknowledged(event.target.checked)}
-                  className="mt-1 h-4 w-4"
+                  className="hl-checkbox mt-1 h-4 w-4"
                 />
                 <label htmlFor="data-wipe-confirm" className="text-sm text-text">
                   {t('data.wipe.confirmLabel')}
@@ -252,7 +249,7 @@ export function WipeFlow({ open, onClose }: WipeFlowProps): JSX.Element {
                   <button
                     type="button"
                     data-testid="data-wipe-cancel"
-                    className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                    className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
                   >
                     {t('data.wipe.cancel')}
                   </button>
@@ -263,7 +260,7 @@ export function WipeFlow({ open, onClose }: WipeFlowProps): JSX.Element {
                   disabled={!acknowledged || busy}
                   aria-busy={executeMutation.isPending}
                   onClick={() => executeMutation.mutate()}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+                  className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
                 >
                   {t('data.wipe.execute')}
                 </button>

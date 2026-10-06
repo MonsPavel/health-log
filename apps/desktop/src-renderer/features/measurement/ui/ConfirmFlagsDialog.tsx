@@ -88,7 +88,7 @@ export function ConfirmFlagsDialog({
           data-testid="confirm-flags-dialog"
           className="fixed left-1/2 top-1/2 w-[min(28rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border border-border bg-bg p-6 shadow-lg"
         >
-          <Dialog.Title className="text-lg font-semibold text-text">
+          <Dialog.Title className="hl-large-title text-text">
             {t('measurement.dialog.flags.title')}
           </Dialog.Title>
 
@@ -124,7 +124,7 @@ export function ConfirmFlagsDialog({
               type="button"
               data-testid="dialog-keep"
               onClick={onKeep}
-              className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg"
+              className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg"
             >
               {t('measurement.dialog.flags.keep')}
             </button>
@@ -132,7 +132,7 @@ export function ConfirmFlagsDialog({
               type="button"
               data-testid="dialog-delete-fix"
               onClick={onDeleteFix}
-              className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+              className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
             >
               {t('measurement.dialog.flags.deleteFix')}
             </button>

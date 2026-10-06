@@ -36,7 +36,7 @@ export function RowMenu({ measurementId, onEdit, onDelete }: RowMenuProps): JSX.
           data-testid={`row-menu-${measurementId}`}
           data-row-menu={measurementId}
           aria-label={t('measurement.row.menu.label')}
-          className="min-h-11 shrink-0 rounded px-2 text-base text-neutral-500 hover:bg-neutral-100 hover:text-text dark:hover:bg-neutral-800"
+          className="min-h-11 shrink-0 rounded px-2 text-base text-muted hover:bg-accent/10 hover:text-text"
         >
           ⋮
         </button>
@@ -46,19 +46,19 @@ export function RowMenu({ measurementId, onEdit, onDelete }: RowMenuProps): JSX.
           data-testid="row-menu-content"
           align="end"
           sideOffset={4}
-          className="min-w-40 rounded-md border border-border bg-bg p-1 shadow-lg"
+          className="min-w-40 rounded-[12px] border border-border bg-surface p-1 shadow-lg"
         >
           <DropdownMenu.Item
             data-testid="row-menu-edit"
             onSelect={onEdit}
-            className="cursor-pointer rounded px-3 py-2 text-sm text-text outline-none data-highlighted:bg-neutral-100 dark:data-highlighted:bg-neutral-800"
+            className="cursor-pointer rounded px-3 py-2 text-sm text-text outline-none data-highlighted:bg-accent/10"
           >
             {t('measurement.row.menu.edit')}
           </DropdownMenu.Item>
           <DropdownMenu.Item
             data-testid="row-menu-delete"
             onSelect={onDelete}
-            className="cursor-pointer rounded px-3 py-2 text-sm text-text outline-none data-highlighted:bg-neutral-100 dark:data-highlighted:bg-neutral-800"
+            className="cursor-pointer rounded px-3 py-2 text-sm text-text outline-none data-highlighted:bg-accent/10"
           >
             {t('measurement.row.menu.delete')}
           </DropdownMenu.Item>

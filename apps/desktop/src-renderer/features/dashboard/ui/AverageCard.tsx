@@ -44,9 +44,7 @@ export function AverageCard({ stats }: AverageCardProps): JSX.Element {
 
   return (
     <section data-testid="average-card" className="rounded-md border border-border p-4">
-      <h2 className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
-        {t('dashboard.average.title')}
-      </h2>
+      <h2 className="mb-2 text-sm font-semibold text-muted">{t('dashboard.average.title')}</h2>
       {insufficient && stats.count > 0 && <FewDataNote count={stats.count} />}
       <div className="mt-1 flex flex-col gap-1">
         {stats.sys.avg !== undefined && (
@@ -64,7 +62,7 @@ export function AverageCard({ stats }: AverageCardProps): JSX.Element {
             {t('dashboard.average.pulse', { avg: formatNumberRu(stats.pulse.avg) })}
           </p>
         )}
-        <p data-testid="average-count" className="text-sm text-neutral-500 dark:text-neutral-400">
+        <p data-testid="average-count" className="text-sm text-muted">
           {t('dashboard.average.count', { count: stats.count })}
         </p>
       </div>
@@ -74,10 +72,7 @@ export function AverageCard({ stats }: AverageCardProps): JSX.Element {
         </p>
       )}
       {notes.length > 0 && (
-        <div
-          data-testid="average-notes"
-          className="mt-1 flex flex-col gap-1 text-xs text-neutral-500 dark:text-neutral-400"
-        >
+        <div data-testid="average-notes" className="mt-1 flex flex-col gap-1 text-xs text-muted">
           {notes.map((note) => (
             <p key={note.kind}>{note.text}</p>
           ))}

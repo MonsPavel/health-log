@@ -90,7 +90,7 @@ export function SummaryView({
           type="button"
           data-testid="insight-stale-badge"
           onClick={onStaleClick}
-          className="mb-3 flex w-full items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-left text-sm font-semibold text-text hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:hover:bg-amber-500/20"
+          className="mb-3 flex w-full items-center gap-2 rounded-md bg-status-warn/10 px-3 py-2 text-left text-sm font-semibold text-text hover:bg-status-warn/20"
         >
           {t('ai.insight.staleBadge')}
         </button>
@@ -112,9 +112,7 @@ export function SummaryView({
         aria-busy={streaming || undefined}
         data-kind={refusal ? 'refusal' : undefined}
         className={`max-h-96 overflow-y-auto rounded-md border p-3 ${
-          refusal
-            ? 'border-border bg-neutral-100 text-neutral-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300'
-            : 'border-border bg-bg text-text'
+          refusal ? 'bg-fill text-muted' : 'border-border bg-bg text-text'
         }`}
       >
         {refusal ? (
@@ -140,7 +138,7 @@ export function SummaryView({
       {cached ? (
         <span
           data-testid="insight-cached-badge"
-          className="mt-2 inline-block rounded-md border border-border bg-neutral-100 px-2 py-0.5 text-sm text-text dark:bg-neutral-800"
+          className="mt-2 inline-block bg-fill px-2 py-0.5 text-sm text-text"
         >
           {t('ai.insight.cachedBadge')}
         </span>
@@ -148,11 +146,7 @@ export function SummaryView({
 
       {/* Несъёмный футер (AC-5.2): дисклеймер + период — в любом состоянии,
           включая отказ и стрим (§5: «дисклеймер-футер несъёмный + Период анализа»). */}
-      <footer
-        data-testid="insight-disclaimer"
-        role="note"
-        className="mt-2 text-sm text-neutral-600 dark:text-neutral-300"
-      >
+      <footer data-testid="insight-disclaimer" role="note" className="mt-2 text-sm text-muted">
         <span className="font-semibold">{disclaimerText}</span>
         {' · '}
         {t('ai.insight.periodPrefix', { period: periodText })}

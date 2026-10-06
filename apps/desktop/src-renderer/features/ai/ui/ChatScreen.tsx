@@ -216,7 +216,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
           {PERIOD_OPTIONS.map((option) => (
             <label
               key={option}
-              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-base hover:bg-accent/10"
+              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl bg-fill px-3 text-base hover:bg-accent/10"
             >
               <input
                 type="radio"
@@ -225,7 +225,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
                 value={option}
                 checked={periodState.period === option}
                 onChange={() => setPeriod(option)}
-                className="h-5 w-5 accent-[var(--hl-accent)]"
+                className="h-5 w-5 hl-radio"
               />
               {t(PERIOD_KEY[option])}
             </label>
@@ -245,7 +245,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
         role="log"
         aria-live="polite"
         aria-label={t('ai.tabs.chat')}
-        className="mb-3 flex min-h-24 max-h-[28rem] flex-col gap-3 overflow-y-auto rounded-md border border-border p-3"
+        className="mb-3 flex min-h-24 max-h-[28rem] flex-col gap-3 overflow-y-auto p-3"
       >
         {messages.map((message) => (
           <ChatBubble
@@ -271,9 +271,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
       {/* §5: empty-state — подсказка + три чипа (вставка в поле, НЕ отправка). */}
       {feedEmpty ? (
         <div data-testid="chat-empty" className="mb-4">
-          <p className="mb-2 text-sm text-neutral-600 dark:text-neutral-300">
-            {t('ai.chat.emptyHint')}
-          </p>
+          <p className="mb-2 text-sm text-muted">{t('ai.chat.emptyHint')}</p>
           <SuggestedQuestions onPick={setQuestion} />
         </div>
       ) : null}
@@ -283,14 +281,14 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
         <div
           data-testid="chat-error"
           role="alert"
-          className="mb-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 dark:border-red-500/40 dark:bg-red-500/10"
+          className="mb-4 rounded-md bg-status-fail/10 px-3 py-2"
         >
           <p className="text-sm font-medium text-text">{t('ai.chat.errorInterrupted')}</p>
           <button
             type="button"
             data-testid="chat-retry"
             onClick={generation.retry}
-            className="mt-2 min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text"
+            className="mt-2 min-h-11 rounded-xl bg-fill px-4 text-sm font-semibold text-text"
           >
             {t('ai.chat.retry')}
           </button>
@@ -302,13 +300,11 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
       {modelStateKnown && !modelConfigured ? (
         <div
           data-testid="chat-model-cta"
-          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-neutral-50 px-4 py-3 dark:bg-neutral-900"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[10px] bg-surface px-4 py-3"
         >
           <div className="min-w-0">
             <p className="text-sm font-semibold text-text">{t('ai.chat.modelCta.title')}</p>
-            <p className="mt-0.5 text-sm text-neutral-600 dark:text-neutral-300">
-              {t('ai.chat.modelCta.body')}
-            </p>
+            <p className="mt-0.5 text-sm text-muted">{t('ai.chat.modelCta.body')}</p>
           </div>
           <button
             type="button"
@@ -339,14 +335,14 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
               disabled={streaming}
               rows={1}
               placeholder={t('ai.chat.placeholder')}
-              className="min-h-11 flex-1 resize-none overflow-y-auto rounded-md border border-border bg-transparent px-3 py-2 text-base leading-6"
+              className="min-h-11 flex-1 resize-none overflow-y-auto rounded-[18px] bg-fill px-3 py-2 text-base leading-6"
             />
             {streaming ? (
               <button
                 type="button"
                 data-testid="chat-stop"
                 onClick={generation.stop}
-                className="min-h-11 shrink-0 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                className="min-h-11 shrink-0 rounded-xl bg-fill px-6 text-base font-semibold text-text hover:bg-accent/10"
               >
                 {t('ai.chat.stop')}
               </button>
@@ -356,7 +352,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
                 data-testid="chat-send"
                 onClick={submit}
                 disabled={question.trim() === ''}
-                className="min-h-11 shrink-0 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+                className="min-h-11 shrink-0 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
               >
                 {t('ai.chat.send')}
               </button>
@@ -367,11 +363,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
 
       {/* §2/§14: дисклеймер-футер несъёмный (текст общий с разбором — §17 089:
           тот же, что добавляет use case в каждый assistant-ответ). */}
-      <footer
-        data-testid="chat-disclaimer"
-        role="note"
-        className="mb-6 text-sm text-neutral-600 dark:text-neutral-300"
-      >
+      <footer data-testid="chat-disclaimer" role="note" className="mb-6 text-sm text-muted">
         <span className="font-semibold">{t('ai.insight.disclaimer')}</span>
       </footer>
 
@@ -383,7 +375,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
             <button
               type="button"
               data-testid="chat-clear"
-              className="min-h-11 rounded-md border border-border bg-bg px-4 text-sm font-semibold text-text hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="min-h-11 rounded-xl bg-fill px-4 text-sm font-semibold text-text hover:bg-accent/10"
             >
               {t('ai.chat.clear')}
             </button>
@@ -396,7 +388,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
             >
               <AlertDialog.Title
                 data-testid="chat-clear-title"
-                className="text-lg font-semibold text-text"
+                className="hl-large-title text-text"
               >
                 {t('ai.chat.clearTitle')}
               </AlertDialog.Title>
@@ -408,7 +400,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
                   <button
                     type="button"
                     data-testid="chat-clear-cancel"
-                    className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                    className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
                   >
                     {t('ai.chat.clearCancel')}
                   </button>
@@ -418,7 +410,7 @@ export function ChatScreen({ onGoToModel }: ChatScreenProps): JSX.Element {
                   data-testid="chat-clear-confirm"
                   disabled={clearChat.isPending}
                   onClick={handleClear}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+                  className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
                 >
                   {t('ai.chat.clearConfirm')}
                 </button>

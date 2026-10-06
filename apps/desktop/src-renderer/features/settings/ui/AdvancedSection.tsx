@@ -53,7 +53,7 @@ export function AdvancedSection(): JSX.Element {
             onChange={(event) =>
               setPreferences.mutate({ dateFormat: event.target.value as Prefs['dateFormat'] })
             }
-            className="mt-1 min-h-11 rounded-md border border-border bg-transparent px-3 py-2 text-base"
+            className="mt-1 min-h-11 rounded-[10px] bg-fill px-3 py-2 text-base"
           >
             {DATE_FORMATS.map((option) => (
               <option key={option.value} value={option.value}>

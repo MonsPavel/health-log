@@ -58,7 +58,7 @@ export function DeleteConfirmDialog({
         >
           <AlertDialog.Title
             data-testid="delete-confirm-title"
-            className="text-lg font-semibold text-text"
+            className="hl-large-title text-text"
           >
             {target === null
               ? null
@@ -86,7 +86,7 @@ export function DeleteConfirmDialog({
               <button
                 type="button"
                 data-testid="delete-cancel"
-                className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
               >
                 {t('measurement.delete.cancel')}
               </button>
@@ -96,7 +96,7 @@ export function DeleteConfirmDialog({
                 type="button"
                 data-testid="delete-confirm"
                 onClick={onConfirm}
-                className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg"
+                className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg"
               >
                 {t('measurement.delete.confirm')}
               </button>

@@ -54,11 +54,9 @@ export function LastMeasurementCard({
   return (
     <section
       data-testid="last-measurement-card"
-      className="rounded-md border border-border p-4 md:col-span-2"
+      className="rounded-[16px] bg-surface p-4 md:col-span-2"
     >
-      <h2 className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
-        {t('dashboard.last.title')}
-      </h2>
+      <h2 className="mb-2 text-sm font-semibold text-muted">{t('dashboard.last.title')}</h2>
       <p data-testid="last-bp" className="text-4xl font-semibold tracking-tight">
         {measurement.sys}/{measurement.dia}
       </p>
@@ -67,7 +65,7 @@ export function LastMeasurementCard({
           {t('dashboard.last.pulse', { pulse: measurement.pulse })}
         </p>
       )}
-      <p data-testid="last-when" className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+      <p data-testid="last-when" className="mt-1 text-sm text-muted">
         {when}
       </p>
       <div className="mt-2">
@@ -77,7 +75,7 @@ export function LastMeasurementCard({
         type="button"
         data-testid="dashboard-add"
         onClick={onAdd}
-        className="mt-4 min-h-12 rounded-md bg-accent px-6 text-base font-semibold text-bg hover:opacity-90"
+        className="mt-4 min-h-12 rounded-xl bg-accent px-6 text-base font-semibold text-bg hover:opacity-90"
       >
         {t('dashboard.home.add')}
       </button>

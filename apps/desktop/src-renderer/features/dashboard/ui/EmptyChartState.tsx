@@ -48,11 +48,7 @@ export function EmptyChartState({
       <p data-testid="empty-chart-title" className="text-base font-medium">
         {t('dashboard.empty.title')}
       </p>
-      {showAllTime && (
-        <p className="max-w-sm text-sm text-neutral-500 dark:text-neutral-400">
-          {t('dashboard.empty.hint')}
-        </p>
-      )}
+      {showAllTime && <p className="max-w-sm text-sm text-muted">{t('dashboard.empty.hint')}</p>}
       <button
         type="button"
         data-testid="empty-chart-add"
@@ -66,7 +62,7 @@ export function EmptyChartState({
           type="button"
           data-testid="empty-chart-show-all"
           onClick={onShowAll}
-          className="rounded-md border border-border px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          className="rounded-xl bg-fill px-4 py-2 text-sm hover:bg-accent/10"
         >
           {t('dashboard.empty.showAll')}
         </button>

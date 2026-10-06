@@ -426,7 +426,7 @@ export function TrendChart({
 
       {/* §20.5: честность агрегации — подпись daily-режима. */}
       {isDaily && (
-        <p data-testid="trend-daily-caption" className="mt-1 text-sm text-neutral-500">
+        <p data-testid="trend-daily-caption" className="mt-1 text-sm text-muted">
           {t('dashboard.tooltip.aggregated')}
         </p>
       )}

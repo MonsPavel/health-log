@@ -69,12 +69,16 @@ export function PeriodSwitcher({ state, onPeriod, onRange }: PeriodSwitcherProps
 
   return (
     <fieldset data-testid="dashboard-period" className="mb-4 border-0 p-0">
-      <legend className="text-sm text-accent">{t('measurement.filters.periodLabel')}</legend>
+      <legend className="mb-1.5 text-[13px] text-muted">
+        {t('measurement.filters.periodLabel')}
+      </legend>
       <div className="flex flex-wrap gap-2">
         {PERIOD_OPTIONS.map((period) => (
           <label
             key={period}
-            className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border border-border px-3 text-base hover:bg-accent/10"
+            className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-[10px] px-4 text-sm font-medium has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${
+              state.period === period ? 'bg-accent text-bg' : 'bg-fill text-text hover:bg-accent/10'
+            }`}
           >
             <input
               type="radio"
@@ -83,8 +87,9 @@ export function PeriodSwitcher({ state, onPeriod, onRange }: PeriodSwitcherProps
               value={period}
               checked={state.period === period}
               onChange={() => onPeriod(period)}
-              className="h-5 w-5 accent-[var(--hl-accent)]"
+              className="sr-only"
             />
+            {period === 'all' ? <InfinityGlyph /> : <CalendarGlyph />}
             {t(PERIOD_KEY[period])}
           </label>
         ))}
@@ -172,4 +177,33 @@ export function useDashboardPeriod(): DashboardPeriod {
   );
 
   return { state, param, setPeriod, setRange };
+}
+
+/** Календарь — иконка пилюль периода (TASK-123 v3). */
+function CalendarGlyph(): JSX.Element {
+  return (
+    <svg aria-hidden="true" width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M2 6.5h12M5 1.5v3M11 1.5v3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Бесконечность — иконка периода «Всё» (TASK-123 v3). */
+function InfinityGlyph(): JSX.Element {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M8 8c-1.2 1.6-2.2 2.5-3.4 2.5a2.5 2.5 0 1 1 0-5C5.8 5.5 6.8 6.4 8 8Zm0 0c1.2-1.6 2.2-2.5 3.4-2.5a2.5 2.5 0 1 1 0 5C10.2 10.5 9.2 9.6 8 8Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }

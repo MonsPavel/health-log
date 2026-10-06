@@ -375,20 +375,20 @@ export function PulseChart({
       </figure>
 
       {/* §5: подпись коридора-справки — ВНЕ svg и ВНЕ aria-hidden (ревью 057). */}
-      <p data-testid="pulse-ref-note" className="mt-1 text-xs text-neutral-500">
+      <p data-testid="pulse-ref-note" className="mt-1 text-xs text-muted">
         {t('dashboard.pulse.refNote')}
       </p>
 
       {/* §20.5: честность агрегации — подпись daily-режима (прецедент TrendChart). */}
       {isDaily && (
-        <p data-testid="pulse-daily-caption" className="mt-1 text-sm text-neutral-500">
+        <p data-testid="pulse-daily-caption" className="mt-1 text-sm text-muted">
           {t('dashboard.tooltip.aggregated')}
         </p>
       )}
 
       {/* §13: расхождение «записей больше, чем показанных точек» — честная подпись. */}
       {hiddenCount > 0 && (
-        <p data-testid="pulse-hidden-count" className="mt-1 text-sm text-neutral-500">
+        <p data-testid="pulse-hidden-count" className="mt-1 text-sm text-muted">
           {t(hiddenKeyFor(hiddenCount), { count: hiddenCount })}
         </p>
       )}

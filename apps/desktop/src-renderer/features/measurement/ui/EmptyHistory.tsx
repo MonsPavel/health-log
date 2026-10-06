@@ -21,11 +21,48 @@ export function EmptyHistory({ onAdd }: EmptyHistoryProps): JSX.Element {
       data-testid="empty-history"
       className="flex flex-col items-center gap-2 px-6 py-16 text-center"
     >
-      <span aria-hidden="true" className="text-5xl" role="presentation">
-        🩺
+      <span aria-hidden="true" role="presentation" className="relative mb-2 text-muted">
+        <svg width="88" height="88" viewBox="0 0 88 88" fill="none">
+          <rect
+            x="22"
+            y="14"
+            width="44"
+            height="60"
+            rx="8"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          />
+          <path
+            d="M30 44h7l3-7 4 14 3-7h11"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M30 60h18M30 26h28"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          <circle
+            cx="63"
+            cy="63"
+            r="11"
+            fill="var(--hl-bg)"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          />
+          <path
+            d="M63 57.5v11M57.5 63h11"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+        </svg>
       </span>
-      <p className="text-base font-medium">{t('measurement.history.empty.title')}</p>
-      <p className="max-w-sm text-sm text-neutral-500">{t('measurement.history.empty.hint')}</p>
+      <p className="text-lg font-bold">{t('measurement.history.empty.title')}</p>
+      <p className="max-w-sm text-sm text-muted">{t('measurement.history.empty.hint')}</p>
       <button
         type="button"
         onClick={onAdd}

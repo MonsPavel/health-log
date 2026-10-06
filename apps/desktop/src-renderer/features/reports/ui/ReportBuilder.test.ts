@@ -111,13 +111,13 @@ describe('ReportBuilder — настройки и состав (§5/§13)', () =
     invoke.mockResolvedValue(statsEnvelope(5));
     renderBuilder();
 
-    const checkbox = screen.getByRole('checkbox', { name: 'Включить ИИ-разбор' });
-    expect(checkbox.hasAttribute('disabled')).toBe(true);
-    expect(checkbox.getAttribute('disabled')).not.toBeNull();
+    const toggle = screen.getByRole('switch', { name: 'Включить ИИ-разбор' });
+    expect(toggle.hasAttribute('disabled')).toBe(true);
+    expect(toggle.getAttribute('disabled')).not.toBeNull();
     // §12: подсказка «появится вместе с ИИ-разбором» — видимый текст.
     expect(screen.getByTestId('report-ai-hint').textContent).toContain('ИИ-разбор');
     // §10: tooltip про маркировку в отчёте — title-атрибут (не единственный носитель).
-    expect(checkbox.getAttribute('title')).toContain('не является медицинской консультацией');
+    expect(toggle.getAttribute('title')).toContain('не является медицинской консультацией');
   });
 });
 

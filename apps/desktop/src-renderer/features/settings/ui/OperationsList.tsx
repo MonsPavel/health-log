@@ -128,7 +128,7 @@ export function OperationsList({
           return (
             <div
               key={op.op}
-              className="flex items-start justify-between gap-4 rounded-md border border-border p-3"
+              className="flex items-start justify-between gap-4 rounded-[10px] bg-surface p-3"
             >
               <div className="min-w-0">
                 <p id={labelId} className="text-base font-medium text-text">
@@ -179,7 +179,7 @@ export function OperationsList({
               data-testid="privacy-confirm-dialog"
               className="fixed left-1/2 top-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg p-6 shadow-lg"
             >
-              <AlertDialog.Title className="text-lg font-semibold text-text">
+              <AlertDialog.Title className="hl-large-title text-text">
                 {t('privacy.confirmTitle')}
               </AlertDialog.Title>
               <AlertDialog.Description asChild>
@@ -192,7 +192,7 @@ export function OperationsList({
                   <button
                     type="button"
                     data-testid="privacy-confirm-cancel"
-                    className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                    className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
                   >
                     {t('privacy.confirmCancel')}
                   </button>
@@ -201,7 +201,7 @@ export function OperationsList({
                   type="button"
                   data-testid="privacy-confirm-accept"
                   onClick={acceptDisable}
-                  className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg"
+                  className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg"
                 >
                   {t('privacy.confirmConfirm')}
                 </button>

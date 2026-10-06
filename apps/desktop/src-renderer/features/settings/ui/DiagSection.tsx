@@ -57,7 +57,7 @@ export function DiagSection(): JSX.Element {
       <p
         data-testid="diag-guarantee"
         role="note"
-        className="rounded-md border border-border p-3 text-sm text-text"
+        className="rounded-[10px] bg-surface p-3 text-sm text-text"
       >
         {t('diag.guarantee')}
       </p>
@@ -72,7 +72,7 @@ export function DiagSection(): JSX.Element {
           disabled={collect.isPending}
           aria-busy={collect.isPending}
           onClick={() => collect.mutate()}
-          className="min-h-11 rounded-md border border-border bg-bg px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-11 rounded-xl bg-fill px-4 text-base font-semibold text-text disabled:cursor-not-allowed disabled:opacity-90"
         >
           {collect.isPending ? t('diag.collecting') : t('diag.collect')}
         </button>
@@ -84,7 +84,7 @@ export function DiagSection(): JSX.Element {
           disabled={content === undefined || save.isPending}
           aria-busy={save.isPending}
           onClick={() => save.mutate()}
-          className="min-h-11 rounded-md bg-accent px-4 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+          className="min-h-11 rounded-xl bg-accent px-4 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
         >
           {save.isPending ? t('diag.saving') : t('diag.save')}
         </button>
@@ -149,7 +149,7 @@ export function DiagSection(): JSX.Element {
           </table>
 
           {/* Счётчик записей (§5: агрегаты app_event за 90 дней — метаданные). */}
-          <div data-testid="diag-totals" className="rounded-md border border-border p-3">
+          <div data-testid="diag-totals" className="rounded-[10px] bg-surface p-3">
             <p className="text-sm font-medium">{t('diag.totalsTitle')}</p>
             {sortedKinds(content.totals.eventsByKind).length === 0 ? (
               <p className="mt-1 text-sm text-accent">{t('diag.totalsEmpty')}</p>

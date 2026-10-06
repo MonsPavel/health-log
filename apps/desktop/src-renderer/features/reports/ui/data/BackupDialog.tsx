@@ -124,10 +124,7 @@ export function BackupDialog({ open, onClose }: BackupDialogProps): JSX.Element 
             data-testid="data-backup-dialog"
             className="fixed left-1/2 top-1/2 w-[min(26rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border border-border bg-bg p-6 shadow-lg"
           >
-            <AlertDialog.Title
-              data-testid="data-backup-title"
-              className="text-lg font-semibold text-text"
-            >
+            <AlertDialog.Title data-testid="data-backup-title" className="hl-large-title text-text">
               {t('data.backup.dialogTitle')}
             </AlertDialog.Title>
 
@@ -147,7 +144,7 @@ export function BackupDialog({ open, onClose }: BackupDialogProps): JSX.Element 
                   autoComplete="new-password"
                   value={passphrase}
                   onChange={(event) => setPassphrase(event.target.value)}
-                  className="min-h-11 rounded-md border border-border bg-bg px-3 text-base text-text"
+                  className="min-h-11 rounded-[10px] bg-fill px-3 text-base text-text"
                 />
                 {policyWarningVisible ? (
                   <p
@@ -173,14 +170,14 @@ export function BackupDialog({ open, onClose }: BackupDialogProps): JSX.Element 
                   autoComplete="new-password"
                   value={passphraseRepeat}
                   onChange={(event) => setPassphraseRepeat(event.target.value)}
-                  className="min-h-11 rounded-md border border-border bg-bg px-3 text-base text-text"
+                  className="min-h-11 rounded-[10px] bg-fill px-3 text-base text-text"
                 />
               </div>
 
               {/* Обязательное предупреждение (§14: тест текста; контраст AA — text-text). */}
               <p
                 data-testid="data-backup-forgot-warning"
-                className="rounded-md border border-border bg-accent/10 p-3 text-sm font-medium text-text"
+                className="rounded-[10px] bg-accent/10 p-3 text-sm font-medium text-text"
                 role="note"
               >
                 {t('data.backup.forgotWarning')}
@@ -202,7 +199,7 @@ export function BackupDialog({ open, onClose }: BackupDialogProps): JSX.Element 
                 <button
                   type="button"
                   data-testid="data-backup-cancel"
-                  className="min-h-11 rounded-md border border-border bg-bg px-6 text-base font-semibold text-text"
+                  className="min-h-11 rounded-xl bg-fill px-6 text-base font-semibold text-text"
                 >
                   {t('data.backup.cancel')}
                 </button>
@@ -213,7 +210,7 @@ export function BackupDialog({ open, onClose }: BackupDialogProps): JSX.Element 
                 disabled={createMutation.isPending}
                 aria-busy={createMutation.isPending}
                 onClick={handleSubmit}
-                className="min-h-11 rounded-md bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-80"
+                className="min-h-11 rounded-xl bg-accent px-6 text-base font-semibold text-bg disabled:cursor-not-allowed disabled:opacity-90"
               >
                 {createMutation.isPending ? <Spinner /> : null}
                 {t('data.backup.submit')}

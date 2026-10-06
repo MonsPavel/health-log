@@ -1,30 +1,59 @@
 /**
- * TASK-013 §5/§12/§16: токены темы — CSS-переменные, не JS-константы: тема
- * применяется без ре-рендера дерева (арх. 06 §7). База значений — slate-палитра
- * Tailwind; контраст пар текст/фон и акцент/фон ≥ 4.5:1 (WCAG AA) зафиксирован
- * контраст-тестом tokens.test.ts.
+ * TASK-013 §5/§12/§16 + TASK-123 v2 (iOS-редизайн): токены темы — CSS-переменные,
+ * не JS-константы: тема применяется без ре-рендера дерева (арх. 06 §7).
  *
- * data-theme ставится на <html> (ThemeProvider, §5); :root дублирует light —
- * корректный вид до первого применения атрибута. Правило на будущее (§16):
- * анимации — только через motion-safe: (в P0 анимаций нет).
+ * TASK-123 v2 «iOS-дневник» (решение владельца 05.10 — iOS-подобный дизайн по
+ * РЕФЕРЕНСУ: сайдбар темнее контента, muted-пилюля активного раздела,
+ * переключатель темы в сайдбаре; палитра — тёмно-синий графит): системная палитра Apple — systemGroupedBackground, inset grouped
+ * поверхности, systemBlue как tint. Светлая: сгруппированный фон #F2F2F7 +
+ * белые группы; тёмная: чёрный фон + #1C1C1E группы (как в iOS Settings).
+ * Тексты статусов — доступные варианты Apple (accessible variants): #248A3D /
+ * #D70015 / #C93400 — они ≥4.5:1, тогда как «сырые» системные цвета Apple
+ * (#34C759, #FF3B30) как текст WCAG AA не проходят.
+ *
+ * Новый токен-набор: surface (inset группа), muted (secondaryLabel), fill
+ * (заливка полей/сегментов — rgba(120,120,128,…), как systemFill),
+ * input-border (редкий outline ≥3:1 — KI-4; поля по умолчанию — fill без
+ * рамки), separator (hairline внутри групп), status-warn (доступный
+ * оранжевый).
+ *
+ * data-theme ставится на <html> (ThemeProvider, §5); :root дублирует light.
+ * Цветовые варианты `dark:` в компонентах ЗАПРЕЩЕНЫ (KI-3) — только токены.
+ * Анимации — только motion-safe: (§16).
  *
  * Rem-масштаб текста (классы hl-text-*) — с TASK-048 в theme/scale.css.
  */
 :root,
 [data-theme='light'] {
-  --hl-bg: #f8fafc; /* slate-50 — фон */
-  --hl-text: #0f172a; /* slate-900 — основной текст */
-  --hl-accent: #475569; /* slate-600 — акцент/интерактив */
-  --hl-border: #cbd5e1; /* slate-300 — границы */
-  --hl-status-ok: #15803d; /* green-700 — статус «успех» (TASK-108: 4.8:1 на фоне) */
-  --hl-status-fail: #b91c1c; /* red-700 — статус «сбой» (TASK-108: 6.2:1 на фоне) */
+  --hl-bg: #f2f2f7; /* контент: systemGroupedBackground (light) */
+  --hl-side: #e9e9ef; /* сайдбар — чуть темнее контента (референс) */
+  --hl-nav-active: #dce0ec; /* пилюля активного раздела (светлая) */
+  --hl-surface: #ffffff; /* secondarySystemGroupedBackground */
+  --hl-text: #000000; /* label */
+  --hl-muted: #6c6c70; /* secondaryLabel-видимый (AA ≥4.5:1; сырой iOS ~3.9) */
+  --hl-accent: #0066cc; /* systemBlue accessible-вариант (AA на группах) */
+  --hl-border: #e3e3e8; /* opaque separator (между группами) */
+  --hl-separator: #c6c6c8; /* separator внутри групп */
+  --hl-fill: rgba(120, 120, 128, 0.12); /* systemFill: поля/сегменты */
+  --hl-input-border: #8e8e93; /* редкий outline ≥3:1 на surface (KI-4) */
+  --hl-status-ok: #166534; /* systemGreen accessible (text, AA на grouped bg) */
+  --hl-status-fail: #d70015; /* systemRed accessible (text) */
+  --hl-status-warn: #c93400; /* systemOrange accessible (text) */
 }
 
 [data-theme='dark'] {
-  --hl-bg: #0f172a; /* slate-900 — фон */
-  --hl-text: #f1f5f9; /* slate-100 — основной текст */
-  --hl-accent: #cbd5e1; /* slate-300 — акцент/интерактив */
-  --hl-border: #334155; /* slate-700 — границы */
-  --hl-status-ok: #4ade80; /* green-400 — статус «успех» (TASK-108: 9.6:1 на фоне) */
-  --hl-status-fail: #f87171; /* red-400 — статус «сбой» (TASK-108: 6.1:1 на фоне) */
+  --hl-bg: #0f141b; /* контент — тёмно-синий графит (референс) */
+  --hl-side: #090c12; /* сайдбар — темнее контента (референс) */
+  --hl-nav-active: #1f2735; /* пилюля активного раздела (тёмная) */
+  --hl-surface: #1a212b; /* вторичная группа (dark, референс) */
+  --hl-text: #ffffff; /* label */
+  --hl-muted: #98989f; /* secondaryLabel-видимый (AA ≥4.5:1) */
+  --hl-accent: #2f96ff; /* systemBlue (dark, осветлён до AA на surface #1a212b) */
+  --hl-border: #2c2c2e; /* opaque separator (между группами) */
+  --hl-separator: #38383a; /* separator внутри групп */
+  --hl-fill: rgba(120, 120, 128, 0.24); /* systemFill (dark) */
+  --hl-input-border: #8e8e93; /* ≥3:1 на surface */
+  --hl-status-ok: #30d158; /* systemGreen (dark) */
+  --hl-status-fail: #ff453a; /* systemRed (dark) */
+  --hl-status-warn: #ff9f0a; /* systemOrange (dark) */
 }
