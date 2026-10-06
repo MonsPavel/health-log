@@ -30,7 +30,7 @@
   --hl-nav-active: #dce0ec; /* пилюля активного раздела (светлая) */
   --hl-surface: #ffffff; /* secondarySystemGroupedBackground */
   --hl-text: #000000; /* label */
-  --hl-muted: #6c6c70; /* secondaryLabel-видимый (AA ≥4.5:1; сырой iOS ~3.9) */
+  --hl-muted: #62626a; /* secondaryLabel (AA на bg И на тёмном сайдбаре — axe-урок rc.2) */
   --hl-accent: #0066cc; /* systemBlue accessible-вариант (AA на группах) */
   --hl-border: #e3e3e8; /* opaque separator (между группами) */
   --hl-separator: #c6c6c8; /* separator внутри групп */

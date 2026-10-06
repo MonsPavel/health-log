@@ -189,6 +189,16 @@ export const PAIRS = [
     sources: 'layout.tsx NavLink active bg-nav-active text-text',
   },
   {
+    id: 'muted-on-side',
+    role: 'вторичный текст сайдбара на bg-side (TASK-123 v3 — axe-находка пайплайна rc.2)',
+    fg: 'muted',
+    bg: 'side',
+    sizeRem: 1,
+    weight: 400,
+    gate: true,
+    sources: 'layout.tsx NavLink неактивные + ThemeSidebarToggle (text-muted на bg-side)',
+  },
+  {
     id: 'muted-on-bg',
     role: 'вторичный текст на фоне (TASK-123: токен muted вместо neutral-хвостов)',
     fg: 'muted',
